@@ -23,69 +23,91 @@ classdef MyTrace < handle
         function this=MyTrace(name, x, y, varargin)
             createParser(this);
             parse(this.Parser,name,x,y,varargin{:});
-            parseInputs(this);
+            parseInputs(this,true);
         end
         
         function createParser(this)
             p=inputParser;
-            addRequired(p,'name',@ischar);
-            addRequired(p,'x',@validateVector);
-            addRequired(p,'y',@validateVector);
-            addParameter(p,'Color','b',@validateColor);
-            addParameter(p,'Marker','.',@validateMarker);
-            addParameter(p,'LineStyle','-',@validateLine);
-            addParameter(p,'MarkerSize',6,@validateSize);
-            addParameter(p,'unit_x','x',@ischar);
-            addParameter(p,'unit_y','y',@ischar);
+            addRequired(p,'name');
+            addRequired(p,'x');
+            addRequired(p,'y');
+            addParameter(p,'Color','b');
+            addParameter(p,'Marker','none');
+            addParameter(p,'LineStyle','-');
+            addParameter(p,'MarkerSize',6);
+            addParameter(p,'unit_x','x');
+            addParameter(p,'unit_y','y');
+            addParameter(p,'name_x','x');
+            addParameter(p,'name_y','y');
             this.Parser=p;
         end
         
-        function parseInputs(this)
+        function parseInputs(this, default_flag)
             for i=1:length(this.Parser.Parameters)
-                this.(this.Parser.Parameters{i})=...
-                    this.Parser.Results.(this.Parser.Parameters{i});
+                %Sets the value if there was an input or if the default
+                %flag is on. The default flag is used to reset the class to
+                %its default values.
+                if default_flag || ~sum(ismember(this.Parser.Parameters{i},...
+                        this.Parser.UsingDefaults))
+                    this.(this.Parser.Parameters{i})=...
+                        this.Parser.Results.(this.Parser.Parameters{i});
+                end
             end
         end
         
         function plotTrace(this,plot_axes,varargin)
-            if ~exist('plot_axes','var') || ...
-                    ~isa(plot_axes,'matlab.graphics.axis.Axes')
-                error('Please input axes to plot in.')
-            end
+            assert(exist('plot_axes','var') && ...
+                isa(plot_axes,'matlab.graphics.axis.Axes'),...
+                'Please input axes to plot in.') 
+            assert(isequal(size(this.x), size(this.y)) || ...
+                (isvector(this.x) && isvector(this.y) && ...
+                numel(this.x) == numel(this.y)),...
+                'The length of x and y must be identical to make a plot')
             createParser(this);
             parse(this.Parser,this.name,this.x,this.y,varargin{:})
-            parseInputs(this);
+            parseInputs(this,false);
             plot(plot_axes,this.x,this.y,'Color',this.Color,'LineStyle',...
                 this.LineStyle,'Marker',this.Marker,...
                 'MarkerSize',this.MarkerSize)
             xlabel(plot_axes,this.label_x,'Interpreter','LaTeX');
             ylabel(plot_axes,this.label_y,'Interpreter','LaTeX');
             set(plot_axes,'TickLabelInterpreter','LaTeX');
-            
         end
-            
+        
         function set.Color(this, Color)
-            if validateColor(Color); this.Color=Color; end
+            assert(iscolor(Color),...
+                '%s is not a valid MATLAB default color or RGB triplet',Color);
+            this.Color=Color;
         end
         
         function set.Marker(this, Marker)
-            if validateMarker(Marker); this.Marker=Marker; end
+            assert(ismarker(Marker),...
+                '%s is not a valid MATLAB MarkerStyle',Marker);
+            this.Marker=Marker;
         end
         
         function set.x(this, x)
-            if validateVector(x); this.x=x; end
+            assert(isvector(x) && isnumeric(x),...
+                'Data must be a vector of doubles');
+            this.x=x;
         end
         
         function set.y(this, y)
-            if validateVector(y); this.y=y; end
+            assert(isvector(y) && isnumeric(y),...
+                'Data must be a vector of doubles');
+            this.y=y;
         end
         
         function set.LineStyle(this, LineStyle)
-            if validateLine(LineStyle); this.LineStyle=LineStyle; end
+            assert(isline(LineStyle),...
+                '%s is not a valid MATLAB LineStyle',LineStyle);
+            this.LineStyle=LineStyle;
         end
         
         function set.MarkerSize(this, MarkerSize)
-            if validateSize(MarkerSize); this.MarkerSize=MarkerSize; end
+            assert(isnumeric(MarkerSize) && MarkerSize>0,...
+                'MarkerSize must be a numeric value greater than zero');
+            this.MarkerSize=MarkerSize;
         end
         
         function set.name(this, name)
@@ -95,13 +117,13 @@ classdef MyTrace < handle
         end
         
         function set.unit_x(this, unit_x)
-            assert(ischar(unit_x),'Name must be a string, not a %s',...
+            assert(ischar(unit_x),'Unit must be a string, not a %s',...
                 class(unit_x));
             this.unit_x=unit_x;
         end
         
         function set.unit_y(this, unit_y)
-            assert(ischar(unit_y),'Name must be a string, not a %s',...
+            assert(ischar(unit_y),'Unit must be a string, not a %s',...
                 class(unit_y));
             this.unit_y=unit_y;
         end
@@ -146,10 +168,9 @@ assert(ismarker(marker),...
 bool=true;
 end
 
-function bool=validateLine(linestyle)
+function validateLine(linestyle)
 assert(isline(linestyle),...
     '%s is not a valid MATLAB LineStyle',linestyle);
-bool=true;
 end
 function bool=validateSize(markersize)
 assert(isnumeric(markersize) && markersize>0,...

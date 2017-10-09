@@ -7,6 +7,11 @@ classdef MyRsa < MyInstrument
         span;
         average_no;
         point_no;
+        Trace;
+    end
+    
+    properties (Dependent=true)
+        freq_vec;
     end
     
     methods
@@ -59,9 +64,8 @@ classdef MyRsa < MyInstrument
         end
         
         function readStatus(this)
-            openDevice(this);
-            readProperty(this,'rbw','cent_freq','span','start_freq','stop_freq');
-            closeDevice(this);
+            readProperty(this,'rbw','cent_freq','span','start_freq',...
+                'stop_freq');
         end
         
         function initGui(this)
@@ -83,9 +87,13 @@ classdef MyRsa < MyInstrument
             set(this.Gui.rbw, 'Callback',...
                 @(hObject, eventdata) rbwCallback(this, hObject,...
                 eventdata));
+            set(this.Gui.fetch_single, 'Callback',...
+                @(hObject, eventdata) fetch_singleCallback(this, hObject,...
+                eventdata));
         end
         
         function initDevice(this)
+            
             for i=1:this.command_no
                 write(this, sprintf(this.CommandList.(this.command_names{i}).command,...
                     this.CommandList.(this.command_names{i}).default));
@@ -168,6 +176,18 @@ classdef MyRsa < MyInstrument
                 10401, {'numeric'});
         end
         
+        function fetch_singleCallback(this, hObject, eventdata)
+            openDevice(this);
+            readStatus(this);
+            fwrite(this.Device, 'fetch:dpsa:res:trace3?');
+            data = binblockread(this.Device,'float');
+            closeDevice(this);
+            this.Trace=MyTrace('RsaData',this.freq_vec,data,'Color','r',...
+                'Marker','x','LineStyle',':');
+            figure
+            this.Trace.plotTrace(gca);
+            set(this.Gui.fetch_single,'Value',0);
+        end
         
     end
     
@@ -206,21 +226,32 @@ classdef MyRsa < MyInstrument
             set(this.Gui.stop_freq,'String',this.stop_freq/1e6)
         end
         
+        %Set function for average number, also changes GUI
         function set.average_no(this, average_no)
             this.average_no=average_no;
             set(this.Gui.average_no,'String',this.average_no);
         end
         
+        %Set function for point number, checks it is valid and changes GUI
         function set.point_no(this, point_no)
             point_list=get(this.Gui.point_no,'String');
-            ind=find(strcmp(num2str(point_no),point_list));
-            if ~isempty(ind)
+            ind=ismember(point_list,num2str(point_no));
+            if sum(ind)
                 this.point_no=point_no;
-                set(this.Gui.point_no,'Value',ind);
+                set(this.Gui.point_no,'Value',find(ind));
             else
                error('Invalid number of points chosen for RSA')
             end
         end
     end
+    methods
+        %Generates a vector of frequencies between the start and stop
+        %frequency of length equal to the point number
+        function freq_vec=get.freq_vec(this)
+           freq_vec=linspace(this.start_freq,this.stop_freq,...
+               this.point_no) ;
+        end
+    end
+        
 end
 
