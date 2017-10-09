@@ -22,7 +22,7 @@ function varargout = GuiRsa(varargin)
 
 % Edit the above text to modify the response to help GuiRsa
 
-% Last Modified by GUIDE v2.5 05-Oct-2017 19:02:20
+% Last Modified by GUIDE v2.5 09-Oct-2017 16:20:12
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -334,38 +334,14 @@ function fetch_single_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of fetch_single
 
-% Execute device object function(s).
-number_points=get(handles.point_no,'Value');
-address=get(handles.vi,'rsrcname');
-RSA_Data = ReadRSA(number_points,address);
 
-%capturing the y data
-x_data=RSA_Data.x;
-%capturing the x data
-y_data=RSA_Data.y;
-
-% Calculating the power spectrum (P/Hz)
-Power_Spectrum = (10.^(y_data/10))/RSA_Data.res*50*0.001;
-
-% updating global variables and updating the plot
-    h_main_plot=getappdata(0,'h_main_plot');
-    setappdata(h_main_plot,'x_data',x_data);
-    setappdata(h_main_plot,'y_data',Power_Spectrum);
-    setappdata(h_main_plot,'x_label',RSA_Data.xunit);
-    setappdata(h_main_plot,'y_label','V^2/Hz');
-    update_axes=getappdata(h_main_plot,'update_axes');
-
-set(hObject,'Value',0);
-feval(update_axes);
-
-
-% --- Executes on button press in fetch_AVT.
-function fetch_AVT_Callback(hObject, eventdata, handles)
-% hObject    handle to fetch_AVT (see GCBO)
+% --- Executes on button press in fetch_avt.
+function fetch_avt_Callback(hObject, eventdata, handles)
+% hObject    handle to fetch_avt (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of fetch_AVT
+% Hint: get(hObject,'Value') returns toggle state of fetch_avt
 number_points=get(handles.point_no,'Value');
 address=get(handles.vi,'rsrcname');
 RSA_Data = ReadRSA_AVT(number_points,address);

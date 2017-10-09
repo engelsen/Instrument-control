@@ -88,12 +88,17 @@ classdef MyRsa < MyInstrument
                 @(hObject, eventdata) rbwCallback(this, hObject,...
                 eventdata));
             set(this.Gui.fetch_single, 'Callback',...
-                @(hObject, eventdata) fetch_singleCallback(this, hObject,...
+                @(hObject, eventdata) fetchCallback(this, hObject,...
+                eventdata));
+            set(this.Gui.average_no, 'Callback',...
+                @(hObject, eventdata) average_noCallback(this, hObject,...
+                eventdata));
+            set(this.Gui.enable_avg, 'Callback',...
+                @(hObject, eventdata) enable_avgCallback(this, hObject,...
                 eventdata));
         end
         
-        function initDevice(this)
-            
+        function initDevice(this)            
             for i=1:this.command_no
                 write(this, sprintf(this.CommandList.(this.command_names{i}).command,...
                     this.CommandList.(this.command_names{i}).default));
@@ -154,9 +159,13 @@ classdef MyRsa < MyInstrument
         
         function average_noCallback(this, hObject, eventdata)
             this.average_no=str2double(get(hObject,'String'));
-            openDevice(this);
-            writeProperty(this,'average_no',this.average_no);
-            closeDevice(this);
+            %Writes the average_no to the device only if averaging is
+            %enabled
+            if get(this.Gui.enable_avg,'Value')
+                openDevice(this);
+                writeProperty(this,'average_no',this.average_no);
+                closeDevice(this);
+            end
         end
         
         function createCommandList(this)
@@ -176,17 +185,49 @@ classdef MyRsa < MyInstrument
                 10401, {'numeric'});
         end
         
-        function fetch_singleCallback(this, hObject, eventdata)
+        function fetchCallback(this, hObject, eventdata)
+            %Fetches the data using the settings given. This function can
+            %in principle be used in the future to add further fetch
+            %functionality.
             openDevice(this);
             readStatus(this);
-            fwrite(this.Device, 'fetch:dpsa:res:trace3?');
+            switch get(hObject,'Tag')
+                case 'fetch_single'
+                    fwrite(this.Device, 'fetch:dpsa:res:trace3?');
+            end
             data = binblockread(this.Device,'float');
+                        
+            switch get(hObject,'Tag')
+                case 'fetch_single'
+                    x=this.freq_vec/1e6;
+                    unit_x='MHz';
+                    name_x='Frequency';
+            end
             closeDevice(this);
-            this.Trace=MyTrace('RsaData',this.freq_vec,data,'Color','r',...
-                'Marker','x','LineStyle',':');
+            %Calculates the power spectrum from the data, which is in dBm.
+            %Output is in V^2/Hz
+            power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
+            
+            %Plotting for test purposes - to be removed in the future
+            this.Trace=MyTrace('RsaData',x,power_spectrum,...
+                'Color','r','unit_y','$\mathrm{V}^2/\mathrm{Hz}$',...
+                'name_y','Power','Marker','x','LineStyle',':',...
+                'unit_x',unit_x,'name_x',name_x);
             figure
             this.Trace.plotTrace(gca);
             set(this.Gui.fetch_single,'Value',0);
+        end
+        
+        function enable_avgCallback(this, hObject, eventdata)
+            openDevice(this)
+            %If averaging is turned off, set the average number on the RSA
+            %to 1, otherwise set it to whatever it is currently displaying.
+            if ~get(hObject,'Value');
+                this.average_no=1;
+            end
+            set(this.Gui.average_no,'String',num2str(this.average_no));
+            writeProperty(this,'average_no',this.average_no);
+            closeDevice(this);
         end
         
     end
@@ -201,12 +242,15 @@ classdef MyRsa < MyInstrument
         
         %Set function for rbw, changes gui to show rbw in kHz
         function set.rbw(this, rbw)
+            assert(isnumeric(rbw) && rbw>0,'RBW must be a positive double');
             this.rbw=rbw;
             set(this.Gui.rbw,'String',this.rbw/1e3);
         end
         
         %Set function for span, changes gui to show span in MHz
         function set.span(this, span)
+            assert(isnumeric(span) && span>0,...
+                'Span must be a positive number');
             this.span=span;
             set(this.Gui.span,'String',this.span/1e6);
         end
@@ -215,6 +259,7 @@ classdef MyRsa < MyInstrument
         %Set function for start frequency, changes gui to show start
         %frequency in MHz
         function set.start_freq(this, start_freq)
+            assert(isnumeric(start_freq),'Start frequency must be a number');
             this.start_freq=start_freq;
             set(this.Gui.start_freq,'String',this.start_freq/1e6)
         end
@@ -222,12 +267,16 @@ classdef MyRsa < MyInstrument
         %Set function for stop frequency, changes gui to show stop
         %frequency in MHz
         function set.stop_freq(this, stop_freq)
+            assert(isnumeric(stop_freq),...
+                'Stop frequency must be a number');
             this.stop_freq=stop_freq;
             set(this.Gui.stop_freq,'String',this.stop_freq/1e6)
         end
         
         %Set function for average number, also changes GUI
         function set.average_no(this, average_no)
+            assert(mod(average_no,1)==0 && average_no>0,...
+                'Number of averages must be a positive integer')
             this.average_no=average_no;
             set(this.Gui.average_no,'String',this.average_no);
         end
