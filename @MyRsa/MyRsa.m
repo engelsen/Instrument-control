@@ -7,6 +7,7 @@ classdef MyRsa < MyInstrument
         span;
         average_no;
         point_no;
+        enable_avg;
         Trace;
     end
     
@@ -22,7 +23,7 @@ classdef MyRsa < MyInstrument
             createCommandParser(this);
             switch interface
                 case 'TCPIP'
-                    createTCPIP(this);
+                    connectTCPIP(this);
             end
             %Opens communications
             openDevice(this);
@@ -35,7 +36,7 @@ classdef MyRsa < MyInstrument
     end
     
     methods 
-        function createTCPIP(this)
+        function connectTCPIP(this)
             buffer = 1000 * 1024;
             visa_brand = 'ni';
             visa_address_rsa = sprintf('TCPIP0::%s::inst0::INSTR',...
@@ -65,7 +66,7 @@ classdef MyRsa < MyInstrument
         
         function readStatus(this)
             readProperty(this,'rbw','cent_freq','span','start_freq',...
-                'stop_freq');
+                'stop_freq','enable_avg');
         end
         
         function initGui(this)
@@ -80,6 +81,9 @@ classdef MyRsa < MyInstrument
                 eventdata));
             set(this.Gui.stop_freq, 'Callback',...
                 @(hObject, eventdata) stop_freqCallback(this, hObject,...
+                eventdata));
+            set(this.Gui.cent_freq, 'Callback',...
+                @(hObject, eventdata) cent_freqCallback(this, hObject,...
                 eventdata));
             set(this.Gui.span, 'Callback',...
                 @(hObject, eventdata) spanCallback(this, hObject,...
@@ -100,10 +104,13 @@ classdef MyRsa < MyInstrument
         
         function initDevice(this)            
             for i=1:this.command_no
-                write(this, sprintf(this.CommandList.(this.command_names{i}).command,...
-                    this.CommandList.(this.command_names{i}).default));
-                this.(this.command_names{i})=...
-                    this.CommandList.(this.command_names{i}).default;
+                if this.CommandList.(this.command_names{i}).write_flag
+                    write(this, ...
+                        sprintf(this.CommandList.(this.command_names{i}).command,...
+                        this.CommandList.(this.command_names{i}).default));
+                    this.(this.command_names{i})=...
+                        this.CommandList.(this.command_names{i}).default;
+                end
             end
         end
         
@@ -142,6 +149,13 @@ classdef MyRsa < MyInstrument
             closeDevice(this);
         end
         
+        function cent_freqCallback(this, hObject, eventdata)
+            this.cent_freq=str2double(get(hObject,'String'))*1e6;
+            openDevice(this);
+            writeProperty(this,'cent_freq',this.cent_freq);
+            readStatus(this);
+            closeDevice(this);
+        end
         function spanCallback(this, hObject, eventdata)
             this.span=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
@@ -161,28 +175,28 @@ classdef MyRsa < MyInstrument
             this.average_no=str2double(get(hObject,'String'));
             %Writes the average_no to the device only if averaging is
             %enabled
-            if get(this.Gui.enable_avg,'Value')
-                openDevice(this);
-                writeProperty(this,'average_no',this.average_no);
-                closeDevice(this);
-            end
+            openDevice(this);
+            writeProperty(this,'average_no',this.average_no);
+            closeDevice(this);
         end
         
         function createCommandList(this)
-            addCommand(this, 'average_no','TRAC3:DPSA:AVER:COUN %d',...
-                1, {'numeric'});
+            addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN %d',...
+                'default',1,'attributes',{{'numeric'}},'write_flag',true);
             addCommand(this, 'rbw','DPSA:BAND:RES %d Hz',...
-                1e3, {'numeric'});
-            addCommand(this, 'span','DPSA:FREQ:SPAN %d Hz',...
-                1e6, {'numeric'});
-            addCommand(this, 'start_freq','DPSA:FREQ:STAR %d Hz',...
-                1e6, {'numeric'});
+                'default',1e3,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this, 'span', 'DPSA:FREQ:SPAN %d Hz',...
+                'default',1e6,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,  'start_freq','DPSA:FREQ:STAR %d Hz',...
+                'default',1e6,'attributes',{{'numeric'}},'write_flag',true);
             addCommand(this, 'stop_freq','DPSA:FREQ:STOP %d Hz',...
-                2e6, {'numeric'});
-            addCommand(this, 'cent_freq','DPSA:FREQ:CENT %d Hz',...
-                1.5e6, {'numeric'}); 
+                'default',2e6,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,  'cent_freq','DPSA:FREQ:CENT %d Hz',...
+                'default',1.5e6,'attributes',{{'numeric'}},'write_flag',true); 
             addCommand(this, 'point_no','DPSA:POIN:COUN P%d',...
-                10401, {'numeric'});
+                'default',10401,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,'enable_avg','TRAC3:DPSA:COUN:ENABLE %d',...
+                'default',0,'attributes',{{'numeric'}},'write_flag',true);
         end
         
         function fetchCallback(this, hObject, eventdata)
@@ -191,6 +205,7 @@ classdef MyRsa < MyInstrument
             %functionality.
             openDevice(this);
             readStatus(this);
+
             switch get(hObject,'Tag')
                 case 'fetch_single'
                     fwrite(this.Device, 'fetch:dpsa:res:trace3?');
@@ -208,25 +223,20 @@ classdef MyRsa < MyInstrument
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
             
+            %Trace object is created containing the data and its units
+            this.Trace=MyTrace('RsaData',x,power_spectrum,'unit_y',...
+                '$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power','unit_x',...
+                unit_x,'name_x',name_x);
             %Plotting for test purposes - to be removed in the future
-            this.Trace=MyTrace('RsaData',x,power_spectrum,...
-                'Color','r','unit_y','$\mathrm{V}^2/\mathrm{Hz}$',...
-                'name_y','Power','Marker','x','LineStyle',':',...
-                'unit_x',unit_x,'name_x',name_x);
             figure
             this.Trace.plotTrace(gca);
             set(this.Gui.fetch_single,'Value',0);
         end
         
         function enable_avgCallback(this, hObject, eventdata)
+            this.enable_avg=get(hObject,'Value');
             openDevice(this)
-            %If averaging is turned off, set the average number on the RSA
-            %to 1, otherwise set it to whatever it is currently displaying.
-            if ~get(hObject,'Value');
-                this.average_no=1;
-            end
-            set(this.Gui.average_no,'String',num2str(this.average_no));
-            writeProperty(this,'average_no',this.average_no);
+            writeProperty(this,'enable_avg',this.enable_avg);
             closeDevice(this);
         end
         
@@ -246,7 +256,15 @@ classdef MyRsa < MyInstrument
             this.rbw=rbw;
             set(this.Gui.rbw,'String',this.rbw/1e3);
         end
-        
+        %Set function for enable_avg, changes gui
+        function set.enable_avg(this, enable_avg)
+            assert(isnumeric(enable_avg),...
+                'Flag for averaging must be a number')
+            assert(enable_avg==1 || enable_avg==0,...
+                'Flag for averaging must be 0 or 1')
+            this.enable_avg=enable_avg;
+            set(this.Gui.enable_avg,'Value',this.enable_avg)
+        end
         %Set function for span, changes gui to show span in MHz
         function set.span(this, span)
             assert(isnumeric(span) && span>0,...
@@ -275,7 +293,8 @@ classdef MyRsa < MyInstrument
         
         %Set function for average number, also changes GUI
         function set.average_no(this, average_no)
-            assert(mod(average_no,1)==0 && average_no>0,...
+            assert(isnumeric(average_no),'Number of averages must be a number')
+            assert(logical(mod(average_no,1))==0 && average_no>0,...
                 'Number of averages must be a positive integer')
             this.average_no=average_no;
             set(this.Gui.average_no,'String',this.average_no);
@@ -285,7 +304,7 @@ classdef MyRsa < MyInstrument
         function set.point_no(this, point_no)
             point_list=get(this.Gui.point_no,'String');
             ind=ismember(point_list,num2str(point_no));
-            if sum(ind)
+            if any(ind)
                 this.point_no=point_no;
                 set(this.Gui.point_no,'Value',find(ind));
             else

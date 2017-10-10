@@ -1,15 +1,17 @@
 classdef MyInstrument < handle
     
-    properties (SetAccess=immutable)
+    properties (SetAccess=protected, GetAccess=public)
         name='';
         interface='';
         address='';
-    end
-    
-    properties (SetAccess=protected, GetAccess=public)
+        %Contains the GUI handles
         Gui
+        %Contains the device object
         Device
+        %Contains a list of the commands available for the instrument as
+        %well as the default values and input requirements
         CommandList
+        %Parses commands using an inputParser object
         CommandParser
     end
     
@@ -20,6 +22,7 @@ classdef MyInstrument < handle
     
     methods
         function this=MyInstrument(name, interface, address, gui_str)
+
             this.name=name;
             this.interface=interface;
             this.address=address;
@@ -83,20 +86,36 @@ classdef MyInstrument < handle
         end
         
         %Adds a command to the CommandList
-        function addCommand(this, name, command, default, attributes)
+        function addCommand(this, tag, command, varargin)
             %Checks that the command is named correctly - i.e. it has the
             %same name as a property of the class, specifically the one it
             %is modifying
-            if ~isprop(this, name)
-                error('All commands must have a name matching the property they modify')
+
+            p=inputParser;
+            addRequired(p,'tag',@ischar);
+            addRequired(p,'command',@ischar);
+            addParameter(p,'default','placeholder');
+            addParameter(p,'attributes','placeholder',@iscell)
+            %If the write flag is on, it means this command can be used to
+            %write a parameter to the device
+            addParameter(p,'write_flag',false,@islogical)
+            
+            parse(p,tag,command,varargin{:});
+            if ~isprop(this, tag) && p.Results.write_flag
+                error('All commands must have a tag matching the property they modify')
             end
             
             %Adds the command to be sent to the device
-            this.CommandList.(name).command=command;
-            %Adds the default value 
-            this.CommandList.(name).default=default;
-            %Adds the necessary attributes for the input to the command
-            this.CommandList.(name).attributes={attributes};
+            this.CommandList.(tag).command=command;
+            this.CommandList.(tag).write_flag=p.Results.write_flag;
+            
+            %Adds a default value and the attributes the inputs must have
+            if p.Results.write_flag
+                %Adds the default value
+                this.CommandList.(tag).default=p.Results.default;
+                %Adds the necessary attributes for the input to the command
+                this.CommandList.(tag).attributes=p.Results.attributes;
+            end
         end
         
         
