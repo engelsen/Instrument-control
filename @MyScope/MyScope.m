@@ -8,6 +8,8 @@ classdef MyScope <MyInstrument
         function this=MyScope(name, interface, address)
             this@MyInstrument(name, interface, address,'GuiScope');
             initGui(this);
+            createCommandList(this);
+            createCommandParser(this);
             switch interface
                 case 'TCPIP'
                     connectTCPIP(this);
@@ -33,11 +35,23 @@ classdef MyScope <MyInstrument
             set(this.Gui.channel_select, 'Callback',...
                 @(hObject, eventdata) channel_selectCallback(this, ...
                 hObject,eventdata));
+            set(this.Gui.fetch_single, 'Callback',...
+                @(hObject, eventdata) fetch_singleCallback(this, ...
+                hObject,eventdata));
         end
         
         function channel_selectCallback(this, hObject, eventdata)
             this.channel=get(hObject,'Value');
         end
+        
+        function fetch_singleCallback(this,hObject,eventdata)
+            readTrace(this);
+        end
+        
+         function createCommandList(this)
+             addCommand(this,'channel','DATa:SOUrce CH%d','default',1,...
+                 'attributes',{{'numeric'}},'write_flag',true);
+         end
     end
     
     methods 
@@ -53,35 +67,32 @@ classdef MyScope <MyInstrument
         
         function readTrace(this)
             openDevice(this);
-            fprintf(this.Device,['DATa:SOUrce CH',num2str(this.channel)]);
-            dataSet.Source = strtrim(query(this.Device,'DATa:SOUrce?'));
+            %Sets the channel to be read
+            writeProperty(this,'channel',this.channel);
+            %Sets the encoding of the data
             fprintf(this.Device,'DATa:ENCdg ASCIi');
-            dataSet.format = strtrim(query(this.Device,'DATa:ENCdg?'));
             
-            % Reading the units
-            temp = strtrim(query(this.Device,'WFMOutpre:YUNit?'));
-            dataSet.unit_y=temp(2);
-            temp = strtrim(query(this.Device,'WFMOutpre:XUNit?'));
-            dataSet.unit_x=temp(2);
-            
+            % Reading the units of x and y
+            unit_y = strtrim(query(this.Device,'WFMOutpre:YUNit?'));
+            unit_x = strtrim(query(this.Device,'WFMOutpre:XUNit?'));
+
             % Reading the vertical spacing between points
             step_y = str2num(query(this.Device,'WFMOutpre:YMUlt?'));
-            
-            % Reading the number of the points REMOVED BY NILS - WHY IS THIS NECESSARY?
-            % JUST TAKE THE LENGTH OF Y AXIS DATA?
-            % dataSet.n_points = str2num(query(this.Device,'WFMInpre:NR_Pt?'));
             
             % Reading the y axis data
             y= str2num(query(this.Device,'CURVe?'))*step_y;
             n_points=length(y);
             % Reading the horizontal spacing between points
-            x_steps=str2num(query(this.Device,'WFMOutpre:XINcr?'));
+            x_step=str2num(query(this.Device,'WFMOutpre:XINcr?'));
+            %Reads where the zero of the x-axis is
             x_zero=str2num(query(this.Device,'WFMOutpre:XZEro?'));
             
             % calculating the x axis
-            x=linspace(x_zero,x_zero+x_steps*n_points,n_points);
+            x=linspace(x_zero,x_zero+x_step*(n_points-1),n_points);
             closeDevice(this)
-            plot(x,y)
+            this.Trace=MyTrace('ScopeTrace',x,y,'unit_x',unit_x(2),...
+                'unit_y',unit_y(2),'name_x','Time','name_y','Voltage')
+            this.Trace.plotTrace(gca);
         end
     end
 end
