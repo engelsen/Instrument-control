@@ -5,33 +5,42 @@ classdef MyInstrument < handle
         interface='';
         address='';
         %Contains the GUI handles
-        Gui
+        Gui;
         %Contains the device object
-        Device
+        Device;
+        %Input parser for class constructor
+        Parser;
         %Contains a list of the commands available for the instrument as
         %well as the default values and input requirements
-        CommandList
+        CommandList;
         %Parses commands using an inputParser object
-        CommandParser
+        CommandParser;
     end
     
     properties (Dependent=true)
-        command_names
-        command_no
+        command_names;
+        command_no;
     end
     
     methods
-        function this=MyInstrument(name, interface, address, gui_str)
-
-            this.name=name;
-            this.interface=interface;
-            this.address=address;
-            %Loads the gui from the input gui string
-            this.Gui=guihandles(eval(gui_str));
-            %Sets figure close function such that class will know when
-            %figure is closed
-            set(this.Gui.figure1, 'CloseRequestFcn',...
-                @(hObject,eventdata) closeFigure(this, hObject, eventdata));
+        function this=MyInstrument(name, interface, address, varargin)
+            createParser(this);
+            parse(this.Parser,name,interface,address,varargin{:});
+            
+            %Loads parsed variables into class properties
+            this.name=this.Parser.Results.name;
+            this.interface=this.Parser.Results.interface;
+            this.address=this.Parser.Results.address;
+            
+            %If a gui input is given, load the gui 
+            if ~ismember('gui',this.Parser.UsingDefaults)
+                %Loads the gui from the input gui string
+                this.Gui=guihandles(eval(this.Parser.Results.gui));
+                %Sets figure close function such that class will know when
+                %figure is closed
+                set(this.Gui.figure1, 'CloseRequestFcn',...
+                    @(hObject,eventdata) closeFigure(this, hObject, eventdata));
+            end
         end
         
         
@@ -57,6 +66,16 @@ classdef MyInstrument < handle
         function bool=isopen(this)
             bool=strcmp(this.Device.Status, 'open');
         end
+        
+        function createParser(this)
+            p=inputParser;
+            addRequired(p,'name',@ischar);
+            addRequired(p,'interface',@ischar);
+            addRequired(p,'address',@ischar);
+            addParameter(p,'gui','placeholder',@ischar);
+            this.Parser=p;
+        end
+            
         
         %Sends a read command to the device
         function result=read(this,command)
