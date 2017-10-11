@@ -127,7 +127,7 @@ classdef MyRsa < MyInstrument
             set(hObject,'Value',0);
         end
         
-        function reinitCallback(this)
+        function reinitDevice(this)
             openDevice(this);
             readStatus(this);
             initDevice(this);
