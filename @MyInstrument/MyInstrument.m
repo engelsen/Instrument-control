@@ -4,6 +4,8 @@ classdef MyInstrument < handle
         name='';
         interface='';
         address='';
+        %Logical for whether gui is enabled
+        enable_gui=false;
         %Contains the GUI handles
         Gui;
         %Contains the device object
@@ -31,15 +33,17 @@ classdef MyInstrument < handle
             this.name=this.Parser.Results.name;
             this.interface=this.Parser.Results.interface;
             this.address=this.Parser.Results.address;
+            this.enable_gui=~ismember('gui',this.Parser.UsingDefaults);
             
             %If a gui input is given, load the gui 
-            if ~ismember('gui',this.Parser.UsingDefaults)
+            if this.enable_gui
                 %Loads the gui from the input gui string
                 this.Gui=guihandles(eval(this.Parser.Results.gui));
                 %Sets figure close function such that class will know when
                 %figure is closed
                 set(this.Gui.figure1, 'CloseRequestFcn',...
-                    @(hObject,eventdata) closeFigure(this, hObject, eventdata));
+                    @(hObject,eventdata) closeFigure(this, hObject, ...
+                    eventdata));
             end
         end
         
@@ -164,7 +168,15 @@ classdef MyInstrument < handle
                 try
                     fopen(this.Device);
                 catch
-                    error('Could not open device')
+                    try
+                        instr_list=instrfind('RemoteHost',this.address);
+                        fclose(instr_list);
+                        fopen(this.Device);
+                        warning('Multiple instrument objects of address %s exist',...
+                            this.address);
+                    catch
+                        error('Could not open device')
+                    end
                 end
             end
         end
@@ -175,6 +187,7 @@ classdef MyInstrument < handle
                 try
                     fclose(this.Device);
                 catch
+                    
                     error('Could not close device')
                 end
             end
@@ -192,6 +205,7 @@ classdef MyInstrument < handle
         function command_no=get.command_no(this)
             command_no=length(this.command_names);
         end
+        
     end
     
     

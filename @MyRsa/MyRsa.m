@@ -9,6 +9,7 @@ classdef MyRsa < MyInstrument
         point_no;
         enable_avg;
         Trace;
+        valid_points;
     end
     
     properties (Dependent=true)
@@ -16,15 +17,21 @@ classdef MyRsa < MyInstrument
     end
     
     methods
-        function this=MyRsa(name,interface, address)
-            this@MyInstrument(name, interface, address,'GuiRsa');
-            initGui(this);
+        function this=MyRsa(name,interface, address,varargin)
+            this@MyInstrument(name, interface, address,varargin{:});
+            if this.enable_gui; initGui(this); end;
+            
+            %Valid point numbers for Tektronix 5103 and 5106. 
+            %Depends on the RSA. Remove this in the future.
+            this.valid_points=[801,2401,4001,10401];
+            
             createCommandList(this);
             createCommandParser(this);
             switch interface
                 case 'TCPIP'
                     connectTCPIP(this);
-            end
+            end        
+
             %Opens communications
             openDevice(this);
             %Finds the current status of the device
@@ -115,13 +122,17 @@ classdef MyRsa < MyInstrument
         end
         
         function reinitCallback(this, hObject, eventdata)
+            reinitDevice(this);
+            %Turns off indicator
+            set(hObject,'Value',0);
+        end
+        
+        function reinitCallback(this)
             openDevice(this);
             readStatus(this);
             initDevice(this);
             write(this,'INIT:CONT ON');
             closeDevice(this);
-            %Turns off indicator
-            set(hObject,'Value',0);
         end
         
         function point_noCallback(this, hObject, eventdata)
@@ -203,21 +214,30 @@ classdef MyRsa < MyInstrument
             %Fetches the data using the settings given. This function can
             %in principle be used in the future to add further fetch
             %functionality.
+            switch get(hObject,'Tag')
+                case 'fetch_single'
+                    readSingle(this)
+                    
+            end
+            set(this.Gui.fetch_single,'Value',0);
+        end
+
+        function enable_avgCallback(this, hObject, eventdata)
+            this.enable_avg=get(hObject,'Value');
+            openDevice(this)
+            writeProperty(this,'enable_avg',this.enable_avg);
+            closeDevice(this);
+        end
+                
+        function readSingle(this)
             openDevice(this);
             readStatus(this);
-
-            switch get(hObject,'Tag')
-                case 'fetch_single'
-                    fwrite(this.Device, 'fetch:dpsa:res:trace3?');
-            end
+            fwrite(this.Device, 'fetch:dpsa:res:trace3?');
             data = binblockread(this.Device,'float');
-                        
-            switch get(hObject,'Tag')
-                case 'fetch_single'
-                    x=this.freq_vec/1e6;
-                    unit_x='MHz';
-                    name_x='Frequency';
-            end
+            x=this.freq_vec/1e6;
+            unit_x='MHz';
+            name_x='Frequency';
+            
             closeDevice(this);
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
@@ -230,14 +250,6 @@ classdef MyRsa < MyInstrument
             %Plotting for test purposes - to be removed in the future
             figure
             this.Trace.plotTrace(gca);
-            set(this.Gui.fetch_single,'Value',0);
-        end
-        
-        function enable_avgCallback(this, hObject, eventdata)
-            this.enable_avg=get(hObject,'Value');
-            openDevice(this)
-            writeProperty(this,'enable_avg',this.enable_avg);
-            closeDevice(this);
         end
         
     end
@@ -247,14 +259,18 @@ classdef MyRsa < MyInstrument
         %frequency in MHz
         function set.cent_freq(this, cent_freq)
             this.cent_freq=cent_freq;
-            set(this.Gui.cent_freq,'String',this.cent_freq/1e6);
+            if this.enable_gui
+                set(this.Gui.cent_freq,'String',this.cent_freq/1e6);
+            end
         end
         
         %Set function for rbw, changes gui to show rbw in kHz
         function set.rbw(this, rbw)
             assert(isnumeric(rbw) && rbw>0,'RBW must be a positive double');
             this.rbw=rbw;
-            set(this.Gui.rbw,'String',this.rbw/1e3);
+            if this.enable_gui
+                set(this.Gui.rbw,'String',this.rbw/1e3);
+            end
         end
         %Set function for enable_avg, changes gui
         function set.enable_avg(this, enable_avg)
@@ -263,14 +279,18 @@ classdef MyRsa < MyInstrument
             assert(enable_avg==1 || enable_avg==0,...
                 'Flag for averaging must be 0 or 1')
             this.enable_avg=enable_avg;
-            set(this.Gui.enable_avg,'Value',this.enable_avg)
+            if this.enable_gui
+                set(this.Gui.enable_avg,'Value',this.enable_avg)
+            end
         end
         %Set function for span, changes gui to show span in MHz
         function set.span(this, span)
             assert(isnumeric(span) && span>0,...
                 'Span must be a positive number');
             this.span=span;
-            set(this.Gui.span,'String',this.span/1e6);
+            if this.enable_gui
+                set(this.Gui.span,'String',this.span/1e6);
+            end
         end
         
 
@@ -279,7 +299,9 @@ classdef MyRsa < MyInstrument
         function set.start_freq(this, start_freq)
             assert(isnumeric(start_freq),'Start frequency must be a number');
             this.start_freq=start_freq;
-            set(this.Gui.start_freq,'String',this.start_freq/1e6)
+            if this.enable_gui
+                set(this.Gui.start_freq,'String',this.start_freq/1e6);
+            end
         end
         
         %Set function for stop frequency, changes gui to show stop
@@ -288,7 +310,9 @@ classdef MyRsa < MyInstrument
             assert(isnumeric(stop_freq),...
                 'Stop frequency must be a number');
             this.stop_freq=stop_freq;
-            set(this.Gui.stop_freq,'String',this.stop_freq/1e6)
+            if this.enable_gui
+                set(this.Gui.stop_freq,'String',this.stop_freq/1e6)
+            end
         end
         
         %Set function for average number, also changes GUI
@@ -297,20 +321,27 @@ classdef MyRsa < MyInstrument
             assert(logical(mod(average_no,1))==0 && average_no>0,...
                 'Number of averages must be a positive integer')
             this.average_no=average_no;
-            set(this.Gui.average_no,'String',this.average_no);
+            if this.enable_gui
+                set(this.Gui.average_no,'String',this.average_no);
+            end
         end
         
         %Set function for point number, checks it is valid and changes GUI
         function set.point_no(this, point_no)
-            point_list=get(this.Gui.point_no,'String');
-            ind=ismember(point_list,num2str(point_no));
-            if any(ind)
+            bool=ismember(point_no,this.valid_points);
+            if bool
                 this.point_no=point_no;
-                set(this.Gui.point_no,'Value',find(ind));
+                if this.enable_gui
+                    ind=strcmp(get(this.Gui.point_no,'String'),...
+                        num2str(point_no));
+                    set(this.Gui.point_no,'Value',find(ind));
+                end
             else
                error('Invalid number of points chosen for RSA')
             end
         end
+
+        
     end
     methods
         %Generates a vector of frequencies between the start and stop

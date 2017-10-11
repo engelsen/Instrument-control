@@ -5,9 +5,9 @@ classdef MyScope <MyInstrument
     end
     
     methods
-        function this=MyScope(name, interface, address)
-            this@MyInstrument(name, interface, address,'GuiScope');
-            initGui(this);
+        function this=MyScope(name, interface, address, varargin)
+            this@MyInstrument(name, interface, address, varargin{:});
+            if this.enable_gui; initGui(this); end;
             createCommandList(this);
             createCommandParser(this);
             switch interface
@@ -62,7 +62,10 @@ classdef MyScope <MyInstrument
                 this.channel=1;
                 warning('Select a channel from 1 to 4')
             end
-            set(this.Gui.channel_select,'Value',this.channel);
+            %Sets the gui if the gui is enabled
+            if this.enable_gui 
+                set(this.Gui.channel_select,'Value',this.channel);
+            end
         end
         
         function readTrace(this)
