@@ -218,41 +218,6 @@ while (continous_stat==1)
 end
 
 
-
-function Oscilloscope_initialization(hObject,handles)
-
-
-% Create a VISA-TCPIP object.
-%interfaceObj = instrfind('Type', 'visa-tcpip', 'RsrcName', 'TCPIP0::192.168.1.5::inst0::INSTR', 'Tag', '');
-%interfaceObj = instrfind('Type', 'visa-tcpip', 'RsrcName', 'USB0::0x0699::0x0413::C013397::0::INSTR', 'Tag', '');
-interfaceObj = visa('ni', 'USB0::0x0699::0x0413::C013397::INSTR');
-
-% Create the VISA-TCPIP object if it does not exist
-% otherwise use the object that was found.
-% if isempty(interfaceObj)
-%     interfaceObj = visa('agilent', 'USB0::0x0699::0x0413::C013397::0::INSTR');
-%     %interfaceObj = visa('NI', 'TCPIP0::192.168.1.5::inst0::INSTR');
-% else
-%     fclose(interfaceObj);
-%     interfaceObj = interfaceObj(1);
-% end
-
-handles.interfaceObj=interfaceObj;
-
-% Create a device object. 
-handles.deviceObj = icdevice('DPO4034.mdd', interfaceObj);
-
-% Seting the buffer size of the device
-interface = get(handles.deviceObj, 'interface');
-set(interface, 'InputBufferSize', 2000*1024);
-
-% Connect device object to hardware.
-connect(handles.deviceObj);
-
-% Update handles structure
-guidata(hObject, handles);
-
-
 % --- Executes when user attempts to close figure1.
 function figure1_CloseRequestFcn(hObject, eventdata, handles)
 % hObject    handle to figure1 (see GCBO)
