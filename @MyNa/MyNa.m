@@ -13,7 +13,7 @@ classdef MyNa < MyInstrument
             this@MyInstrument(name, interface, address,varargin{:});
             createCommandList(this);
             createCommandParser(this);
-            if this.enable_gui; initGui(this); end;
+            if this.enable_gui; initGui(this); end
         end
         
         function createCommandList(this)
@@ -34,9 +34,6 @@ classdef MyNa < MyInstrument
             set(this.Gui.reinit, 'Callback',...
                 @(hObject, eventdata) reinitCallback(this, hObject,...
                 eventdata));
-            set(this.Gui.point_no, 'Callback',...
-                @(hObject, eventdata) point_noCallback(this, hObject,...
-                eventdata));
             set(this.Gui.start_freq, 'Callback',...
                 @(hObject, eventdata) start_freqCallback(this, hObject,...
                 eventdata));
@@ -49,7 +46,7 @@ classdef MyNa < MyInstrument
             set(this.Gui.span, 'Callback',...
                 @(hObject, eventdata) spanCallback(this, hObject,...
                 eventdata));
-            set(this.Gui.rbw, 'Callback',...
+            set(this.Gui.ifbw, 'Callback',...
                 @(hObject, eventdata) rbwCallback(this, hObject,...
                 eventdata));
             set(this.Gui.fetch_single, 'Callback',...
@@ -94,10 +91,10 @@ classdef MyNa < MyInstrument
             closeDevice(this);
         end
         
-        function rbwCallback(this, hObject, eventdata)
-            this.rbw=str2double(get(hObject,'String'))*1e3;
+        function ifbwCallback(this, hObject, eventdata)
+            this.ifbw=str2double(get(hObject,'String'))*1e3;
             openDevice(this);
-            writeProperty(this,'rbw',this.rbw);
+            writeProperty(this,'ifbw',this.ifbw);
             closeDevice(this);
         end
         

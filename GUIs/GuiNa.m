@@ -22,7 +22,7 @@ function varargout = GuiNa(varargin)
 
 % Edit the above text to modify the response to help GuiNa
 
-% Last Modified by GUIDE v2.5 12-Oct-2017 18:22:37
+% Last Modified by GUIDE v2.5 12-Oct-2017 18:43:40
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -133,19 +133,19 @@ end
 
 
 
-function rbw_Callback(hObject, eventdata, handles)
-% hObject    handle to rbw (see GCBO)
+function ifbw_Callback(hObject, eventdata, handles)
+% hObject    handle to ifbw (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of rbw as text
-%        str2double(get(hObject,'String')) returns contents of rbw as a double
+% Hints: get(hObject,'String') returns contents of ifbw as text
+%        str2double(get(hObject,'String')) returns contents of ifbw as a double
 
 
 
 % --- Executes during object creation, after setting all properties.
-function rbw_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to rbw (see GCBO)
+function ifbw_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to ifbw (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -201,29 +201,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-% --- Executes on selection change in point_no.
-function point_no_Callback(hObject, eventdata, handles)
-% hObject    handle to point_no (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns point_no contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from point_no
-
-% --- Executes during object creation, after setting all properties.
-function point_no_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to point_no (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
 % --- Executes on button press in enable_avg.
 function enable_avg_Callback(hObject, eventdata, handles)
 % hObject    handle to enable_avg (see GCBO)
@@ -239,15 +216,6 @@ function fetch_single_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of fetch_single
-
-
-% --- Executes on button press in fetch_avt.
-function fetch_avt_Callback(hObject, eventdata, handles)
-% hObject    handle to fetch_avt (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of fetch_avt
 
 
 % --- Executes when user attempts to close figure1.
