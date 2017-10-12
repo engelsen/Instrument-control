@@ -108,7 +108,7 @@ classdef MyInstrument < handle
             end
         end
         
-        function readProperty(this, varargin)
+        function result=readProperty(this, varargin)
             result=struct();
             for i=1:length(varargin)
                 %Finds the index of the % sign which indicates where the value

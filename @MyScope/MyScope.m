@@ -93,7 +93,7 @@ classdef MyScope <MyInstrument
             % calculating the x axis
             x=linspace(x_zero,x_zero+x_step*(n_points-1),n_points);
             closeDevice(this)
-            this.Trace=MyTrace('ScopeTrace',x,y,'unit_x',unit_x(2),...
+            this.Trace=MyTrace('name','ScopeTrace','x',x,'y',y,'unit_x',unit_x(2),...
                 'unit_y',unit_y(2),'name_x','Time','name_y','Voltage')
             this.Trace.plotTrace(gca);
         end
