@@ -13,6 +13,7 @@ classdef MyTrace < handle
         unit_x='';
         unit_y='';
         save_dir='';
+        load_path='';
     end
     
     properties (Dependent=true)
@@ -21,19 +22,23 @@ classdef MyTrace < handle
     end
     
     methods
-        function this=MyTrace(name, x, y, varargin)
+        function this=MyTrace(varargin)
             createParser(this);
-            parse(this.Parser,name,x,y,varargin{:});
+            parse(this.Parser,varargin{:});
             parseInputs(this,true);
+            
+            if ~ismember('load_path',this.Parser.UsingDefaults)
+                loadTrace(this,this.load_path);
+            end
         end
         
         %Creates the input parser for the class. Includes default values
         %for all optional parameters.
         function createParser(this)
             p=inputParser;
-            addRequired(p,'name');
-            addRequired(p,'x');
-            addRequired(p,'y');
+            addOptional(p,'name','placeholder');
+            addOptional(p,'x',[]);
+            addOptional(p,'y',[]);
             addParameter(p,'Color','b');
             addParameter(p,'Marker','none');
             addParameter(p,'LineStyle','-');
@@ -45,6 +50,7 @@ classdef MyTrace < handle
             %Default save folder is the current directory upon
             %instantiation
             addParameter(p,'save_dir',pwd);
+            addParameter(p,'load_path','');
             this.Parser=p;
         end
         
@@ -53,7 +59,7 @@ classdef MyTrace < handle
         function save(this,varargin)
             %Allows all options of the class as inputs for the save
             %function, to change the name or save directory.
-            parse(this.Parser,this.name,this.x,this.y,varargin{:});
+            parse(this.Parser,varargin{:});
             parseInputs(this,false);
             %Creates save directory if it does not exist
             if ~exist(this.save_dir,'dir')
@@ -72,7 +78,7 @@ classdef MyTrace < handle
             %a % symbol in sprintf, thus if cw=14, below is %14s\t%14s\r\n.
             %\r\n prints a carriage return, ensuring linebreak in NotePad.
             fprintf(fileID,sprintf('%%%ds\t%%%ds\r\n',cw,cw),...
-                this.label_x, this.label_y)
+                this.label_x, this.label_y);
             %Saves in scientific notation with correct column width defined
             %above. Again if cw=14, we get %14.3e\t%14.3e\r\n
             fprintf(fileID,sprintf('%%%d.3e\t%%%d.3e\r\n',cw,cw),...
@@ -80,6 +86,33 @@ classdef MyTrace < handle
             fclose(fileID);
         end
         
+        function loadTrace(this, file_path)
+            if ~exist(this.load_path,'file')
+                error('File does not exist, please choose a different load path')
+            end
+            load_data=tdfread(file_path);
+            this.load_path=file_path;
+            data_labels=fieldnames(load_data);
+            %Code for left bracket
+            ind_start=strfind(data_labels, '0x28');
+            %Code for right bracket
+            ind_stop=strfind(data_labels, '0x29');
+            
+            
+            col_name={'x','y'};
+            for i=1:2
+                if ~isempty(ind_start) && ~isempty(ind_stop)
+                    %Extracts the data labels from the file
+                    this.(sprintf('unit_%s',col_name{i}))=...
+                        data_labels{i}((ind_start{i}+4):(ind_stop{i}-1));
+                    this.(sprintf('name_%s',col_name{i}))=...
+                        data_labels{i}(1:(ind_start{i}-2));
+                end
+                %Loads the data into the trace
+                this.(col_name{i})=load_data.(data_labels{i});
+            end
+        end
+
         %Sets the class variables to the inputs from the inputParser. Can
         %be used to reset class to default values if default_flag=true.
         function parseInputs(this, default_flag)
@@ -106,7 +139,7 @@ classdef MyTrace < handle
                 (isvector(this.x) && isvector(this.y) && ...
                 numel(this.x) == numel(this.y)),...
                 'The length of x and y must be identical to make a plot')
-            parse(this.Parser,this.name,this.x,this.y,varargin{:})
+            parse(this.Parser,varargin{:})
             parseInputs(this,false);
             plot(plot_axes,this.x,this.y,'Color',this.Color,'LineStyle',...
                 this.LineStyle,'Marker',this.Marker,...
@@ -119,7 +152,8 @@ classdef MyTrace < handle
         %Set function for Color. Checks if it is a valid color.
         function set.Color(this, Color)
             assert(iscolor(Color),...
-                '%s is not a valid MATLAB default color or RGB triplet',Color);
+                '%s is not a valid MATLAB default color or RGB triplet',...
+                Color);
             this.Color=Color;
         end
         
@@ -133,15 +167,15 @@ classdef MyTrace < handle
         
         %Set function for x, checks if it is a vector of doubles.
         function set.x(this, x)
-            assert(isvector(x) && isnumeric(x),...
-                'Data must be a vector of doubles');
+            assert(isnumeric(x),...
+                'Data must be of class double');
             this.x=x;
         end
         
         %Set function for y, checks if it is a vector of doubles.
         function set.y(this, y)
-            assert(isvector(y) && isnumeric(y),...
-                'Data must be a vector of doubles');
+            assert(isnumeric(y),...
+                'Data must be of class double');
             this.y=y;
         end
         
@@ -192,6 +226,12 @@ classdef MyTrace < handle
             assert(ischar(name_y),'Name must be a string, not a %s',...
                 class(name_y));
             this.name_y=name_y;
+        end
+        
+        function set.load_path(this, load_path)
+            assert(ischar(load_path),'File path must be a string, not a %s',...
+                class(load_path));
+            this.load_path=load_path;
         end
         
         %Get function for label_x, creates label from name_x and unit_x.
