@@ -111,11 +111,28 @@ classdef MyInstrument < handle
             end
         end
         
+        function result=readProperty(this, varargin)
+            result=struct();
+            for i=1:length(varargin)
+                %Finds the index of the % sign which indicates where the value
+                %to be written is supplied
+                ind=strfind(this.CommandList.(varargin{i}).command,'%');
+                if ~any(ind)
+                    error('%s is not a valid tag for a command in %s',...
+                        varargin{i},class(this));
+                end
+                
+                %Creates the correct read command
+                read_command=...
+                    [this.CommandList.(varargin{i}).command(1:(ind-2)),'?'];
+                %Reads the property from the device and stores it in the
+                %correct place
+                result.(varargin{i})=str2double(this.read(read_command));
+            end
+        end
+        
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
-            %Checks that the command is named correctly - i.e. it has the
-            %same name as a property of the class, specifically the one it
-            %is modifying
 
             p=inputParser;
             addRequired(p,'tag',@ischar);
@@ -152,7 +169,6 @@ classdef MyInstrument < handle
             p=inputParser;
             p.StructExpand=0;
             
-
             for i=1:this.command_no
                 %Adds optional inputs for each command, with the
                 %appropriate default value from the command list and the
