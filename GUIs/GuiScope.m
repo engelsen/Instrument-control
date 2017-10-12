@@ -22,7 +22,7 @@ function varargout = GuiScope(varargin)
 
 % Edit the above text to modify the response to help GuiScope
 
-% Last Modified by GUIDE v2.5 10-Oct-2017 15:25:20
+% Last Modified by GUIDE v2.5 12-Oct-2017 18:16:28
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -166,13 +166,13 @@ function reinit_Callback(hObject, eventdata, handles)
 Oscilloscope_initialization(hObject,handles)
 
 
-% --- Executes on button press in continuous.
-function continuous_Callback(hObject, eventdata, handles)
-% hObject    handle to continuous (see GCBO)
+% --- Executes on button press in cont_read.
+function cont_read_Callback(hObject, eventdata, handles)
+% hObject    handle to cont_read (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of continuous
+% Hint: get(hObject,'Value') returns toggle state of cont_read
 
 continous_stat=get(hObject,'Value');
 

@@ -38,6 +38,9 @@ classdef MyScope <MyInstrument
             set(this.Gui.fetch_single, 'Callback',...
                 @(hObject, eventdata) fetch_singleCallback(this, ...
                 hObject,eventdata));
+            set(this.Gui.cont_read, 'Callback',...
+                @(hObject, eventdata) cont_readCallback(this, ...
+                hObject,eventdata));
         end
         
         function channel_selectCallback(this, hObject, eventdata)
@@ -46,6 +49,12 @@ classdef MyScope <MyInstrument
         
         function fetch_singleCallback(this,hObject,eventdata)
             readTrace(this);
+        end
+        
+        function cont_readCallback(this, hObject, eventdata)
+            while get(hObject,'Value')
+                readTrace(this)
+            end
         end
         
          function createCommandList(this)
@@ -95,7 +104,7 @@ classdef MyScope <MyInstrument
             closeDevice(this)
             this.Trace=MyTrace('ScopeTrace',x,y,'unit_x',unit_x(2),...
                 'unit_y',unit_y(2),'name_x','Time','name_y','Voltage')
-            this.Trace.plotTrace(gca);
+            this.Trace.plotTrace(this.plot_handle);
         end
     end
 end

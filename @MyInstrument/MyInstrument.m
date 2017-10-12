@@ -4,6 +4,7 @@ classdef MyInstrument < handle
         name='';
         interface='';
         address='';
+        axes_handle=[];
         %Logical for whether gui is enabled
         enable_gui=false;
         %Contains the GUI handles
@@ -34,6 +35,7 @@ classdef MyInstrument < handle
             this.interface=this.Parser.Results.interface;
             this.address=this.Parser.Results.address;
             this.enable_gui=~ismember('gui',this.Parser.UsingDefaults);
+            this.axes_handle=this.Parser.Results.plot_handle;
             
             %If a gui input is given, load the gui 
             if this.enable_gui
@@ -77,6 +79,7 @@ classdef MyInstrument < handle
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
             addParameter(p,'gui','placeholder',@ischar);
+            addParameter(p,'axes_handle',[]);
             this.Parser=p;
         end
             

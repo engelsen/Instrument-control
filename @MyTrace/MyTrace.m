@@ -116,6 +116,7 @@ classdef MyTrace < handle
             set(plot_axes,'TickLabelInterpreter','LaTeX');
         end
         
+        
         %Set function for Color. Checks if it is a valid color.
         function set.Color(this, Color)
             assert(iscolor(Color),...
