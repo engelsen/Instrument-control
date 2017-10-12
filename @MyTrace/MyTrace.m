@@ -206,30 +206,3 @@ classdef MyTrace < handle
         
     end
 end
-
-function bool=validateVector(vector)
-assert(isvector(vector) && isnumeric(vector),...
-    'Data must be a vector of doubles');
-bool=true;
-end
-
-function bool=validateColor(color)
-assert(iscolor(color),...
-    '%s is not a valid MATLAB default color or RGB triplet',color);
-bool=true;
-end
-function bool=validateMarker(marker)
-assert(ismarker(marker),...
-    '%s is not a valid MATLAB MarkerStyle',marker);
-bool=true;
-end
-
-function validateLine(linestyle)
-assert(isline(linestyle),...
-    '%s is not a valid MATLAB LineStyle',linestyle);
-end
-function bool=validateSize(markersize)
-assert(isnumeric(markersize) && markersize>0,...
-    'MarkerSize must be a numeric value greater than zero');
-bool=true;
-end

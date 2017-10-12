@@ -54,26 +54,14 @@ classdef MyRsa < MyInstrument
             set(this.Device,'InputBufferSize',1e6);
             set(this.Device,'Timeout',10);
         end
-        
-        function readProperty(this, varargin)
-            for i=1:length(varargin)
-                if ~isprop(this, varargin{i})
-                    error('%s is not a property of the class',varargin{i})
-                end
-                %Finds the index of the % sign which indicates where the value
-                %to be written is supplied
-                ind=strfind(this.CommandList.(varargin{i}).command,'%');
-                %Creates the correct read command 
-                read_command=[this.CommandList.(varargin{i}).command(1:(ind-2)),'?'];
-                %Reads the property from the device and stores it in the
-                %correct place
-                this.(varargin{i})=str2double(this.read(read_command));
-            end
-        end
-        
+       
         function readStatus(this)
-            readProperty(this,'rbw','cent_freq','span','start_freq',...
+            result=readProperty(this,'rbw','cent_freq','span','start_freq',...
                 'stop_freq','enable_avg');
+            res_names=fieldnames(result);
+            for i=1:length(res_names)
+                this.(res_names{i})=result.(res_names{i});
+            end
         end
         
         function initGui(this)
