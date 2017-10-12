@@ -43,7 +43,6 @@ else
 end
 % End initialization code - DO NOT EDIT
 
-
 % --- Executes just before GuiNa is made visible.
 function GuiNa_OpeningFcn(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
@@ -66,171 +65,60 @@ varargout{1}=handles.output;
 
 
 function cent_freq_Callback(hObject, eventdata, handles)
-% hObject    handle to cent_freq (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of cent_freq as text
-%        str2double(get(hObject,'String')) returns contents of cent_freq as a double
 
 % --- Executes during object creation, after setting all properties.
 function cent_freq_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to cent_freq (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
-
-
-
 function span_Callback(hObject, eventdata, handles)
-% hObject    handle to span (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of span as text
-%        str2double(get(hObject,'String')) returns contents of span as a double
-
 
 % --- Executes during object creation, after setting all properties.
 function span_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to span (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
-
 
 function start_freq_Callback(hObject, eventdata, handles)
-% hObject    handle to start_freq (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of start_freq as text
-%        str2double(get(hObject,'String')) returns contents of start_freq as a double
-
-% --- Executes during object creation, after setting all properties.
 function start_freq_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to start_freq (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function ifbw_Callback(hObject, eventdata, handles)
-% hObject    handle to ifbw (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of ifbw as text
-%        str2double(get(hObject,'String')) returns contents of ifbw as a double
-
-
 
 % --- Executes during object creation, after setting all properties.
 function ifbw_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to ifbw (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function average_no_Callback(hObject, eventdata, handles)
-% hObject    handle to average_no (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of average_no as text
-%        str2double(get(hObject,'String')) returns contents of average_no as a double
-
 
 % --- Executes during object creation, after setting all properties.
 function average_no_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to average_no (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function stop_freq_Callback(hObject, eventdata, handles)
-% hObject    handle to stop_freq (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of stop_freq as text
-%        str2double(get(hObject,'String')) returns contents of stop_freq as a double
-
 
 % --- Executes during object creation, after setting all properties.
 function stop_freq_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to stop_freq (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
 % --- Executes on button press in enable_avg.
 function enable_avg_Callback(hObject, eventdata, handles)
-% hObject    handle to enable_avg (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of enable_avg
 
 % --- Executes on button press in fetch_single.
 function fetch_single_Callback(hObject, eventdata, handles)
-% hObject    handle to fetch_single (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of fetch_single
-
 
 % --- Executes when user attempts to close figure1.
 function figure1_CloseRequestFcn(hObject, eventdata, handles)
-% hObject    handle to figure1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: delete(hObject) closes the figure
 
 % --- Executes on button press in reinit.
 function reinit_Callback(hObject, eventdata, handles)
-% hObject    handle to reinit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of reinit
-%Placeholder, callback redefined in class.
