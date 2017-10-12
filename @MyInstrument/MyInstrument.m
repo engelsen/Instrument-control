@@ -35,8 +35,15 @@ classdef MyInstrument < handle
             this.interface=this.Parser.Results.interface;
             this.address=this.Parser.Results.address;
             this.enable_gui=~ismember('gui',this.Parser.UsingDefaults);
-            this.axes_handle=this.Parser.Results.plot_handle;
+            this.axes_handle=this.Parser.Results.axes_handle;
             
+            try
+                openDevice(this);
+                closeDevice(this);
+            catch
+                error(['Failed to open communications with device.',...
+                    ' Check that the address and interface is correct'])
+            end
             %If a gui input is given, load the gui 
             if this.enable_gui
                 %Loads the gui from the input gui string
@@ -52,10 +59,12 @@ classdef MyInstrument < handle
         
         function delete(this)
             %Removes close function from figure, prevents infinite loop
-            set(this.Gui.figure1,'CloseRequestFcn','');
-            %Deletes the figure
-            delete(this.Gui.figure1);
-            %Removes the figure handle to prevent memory leaks
+            if this.enable_gui
+                set(this.Gui.figure1,'CloseRequestFcn','');
+                %Deletes the figure
+                delete(this.Gui.figure1);
+                %Removes the figure handle to prevent memory leaks
+            end
             this.Gui=[];
             %Closes the connection to the device
             closeDevice(this);
