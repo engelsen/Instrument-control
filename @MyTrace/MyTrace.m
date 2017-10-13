@@ -266,8 +266,8 @@ classdef MyTrace < handle
                 'The MyTrace classes must have the same units for arithmetic');
             assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
                 'The length of x and y must be equal for arithmetic');
-            assert(length(a.x)==length(b.x),...
-                'The length of the two MyTrace objects must be equal for arithmetic')
+            assert(all(a.x==b.x),...
+                'The MyTrace objects must have identical x-axis for arithmetic')
         end
         
     end
