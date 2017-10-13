@@ -36,9 +36,9 @@ classdef MyTrace < handle
         %for all optional parameters.
         function createParser(this)
             p=inputParser;
-            addOptional(p,'name','placeholder');
-            addOptional(p,'x',[]);
-            addOptional(p,'y',[]);
+            addParameter(p,'name','placeholder');
+            addParameter(p,'x',[]);
+            addParameter(p,'y',[]);
             addParameter(p,'Color','b');
             addParameter(p,'Marker','none');
             addParameter(p,'LineStyle','-');
@@ -98,7 +98,6 @@ classdef MyTrace < handle
             %Code for right bracket
             ind_stop=strfind(data_labels, '0x29');
             
-            
             col_name={'x','y'};
             for i=1:2
                 if ~isempty(ind_start) && ~isempty(ind_stop)
@@ -148,6 +147,7 @@ classdef MyTrace < handle
             ylabel(plot_axes,this.label_y,'Interpreter','LaTeX');
             set(plot_axes,'TickLabelInterpreter','LaTeX');
         end
+        
         
         %Set function for Color. Checks if it is a valid color.
         function set.Color(this, Color)
