@@ -8,6 +8,7 @@ classdef MyRsa < MyInstrument
         average_no;
         point_no;
         enable_avg;
+        read_cont;
         Trace;
         valid_points;
     end
@@ -119,7 +120,7 @@ classdef MyRsa < MyInstrument
             openDevice(this);
             readStatus(this);
             initDevice(this);
-            write(this,'INIT:CONT ON');
+            writeProperty(this, 'read_cont','on')
             closeDevice(this);
         end
         
@@ -196,6 +197,8 @@ classdef MyRsa < MyInstrument
                 'default',10401,'attributes',{{'numeric'}},'write_flag',true);
             addCommand(this,'enable_avg','TRAC3:DPSA:COUN:ENABLE %d',...
                 'default',0,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,'read_cont','INIT:CONT %s','default','on',...
+                'attributes',{{'char'}},'write_flag',true);
         end
         
         function fetchCallback(this, hObject, eventdata)
@@ -221,12 +224,11 @@ classdef MyRsa < MyInstrument
             openDevice(this);
             readStatus(this);
             fwrite(this.Device, 'fetch:dpsa:res:trace3?');
-            data = binblockread(this.Device,'float');
+            data = binblockread(this.Device,'float');            
+            closeDevice(this);
             x=this.freq_vec/1e6;
             unit_x='MHz';
             name_x='Frequency';
-            
-            closeDevice(this);
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
