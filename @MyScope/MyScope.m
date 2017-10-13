@@ -7,7 +7,7 @@ classdef MyScope <MyInstrument
     methods
         function this=MyScope(name, interface, address, varargin)
             this@MyInstrument(name, interface, address, varargin{:});
-            if this.enable_gui; initGui(this); end;
+            if this.enable_gui; initGui(this); end
             createCommandList(this);
             createCommandParser(this);
             switch interface
@@ -103,7 +103,7 @@ classdef MyScope <MyInstrument
             x=linspace(x_zero,x_zero+x_step*(n_points-1),n_points);
             closeDevice(this)
             this.Trace=MyTrace('name','ScopeTrace','x',x,'y',y,'unit_x',unit_x(2),...
-                'unit_y',unit_y(2),'name_x','Time','name_y','Voltage')
+                'unit_y',unit_y(2),'name_x','Time','name_y','Voltage');
             this.Trace.plotTrace(this.plot_handle);
         end
     end

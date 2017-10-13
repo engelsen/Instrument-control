@@ -111,7 +111,7 @@ classdef MyTrace < handle
                 this.(col_name{i})=load_data.(data_labels{i});
             end
         end
-
+        
         %Sets the class variables to the inputs from the inputParser. Can
         %be used to reset class to default values if default_flag=true.
         function parseInputs(this, default_flag)
@@ -133,7 +133,7 @@ classdef MyTrace < handle
         function plotTrace(this,plot_axes,varargin)
             assert(exist('plot_axes','var') && ...
                 isa(plot_axes,'matlab.graphics.axis.Axes'),...
-                'Please input axes to plot in.') 
+                'Please input axes to plot in.')
             assert(isequal(size(this.x), size(this.y)) || ...
                 (isvector(this.x) && isvector(this.y) && ...
                 numel(this.x) == numel(this.y)),...
@@ -242,6 +242,32 @@ classdef MyTrace < handle
         %Get function for label_y, creates label from name_y and unit_y.
         function label_y=get.label_y(this)
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
+        end
+        
+        function sum=plus(a,b)
+            checkArithmetic(a,b);
+            
+            sum=MyTrace('x',a.x,'y',a.y+b.y,'unit_x',a.unit_x,...
+                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+        end
+                
+        function sum=minus(a,b)
+            checkArithmetic(a,b);
+            
+            sum=MyTrace('x',a.x,'y',a.y-b.y,'unit_x',a.unit_x,...
+                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+        end
+        
+        function checkArithmetic(a,b)
+            assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
+                ['Both objects must be of type MyTrace to add,',...
+                'here they are type %s and %s'],class(a),class(b));
+            assert(strcmp(a.unit_x, b.unit_x) && strcmp(a.unit_y,b.unit_y),...
+                'The MyTrace classes must have the same units for arithmetic');
+            assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
+                'The length of x and y must be equal for arithmetic');
+            assert(length(a.x)==length(b.x),...
+                'The length of the two MyTrace objects must be equal for arithmetic')
         end
         
     end
