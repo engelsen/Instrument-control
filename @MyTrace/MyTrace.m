@@ -169,14 +169,14 @@ classdef MyTrace < handle
         function set.x(this, x)
             assert(isnumeric(x),...
                 'Data must be of class double');
-            this.x=x;
+            this.x=x(:);
         end
         
         %Set function for y, checks if it is a vector of doubles.
         function set.y(this, y)
             assert(isnumeric(y),...
                 'Data must be of class double');
-            this.y=y;
+            this.y=y(:);
         end
         
         %Set function for LineStyle, checks if input is a valid line style.
