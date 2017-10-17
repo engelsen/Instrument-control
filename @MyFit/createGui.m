@@ -36,6 +36,7 @@ this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
 %Sets the heights and minimum heights of the four vertical boxes. -1 
 set(this.Gui.MainVbox,'Heights',[40,-1,-1,100],'MinimumHeights',[40,80,50,100]);
 
+%Loops over the fit parameters to create one adjustment panel for each one
 for i=1:length(this.fit_params)
     %Generates the string for the panel handle
     panel_str=sprintf('panel_%s',this.fit_params{i});
