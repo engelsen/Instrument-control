@@ -1,13 +1,14 @@
 classdef MyFit < handle
     properties
         Gui
-        DataTrace;
-        FitTrace;
+        Data;
+        Fit;
         Parser;
         fit_name='linear'
         init_params=[];
+        scale_init=[];
         FitStruct;
-        CFitObj;
+        Fitdata;
         coeffs;
         enable_gui=1;
     end
@@ -18,24 +19,32 @@ classdef MyFit < handle
         fit_params;
         fit_param_names;
         valid_fit_names;
+        n_params;
+        scaled_params;
     end
-
+    
     methods
         function this=MyFit(varargin)
             createFitStruct(this);
             createParser(this);
             parse(this.Parser,varargin{:});
             parseInputs(this);
-            if ismember('DataTrace',this.Parser.UsingDefaults) &&...
-                ~ismember('x',this.Parser.UsingDefaults) &&...
-                ~ismember('y',this.Parser.UsingDefaults)
-            
-                this.DataTrace.x=this.Parser.Results.x;
-                this.DataTrace.y=this.Parser.Results.y;
+            if ismember('Data',this.Parser.UsingDefaults) &&...
+                    ~ismember('x',this.Parser.UsingDefaults) &&...
+                    ~ismember('y',this.Parser.UsingDefaults)
+                
+                this.Data.x=this.Parser.Results.x;
+                this.Data.y=this.Parser.Results.y;
             end
+            
+            genInitParams(this);
+            this.scale_init=ones(1,this.n_params);
+            
             if this.enable_gui
                 createGui(this);
             end
+            
+            
         end
         
         %Creates the GUI of MyFit
@@ -44,8 +53,8 @@ classdef MyFit < handle
         function createParser(this)
             p=inputParser;
             addParameter(p,'fit_name','linear',@ischar)
-            addParameter(p,'DataTrace',MyTrace());
-            addParameter(p,'FitTrace',MyTrace());
+            addParameter(p,'Data',MyTrace());
+            addParameter(p,'Fit',MyTrace());
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
             addParameter(p,'enable_gui',1);
@@ -64,31 +73,34 @@ classdef MyFit < handle
             end
         end
         
-        function set.fit_name(this,fit_name)
-            assert(ischar(fit_name),'The fit name must be a string');
-           this.fit_name=lower(fit_name); 
-        end
         
         function fitTrace(this)
+            this.Fit.x=linspace(min(this.Data.x),max(this.Data.x),1e3);
             switch this.fit_name
                 case 'linear'
-                    this.coeffs=polyfit(this.DataTrace.x,this.DataTrace.y,1);
+                    this.coeffs=polyfit(this.Data.x,this.Data.y,1);
                 case 'quadratic'
-                    this.coeffs=polyfit(this.DataTrace.x,this.DataTrace.y,2);
+                    this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                 case 'exponential'
-                    this.CFitObj=fitExponential(this.DataTrace.x,...
-                        this.DataTrace.y);
+                    this.Fitdata=fitExponential(this.Data.x,...
+                        this.Data.y,this.scaled_params);
+                    this.coeffs=coeffvalues(this.Fitdata);
+                    this.Fit.y=this.Fitdata(this.Fit.x);
                 otherwise
                     ft=fittype(this.fit_function);
-                    this.CFitObj=fit(this.DataTrace.x,this.DataTrace.y,...
+                    this.Fitdata=fit(this.Data.x,this.Data.y,...
                         ft);
-                    this.FitTrace.x=linspace(min(this.DataTrace.x),...
-                        max(this.DataTrace.x),1e4);
-                    this.FitTrace.y=this.CFitObj(this.FitTrace.x)';
+                    this.Fit.y=this.Fitdata(this.Fit.x)';
+                    this.coeffs=coeffvalues(this.Fitdata);
             end
+            
+            this.init_params=this.coeffs;
+            this.scale_init=ones(1,this.n_params);
+            updateGui(this);
         end
+        
         function createFitStruct(this)
-            %Adds the linear fit
+            %Adds fits
             addFit(this,'linear','a*x_b','$$ax+b$$',{'a','b'},...
                 {'Gradient','Offset'})
             addFit(this,'quadratic','a*x^2+b*x+c','$$ax^2+bx+c$$',...
@@ -99,11 +111,24 @@ classdef MyFit < handle
             addFit(this,'lorentzian','a/(pi)*(b/((x-c)^2+b^2)',...
                 '$$\frac{a}{1+\frac{(x-c)^2}{b^2}}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
-            addFit(this,'exponential','a*exp(-b*x)+c',...
-                '$$ae^{-bx}+c$$',{'a','b','c'},...
-                {'Amplitude','Decay constant','Offset'});
+            addFit(this,'exponential','a*exp(b*x)+c',...
+                '$$ae^{bx}+c$$',{'a','b','c'},...
+                {'Amplitude','Rate','Offset'});
         end
         
+        function updateGui(this)
+            %Converts the scale variable to the value between 0 and 100
+            %necessary for the slider
+            slider_vals=25*log10(this.scale_init)+50;
+            for i=1:this.n_params
+                set(this.Gui.(sprintf('edit_%s',this.fit_params{i})),...
+                    'String',sprintf('%3.3e',this.scaled_params(i)));
+                set(this.Gui.(sprintf('slider_%s',this.fit_params{i})),...
+                    'Value',slider_vals(i));
+            end
+        end
+        
+        %Adds a fit to the list of fits
         function addFit(this,fit_name,fit_function,fit_tex,fit_params,...
                 fit_param_names)
             this.FitStruct.(fit_name).fit_function=fit_function;
@@ -112,28 +137,42 @@ classdef MyFit < handle
             this.FitStruct.(fit_name).fit_param_names=fit_param_names;
         end
         
+        function genInitParams(this)
+            switch this.fit_name
+                case 'exponential'
+                    this.init_params=initParamExponential(this.Data.x,...
+                        this.Data.y);
+                otherwise
+                    this.init_params=ones(1,this.n_params);
+            end
+        end
         function slider_Callback(this, param_ind, hObject, ~)
             %Gets the value from the slider
-            init_param=get(hObject,'Value');
+            scale=get(hObject,'Value');
+            %Updates the scale with a new value
+            this.scale_init(param_ind)=10^((scale-50)/25);
             %Updates the edit box with the new value from the slider
             set(this.Gui.(sprintf('edit_%s',this.fit_params{param_ind})),...
-                'String',init_param);
-            %Updates the class with the new value
-            this.init_params(param_ind)=init_param;
+                'String',sprintf('%3.3e',this.scaled_params(param_ind)));
         end
         
         function edit_Callback(this, hObject, ~)
-           init_param=str2double(get(hObject,'String'));
-           tag=get(hObject,'Tag');
-           %Finds the index where the fit_param name begins (convention is
-           %after the underscore)
-           fit_param_name=tag((strfind(tag,'_')+1):end);
-           param_ind=strcmp(fit_param_name,this.fit_param_names);
-           %Updates the slider with the new value from the edit box
-           set(this.Gui.(sprintf('slider_%s',fit_param_name)),...
-               'Value',init_param);
-           %Updates the correct initial parameter
-           this.init_params(param_ind)=init_param;
+            init_param=str2double(get(hObject,'String'));
+            tag=get(hObject,'Tag');
+            %Finds the index where the fit_param name begins (convention is
+            %after the underscore)
+            fit_param_name=tag((strfind(tag,'_')+1):end);
+            param_ind=strcmp(fit_param_name,this.fit_param_names);
+            %Updates the slider with the new value from the edit box
+            set(this.Gui.(sprintf('slider_%s',fit_param_name)),...
+                'Value',init_param);
+            %Updates the correct initial parameter
+            this.init_params(param_ind)=init_param;
+        end
+        
+        function set.fit_name(this,fit_name)
+            assert(ischar(fit_name),'The fit name must be a string');
+            this.fit_name=lower(fit_name);
         end
         
         function valid_fit_names=get.valid_fit_names(this)
@@ -159,9 +198,17 @@ classdef MyFit < handle
         end
         
         function fit_param_names=get.fit_param_names(this)
-                        assert(ismember(this.fit_name,this.valid_fit_names),...
+            assert(ismember(this.fit_name,this.valid_fit_names),...
                 '%s is not a supported fit name',this.fit_name);
             fit_param_names=this.FitStruct.(this.fit_name).fit_param_names;
+        end
+        
+        function scaled_params=get.scaled_params(this)
+            scaled_params=this.scale_init.*this.init_params;
+        end
+        
+        function n_params=get.n_params(this)
+            n_params=length(this.fit_params);
         end
     end
 end
