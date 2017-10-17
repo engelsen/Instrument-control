@@ -9,6 +9,7 @@ classdef MyFit < handle
         FitStruct;
         CFitObj;
         coeffs;
+        enable_gui=1;
     end
     
     properties (Dependent=true)
@@ -32,8 +33,9 @@ classdef MyFit < handle
                 this.DataTrace.x=this.Parser.Results.x;
                 this.DataTrace.y=this.Parser.Results.y;
             end
-            
-            createGui(this);
+            if this.enable_gui
+                createGui(this);
+            end
         end
         
         %Creates the GUI of MyFit
@@ -46,6 +48,7 @@ classdef MyFit < handle
             addParameter(p,'FitTrace',MyTrace());
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
+            addParameter(p,'enable_gui',1);
             this.Parser=p;
         end
         
@@ -72,9 +75,13 @@ classdef MyFit < handle
                     this.coeffs=polyfit(this.DataTrace.x,this.DataTrace.y,1);
                 case 'quadratic'
                     this.coeffs=polyfit(this.DataTrace.x,this.DataTrace.y,2);
+                case 'exponential'
+                    this.CFitObj=fitExponential(this.DataTrace.x,...
+                        this.DataTrace.y);
                 otherwise
-                    this.CFitObj=fitArbFun(this.fit_function,...
-                        this.DataTrace.x,this.DataTrace.y);
+                    ft=fittype(this.fit_function);
+                    this.CFitObj=fit(this.DataTrace.x,this.DataTrace.y,...
+                        ft);
                     this.FitTrace.x=linspace(min(this.DataTrace.x),...
                         max(this.DataTrace.x),1e4);
                     this.FitTrace.y=this.CFitObj(this.FitTrace.x)';
@@ -92,7 +99,9 @@ classdef MyFit < handle
             addFit(this,'lorentzian','a/(pi)*(b/((x-c)^2+b^2)',...
                 '$$\frac{a}{1+\frac{(x-c)^2}{b^2}}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
-            
+            addFit(this,'exponential','a*exp(-b*x)+c',...
+                '$$ae^{-bx}+c$$',{'a','b','c'},...
+                {'Amplitude','Decay constant','Offset'});
         end
         
         function addFit(this,fit_name,fit_function,fit_tex,fit_params,...
@@ -104,18 +113,27 @@ classdef MyFit < handle
         end
         
         function slider_Callback(this, param_ind, hObject, ~)
+            %Gets the value from the slider
             init_param=get(hObject,'Value');
+            %Updates the edit box with the new value from the slider
             set(this.Gui.(sprintf('edit_%s',this.fit_params{param_ind})),...
                 'String',init_param);
+            %Updates the class with the new value
             this.init_params(param_ind)=init_param;
         end
         
         function edit_Callback(this, hObject, ~)
-           init_param=str2num(get(hObject,'String'));
+           init_param=str2double(get(hObject,'String'));
            tag=get(hObject,'Tag');
-           ind=strcmp(tag(end),this.fit_params);
-           set(this.Gui.(sprintf('slider_%s',tag(end))),'Value',init_param);
-           this.init_params(ind)=init_param;
+           %Finds the index where the fit_param name begins (convention is
+           %after the underscore)
+           fit_param_name=tag((strfind(tag,'_')+1):end);
+           param_ind=strcmp(fit_param_name,this.fit_param_names);
+           %Updates the slider with the new value from the edit box
+           set(this.Gui.(sprintf('slider_%s',fit_param_name)),...
+               'Value',init_param);
+           %Updates the correct initial parameter
+           this.init_params(param_ind)=init_param;
         end
         
         function valid_fit_names=get.valid_fit_names(this)
