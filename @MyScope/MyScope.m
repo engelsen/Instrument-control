@@ -4,6 +4,10 @@ classdef MyScope <MyInstrument
         channel;
     end
     
+    events
+        AcquiredTrace;
+    end
+    
     methods
         function this=MyScope(name, interface, address, varargin)
             this@MyInstrument(name, interface, address, varargin{:});
@@ -30,7 +34,7 @@ classdef MyScope <MyInstrument
             set(this.Device,'InputBufferSize',1e6);
             set(this.Device,'Timeout',2);
         end
-        
+                
         function initGui(this)
             set(this.Gui.channel_select, 'Callback',...
                 @(hObject, eventdata) channel_selectCallback(this, ...
@@ -99,11 +103,14 @@ classdef MyScope <MyInstrument
             %Reads where the zero of the x-axis is
             x_zero=str2num(query(this.Device,'WFMOutpre:XZEro?'));
             
-            % calculating the x axis
+            % Calculating the x axis
             x=linspace(x_zero,x_zero+x_step*(n_points-1),n_points);
             closeDevice(this)
             this.Trace=MyTrace('name','ScopeTrace','x',x,'y',y,'unit_x',unit_x(2),...
                 'unit_y',unit_y(2),'name_x','Time','name_y','Voltage');
+            %Triggers the event for acquired data
+            triggerAcquiredData(this);
+            
             this.Trace.plotTrace(this.plot_handle);
         end
     end

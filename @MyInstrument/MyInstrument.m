@@ -25,6 +25,10 @@ classdef MyInstrument < handle
         command_no;
     end
     
+    events 
+        AcquiredData;
+    end
+    
     methods
         function this=MyInstrument(name, interface, address, varargin)
             createParser(this);
@@ -54,6 +58,11 @@ classdef MyInstrument < handle
                     @(hObject,eventdata) closeFigure(this, hObject, ...
                     eventdata));
             end
+        end
+        
+        %Triggers event for acquired data
+        function triggerAcquiredData(this)
+            notify(this,'AcquiredData')
         end
         
         

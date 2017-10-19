@@ -20,7 +20,7 @@ classdef MyRsa < MyInstrument
     methods
         function this=MyRsa(name,interface, address,varargin)
             this@MyInstrument(name, interface, address,varargin{:});
-            if this.enable_gui; initGui(this); end;
+            if this.enable_gui; initGui(this); end
             
             %Valid point numbers for Tektronix 5103 and 5106. 
             %Depends on the RSA. Remove this in the future.
@@ -110,7 +110,7 @@ classdef MyRsa < MyInstrument
             end
         end
         
-        function reinitCallback(this, hObject, eventdata)
+        function reinitCallback(this, hObject, ~)
             reinitDevice(this);
             %Turns off indicator
             set(hObject,'Value',0);
@@ -124,7 +124,7 @@ classdef MyRsa < MyInstrument
             closeDevice(this);
         end
         
-        function point_noCallback(this, hObject, eventdata)
+        function point_noCallback(this, hObject, ~)
             value_list=get(hObject,'String');
             this.point_no=str2double(value_list{get(hObject,'Value')});
             openDevice(this);
@@ -133,7 +133,7 @@ classdef MyRsa < MyInstrument
             closeDevice(this);
         end
         
-        function start_freqCallback(this, hObject, eventdata)
+        function start_freqCallback(this, hObject, ~)
             this.start_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'start_freq',this.start_freq);
@@ -141,7 +141,7 @@ classdef MyRsa < MyInstrument
             closeDevice(this);
         end
         
-        function stop_freqCallback(this, hObject, eventdata)
+        function stop_freqCallback(this, hObject, ~)
             this.stop_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'stop_freq',this.stop_freq);
@@ -149,14 +149,14 @@ classdef MyRsa < MyInstrument
             closeDevice(this);
         end
         
-        function cent_freqCallback(this, hObject, eventdata)
+        function cent_freqCallback(this, hObject, ~)
             this.cent_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'cent_freq',this.cent_freq);
             readStatus(this);
             closeDevice(this);
         end
-        function spanCallback(this, hObject, eventdata)
+        function spanCallback(this, hObject, ~)
             this.span=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'span',this.span);
@@ -164,14 +164,14 @@ classdef MyRsa < MyInstrument
             closeDevice(this);
         end
         
-        function rbwCallback(this, hObject, eventdata)
+        function rbwCallback(this, hObject, ~)
             this.rbw=str2double(get(hObject,'String'))*1e3;
             openDevice(this);
             writeProperty(this,'rbw',this.rbw);
             closeDevice(this);
         end
         
-        function average_noCallback(this, hObject, eventdata)
+        function average_noCallback(this, hObject, ~)
             this.average_no=str2double(get(hObject,'String'));
             %Writes the average_no to the device only if averaging is
             %enabled
@@ -201,19 +201,18 @@ classdef MyRsa < MyInstrument
                 'attributes',{{'char'}},'write_flag',true);
         end
         
-        function fetchCallback(this, hObject, eventdata)
+        function fetchCallback(this, hObject, ~)
             %Fetches the data using the settings given. This function can
             %in principle be used in the future to add further fetch
             %functionality.
             switch get(hObject,'Tag')
                 case 'fetch_single'
                     readSingle(this)
-                    
             end
             set(this.Gui.fetch_single,'Value',0);
         end
 
-        function enable_avgCallback(this, hObject, eventdata)
+        function enable_avgCallback(this, hObject, ~)
             this.enable_avg=get(hObject,'Value');
             openDevice(this)
             writeProperty(this,'enable_avg',this.enable_avg);
@@ -232,11 +231,12 @@ classdef MyRsa < MyInstrument
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
-            
             %Trace object is created containing the data and its units
             this.Trace=MyTrace('name','RsaData','x',x,'y',power_spectrum,'unit_y',...
                 '$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power','unit_x',...
                 unit_x,'name_x',name_x);
+            %Trigger acquired data event (inherited from MyInstrument)
+            triggerAcquiredData(this);
             %Plotting for test purposes - to be removed in the future
             figure
             this.Trace.plotTrace(gca);

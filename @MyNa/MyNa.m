@@ -8,6 +8,7 @@ classdef MyNa < MyInstrument
         power;
         Trace;
     end
+
     methods
         function this=MyNa(name, interface, address, varargin)
             this@MyInstrument(name, interface, address,varargin{:});

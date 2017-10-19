@@ -29,6 +29,10 @@ classdef MyFit < handle
         init_param_fun;
     end
     
+    events 
+        PerformedFit;
+    end
+    
     methods
         function this=MyFit(varargin)
             createFitStruct(this);
@@ -68,7 +72,7 @@ classdef MyFit < handle
                 this.Gui=[];
             end
         end
-                
+
         %Close figure callback simply calls delete function for class
         function closeFigure(this,~,~)
             delete(this);
@@ -109,17 +113,18 @@ classdef MyFit < handle
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
                 case {'exponential','gaussian','lorentzian'}
-                    this.doFit
+                    doFit(this);
                     this.coeffs=coeffvalues(this.Fitdata);
                     this.Fit.y=this.Fitdata(this.Fit.x);
                 otherwise
-                    this.doFit;
+                    doFit(this);
                     this.Fit.y=this.Fitdata(this.Fit.x);
                     this.coeffs=coeffvalues(this.Fitdata);
             end
             
             this.init_params=this.coeffs;
             this.scale_init=ones(1,this.n_params);
+            triggerPerformedFit(this);
             if this.enable_gui; updateGui(this); end
             if this.enable_plot; plotFit(this); end
         end
@@ -128,6 +133,10 @@ classdef MyFit < handle
             this.Fitdata=fit(this.Data.x,this.Data.y,this.fit_function,...
                 'Lower',this.lim_lower,'Upper',this.lim_upper,...
                 'StartPoint',this.init_params);
+        end
+        
+        function triggerPerformedFit(this)
+            notify(this,'PerformedFit');
         end
         
         function plotFit(this)
