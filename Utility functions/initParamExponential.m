@@ -25,7 +25,9 @@ else
 end
 
 %Method for estimating initial parameters taken from 
-%http://www.matrixlab-examples.com/exponential-regression.html
+%http://www.matrixlab-examples.com/exponential-regression.html. Some
+%modifications to account for negative y values
+
 n=length(x);
 y2=log(y);
 j=sum(x);

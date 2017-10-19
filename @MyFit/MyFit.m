@@ -43,7 +43,12 @@ classdef MyFit < handle
                 this.Data.y=this.Parser.Results.y;
             end
             
-            genInitParams(this);
+            if ~isempty(this.Data.x) || ~isempty(this.Data.y)
+                genInitParams(this);
+            else
+                this.init_params=ones(1,this.n_params);
+            end
+            
             this.scale_init=ones(1,this.n_params);
             
             if this.enable_gui
@@ -99,8 +104,10 @@ classdef MyFit < handle
             switch this.fit_name
                 case 'linear'
                     this.coeffs=polyfit(this.Data.x,this.Data.y,1);
+                    this.Fit.y=polyval(this.coeffs,this.Fit.x);
                 case 'quadratic'
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
+                    this.Fit.y=polyval(this.coeffs,this.Fit.x);
                 case {'exponential','gaussian'}
                     this.doFit
                     this.coeffs=coeffvalues(this.Fitdata);
@@ -113,7 +120,8 @@ classdef MyFit < handle
             
             this.init_params=this.coeffs;
             this.scale_init=ones(1,this.n_params);
-            updateGui(this);
+            if this.enable_gui; updateGui(this); end
+            if this.enable_plot; plotFit(this); end
         end
         
         function doFit(this)
@@ -122,9 +130,13 @@ classdef MyFit < handle
                 'StartPoint',this.init_params);
         end
         
+        function plotFit(this)
+            plot(this.plot_handle,this.Fit.x,this.Fit.y);
+        end
+        
         function createFitStruct(this)
             %Adds fits
-            addFit(this,'linear','a*x_b','$$ax+b$$',{'a','b'},...
+            addFit(this,'linear','a*x+b','$$ax+b$$',{'a','b'},...
                 {'Gradient','Offset'})
             addFit(this,'quadratic','a*x^2+b*x+c','$$ax^2+bx+c$$',...
                 {'a','b','c'},{'Quadratic coeff.','Linear coeff.','Offset'});
