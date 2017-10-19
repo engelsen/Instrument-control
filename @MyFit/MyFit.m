@@ -7,6 +7,8 @@ classdef MyFit < handle
         fit_name='linear'
         init_params=[];
         scale_init=[];
+        lim_lower;
+        lim_upper;
         FitStruct;
         Fitdata;
         coeffs;
@@ -46,9 +48,7 @@ classdef MyFit < handle
             
             if this.enable_gui
                 createGui(this);
-            end
-            
-            
+            end         
         end
         
         %Creates the GUI of MyFit
@@ -93,8 +93,7 @@ classdef MyFit < handle
                 end
             end
         end
-        
-        
+                
         function fitTrace(this)
             this.Fit.x=linspace(min(this.Data.x),max(this.Data.x),1e3);
             switch this.fit_name
@@ -102,22 +101,25 @@ classdef MyFit < handle
                     this.coeffs=polyfit(this.Data.x,this.Data.y,1);
                 case 'quadratic'
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
-                case 'exponential'
-                    this.Fitdata=fitExponential(this.Data.x,...
-                        this.Data.y,this.scaled_params);
+                case {'exponential','gaussian'}
+                    this.doFit
                     this.coeffs=coeffvalues(this.Fitdata);
                     this.Fit.y=this.Fitdata(this.Fit.x);
                 otherwise
-                    ft=fittype(this.fit_function);
-                    this.Fitdata=fit(this.Data.x,this.Data.y,...
-                        ft);
-                    this.Fit.y=this.Fitdata(this.Fit.x)';
+                    this.doFit;
+                    this.Fit.y=this.Fitdata(this.Fit.x);
                     this.coeffs=coeffvalues(this.Fitdata);
             end
             
             this.init_params=this.coeffs;
             this.scale_init=ones(1,this.n_params);
             updateGui(this);
+        end
+        
+        function doFit(this)
+            this.Fitdata=fit(this.Data.x,this.Data.y,this.fit_function,...
+                'Lower',this.lim_lower,'Upper',this.lim_upper,...
+                'StartPoint',this.init_params);
         end
         
         function createFitStruct(this)
@@ -165,8 +167,11 @@ classdef MyFit < handle
         function genInitParams(this)
             switch this.fit_name
                 case 'exponential'
-                    this.init_params=initParamExponential(this.Data.x,...
-                        this.Data.y);
+                    [this.init_params,this.lim_lower,this.lim_upper]=...
+                    initParamExponential(this.Data.x,this.Data.y);
+                case 'gaussian'
+                    [this.init_params,this.lim_lower,this.lim_upper]=...
+                    initParamGaussian(this.Data.x,this.Data.y);
                 otherwise
                     this.init_params=ones(1,this.n_params);
             end
