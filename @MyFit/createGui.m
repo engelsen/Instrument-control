@@ -28,8 +28,17 @@ this.Gui.Title=annotation(this.Gui.MainVbox,'textbox',[0.5,0.5,0.3,0.3],...
     'Units','Normalized','Interpreter','LaTeX',...
     'HorizontalAlignment','center','VerticalAlignment','middle',...
     'FontSize',20,'BackgroundColor','w');
+
 %Creates an HBox to put extracted parameters such as quality factor in
 this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,'BackgroundColor',rgb_white);
+
+%Creates the HBox for the fitting parameters
+this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
+
+%Sets the heights and minimum heights of the four vertical boxes. -1 
+set(this.Gui.MainVbox,'Heights',[40,-1,-1,100],'MinimumHeights',[40,80,50,100]);
+
+
 this.Gui.SavePanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
         'Padding',0,'BackgroundColor', 'w',...
         'Title','Save Panel','TitleColor',rgb_blue);
@@ -41,13 +50,20 @@ this.Gui.SaveButton=uicomponent('Parent',this.Gui.SavePanel,...
 this.Gui.UserPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
         'Padding',0,'BackgroundColor', 'w',...
         'Title','Calculated parameters','TitleColor',rgb_blue);
+this.Gui.UserPanelBox=uix.VBox('Parent',this.Gui.UserPanel,...
+    'BackGroundColor','w');
+switch this.fit_name
+    case 'exponential'
+        this.Gui.Q_text=uicontrol('Parent',this.Gui.UserPanelBox,...
+            'Style','edit','String','Quality factor','FontSize',12);
+        this.Gui.Q=uicontrol('Parent',this.Gui.UserPanelBox,...
+            'Style','edit','String',sprintf('%3.3e',1e6),...
+            'FontSize',14,'Tag','Q');
+        set(this.Gui.UserPanelBox,'Heights',[30,30]);
+end
 
-%Creates the HBox for the fitting parameters
-this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
 
-%Sets the heights and minimum heights of the four vertical boxes. -1 
-set(this.Gui.MainVbox,'Heights',[40,-1,-1,100],'MinimumHeights',[40,80,50,100]);
-
+%Loops over number of parameters to create a fit panel for each one
 for i=1:this.n_params
     %Generates the string for the panel handle
     panel_str=sprintf('panel_%s',this.fit_params{i});
