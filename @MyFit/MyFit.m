@@ -54,6 +54,21 @@ classdef MyFit < handle
         %Creates the GUI of MyFit
         createGui(this);
         
+        function delete(this)
+            if this.enable_gui
+                set(this.Gui.Window,'CloseRequestFcn','');
+                %Deletes the figure
+                delete(this.Gui.Window);
+                %Removes the figure handle to prevent memory leaks
+                this.Gui=[];
+            end
+        end
+                
+        %Close figure callback simply calls delete function for class
+        function closeFigure(this,~,~)
+            delete(this);
+        end
+        
         function createParser(this)
             p=inputParser;
             addParameter(p,'fit_name','linear',@ischar)

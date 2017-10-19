@@ -64,8 +64,9 @@ classdef MyInstrument < handle
                 %Deletes the figure
                 delete(this.Gui.figure1);
                 %Removes the figure handle to prevent memory leaks
+                this.Gui=[];
             end
-            this.Gui=[];
+            
             %Closes the connection to the device
             closeDevice(this);
             %Deletes the device object
