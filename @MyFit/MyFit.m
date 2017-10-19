@@ -11,6 +11,9 @@ classdef MyFit < handle
         Fitdata;
         coeffs;
         enable_gui=1;
+        enable_plot;
+        plot_handle;
+        hline_init;
     end
     
     properties (Dependent=true)
@@ -21,6 +24,7 @@ classdef MyFit < handle
         valid_fit_names;
         n_params;
         scaled_params;
+        init_param_fun;
     end
     
     methods
@@ -58,6 +62,8 @@ classdef MyFit < handle
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
             addParameter(p,'enable_gui',1);
+            addParameter(p,'enable_plot',0);
+            addParameter(p,'plot_handle',[]);
             this.Parser=p;
         end
         
@@ -108,7 +114,7 @@ classdef MyFit < handle
             addFit(this,'gaussian','a*exp(-((x-c)/b)^2/2)+d',...
                 '$$ae^{-\frac{(x-c)^2}{2b^2}}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
-            addFit(this,'lorentzian','a/(pi)*(b/((x-c)^2+b^2)',...
+            addFit(this,'lorentzian','a/(pi)*(b/((x-c)^2+b^2))',...
                 '$$\frac{a}{1+\frac{(x-c)^2}{b^2}}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
             addFit(this,'exponential','a*exp(b*x)+c',...
@@ -135,6 +141,10 @@ classdef MyFit < handle
             this.FitStruct.(fit_name).fit_tex=fit_tex;
             this.FitStruct.(fit_name).fit_params=fit_params;
             this.FitStruct.(fit_name).fit_param_names=fit_param_names;
+            %Generates the anonymous fit function from the above
+            args=['@(x,', strjoin(fit_params,','),')'];
+            anon_fit_fun=str2func(vectorize([args,fit_function]));
+            this.FitStruct.(fit_name).anon_fit_fun=anon_fit_fun;         
         end
         
         function genInitParams(this)
@@ -154,6 +164,8 @@ classdef MyFit < handle
             %Updates the edit box with the new value from the slider
             set(this.Gui.(sprintf('edit_%s',this.fit_params{param_ind})),...
                 'String',sprintf('%3.3e',this.scaled_params(param_ind)));
+            if this.enable_plot; plotInitFun(this); end
+
         end
         
         function edit_Callback(this, hObject, ~)
@@ -161,13 +173,28 @@ classdef MyFit < handle
             tag=get(hObject,'Tag');
             %Finds the index where the fit_param name begins (convention is
             %after the underscore)
-            fit_param_name=tag((strfind(tag,'_')+1):end);
-            param_ind=strcmp(fit_param_name,this.fit_param_names);
-            %Updates the slider with the new value from the edit box
-            set(this.Gui.(sprintf('slider_%s',fit_param_name)),...
-                'Value',init_param);
+            fit_param=tag((strfind(tag,'_')+1):end);
+            param_ind=strcmp(fit_param,this.fit_params);
+            %Updates the slider to be such that the scaling is 1
+            set(this.Gui.(sprintf('slider_%s',fit_param)),...
+                'Value',50);
             %Updates the correct initial parameter
             this.init_params(param_ind)=init_param;
+            if this.enable_plot; plotInitFun(this); end
+        end
+        
+        function plotInitFun(this)
+            %Substantially faster than any alternative - generating 
+            %anonymous functions is very cpu intensive. 
+            x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
+            input_cell=num2cell(this.scaled_params);
+            y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,x_vec,...
+                input_cell{:});
+            if isempty(this.hline_init)
+                this.hline_init=plot(this.plot_handle,x_vec,y_vec);
+            else
+                set(this.hline_init,'XData',x_vec,'YData',y_vec);
+            end
         end
         
         function set.fit_name(this,fit_name)
@@ -210,5 +237,6 @@ classdef MyFit < handle
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);
         end
+
     end
 end
