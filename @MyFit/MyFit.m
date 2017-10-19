@@ -13,6 +13,7 @@ classdef MyFit < handle
         enable_gui=1;
         enable_plot;
         plot_handle;
+        hline_init;
     end
     
     properties (Dependent=true)
@@ -184,13 +185,16 @@ classdef MyFit < handle
         
         function plotInitFun(this)
             %Substantially faster than any alternative - generating 
-            %anonymous functions is very cpu intensive. Further
-            %improvements could be made by using set(Xdata,Ydata)
+            %anonymous functions is very cpu intensive. 
             x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
             input_cell=num2cell(this.scaled_params);
             y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,x_vec,...
                 input_cell{:});
-            plot(this.plot_handle,x_vec,y_vec);
+            if isempty(this.hline_init)
+                this.hline_init=plot(this.plot_handle,x_vec,y_vec);
+            else
+                set(this.hline_init,'XData',x_vec,'YData',y_vec);
+            end
         end
         
         function set.fit_name(this,fit_name)
