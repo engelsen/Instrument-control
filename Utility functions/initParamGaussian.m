@@ -33,6 +33,6 @@ lim_upper(2)=100*range(x);
 lim_lower(3)=min(x)/2;
 lim_upper(3)=max(x)*2;
 
-p_in=[amp_max,width,center, bg];
+p_in=[amp,width,center, bg];
 
 end
