@@ -22,16 +22,16 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 20-Oct-2017 17:58:21
+% Last Modified by GUIDE v2.5 20-Oct-2017 18:48:27
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
-                   'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @GuiDaq_OpeningFcn, ...
-                   'gui_OutputFcn',  @GuiDaq_OutputFcn, ...
-                   'gui_LayoutFcn',  [] , ...
-                   'gui_Callback',   []);
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @GuiDaq_OpeningFcn, ...
+    'gui_OutputFcn',  @GuiDaq_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
     gui_State.gui_Callback = str2func(varargin{1});
 end
@@ -54,8 +54,6 @@ function GuiDaq_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for GuiDaq
 handles.output = hObject;
 
-clc
-
 set(handles.figure1,'WindowButtonUpFcn',@figure1_WindowButtonUpFcn);
 setappdata(0,'h_main_plot',gcf);
 setappdata(gcf,'x_data',0);
@@ -74,8 +72,8 @@ setappdata(gcf,'Vertical_curs',[]); % Object which contain the vertical cursor
 setappdata(gcf,'Horizontal_curs',[]);% Object which contain the Horizontal cursor
 setappdata(gcf,'Vertical_ref_curs',[]); % Object which contain the vertical cursor for reference
 setappdata(gcf,'Vertical_ref_state',0); % Status of vertial cursor for reference
-setappdata(gcf,'x_BG',0);  
-setappdata(gcf,'y_BG',0);  
+setappdata(gcf,'x_BG',0);
+setappdata(gcf,'y_BG',0);
 setappdata(gcf,'V1',[]);       % Value of vertical V1 cursor
 setappdata(gcf,'V2',[]);       % Value of vertical V2 cursor
 setappdata(gcf,'H1',[]);       % Value of Horizontal H1 cursor
@@ -111,13 +109,13 @@ setappdata(gcf,'g0',20000);
 set(handles.num_int,'Enable','off');
 set(handles.num_int,'Value',1);
 
- update_axes
+update_axes
 
 % Update handles structure
 guidata(hObject, handles);
 
 % --- Outputs from this function are returned to the command line.
-function varargout = GuiDaq_OutputFcn(hObject, eventdata, handles) 
+function varargout = GuiDaq_OutputFcn(hObject, eventdata, handles)
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -168,8 +166,8 @@ switch device_name
     case 'RT Spectrum Analyzer (RSA)'
         RSA_Signal_Analyzer
 end
-    
-    % --- Executes during object creation, after setting all properties.
+
+% --- Executes during object creation, after setting all properties.
 function InstrumentMenu_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to InstrumentMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -204,7 +202,7 @@ if(VC_state==1)
     set(handles.V2_Edit,'enable','on' )
     set(handles.V1_V2_Edit,'enable','on' )
 elseif(VC_state==0)
-    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');	
+    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
     Vertical_curs.off();
     set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
     
@@ -241,7 +239,7 @@ if(VC_state==1)
     set(handles.H2_Edit,'enable','on' )
     set(handles.H2_H1_Edit,'enable','on' )
 elseif(VC_state==0)
-    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');	
+    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
     Horizontal_curs.off();
     set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
     
@@ -264,23 +262,23 @@ h_main_plot=getappdata(0,'h_main_plot');
 
 Hcursor_toggle_state=getappdata(h_main_plot,'Hcursor_toggle_state');
 if (Hcursor_toggle_state==1)
-   Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
-   Horizontal_curs.off();
-   Horizontal_curs.add();
+    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
+    Horizontal_curs.off();
+    Horizontal_curs.add();
 end
 
 Vcursor_toggle_state=getappdata(h_main_plot,'Vcursor_toggle_state');
 if (Vcursor_toggle_state==1)
-   Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
-   Vertical_curs.off();
-   Vertical_curs.add();
+    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
+    Vertical_curs.off();
+    Vertical_curs.add();
 end
 
 Vertical_ref_state=getappdata(h_main_plot,'Vertical_ref_state');
 if (Vertical_ref_state==1)
-    Vertical_ref_curs=getappdata(h_main_plot,'Vertical_ref_curs');      	
-   Vertical_ref_curs.off();
-   Vertical_ref_curs.add();
+    Vertical_ref_curs=getappdata(h_main_plot,'Vertical_ref_curs');
+    Vertical_ref_curs.off();
+    Vertical_ref_curs.add();
 end
 
 axes=findobj(h_main_plot,'type','axes');
@@ -465,11 +463,11 @@ switch analysis_routine_number
         
         set(findall(handles.RecordPanel, '-property', 'visible'), 'visible', 'off');
         set(handles.num_int,'Enable','off' );
-    %Cases which use recording panel
+        %Cases which use recording panel
     case 9
         set(findall(handles.RecordPanel, '-property', 'visible'), 'visible', 'on');
         set(handles.num_int,'Enable','off' );
-    %Cases which use numerical integration panel
+        %Cases which use numerical integration panel
     case 6
         set(handles.num_int,'Enable','on' );
     otherwise
@@ -530,7 +528,7 @@ h_main_plot=getappdata(0,'h_main_plot');
 if(get(handles.Trace,'Value')==1)
     x_data=getappdata(h_main_plot,'x_data');
     y_data=getappdata(h_main_plot,'y_data');
-
+    
     setappdata(h_main_plot,'x_analyze',x_data);
     setappdata(h_main_plot,'y_analyze',y_data);
     
@@ -539,19 +537,19 @@ if(get(handles.Trace,'Value')==1)
 else
     x_ref=getappdata(h_main_plot,'x_ref');
     y_ref=getappdata(h_main_plot,'y_ref');
-
+    
     setappdata(h_main_plot,'x_analyze',x_ref);
     setappdata(h_main_plot,'y_analyze',y_ref);
     
     x_analyze=x_ref;
     y_analyze=y_ref;
 end
-   
+
 % check if the verital cursor is on
 Vcursor_toggle_state=getappdata(h_main_plot,'Vcursor_toggle_state');
 if (Vcursor_toggle_state==1)
     % set the left and right cursor from the cursor lines
-    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');      	
+    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
     v_curs_val=Vertical_curs.val();
     setappdata(h_main_plot,'V1',v_curs_val(1));
     setappdata(h_main_plot,'V2',v_curs_val(2));
@@ -565,7 +563,7 @@ end
 Hcursor_toggle_state=getappdata(h_main_plot,'Hcursor_toggle_state');
 if (Hcursor_toggle_state==1)
     % set the up and down cursor from the cursor lines
-    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');      	
+    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
     H_curs_val=Horizontal_curs.val();
     setappdata(h_main_plot,'H1',H_curs_val(1));
     setappdata(h_main_plot,'H2',H_curs_val(2));
@@ -653,9 +651,8 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
+%Placeholder, defined in MyDaq
 function FileName_Callback(hObject, eventdata, handles)
-%Placeholder
-
 
 % --- Executes during object creation, after setting all properties.
 function FileName_CreateFcn(hObject, eventdata, handles)
@@ -680,10 +677,8 @@ function AutoName_Callback(hObject, eventdata, handles)
 
 
 %Callback now defined in class MyDaq.
-function SaveData_Callback(hObject, eventdata, handles)
-
-%Callback now defined in class MyDaq
-function SaveRef_Callback(hObject, eventdata, handles)
+function SaveData_Callback(~, ~, ~) %#ok<DEFNU>
+function SaveRef_Callback(~, ~, ~) %#ok<DEFNU>
 
 % --- Executes on button press in load_file.
 function load_file_Callback(hObject, eventdata, handles)
@@ -697,7 +692,7 @@ if(isempty(folder_name))
     folder_name=pwd;
 end
 
-try 
+try
     [FileName,PathName]=uigetfile('.txt','Select the trace',folder_name);
     full_path=[PathName,FileName];
     data_file=load(full_path');
@@ -728,26 +723,13 @@ end
 
 update_axes
 
-
-
 % --- Executes on mouse press over figure background, over a disabled or
-% --- inactive control, or over an mainplot background.
+% --- inactive control, or over an mainplot background. Strangely this
+% needs to exist to make the VerticalCursors work
 function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
-% hObject    handle to figure1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
 function figure1_WindowButtonUpFcn(hObject, eventdata, handles)
-% hObject    handle to figure1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% --------------------------------------------------------------------
+%Not sure what this is
 function Untitled_1_Callback(hObject, eventdata, handles)
-% hObject    handle to Untitled_1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
 
 % --------------------------------------------------------------------
 function Save_figure_Callback(hObject, eventdata, handles)
@@ -778,23 +760,23 @@ show_ref=getappdata(h_main_plot,'show_ref');
 
 % Choosing the file name and its destinaiton
 % folder_name=get(handles.BaseDir,'string'); % The pre assumption of the folder path
-folder_name=getappdata(h_main_plot,'folder_path'); 
+folder_name=getappdata(h_main_plot,'folder_path');
 
 [FileName,PathName] = uiputfile('*.jpg','Save as',folder_name);
 
 % Defining a new figure made temprory for export
-ftmp = figure; 
+ftmp = figure;
 
 % Depend on the status of the show flags plot the data and ref traces
 if (show_data==1 && show_ref==0)
-plot(x_data,y_data,'b')
+    plot(x_data,y_data,'b')
 elseif ((show_data==0 && show_ref==1))
-plot(x_ref,y_ref,'k')
+    plot(x_ref,y_ref,'k')
 elseif ((show_data==1 && show_ref==1))
-plot(x_ref,y_ref,'k')
-hold on
-plot(x_data,y_data,'b')
-hold off
+    plot(x_ref,y_ref,'k')
+    hold on
+    plot(x_data,y_data,'b')
+    hold off
 else
     plot(0,0)
 end
@@ -802,28 +784,28 @@ end
 % Check if the show analyzed data flag is on, plot the analyzed data
 show_fit_flag=getappdata(h_main_plot,'show_fit_flag');    % a flag to show or not show the fitted data
 if(show_fit_flag==1)
-hold on
-x_analyze_done=getappdata(h_main_plot,'x_analyze_done'); % Data which has been analyze in x axis
-y_analyze_done=getappdata(h_main_plot,'y_analyze_done'); % Data which has been analyze in y axis
-plot(x_analyze_done,y_analyze_done,'r')
-hold off
-fit_meta_data=getappdata(h_main_plot,'fit_meta_data');    % a variable to store the analysis meta data
-fit_meta_data_name=getappdata(h_main_plot,'fit_meta_data_name');    % a variable to store the analysis meta data
-text_position=getappdata(h_main_plot,'fit_meta_data_text_position');    % a variable to store position of the text fo meta data (first is x and second y)
-
-str=[fit_meta_data_name(:,:) num2str(fit_meta_data(:),4) ];
-text_opj=text(0,0,str,'Fontsize',14 ,'BackgroundColor',[1 1 1],'EdgeColor','red',...
-    'VerticalAlignment','top',...
-	'HorizontalAlignment','left');
+    hold on
+    x_analyze_done=getappdata(h_main_plot,'x_analyze_done'); % Data which has been analyze in x axis
+    y_analyze_done=getappdata(h_main_plot,'y_analyze_done'); % Data which has been analyze in y axis
+    plot(x_analyze_done,y_analyze_done,'r')
+    hold off
+    fit_meta_data=getappdata(h_main_plot,'fit_meta_data');    % a variable to store the analysis meta data
+    fit_meta_data_name=getappdata(h_main_plot,'fit_meta_data_name');    % a variable to store the analysis meta data
+    text_position=getappdata(h_main_plot,'fit_meta_data_text_position');    % a variable to store position of the text fo meta data (first is x and second y)
+    
+    str=[fit_meta_data_name(:,:) num2str(fit_meta_data(:),4) ];
+    text_opj=text(0,0,str,'Fontsize',14 ,'BackgroundColor',[1 1 1],'EdgeColor','red',...
+        'VerticalAlignment','top',...
+        'HorizontalAlignment','left');
     buffer=1/50;
     % set the text position
     set(text_opj,'units','normalized');
-    fit_meta_data_text_position=getappdata(h_main_plot,'fit_meta_data_text_position'); 
+    fit_meta_data_text_position=getappdata(h_main_plot,'fit_meta_data_text_position');
     if(fit_meta_data_text_position==1)
         set(text_opj,'Position',[  buffer,1-buffer]);
         set(text_opj,'HorizontalAlignment','Left');
         set(text_opj,'VerticalAlignment','Top');
-     elseif(fit_meta_data_text_position==2)
+    elseif(fit_meta_data_text_position==2)
         set(text_opj,'Position',[1-buffer, 1- buffer]);
         set(text_opj,'HorizontalAlignment','Right');
         set(text_opj,'VerticalAlignment','Top');
@@ -859,20 +841,20 @@ else
     set(new_axes,'xscale','linear');
 end
 
- if(getappdata(h_main_plot,'y_log_flag')==1)
+if(getappdata(h_main_plot,'y_log_flag')==1)
     % Now ploting the cursors:
     % check to see if the there is Horizontal cursors or not
     Hcursor_toggle_state=getappdata(h_main_plot,'Hcursor_toggle_state');
     if (Hcursor_toggle_state==1)
-       Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
-       h_curs_val=Horizontal_curs.val();    % store the value of the horizontal cursor
-       Horizontal_cursors(new_axes,h_curs_val); % Make new cursors in the same position
-
+        Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
+        h_curs_val=Horizontal_curs.val();    % store the value of the horizontal cursor
+        Horizontal_cursors(new_axes,h_curs_val); % Make new cursors in the same position
+        
     end
     % check to see if the there is Vertical cursors or not
     Vcursor_toggle_state=getappdata(h_main_plot,'Vcursor_toggle_state');
     if (Vcursor_toggle_state==1)
-        Vertical_curs=getappdata(h_main_plot,'Vertical_curs');      	
+        Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
         v_curs_val=Vertical_curs.val(); % store the value of the horizontal cursor
         Vertical_cursors(new_axes,v_curs_val); % Make new cursors in the same position
     end
@@ -893,37 +875,9 @@ hgexport(ftmp,[PathName,FileName] ,myStyle,'Format','jpeg')
 % Deleting the figure
 delete(ftmp);
 
-% --- Executes on button press in Log_y.
-function Log_y_Callback(hObject, eventdata, handles)
-% hObject    handle to Log_y (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Log_y
-h_main_plot=getappdata(0,'h_main_plot');
-setappdata(h_main_plot,'y_log_flag',get(hObject,'Value'));
-if(get(hObject,'Value')==1)
-    set(hObject, 'BackGroundColor',[0,1,.2]);
-elseif(get(hObject,'Value')==0)
-    set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-end
-update_axes
-
-% --- Executes on button press in Log_x.
-function Log_x_Callback(hObject, eventdata, handles)
-% hObject    handle to Log_x (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Log_x
-h_main_plot=getappdata(0,'h_main_plot');
-setappdata(h_main_plot,'x_log_flag',get(hObject,'Value'));
-if(get(hObject,'Value')==1)
-    set(hObject, 'BackGroundColor',[0,1,.2]);
-elseif(get(hObject,'Value')==0)
-    set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-end
-update_axes
+%Placeholders
+function LogY_Callback(~, ~, ~) %#ok<DEFNU>
+function LogX_Callback(~, ~, ~) %#ok<DEFNU>
 
 % --- Executes on button press in Clear_fit.
 function Clear_fit_Callback(hObject, eventdata, handles)
@@ -945,29 +899,29 @@ update_axes
 
 % This is the main function of this window which update the axis with the
 % proper plots (ref or data) and cursors
-function update_axes 
+function update_axes
 % First we load the main object of this program which store all variables
-% and functions used to communicate with general plot window 
+% and functions used to communicate with general plot window
 h_main_plot=getappdata(0,'h_main_plot');
 
 % First we check is the status flag for Horizontal cursor is off or on and
-% if it is on, we 
+% if it is on, we
 Hcursor_toggle_state=getappdata(h_main_plot,'Hcursor_toggle_state');
 if (Hcursor_toggle_state==1)
-   Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
-   h_curs_val=Horizontal_curs.val();
-   Horizontal_curs.off();
+    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
+    h_curs_val=Horizontal_curs.val();
+    Horizontal_curs.off();
 end
 Vcursor_toggle_state=getappdata(h_main_plot,'Vcursor_toggle_state');
 if (Vcursor_toggle_state==1)
-    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');      	
+    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
     v_curs_val=Vertical_curs.val();
     Vertical_curs.off();
 end
 
 Vertical_ref_state=getappdata(h_main_plot,'Vertical_ref_state');
 if (Vertical_ref_state==1)
-    Vertical_ref_curs=getappdata(h_main_plot,'Vertical_ref_curs');      	
+    Vertical_ref_curs=getappdata(h_main_plot,'Vertical_ref_curs');
     v_ref_curs_val=Vertical_ref_curs.val();
     Vertical_ref_curs.off();
 end
@@ -1020,7 +974,7 @@ if(getappdata(h_main_plot,'x_log_flag')==1);
 end
 
 if (Hcursor_toggle_state==1)
-     Horizontal_curs=Horizontal_cursors(axes,h_curs_val);
+    Horizontal_curs=Horizontal_cursors(axes,h_curs_val);
     setappdata(h_main_plot,'Horizontal_curs',Horizontal_curs);
 end
 
@@ -1060,7 +1014,7 @@ save_path=[handles.Drive_Letter,':\Measurement Campaigns\'];
 if ~isstr(get(handles.SessionName,'string'))
     error('No session name given')
 elseif ~isstr(get(handles.FileName,'string'))
-   error('No file name given') 
+    error('No file name given')
 end
 
 %Puts the date in front of the session name
@@ -1076,7 +1030,7 @@ end
 final_path=[save_path,session_name,'Q factor','.txt'];
 
 %Creates the file if it does not exist, otherwise opens the file
-if ~exist(final_path,'file') 
+if ~exist(final_path,'file')
     fileID=fopen(final_path,'w');
     %Creates headers in the file
     fmt=['%s\t%s\t%s\t\t%s\t%s\t\r\n'];
@@ -1085,7 +1039,7 @@ else
     fileID=fopen(final_path,'a');
 end
 
-%Formatting string 
+%Formatting string
 fmt=['%s\t%3.3f\t%3.3f\t\t%3.3f\t\t%3.3f\r\n'];
 tag=get(handles.edit_tag,'string');
 fprintf('Data saved in %s',final_path);
@@ -1114,32 +1068,10 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-% --- Executes on button press in Data_to_BG.
-function Data_to_BG_Callback(hObject, eventdata, handles)
-% hObject    handle to Data_to_BG (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h_main_plot=getappdata(0,'h_main_plot');
-setappdata(h_main_plot,'y_BG',getappdata(h_main_plot,'y_data'));
-setappdata(h_main_plot,'y_BG_mean',mean(getappdata(h_main_plot,'y_data')));
-
-% --- Executes on button press in Ref_to_BG.
-function Ref_to_BG_Callback(hObject, eventdata, handles)
-% hObject    handle to Ref_to_BG (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h_main_plot=getappdata(0,'h_main_plot');
-setappdata(h_main_plot,'y_BG',getappdata(h_main_plot,'y_ref'));
-setappdata(h_main_plot,'y_BG_mean',mean(getappdata(h_main_plot,'y_ref')));
-
-% --- Executes on button press in Clear_BG.
-function Clear_BG_Callback(hObject, eventdata, handles)
-% hObject    handle to Clear_BG (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h_main_plot=getappdata(0,'h_main_plot');
-setappdata(h_main_plot,'y_BG',0);
-setappdata(h_main_plot,'y_BG_mean',1);
+%Placeholders, callbacks defined in class
+function DataToBg_Callback(~,~,~) %#ok<DEFNU>
+function RefToBg_Callback(~,~,~) %#ok<DEFNU>
+function ClearBg_Callback(~,~,~) %#ok<DEFNU>
 
 
 % --- Executes on button press in Subtract_BG.

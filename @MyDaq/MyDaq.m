@@ -36,6 +36,7 @@ classdef MyDaq < handle
             if this.enable_gui
                 this.Gui=guihandles(eval('GuiDaq'));
                 initGui(this);
+                hold(this.main_plot,'on');
             end
             initDaq(this)
         end
@@ -70,6 +71,7 @@ classdef MyDaq < handle
                 error('Please create an initialization function for this computer')
         end
         
+        %Initializes empty trace objects
         this.Ref=MyTrace;
         this.Data=MyTrace;
         this.Background=MyTrace;
@@ -99,6 +101,21 @@ classdef MyDaq < handle
                 eventdata));
             set(this.Gui.DataToRef,'Callback',...
                 @(hObject, eventdata) dataToRefCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.LogY,'Callback',...
+                @(hObject, eventdata) logYCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.LogX,'Callback',...
+                @(hObject, eventdata) logXCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.DataToBg,'Callback',...
+                @(hObject, eventdata) dataToBgCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.RefToBg,'Callback',...
+                @(hObject, eventdata) refToBgCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.ClearBg,'Callback',...
+                @(hObject, eventdata) clearBgCallback(this, hObject, ...
                 eventdata));
         end
         
@@ -141,7 +158,7 @@ classdef MyDaq < handle
         
         function showRefCallback(this, hObject, ~)
             if get(hObject,'Value');
-                set(hObject, 'BackGroundColor',[0,1,.2]);
+                set(hObject, 'BackGroundColor',[0,1,0.2]);
                 setVisible(this.Ref,this.main_plot,1);
             else
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
@@ -154,9 +171,58 @@ classdef MyDaq < handle
             this.Ref.x=this.Data.x;
             this.Ref.y=this.Data.y;
             this.Ref.plotTrace(this.main_plot);
+            this.Ref.setVisible(this.main_plot,1);
+            set(this.Gui.ShowRef,'Value',1);
+            set(this.Gui.ShowRef, 'BackGroundColor',[0,1,.2]);
             set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
         end
         
+        function refToBgCallback(this, hObject, ~)
+            set(hObject, 'BackGroundColor',[0,1,.2]);
+            this.Background.x=this.Ref.x;
+            this.Background.y=this.Ref.y;
+            this.Background.plotTrace(this.main_plot);
+            this.Background.setVisible(this.main_plot,1);
+            set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+        end
+        
+        function dataToBgCallback(this, hObject, ~)
+            set(hObject, 'BackGroundColor',[0,1,.2]);
+            this.Background.x=this.Data.x;
+            this.Background.y=this.Data.y;
+            this.Background.plotTrace(this.main_plot);
+            this.Background.setVisible(this.main_plot,1);
+            set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+        end
+        
+        function clearBgCallback(this, hObject, ~)
+            set(hObject, 'BackGroundColor',[0,1,.2]);
+            this.Background.x=[];
+            this.Background.y=[];
+            this.Background.setVisible(this.main_plot,0);
+            set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+        end
+        
+        function logYCallback(this, hObject, ~)
+            if get(hObject,'Value')
+                set(this.main_plot,'YScale','Log');
+                set(hObject, 'BackGroundColor',[0,1,.2]);
+            else
+                set(this.main_plot,'YScale','Linear');
+                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+            end
+        end
+        
+        function logXCallback(this, hObject, ~)
+            if get(hObject,'Value')
+                set(this.main_plot,'XScale','Log');
+                set(hObject, 'BackGroundColor',[0,1,.2]);
+            else
+                set(this.main_plot,'XScale','Linear');
+                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+            end
+        end
+
         function sessionNameCallback(this, hObject, ~)
             this.session_name=get(hObject,'String');
         end
@@ -171,7 +237,11 @@ classdef MyDaq < handle
         end
         
         function main_plot=get.main_plot(this)
-            main_plot=this.Gui.figure1.CurrentAxes;
+            if this.enable_gui
+                main_plot=this.Gui.figure1.CurrentAxes; 
+            else
+                main_plot=[];
+            end
         end
     end
 end
