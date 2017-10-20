@@ -1,21 +1,30 @@
 classdef MyDaq < handle
     properties
+        %Contains Gui handles
         Gui;
+        %Contains Reference trace (MyTrace object)
         Reference;
+        %Contains Data trace (MyTrace object)
         Data;
+        %Contains Background trace (MyTrace object)
         Background;
+        %Cell containing MyInstrument objects 
         Instruments;
+        %Cell containing Cursor objects
         Cursors;
+        %Cell containing MyFit objects
         Fits;
+        %Input parser
         Parser;
-        save_dir;
+        
+        base_dir;
         session_name;
         file_name;
         enable_gui;
     end
     
     properties (Dependent=true)
-        save_path;
+        save_dir;
         main_plot;
     end
     
@@ -67,8 +76,8 @@ classdef MyDaq < handle
         end
         
         function initGui(this)
-            set(this.Gui.SaveDir,'Callback',...
-                @(hObject, eventdata) saveDirCallback(this, hObject, ...
+            set(this.Gui.BaseDir,'Callback',...
+                @(hObject, eventdata) baseDirCallback(this, hObject, ...
                 eventdata));
             set(this.Gui.SessionName,'Callback',...
                 @(hObject, eventdata) sessionNameCallback(this, hObject, ...
@@ -76,11 +85,39 @@ classdef MyDaq < handle
             set(this.Gui.FileName,'Callback',...
                 @(hObject, eventdata) fileNameCallback(this, hObject, ...
                 eventdata));
+            set(this.Gui.SaveData,'Callback',...
+                @(hObject, eventdata) saveDataCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.SaveRef,'Callback',...
+                @(hObject, eventdata) saveRefCallback(this, hObject, ...
+                eventdata));
         end
         
-        function saveDirCallback(this, hObject, ~)
+        function saveDataCallback(this, ~, ~)   
+            if get(this.Gui.AutoName,'Value')
+                date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
+            else
+                date_time='';
+            end
+            
+            savefile=[this.file_name,date_time];
+            save(this.Data,'save_dir',this.save_dir,'name',savefile)
+        end
+        
+        function saveRefCallback(this, ~, ~)
+            if get(this.Gui.AutoName,'Value')
+                date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
+            else
+                date_time='';
+            end
+            
+            savefile=[this.file_name,date_time];
+            save(this.Ref,'save_dir',this.save_dir,'name',savefile)
+        end
+        
+        function baseDirCallback(this, hObject, ~)
             %Modify this at some point to use uiputfile instead
-            this.save_dir=get(hObject,'String');
+            this.base_dir=get(hObject,'String');
         end
         
         function sessionNameCallback(this, hObject, ~)
@@ -90,15 +127,12 @@ classdef MyDaq < handle
         function fileNameCallback(this, hObject,~)
             this.file_name=get(hObject,'String');
         end
-        
-        function set.save_dir(this, save_dir)
-            this.save_dir=save_dir;
+       
+        function save_dir=get.save_dir(this)
+            save_dir=[this.base_dir,datestr(now,'yyyy-mm-dd '),...
+                this.session_name,'\'];
         end
         
-        function save_path=get.save_path(this)
-            save_path=[this.save_dir,this.session_name,'\',this.file_name,...
-                '.txt'];
-        end
         
         function main_plot=get.main_plot(this)
             main_plot=this.Gui.figure1.CurrentAxes;

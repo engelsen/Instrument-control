@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 20-Oct-2017 12:22:18
+% Last Modified by GUIDE v2.5 20-Oct-2017 13:53:17
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -716,12 +716,12 @@ update_axes
 
 
 %Placeholder
-function SaveDir_Callback(hObject, eventdata, handles)
+function BaseDir_Callback(hObject, eventdata, handles)
 
 
 % --- Executes during object creation, after setting all properties.
-function SaveDir_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to SaveDir (see GCBO)
+function BaseDir_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to BaseDir (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -740,7 +740,7 @@ function open_folder_Callback(hObject, eventdata, handles)
 % Here we open the file and store its name and path for next steps
 
 folder_name = uigetdir('C:\Users\ghadimi\Desktop');
-set(handles.SaveDir,'string',[folder_name,'\']);
+set(handles.BaseDir,'string',[folder_name,'\']);
 
 
 
@@ -782,124 +782,20 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in Auto_Naming.
-function Auto_Naming_Callback(hObject, eventdata, handles)
-% hObject    handle to Auto_Naming (see GCBO)
+% --- Executes on button press in AutoName.
+function AutoName_Callback(hObject, eventdata, handles)
+% hObject    handle to AutoName (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of Auto_Naming
+% Hint: get(hObject,'Value') returns toggle state of AutoName
 
 
-% --- Executes on button press in Save_Data.
-function Save_Data_Callback(hObject, eventdata, handles)
-% hObject    handle to Save_Data (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h_main_plot=getappdata(0,'h_main_plot');
+%Callback now defined in class MyDaq.
+function SaveData_Callback(hObject, eventdata, handles)
 
-auto_name_flag=get(handles.Auto_Naming,'value');
-if(auto_name_flag==1)
-    date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
-else
-    date_time='';
-end
-file_name=get(handles.FileName,'string');
-file_name=[file_name,date_time];
-
-Session_name=get(handles.SessionName,'string');
-Session_name=[datestr(now,'yyyy-mm-dd '),Session_name];
-folder_name=get(handles.SaveDir,'string');
-
-mkdir(folder_name,Session_name)
-
-
-x_data=getappdata(h_main_plot,'x_data')';
-y_data=getappdata(h_main_plot,'y_data')';
-% We need to make sure the data in a column and not row 
-if ~iscolumn(x_data)
-     x_data=x_data';
- end
-  if ~iscolumn(y_data)
-     y_data=y_data';
- end
-
-data=[x_data,y_data];
-
-setappdata(h_main_plot,'folder_path',[folder_name,Session_name]); 
-path=[folder_name,Session_name,'\',file_name,'.txt'];
-
-
- if (exist(path)~=0)
-     setappdata(h_main_plot,'error_flag',1);
-     Overwite_Error;
-     while(getappdata(h_main_plot,'error_flag')==1)
-         pause(0.01);
-     end
-     if(getappdata(h_main_plot,'overwite_flag')==1)
-         save(path,'data','-ascii');
-        setappdata(h_main_plot,'overwite_flag',0);
-     end
- else
-      save(path,'data','-ascii');
- end
- 
-
-
-% --- Executes on button press in Save_Ref.
-function Save_Ref_Callback(hObject, eventdata, handles)
-% hObject    handle to Save_Ref (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h_main_plot=getappdata(0,'h_main_plot');
-
-auto_name_flag=get(handles.Auto_Naming,'value');
-if(auto_name_flag==1)
-    date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
-else
-    date_time='';
-end
-file_name=get(handles.FileName,'string');
-file_name=[file_name,date_time];
-
-Session_name=get(handles.SessionName,'string');
-Session_name=[datestr(now,'yyyy-mm-dd '),Session_name];
-folder_name=get(handles.SaveDir,'string');
-
-mkdir(folder_name,Session_name)
-
-
-x_ref=getappdata(h_main_plot,'x_ref')';
-y_ref=getappdata(h_main_plot,'y_ref')';
-% We need to make sure the data in a column and not row 
-if ~iscolumn(x_ref)
-     x_ref=x_ref';
- end
-  if ~iscolumn(y_ref)
-     y_ref=y_ref';
- end
-ref=[x_ref,y_ref];
-
-setappdata(h_main_plot,'folder_path',[folder_name,Session_name]); 
-path=[folder_name,Session_name,'\',file_name,'.txt'];
-
-
-
- if (exist(path,'file')~=0)
-     setappdata(h_main_plot,'error_flag',1);
-     Overwite_Error;
-     while(getappdata(h_main_plot,'error_flag')==1)
-         pause(0.01);
-     end
-     if(getappdata(h_main_plot,'overwite_flag')==1)
-         save(path,'ref','-ascii');
-        setappdata(h_main_plot,'overwite_flag',0);
-     end
- else
-     save(path,'ref','-ascii');
- end
- 
-
+%Callback now defined in class MyDaq
+function SaveRef_Callback(hObject, eventdata, handles)
 
 % --- Executes on button press in load_file.
 function load_file_Callback(hObject, eventdata, handles)
@@ -907,7 +803,7 @@ function load_file_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-folder_name=get(handles.SaveDir,'string');
+folder_name=get(handles.BaseDir,'string');
 if(isempty(folder_name))
     warning('Please input a valid folder name for loading a trace');
     folder_name=pwd;
@@ -992,7 +888,7 @@ show_ref=getappdata(h_main_plot,'show_ref');
 
 
 % Choosing the file name and its destinaiton
-% folder_name=get(handles.SaveDir,'string'); % The pre assumption of the folder path
+% folder_name=get(handles.BaseDir,'string'); % The pre assumption of the folder path
 folder_name=getappdata(h_main_plot,'folder_path'); 
 
 [FileName,PathName] = uiputfile('*.jpg','Save as',folder_name);

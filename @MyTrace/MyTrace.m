@@ -73,6 +73,7 @@ classdef MyTrace < handle
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x)]);
+            if cw<9; cw=9; end
             
             %Makes a format string with the correct column width. %% makes
             %a % symbol in sprintf, thus if cw=14, below is %14s\t%14s\r\n.
@@ -82,7 +83,7 @@ classdef MyTrace < handle
             %Saves in scientific notation with correct column width defined
             %above. Again if cw=14, we get %14.3e\t%14.3e\r\n
             fprintf(fileID,sprintf('%%%d.3e\t%%%d.3e\r\n',cw,cw),...
-                [this.x; this.y]);
+                [this.x, this.y]');
             fclose(fileID);
         end
         

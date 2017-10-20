@@ -6,7 +6,7 @@ set(this.Gui.InstrumentMenu,'String',{'Select the device',...
     'RT Spectrum Analyzer (RSA)',...
     'Oscilloscope 2 (Agilent DSO7034A)',...
     'Network Analyzer (Agilent E5061B)'});
-this.save_dir='M:\Measurement Campaigns\';
-set(this.Gui.SaveDir,'String',this.save_dir);
+this.base_dir='M:\Measurement Campaigns\';
+set(this.Gui.BaseDir,'String',this.base_dir);
 
 end
