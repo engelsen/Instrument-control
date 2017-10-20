@@ -4,10 +4,6 @@ classdef MyScope <MyInstrument
         channel;
     end
     
-    events
-        AcquiredTrace;
-    end
-    
     methods
         function this=MyScope(name, interface, address, varargin)
             this@MyInstrument(name, interface, address, varargin{:});
@@ -109,7 +105,7 @@ classdef MyScope <MyInstrument
             this.Trace=MyTrace('name','ScopeTrace','x',x,'y',y,'unit_x',unit_x(2),...
                 'unit_y',unit_y(2),'name_x','Time','name_y','Voltage');
             %Triggers the event for acquired data
-            triggerAcquiredData(this);
+            triggerNewData(this);
             
             this.Trace.plotTrace(this.plot_handle);
         end

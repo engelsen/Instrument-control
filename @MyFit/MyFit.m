@@ -30,7 +30,7 @@ classdef MyFit < handle
     end
     
     events 
-        PerformedFit;
+        NewFit;
     end
     
     methods
@@ -124,7 +124,7 @@ classdef MyFit < handle
             
             this.init_params=this.coeffs;
             this.scale_init=ones(1,this.n_params);
-            triggerPerformedFit(this);
+            triggerNewFit(this);
             if this.enable_gui; updateGui(this); end
             if this.enable_plot; plotFit(this); end
         end
@@ -135,8 +135,8 @@ classdef MyFit < handle
                 'StartPoint',this.init_params);
         end
         
-        function triggerPerformedFit(this)
-            notify(this,'PerformedFit');
+        function triggerNewFit(this)
+            notify(this,'NewFit');
         end
         
         function plotFit(this)

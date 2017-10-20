@@ -26,7 +26,7 @@ classdef MyInstrument < handle
     end
     
     events 
-        AcquiredData;
+        NewData;
     end
     
     methods
@@ -61,8 +61,8 @@ classdef MyInstrument < handle
         end
         
         %Triggers event for acquired data
-        function triggerAcquiredData(this)
-            notify(this,'AcquiredData')
+        function triggerNewData(this)
+            notify(this,'NewData')
         end
         
         
