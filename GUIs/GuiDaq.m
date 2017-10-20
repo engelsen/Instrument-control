@@ -123,12 +123,6 @@ set(handles.num_int,'Value',1);
 % Update handles structure
 guidata(hObject, handles);
 
-% UIWAIT makes GuiDaq wait for user response (see UIRESUME)
-%  uiwait(handles.figure1);
-
-function nothig(varargin)
-
-
 % --- Outputs from this function are returned to the command line.
 function varargout = GuiDaq_OutputFcn(hObject, eventdata, handles) 
 % varargout  cell array for returning output args (see VARARGOUT);
@@ -182,9 +176,7 @@ switch device_name
         RSA_Signal_Analyzer
 end
     
-    
-
-% --- Executes during object creation, after setting all properties.
+    % --- Executes during object creation, after setting all properties.
 function InstrumentMenu_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to InstrumentMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -195,7 +187,6 @@ function InstrumentMenu_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 % --- Executes on button press in Vertical_cursor.
 function Vertical_cursor_Callback(hObject, eventdata, handles)
@@ -232,9 +223,6 @@ elseif(VC_state==0)
     set(handles.V2_Edit,'string','' )
     set(handles.V1_V2_Edit,'string','' )
 end
-
-
-
 
 % --- Executes on button press in Horizontal_cursor.
 function Horizontal_cursor_Callback(hObject, eventdata, handles)
@@ -273,7 +261,6 @@ elseif(VC_state==0)
     set(handles.H2_H1_Edit,'string','' )
 end
 
-
 % --- Executes on button press in Center_cursor.
 function Center_cursor_Callback(hObject, eventdata, handles)
 % hObject    handle to Center_cursor (see GCBO)
@@ -303,11 +290,7 @@ if (Vertical_ref_state==1)
    Vertical_ref_curs.add();
 end
 
-
-
 axes=findobj(h_main_plot,'type','axes');
-
-
 
 function V1_Edit_Callback(hObject, eventdata, handles)
 % hObject    handle to V1_Edit (see GCBO)
@@ -328,10 +311,6 @@ Vertical_curs.off();
 v_curs_val(1)=str2num(get(hObject,'String'));
 Vertical_curs.add(v_curs_val);
 
-
-    
-
-
 % --- Executes during object creation, after setting all properties.
 function V1_Edit_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to V1_Edit (see GCBO)
@@ -344,8 +323,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function V2_Edit_Callback(hObject, eventdata, handles)
 % hObject    handle to V2_Edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -357,12 +334,11 @@ h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
 
-
-   Vertical_curs=getappdata(h_main_plot,'Vertical_curs');      	
-    v_curs_val=Vertical_curs.val();
-    Vertical_curs.off();
-    v_curs_val(2)=str2num(get(hObject,'String'));
-    Vertical_curs.add(v_curs_val);
+Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
+v_curs_val=Vertical_curs.val();
+Vertical_curs.off();
+v_curs_val(2)=str2num(get(hObject,'String'));
+Vertical_curs.add(v_curs_val);
 
 % --- Executes during object creation, after setting all properties.
 function V2_Edit_CreateFcn(hObject, eventdata, handles)
@@ -376,8 +352,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function V1_V2_Edit_Callback(hObject, eventdata, handles)
 % hObject    handle to V1_V2_Edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -385,7 +359,6 @@ function V1_V2_Edit_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of V1_V2_Edit as text
 %        str2double(get(hObject,'String')) returns contents of V1_V2_Edit as a double
-
 
 % --- Executes during object creation, after setting all properties.
 function V1_V2_Edit_CreateFcn(hObject, eventdata, handles)
@@ -399,8 +372,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function H1_Edit_Callback(hObject, eventdata, handles)
 % hObject    handle to H1_Edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -412,14 +383,11 @@ h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
 
-
-   Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
-   h_curs_val=Horizontal_curs.val();
-   Horizontal_curs.off();
-    h_curs_val(1)=str2num(get(hObject,'String'));
-    Horizontal_curs.add(h_curs_val);
-    
-
+Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
+h_curs_val=Horizontal_curs.val();
+Horizontal_curs.off();
+h_curs_val(1)=str2num(get(hObject,'String'));
+Horizontal_curs.add(h_curs_val);
 
 % --- Executes during object creation, after setting all properties.
 function H1_Edit_CreateFcn(hObject, eventdata, handles)
@@ -433,8 +401,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function H2_Edit_Callback(hObject, eventdata, handles)
 % hObject    handle to H2_Edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -446,12 +412,11 @@ h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
 
-
-   Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
-   h_curs_val=Horizontal_curs.val();
-   Horizontal_curs.off();
-    h_curs_val(2)=str2num(get(hObject,'String'));
-    Horizontal_curs.add(h_curs_val);
+Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
+h_curs_val=Horizontal_curs.val();
+Horizontal_curs.off();
+h_curs_val(2)=str2num(get(hObject,'String'));
+Horizontal_curs.add(h_curs_val);
 
 % --- Executes during object creation, after setting all properties.
 function H2_Edit_CreateFcn(hObject, eventdata, handles)
@@ -465,8 +430,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function H2_H1_Edit_Callback(hObject, eventdata, handles)
 % hObject    handle to H2_H1_Edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -474,7 +437,6 @@ function H2_H1_Edit_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of H2_H1_Edit as text
 %        str2double(get(hObject,'String')) returns contents of H2_H1_Edit as a double
-
 
 % --- Executes during object creation, after setting all properties.
 function H2_H1_Edit_CreateFcn(hObject, eventdata, handles)
@@ -488,7 +450,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
 % --- Executes on selection change in Analyze_list.
 function Analyze_list_Callback(hObject, eventdata, handles)
 % hObject    handle to Analyze_list (see GCBO)
@@ -497,8 +458,6 @@ function Analyze_list_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns Analyze_list contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from Analyze_list
-
-
 
 h_main_plot=getappdata(0,'h_main_plot');
 
@@ -531,11 +490,6 @@ switch analysis_routine_number
 end
 
 % setappdata(h_main_plot,'Vcursor_toggle_state',VC_ref_state);
-
-
-
-
-
 
 % --- Executes during object creation, after setting all properties.
 function Analyze_list_CreateFcn(hObject, eventdata, handles)
@@ -817,7 +771,6 @@ catch
     error('Please select a valid file');
 end
 
-
 h_main_plot=getappdata(0,'h_main_plot');
 
 if (get(handles.Load_data,'value')==1)
@@ -910,7 +863,6 @@ else
     plot(0,0)
 end
 
-
 % Check if the show analyzed data flag is on, plot the analyzed data
 show_fit_flag=getappdata(h_main_plot,'show_fit_flag');    % a flag to show or not show the fitted data
 if(show_fit_flag==1)
@@ -957,12 +909,7 @@ grid on;
 xlabel(x_label);
 ylabel(y_label);
 
-
-
-
-
 new_axes=findobj(ftmp,'type','axes');
-
 
 % Check if the X and Y axis should be linear or log scale
 if(getappdata(h_main_plot,'y_log_flag')==1)
@@ -975,7 +922,6 @@ if(getappdata(h_main_plot,'x_log_flag')==1)
 else
     set(new_axes,'xscale','linear');
 end
-
 
  if(getappdata(h_main_plot,'y_log_flag')==1)
     % Now ploting the cursors:
@@ -996,8 +942,6 @@ end
     end
 end
 
-
-
 % Definig an style for exported image
 myStyle = hgexport('factorystyle');
 myStyle.Format = 'jpg';
@@ -1007,13 +951,11 @@ myStyle.Resolution = 600;
 myStyle.Units = 'inch';
 % myStyle.FixedFontSize = 12;
 
-
 % Exporting the image
 hgexport(ftmp,[PathName,FileName] ,myStyle,'Format','jpeg')
 
 % Deleting the figure
 delete(ftmp);
-
 
 % --- Executes on button press in Log_y.
 function Log_y_Callback(hObject, eventdata, handles)
@@ -1031,7 +973,6 @@ elseif(get(hObject,'Value')==0)
 end
 update_axes
 
-
 % --- Executes on button press in Log_x.
 function Log_x_Callback(hObject, eventdata, handles)
 % hObject    handle to Log_x (see GCBO)
@@ -1047,10 +988,6 @@ elseif(get(hObject,'Value')==0)
     set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
 end
 update_axes
-
-
-     
-
 
 % --- Executes on button press in Clear_fit.
 function Clear_fit_Callback(hObject, eventdata, handles)
@@ -1069,7 +1006,6 @@ end
 
 
 update_axes
-
 
 % This is the main function of this window which update the axis with the
 % proper plots (ref or data) and cursors
@@ -1113,8 +1049,6 @@ show_data=getappdata(h_main_plot,'show_data');
 show_ref=getappdata(h_main_plot,'show_ref');
 
 axes=findobj(h_main_plot,'type','axes');
-
-
 
 if (show_data==1 && show_ref==0)
     plot(axes,x_data,y_data,'b')
