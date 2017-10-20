@@ -165,6 +165,21 @@ classdef MyTrace < handle
             set(plot_axes,'TickLabelInterpreter','LaTeX');
         end
         
+        %If there is a line object from the trace in the figure, this sets
+        %it to the appropriate visible setting.
+        function setVisible(this, plot_axes, bool)
+            if bool
+                vis='on'; 
+            else
+                vis='off';
+            end
+            
+            ind=cellfun(@(x) ismember(x,findall(plot_axes,...
+                'Type','Line')),this.hlines);
+            if ~isempty(ind) && any(ind)
+                set(this.hlines{ind},'Visible',vis)
+            end
+        end
         
         %Set function for Color. Checks if it is a valid color.
         function set.Color(this, Color)

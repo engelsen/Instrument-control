@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 20-Oct-2017 13:53:17
+% Last Modified by GUIDE v2.5 20-Oct-2017 17:58:21
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -43,7 +43,6 @@ else
 end
 % End initialization code - DO NOT EDIT
 
-
 % --- Executes just before GuiDaq is made visible.
 function GuiDaq_OpeningFcn(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
@@ -52,16 +51,12 @@ function GuiDaq_OpeningFcn(hObject, eventdata, handles, varargin)
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to GuiDaq (see VARARGIN)
 
-
-
 % Choose default command line output for GuiDaq
 handles.output = hObject;
 
 clc
 
-%NEED TO PUT IN SELECTION HERE. OPTIONS FOR DRIVE LETTER 
-
-
+set(handles.figure1,'WindowButtonUpFcn',@figure1_WindowButtonUpFcn);
 setappdata(0,'h_main_plot',gcf);
 setappdata(gcf,'x_data',0);
 setappdata(gcf,'y_data',0);
@@ -117,8 +112,6 @@ set(handles.num_int,'Enable','off');
 set(handles.num_int,'Value',1);
 
  update_axes
-
-
 
 % Update handles structure
 guidata(hObject, handles);
@@ -526,7 +519,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
 % --- Executes on button press in Analyse.
 function Analyse_Callback(hObject, eventdata, handles)
 % hObject    handle to Analyse (see GCBO)
@@ -554,8 +546,6 @@ else
     x_analyze=x_ref;
     y_analyze=y_ref;
 end
-
-
    
 % check if the verital cursor is on
 Vcursor_toggle_state=getappdata(h_main_plot,'Vcursor_toggle_state');
@@ -611,67 +601,11 @@ switch get(handles.Analyze_list,'Value')
         T_measurement;
 end
 
-
-% --- Executes on button press in Data_to_ref.
-function Data_to_ref_Callback(hObject, eventdata, handles)
-% hObject    handle to Data_to_ref (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h_main_plot=getappdata(0,'h_main_plot');
-x_data=getappdata(h_main_plot,'x_data');
-y_data=getappdata(h_main_plot,'y_data');
-setappdata(gcf,'x_ref',x_data);
-setappdata(gcf,'y_ref',y_data);
-
-update_axes
-
-
-% --- Executes on button press in Show_Data.
-function Show_Data_Callback(hObject, eventdata, handles)
-% hObject    handle to Show_Data (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Show_Data
-h_main_plot=getappdata(0,'h_main_plot');
-
-show_data=get(hObject,'Value');
-
-setappdata(h_main_plot,'show_data',show_data);
-
-if(show_data==1)
-    set(hObject, 'BackGroundColor',[0,1,.2]);
-elseif(show_data==0)
-    set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-end
-
-update_axes
-
-% --- Executes on button press in Show_Ref.
-function Show_Ref_Callback(hObject, eventdata, handles)
-% hObject    handle to Show_Ref (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Show_Ref
-h_main_plot=getappdata(0,'h_main_plot');
-
-show_ref=get(hObject,'Value');
-
-setappdata(h_main_plot,'show_ref',show_ref);
-
-if show_ref
-    set(hObject, 'BackGroundColor',[0,1,.2]);
-else
-    set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-end
-
-update_axes
-
-
-%Placeholder
-function BaseDir_Callback(hObject, eventdata, handles)
-
+%Placeholders
+function DataToRef_Callback(~,~,~)%#ok<DEFNU>
+function ShowData_Callback(~,~,~)%#ok<DEFNU>
+function ShowRef_Callback(~,~,~) %#ok<DEFNU>
+function BaseDir_Callback(~,~,~)%#ok<DEFNU>
 
 % --- Executes during object creation, after setting all properties.
 function BaseDir_CreateFcn(hObject, eventdata, handles)
@@ -778,18 +712,18 @@ if (get(handles.Load_data,'value')==1)
     setappdata(h_main_plot,'y_data',data_file(:,2));
     
     %Makes the trace visible when loaded
-    set(handles.Show_Data,'Value',1);
+    set(handles.ShowData,'Value',1);
     setappdata(h_main_plot,'show_data',1);
-    set(handles.Show_Data, 'BackGroundColor',[0,1,.2]);
+    set(handles.ShowData, 'BackGroundColor',[0,1,.2]);
     
 else
     setappdata(h_main_plot,'x_ref',data_file(:,1));
     setappdata(h_main_plot,'y_ref',data_file(:,2));
     
     %Makes the trace visible when loaded
-    set(handles.Show_Ref,'Value',1);
+    set(handles.ShowRef,'Value',1);
     setappdata(h_main_plot,'show_ref',1);
-    set(handles.Show_Ref, 'BackGroundColor',[0,1,.2]);
+    set(handles.ShowRef, 'BackGroundColor',[0,1,.2]);
 end
 
 update_axes
@@ -803,8 +737,10 @@ function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-set(gcf,'WindowButtonUpFcn',@nothig)
-
+function figure1_WindowButtonUpFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 
 % --------------------------------------------------------------------
 function Untitled_1_Callback(hObject, eventdata, handles)

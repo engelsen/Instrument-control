@@ -3,7 +3,7 @@ classdef MyDaq < handle
         %Contains Gui handles
         Gui;
         %Contains Reference trace (MyTrace object)
-        Reference;
+        Ref;
         %Contains Data trace (MyTrace object)
         Data;
         %Contains Background trace (MyTrace object)
@@ -70,7 +70,7 @@ classdef MyDaq < handle
                 error('Please create an initialization function for this computer')
         end
         
-        this.Reference=MyTrace;
+        this.Ref=MyTrace;
         this.Data=MyTrace;
         this.Background=MyTrace;
         end
@@ -90,6 +90,15 @@ classdef MyDaq < handle
                 eventdata));
             set(this.Gui.SaveRef,'Callback',...
                 @(hObject, eventdata) saveRefCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.ShowData,'Callback',...
+                @(hObject, eventdata) showDataCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.ShowRef,'Callback',...
+                @(hObject, eventdata) showRefCallback(this, hObject, ...
+                eventdata));
+            set(this.Gui.DataToRef,'Callback',...
+                @(hObject, eventdata) dataToRefCallback(this, hObject, ...
                 eventdata));
         end
         
@@ -120,6 +129,34 @@ classdef MyDaq < handle
             this.base_dir=get(hObject,'String');
         end
         
+        function showDataCallback(this, hObject, ~)
+            if get(hObject,'Value');
+                set(hObject, 'BackGroundColor',[0,1,.2]);
+                setVisible(this.Data,this.main_plot,1);
+            else
+                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                setVisible(this.Data,this.main_plot,0);
+            end
+        end
+        
+        function showRefCallback(this, hObject, ~)
+            if get(hObject,'Value');
+                set(hObject, 'BackGroundColor',[0,1,.2]);
+                setVisible(this.Ref,this.main_plot,1);
+            else
+                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                setVisible(this.Ref,this.main_plot,0);
+            end
+        end
+        
+        function dataToRefCallback(this, hObject, ~)
+            set(hObject, 'BackGroundColor',[0,1,.2]);
+            this.Ref.x=this.Data.x;
+            this.Ref.y=this.Data.y;
+            this.Ref.plotTrace(this.main_plot);
+            set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+        end
+        
         function sessionNameCallback(this, hObject, ~)
             this.session_name=get(hObject,'String');
         end
@@ -132,7 +169,6 @@ classdef MyDaq < handle
             save_dir=[this.base_dir,datestr(now,'yyyy-mm-dd '),...
                 this.session_name,'\'];
         end
-        
         
         function main_plot=get.main_plot(this)
             main_plot=this.Gui.figure1.CurrentAxes;
