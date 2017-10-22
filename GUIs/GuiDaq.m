@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 20-Oct-2017 18:48:27
+% Last Modified by GUIDE v2.5 22-Oct-2017 22:06:46
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -441,14 +441,14 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-% --- Executes on selection change in Analyze_list.
-function Analyze_list_Callback(hObject, eventdata, handles)
-% hObject    handle to Analyze_list (see GCBO)
+% --- Executes on selection change in AnalyzeMenu.
+function AnalyzeMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to AnalyzeMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: contents = cellstr(get(hObject,'String')) returns Analyze_list contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from Analyze_list
+% Hints: contents = cellstr(get(hObject,'String')) returns AnalyzeMenu contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from AnalyzeMenu
 
 h_main_plot=getappdata(0,'h_main_plot');
 
@@ -483,8 +483,8 @@ end
 % setappdata(h_main_plot,'Vcursor_toggle_state',VC_ref_state);
 
 % --- Executes during object creation, after setting all properties.
-function Analyze_list_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to Analyze_list (see GCBO)
+function AnalyzeMenu_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to AnalyzeMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -574,7 +574,7 @@ else
 end
 
 
-switch get(handles.Analyze_list,'Value')
+switch get(handles.AnalyzeMenu,'Value')
     case 2
         knife_edge_calibration;
     case 3

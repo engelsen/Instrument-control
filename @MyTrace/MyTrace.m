@@ -147,8 +147,7 @@ classdef MyTrace < handle
             parse(this.Parser,varargin{:})
             parseInputs(this,false);
             
-            ind=cellfun(@(x) ismember(x,findall(plot_axes,...
-                'Type','Line')),this.hlines);
+            ind=findLineInd(this, plot_axes);
             if ~isempty(ind) && any(ind)
                 set(this.hlines{ind},'XData',this.x,'YData',this.y);
             else
@@ -174,11 +173,15 @@ classdef MyTrace < handle
                 vis='off';
             end
             
-            ind=cellfun(@(x) ismember(x,findall(plot_axes,...
-                'Type','Line')),this.hlines);
+            ind=findLineInd(this, plot_axes);
             if ~isempty(ind) && any(ind)
                 set(this.hlines{ind},'Visible',vis)
             end
+        end
+        
+        function ind=findLineInd(this, plot_axes)
+            ind=cellfun(@(x) ismember(x,findall(plot_axes,...
+                'Type','Line')),this.hlines);
         end
         
         %Set function for Color. Checks if it is a valid color.

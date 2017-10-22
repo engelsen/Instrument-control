@@ -13,7 +13,7 @@ classdef MyDaq < handle
         %Cell containing Cursor objects
         Cursors;
         %Cell containing MyFit objects
-        Fits;
+        Fits={};
         %Input parser
         Parser;
         
@@ -68,7 +68,7 @@ classdef MyDaq < handle
             case 'LPQM1PC18'
                 initUhq(this);
             otherwise
-                error('Please create an initialization function for this computer')
+                %error('Please create an initialization function for this computer')
         end
         
         %Initializes empty trace objects
@@ -117,6 +117,12 @@ classdef MyDaq < handle
             set(this.Gui.ClearBg,'Callback',...
                 @(hObject, eventdata) clearBgCallback(this, hObject, ...
                 eventdata));
+            set(this.Gui.AnalyzeMenu,'Callback',...
+                @(hObject, eventdata) analyzeMenuCallback(this, hObject,...
+                eventdata));
+            set(this.Gui.AnalyzeMenu,'String',{'Select a routine...',...
+                'Linear Fit','Quadratic Fit','Exponential Fit',...
+                'Gaussian Fit','Lorentzian Fit'});
         end
         
         function saveDataCallback(this, ~, ~)   
@@ -147,7 +153,7 @@ classdef MyDaq < handle
         end
         
         function showDataCallback(this, hObject, ~)
-            if get(hObject,'Value');
+            if get(hObject,'Value')
                 set(hObject, 'BackGroundColor',[0,1,.2]);
                 setVisible(this.Data,this.main_plot,1);
             else
@@ -157,7 +163,7 @@ classdef MyDaq < handle
         end
         
         function showRefCallback(this, hObject, ~)
-            if get(hObject,'Value');
+            if get(hObject,'Value')
                 set(hObject, 'BackGroundColor',[0,1,0.2]);
                 setVisible(this.Ref,this.main_plot,1);
             else
@@ -220,6 +226,22 @@ classdef MyDaq < handle
             else
                 set(this.main_plot,'XScale','Linear');
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+            end
+        end
+        
+        function analyzeMenuCallback(this, hObject, ~)
+            analyze_list=get(hObject,'String');
+            analyze_ind=get(hObject,'Value');
+            analyze_name=analyze_list{analyze_ind};
+            analyze_name=analyze_name(1:(strfind(analyze_name,' ')-1));
+            
+            ind=cellfun(@(x) strcmp(analyze_name,x.fit_name), this.Fits);
+            %Sees if the fit object is already open, if it is, changes the
+            %focus to it, if not, opens it.
+            if any(ind)
+                figure(this.Fits{ind}.Gui.Window);
+            elseif analyze_ind~=1
+                this.Fits{end+1}=MyFit('fit_name',analyze_name);
             end
         end
 

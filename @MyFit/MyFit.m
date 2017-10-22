@@ -4,13 +4,13 @@ classdef MyFit < handle
         Data;
         Fit;
         Parser;
+        FitStruct;
+        Fitdata;
         fit_name='linear'
         init_params=[];
         scale_init=[];
         lim_lower;
         lim_upper;
-        FitStruct;
-        Fitdata;
         coeffs;
         enable_gui=1;
         enable_plot;
@@ -140,7 +140,7 @@ classdef MyFit < handle
         end
         
         function plotFit(this)
-            plot(this.plot_handle,this.Fit.x,this.Fit.y);
+            this.Fit.plotTrace(this.plot_handle);
         end
         
         function createFitStruct(this)
@@ -165,9 +165,9 @@ classdef MyFit < handle
             %necessary for the slider
             slider_vals=25*log10(this.scale_init)+50;
             for i=1:this.n_params
-                set(this.Gui.(sprintf('edit_%s',this.fit_params{i})),...
+                set(this.Gui.(sprintf('Edit_%s',this.fit_params{i})),...
                     'String',sprintf('%3.3e',this.scaled_params(i)));
-                set(this.Gui.(sprintf('slider_%s',this.fit_params{i})),...
+                set(this.Gui.(sprintf('Slider_%s',this.fit_params{i})),...
                     'Value',slider_vals(i));
             end
         end
