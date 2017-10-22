@@ -236,7 +236,7 @@ classdef MyRsa < MyInstrument
                 '$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power','unit_x',...
                 unit_x,'name_x',name_x);
             %Trigger acquired data event (inherited from MyInstrument)
-            triggerAcquiredData(this);
+            triggerNewData(this);
             %Plotting for test purposes - to be removed in the future
             figure
             this.Trace.plotTrace(gca);

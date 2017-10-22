@@ -14,6 +14,8 @@ classdef MyTrace < handle
         unit_y='';
         save_dir='';
         load_path='';
+        %Cell that contains handles the trace is plotted in
+        hlines={};
     end
     
     properties (Dependent=true)
@@ -73,6 +75,7 @@ classdef MyTrace < handle
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x)]);
+            if cw<9; cw=9; end
             
             %Makes a format string with the correct column width. %% makes
             %a % symbol in sprintf, thus if cw=14, below is %14s\t%14s\r\n.
@@ -82,7 +85,7 @@ classdef MyTrace < handle
             %Saves in scientific notation with correct column width defined
             %above. Again if cw=14, we get %14.3e\t%14.3e\r\n
             fprintf(fileID,sprintf('%%%d.3e\t%%%d.3e\r\n',cw,cw),...
-                [this.x; this.y]);
+                [this.x, this.y]');
             fclose(fileID);
         end
         
@@ -131,23 +134,52 @@ classdef MyTrace < handle
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
         function plotTrace(this,plot_axes,varargin)
+            %Checks that there are axes to plot 
             assert(exist('plot_axes','var') && ...
                 isa(plot_axes,'matlab.graphics.axis.Axes'),...
                 'Please input axes to plot in.')
+            %Checks that x and y are the same size
             assert(isequal(size(this.x), size(this.y)) || ...
                 (isvector(this.x) && isvector(this.y) && ...
                 numel(this.x) == numel(this.y)),...
                 'The length of x and y must be identical to make a plot')
+            %Parses inputs without resetting to defaults
             parse(this.Parser,varargin{:})
             parseInputs(this,false);
-            plot(plot_axes,this.x,this.y,'Color',this.Color,'LineStyle',...
-                this.LineStyle,'Marker',this.Marker,...
-                'MarkerSize',this.MarkerSize)
+            
+            ind=cellfun(@(x) ismember(x,findall(plot_axes,...
+                'Type','Line')),this.hlines);
+            if ~isempty(ind) && any(ind)
+                set(this.hlines{ind},'XData',this.x,'YData',this.y);
+            else
+                this.hlines{end+1}=plot(plot_axes,this.x,this.y);
+                ind=length(this.hlines);
+            end
+            
+            %Sets the correct color and label options
+            set(this.hlines{ind},'Color',this.Color,'LineStyle',...
+                    this.LineStyle,'Marker',this.Marker,...
+                    'MarkerSize',this.MarkerSize);
             xlabel(plot_axes,this.label_x,'Interpreter','LaTeX');
             ylabel(plot_axes,this.label_y,'Interpreter','LaTeX');
             set(plot_axes,'TickLabelInterpreter','LaTeX');
         end
         
+        %If there is a line object from the trace in the figure, this sets
+        %it to the appropriate visible setting.
+        function setVisible(this, plot_axes, bool)
+            if bool
+                vis='on'; 
+            else
+                vis='off';
+            end
+            
+            ind=cellfun(@(x) ismember(x,findall(plot_axes,...
+                'Type','Line')),this.hlines);
+            if ~isempty(ind) && any(ind)
+                set(this.hlines{ind},'Visible',vis)
+            end
+        end
         
         %Set function for Color. Checks if it is a valid color.
         function set.Color(this, Color)

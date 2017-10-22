@@ -4,10 +4,6 @@ classdef MyScope <MyInstrument
         channel;
     end
     
-    events
-        AcquiredTrace;
-    end
-    
     methods
         function this=MyScope(name, interface, address, varargin)
             this@MyInstrument(name, interface, address, varargin{:});
@@ -47,15 +43,15 @@ classdef MyScope <MyInstrument
                 hObject,eventdata));
         end
         
-        function channel_selectCallback(this, hObject, eventdata)
+        function channel_selectCallback(this, hObject, ~)
             this.channel=get(hObject,'Value');
         end
         
-        function fetch_singleCallback(this,hObject,eventdata)
+        function fetch_singleCallback(this,~,~)
             readTrace(this);
         end
         
-        function cont_readCallback(this, hObject, eventdata)
+        function cont_readCallback(this, hObject, ~)
             while get(hObject,'Value')
                 readTrace(this)
             end
@@ -93,15 +89,15 @@ classdef MyScope <MyInstrument
             unit_x = strtrim(query(this.Device,'WFMOutpre:XUNit?'));
 
             % Reading the vertical spacing between points
-            step_y = str2num(query(this.Device,'WFMOutpre:YMUlt?'));
+            step_y = str2num(query(this.Device,'WFMOutpre:YMUlt?')); %#ok<ST2NM>
             
             % Reading the y axis data
-            y= str2num(query(this.Device,'CURVe?'))*step_y;
+            y= str2num(query(this.Device,'CURVe?'))*step_y; %#ok<ST2NM>
             n_points=length(y);
             % Reading the horizontal spacing between points
-            x_step=str2num(query(this.Device,'WFMOutpre:XINcr?'));
+            x_step=str2num(query(this.Device,'WFMOutpre:XINcr?'));%#ok<ST2NM>
             %Reads where the zero of the x-axis is
-            x_zero=str2num(query(this.Device,'WFMOutpre:XZEro?'));
+            x_zero=str2num(query(this.Device,'WFMOutpre:XZEro?'));%#ok<ST2NM>
             
             % Calculating the x axis
             x=linspace(x_zero,x_zero+x_step*(n_points-1),n_points);
@@ -109,7 +105,7 @@ classdef MyScope <MyInstrument
             this.Trace=MyTrace('name','ScopeTrace','x',x,'y',y,'unit_x',unit_x(2),...
                 'unit_y',unit_y(2),'name_x','Time','name_y','Voltage');
             %Triggers the event for acquired data
-            triggerAcquiredData(this);
+            triggerNewData(this);
             
             this.Trace.plotTrace(this.plot_handle);
         end

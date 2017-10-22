@@ -61,7 +61,7 @@ classdef MyNa < MyInstrument
                 eventdata));
         end
         
-        function start_freqCallback(this, hObject, eventdata)
+        function start_freqCallback(this, hObject, ~)
             this.start_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'start_freq',this.start_freq);
@@ -69,7 +69,7 @@ classdef MyNa < MyInstrument
             closeDevice(this);
         end
         
-        function stop_freqCallback(this, hObject, eventdata)
+        function stop_freqCallback(this, hObject, ~)
             this.stop_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'stop_freq',this.stop_freq);
@@ -77,14 +77,14 @@ classdef MyNa < MyInstrument
             closeDevice(this);
         end
         
-        function cent_freqCallback(this, hObject, eventdata)
+        function cent_freqCallback(this, hObject, ~)
             this.cent_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'cent_freq',this.cent_freq);
             readStatus(this);
             closeDevice(this);
         end
-        function spanCallback(this, hObject, eventdata)
+        function spanCallback(this, hObject, ~)
             this.span=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'span',this.span);
@@ -92,14 +92,14 @@ classdef MyNa < MyInstrument
             closeDevice(this);
         end
         
-        function ifbwCallback(this, hObject, eventdata)
+        function ifbwCallback(this, hObject, ~)
             this.ifbw=str2double(get(hObject,'String'))*1e3;
             openDevice(this);
             writeProperty(this,'ifbw',this.ifbw);
             closeDevice(this);
         end
         
-        function average_noCallback(this, hObject, eventdata)
+        function average_noCallback(this, hObject, ~)
             this.average_no=str2double(get(hObject,'String'));
             %Writes the average_no to the device only if averaging is
             %enabled
