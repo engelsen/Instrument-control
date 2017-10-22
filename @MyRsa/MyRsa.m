@@ -318,8 +318,7 @@ classdef MyRsa < MyInstrument
         
         %Set function for point number, checks it is valid and changes GUI
         function set.point_no(this, point_no)
-            bool=ismember(point_no,this.valid_points);
-            if bool
+            if ismember(point_no,this.valid_points)
                 this.point_no=point_no;
                 if this.enable_gui
                     ind=strcmp(get(this.Gui.point_no,'String'),...

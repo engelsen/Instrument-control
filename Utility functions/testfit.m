@@ -2,7 +2,7 @@
 clear
 x_vec=linspace(0,10,100);
 
-testFit=MyFit('fit_name','lorentzian','enable_gui',0);
+testFit=MyFit('fit_name','gaussian','enable_gui',0);
 params=cell(1,testFit.n_params);
 for i=1:testFit.n_params
     params{i}=-5*rand;
