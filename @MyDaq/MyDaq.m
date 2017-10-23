@@ -12,10 +12,12 @@ classdef MyDaq < handle
         Instruments;
         %Cell containing Cursor objects
         Cursors;
-        %Cell containing MyFit objects
-        Fits={};
+        %Struct containing MyFit objects
+        Fits=struct();
         %Input parser
         Parser;
+        %Listeners for deletion of MyFit objects
+        DeleteListener
         
         base_dir;
         session_name;
@@ -232,16 +234,20 @@ classdef MyDaq < handle
         function analyzeMenuCallback(this, hObject, ~)
             analyze_list=get(hObject,'String');
             analyze_ind=get(hObject,'Value');
+            %Finds the correct fit name
             analyze_name=analyze_list{analyze_ind};
             analyze_name=analyze_name(1:(strfind(analyze_name,' ')-1));
+            analyze_name=[upper(analyze_name(1)),analyze_name(2:end)];
             
-            ind=cellfun(@(x) strcmp(analyze_name,x.fit_name), this.Fits);
             %Sees if the fit object is already open, if it is, changes the
             %focus to it, if not, opens it.
-            if any(ind)
-                figure(this.Fits{ind}.Gui.Window);
+            if ismember(analyze_name,fieldnames(this.Fits))
+                figure(this.Fits.(analyze_name).Gui.Window);
             elseif analyze_ind~=1
-                this.Fits{end+1}=MyFit('fit_name',analyze_name);
+                this.Fits.(analyze_name)=MyFit('fit_name',analyze_name);
+                this.DeleteListener.(analyze_name)=...
+                    addlistener(this.Fits.(analyze_name),'BeingDeleted',...
+                    @(src, eventdata) deleteFit(this, src, eventdata) );
             end
         end
 
@@ -256,6 +262,12 @@ classdef MyDaq < handle
         function save_dir=get.save_dir(this)
             save_dir=[this.base_dir,datestr(now,'yyyy-mm-dd '),...
                 this.session_name,'\'];
+        end
+        
+        function deleteFit(this, src, ~)
+            if ismember(src.fit_name, fieldnames(this.Fits))
+                this.Fits=rmfield(this.Fits,src.fit_name);
+            end
         end
         
         function main_plot=get.main_plot(this)

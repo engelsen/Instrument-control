@@ -6,7 +6,7 @@ classdef MyFit < handle
         Parser;
         FitStruct;
         Fitdata;
-        fit_name='linear'
+        fit_name='Linear'
         init_params=[];
         scale_init=[];
         lim_lower;
@@ -27,10 +27,12 @@ classdef MyFit < handle
         n_params;
         scaled_params;
         init_param_fun;
+        x_vec;
     end
     
     events 
         NewFit;
+        BeingDeleted;
     end
     
     methods
@@ -47,7 +49,8 @@ classdef MyFit < handle
                 this.Data.y=this.Parser.Results.y;
             end
             
-            if ~isempty(this.Data.x) || ~isempty(this.Data.y)
+            if ~isempty(this.Data.x) || ~isempty(this.Data.y) && ...
+                    length(this.Data.y)==length(this.Data.x)
                 genInitParams(this);
             else
                 this.init_params=ones(1,this.n_params);
@@ -71,6 +74,7 @@ classdef MyFit < handle
                 %Removes the figure handle to prevent memory leaks
                 this.Gui=[];
             end
+            triggerBeingDeleted(this);
         end
 
         %Close figure callback simply calls delete function for class
@@ -80,7 +84,7 @@ classdef MyFit < handle
         
         function createParser(this)
             p=inputParser;
-            addParameter(p,'fit_name','linear',@ischar)
+            addParameter(p,'fit_name','Linear',@ischar)
             addParameter(p,'Data',MyTrace());
             addParameter(p,'Fit',MyTrace());
             addParameter(p,'x',[]);
@@ -104,22 +108,18 @@ classdef MyFit < handle
         end
                 
         function fitTrace(this)
-            this.Fit.x=linspace(min(this.Data.x),max(this.Data.x),1e3);
+            this.Fit.x=this.x_vec;
             switch this.fit_name
-                case 'linear'
+                case 'Linear'
                     this.coeffs=polyfit(this.Data.x,this.Data.y,1);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case 'quadratic'
+                case 'Quadratic'
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case {'exponential','gaussian','lorentzian'}
+                case {'Exponential','Gaussian','Lorentzian'}
                     doFit(this);
-                    this.coeffs=coeffvalues(this.Fitdata);
-                    this.Fit.y=this.Fitdata(this.Fit.x);
                 otherwise
                     doFit(this);
-                    this.Fit.y=this.Fitdata(this.Fit.x);
-                    this.coeffs=coeffvalues(this.Fitdata);
             end
             
             this.init_params=this.coeffs;
@@ -133,10 +133,16 @@ classdef MyFit < handle
             this.Fitdata=fit(this.Data.x,this.Data.y,this.fit_function,...
                 'Lower',this.lim_lower,'Upper',this.lim_upper,...
                 'StartPoint',this.init_params);
+            this.Fit.y=this.Fitdata(this.Fit.x);
+            this.coeffs=coeffvalues(this.Fitdata);
         end
         
         function triggerNewFit(this)
             notify(this,'NewFit');
+        end
+        
+        function triggerBeingDeleted(this)
+            notify(this,'BeingDeleted');
         end
         
         function plotFit(this)
@@ -145,17 +151,17 @@ classdef MyFit < handle
         
         function createFitStruct(this)
             %Adds fits
-            addFit(this,'linear','a*x+b','$$ax+b$$',{'a','b'},...
+            addFit(this,'Linear','a*x+b','$$ax+b$$',{'a','b'},...
                 {'Gradient','Offset'})
-            addFit(this,'quadratic','a*x^2+b*x+c','$$ax^2+bx+c$$',...
+            addFit(this,'Quadratic','a*x^2+b*x+c','$$ax^2+bx+c$$',...
                 {'a','b','c'},{'Quadratic coeff.','Linear coeff.','Offset'});
-            addFit(this,'gaussian','a*exp(-((x-c)/b)^2/2)+d',...
+            addFit(this,'Gaussian','a*exp(-((x-c)/b)^2/2)+d',...
                 '$$ae^{-\frac{(x-c)^2}{2b^2}}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
-            addFit(this,'lorentzian','a/(pi)*(b/2/((x-c)^2+(b/2)^2))+d',...
-                '$$\frac{a}{\pi}{\frac{b/2}{(x-c)^2+(b/2)^2}}+d$$',{'a','b','c','d'},...
+            addFit(this,'Lorentzian','a/((x-c)^2+(b/2)^2)+d',...
+                '$$\frac{a}{(x-c)^2+(b/2)^2}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
-            addFit(this,'exponential','a*exp(b*x)+c',...
+            addFit(this,'Exponential','a*exp(b*x)+c',...
                 '$$ae^{bx}+c$$',{'a','b','c'},...
                 {'Amplitude','Rate','Offset'});
         end
@@ -187,20 +193,21 @@ classdef MyFit < handle
         
         function genInitParams(this)
             switch this.fit_name
-                case 'exponential'
+                case 'Exponential'
                     [this.init_params,this.lim_lower,this.lim_upper]=...
                     initParamExponential(this.Data.x,this.Data.y);
-                case 'gaussian'
+                case 'Gaussian'
                     [this.init_params,this.lim_lower,this.lim_upper]=...
                     initParamGaussian(this.Data.x,this.Data.y);
-                case 'lorentzian'
+                case 'Lorentzian'
                     [this.init_params,this.lim_lower,this.lim_upper]=...
                         initParamLorentzian(this.Data.x,this.Data.y);
                 otherwise
                     this.init_params=ones(1,this.n_params);
             end
         end
-        function slider_Callback(this, param_ind, hObject, ~)
+        
+        function sliderCallback(this, param_ind, hObject, ~)
             %Gets the value from the slider
             scale=get(hObject,'Value');
             %Updates the scale with a new value
@@ -212,7 +219,7 @@ classdef MyFit < handle
 
         end
         
-        function edit_Callback(this, hObject, ~)
+        function editCallback(this, hObject, ~)
             init_param=str2double(get(hObject,'String'));
             tag=get(hObject,'Tag');
             %Finds the index where the fit_param name begins (convention is
@@ -230,20 +237,20 @@ classdef MyFit < handle
         function plotInitFun(this)
             %Substantially faster than any alternative - generating 
             %anonymous functions is very cpu intensive. 
-            x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
+            
             input_cell=num2cell(this.scaled_params);
-            y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,x_vec,...
-                input_cell{:});
+            y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,...
+                this.x_vec,input_cell{:});
             if isempty(this.hline_init)
-                this.hline_init=plot(this.plot_handle,x_vec,y_vec);
+                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec);
             else
-                set(this.hline_init,'XData',x_vec,'YData',y_vec);
+                set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
             end
         end
         
         function set.fit_name(this,fit_name)
             assert(ischar(fit_name),'The fit name must be a string');
-            this.fit_name=lower(fit_name);
+            this.fit_name=[upper(fit_name(1)),lower(fit_name(2:end))];
         end
         
         function valid_fit_names=get.valid_fit_names(this)
@@ -281,6 +288,9 @@ classdef MyFit < handle
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);
         end
-
+        
+        function x_vec=get.x_vec(this)
+            x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
+        end
     end
 end
