@@ -74,6 +74,8 @@ classdef MyFit < handle
                 %Removes the figure handle to prevent memory leaks
                 this.Gui=[];
             end
+            if ~isempty(this.hline_init); delete(this.hline_init); end
+            if ~isempty(this.Fit.hlines); delete(this.Fit.hlines{:}); end
             triggerBeingDeleted(this);
         end
 
@@ -145,8 +147,8 @@ classdef MyFit < handle
             notify(this,'BeingDeleted');
         end
         
-        function plotFit(this)
-            this.Fit.plotTrace(this.plot_handle);
+        function plotFit(this,varargin)
+            this.Fit.plotTrace(this.plot_handle,varargin{:});
         end
         
         function createFitStruct(this)

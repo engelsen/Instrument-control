@@ -17,7 +17,13 @@ classdef MyDaq < handle
         %Input parser
         Parser;
         %Listeners for deletion of MyFit objects
-        DeleteListener
+        ListenersDelete;
+        %Listeners for new fits from MyFit objects
+        ListenersNewFit;
+        
+        fit_color='k';
+        data_color='b';
+        ref_color='r';
         
         base_dir;
         session_name;
@@ -244,10 +250,15 @@ classdef MyDaq < handle
             if ismember(analyze_name,fieldnames(this.Fits))
                 figure(this.Fits.(analyze_name).Gui.Window);
             elseif analyze_ind~=1
-                this.Fits.(analyze_name)=MyFit('fit_name',analyze_name);
-                this.DeleteListener.(analyze_name)=...
+                this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
+                    'enable_plot',1,'plot_handle',this.main_plot);
+                this.Fits.(analyze_name).Data=this.Data;
+                this.ListenersDelete.(analyze_name)=...
                     addlistener(this.Fits.(analyze_name),'BeingDeleted',...
-                    @(src, eventdata) deleteFit(this, src, eventdata) );
+                    @(src, eventdata) deleteFit(this, src, eventdata));
+                this.ListenersNewFit.(analyze_name)=...
+                    addlistener(this.Fits.(analyze_name),'NewFit',...
+                    @(src, eventdata) plotNewFit(this, src, eventdata));
             end
         end
 
@@ -268,6 +279,10 @@ classdef MyDaq < handle
             if ismember(src.fit_name, fieldnames(this.Fits))
                 this.Fits=rmfield(this.Fits,src.fit_name);
             end
+        end
+        
+        function plotNewFit(this, src, ~)
+            src.plotFit('Color',this.fit_color);
         end
         
         function main_plot=get.main_plot(this)
