@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 22-Oct-2017 22:06:46
+% Last Modified by GUIDE v2.5 24-Oct-2017 22:02:39
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -125,14 +125,14 @@ function varargout = GuiDaq_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-% --- Executes on selection change in InstrumentMenu.
-function InstrumentMenu_Callback(hObject, eventdata, handles)
-% hObject    handle to InstrumentMenu (see GCBO)
+% --- Executes on selection change in InstrMenu.
+function InstrMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to InstrMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: contents = cellstr(get(hObject,'String')) returns InstrumentMenu contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from InstrumentMenu
+% Hints: contents = cellstr(get(hObject,'String')) returns InstrMenu contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from InstrMenu
 device_no=get(hObject,'Value');
 device_list=get(hObject,'String');
 device_name=device_list{device_no};
@@ -168,8 +168,8 @@ switch device_name
 end
 
 % --- Executes during object creation, after setting all properties.
-function InstrumentMenu_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to InstrumentMenu (see GCBO)
+function InstrMenu_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to InstrMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

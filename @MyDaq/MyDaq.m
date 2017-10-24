@@ -8,6 +8,8 @@ classdef MyDaq < handle
         Data;
         %Contains Background trace (MyTrace object)
         Background;
+        %Struct containing available instruments
+        InstrList=struct();
         %Struct containing MyInstrument objects 
         Instruments=struct()
         %Cell containing Cursor objects
@@ -36,11 +38,13 @@ classdef MyDaq < handle
     properties (Dependent=true)
         save_dir;
         main_plot;
-        fit_names;
-        instr_names;
+        open_fits;
+        open_instrs;
+        instr_tags;
     end
     
     methods
+        %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
             createParser(this);
@@ -56,15 +60,15 @@ classdef MyDaq < handle
         
         function delete(this)
             %Deletes the MyFit objects and their listeners
-            for i=1:length(this.fit_names)
-                delete(this.Fits.(this.fit_names{i}));
-                deleteListeners(this,this.fit_names{i});
+            for i=1:length(this.open_fits)
+                delete(this.Fits.(this.open_fits{i}));
+                deleteListeners(this,this.open_fits{i});
             end
             
             %Deletes the MyInstrument objects and their listeners
-            for i=1:length(this.instr_names)
-                delete(this.Instruments.(this.instr_names{i}));
-                deleteListeners(this,this.instr_names{i});
+            for i=1:length(this.open_instrs)
+                delete(this.Instruments.(this.open_instrs{i}));
+                deleteListeners(this,this.open_instrs{i});
             end
             
             if this.enable_gui
@@ -162,12 +166,19 @@ classdef MyDaq < handle
             set(this.Gui.ClearBg,'Callback',...
                 @(hObject, eventdata) clearBgCallback(this, hObject, ...
                 eventdata));
+            
+            %Initializes the AnalyzeMenu
             set(this.Gui.AnalyzeMenu,'Callback',...
                 @(hObject, eventdata) analyzeMenuCallback(this, hObject,...
                 eventdata));
             set(this.Gui.AnalyzeMenu,'String',{'Select a routine...',...
                 'Linear Fit','Quadratic Fit','Exponential Fit',...
                 'Gaussian Fit','Lorentzian Fit'});
+            
+            %Initializes the InstrMenu
+            set(this.Gui.InstrMenu,'Callback',...
+                @(hObject,eventdata) instrMenuCallback(this,hObject,...
+                eventdata));
         end
         
         %Executes when the GUI is closed
@@ -175,16 +186,11 @@ classdef MyDaq < handle
             delete(this);
         end
         
-        %Saves the data if the save data button is pressed.
-        function saveDataCallback(this, ~, ~)   
-            save(this.Data,'save_dir',this.save_dir,'name',...
-                genFileName(this))
-        end
-        
-        %Saves the reference if the save ref button is pressed.
-        function saveRefCallback(this, ~, ~)
-            save(this.Ref,'save_dir',this.save_dir,'name',...
-                genFileName(this))
+        function addInstr(this,tag,name,type,interface,address)
+            this.InstrList.(tag).name=name;
+            this.InstrList.(tag).type=type;
+            this.InstrList.(tag).interface=interface;
+            this.InstrList.(tag).address=address;
         end
         
         %Generates appropriate file name for the save file.
@@ -198,7 +204,45 @@ classdef MyDaq < handle
             savefile=[this.file_name,date_time];
         end
         
-        %Generates base_dir
+        function tag=getTag(this,instr_name)
+            for i=1:length(this.instr_tags)
+                if strcmp(instr_name,this.InstrList.(this.instr_tags{i}).name)
+                    tag=this.instr_tags{i};
+                    break
+                end
+            end
+        end
+        %% Callbacks
+        
+        function instrMenuCallback(this,hObject,~)
+            names=get(hObject,'String');
+            tag=getTag(this,names(get(hObject,'Value')));
+            instr_type=InstrList.(tag).type;
+            input_cell={this.InstrList.(tag).name,...
+                this.InstrList.(tag).interface,this.InstrList.(tag).address};
+            switch instr_type
+                case 'RSA'
+                    this.Instruments.(tag)=MyRsa(input_cell{:});
+                case 'Scope'
+                    this.Instruments.(tag)=MyScope(input_cell{:});
+                case 'NA'
+                    this.Instruments.(tag)=MyNa(input_cell{:});
+            end
+        end
+        
+        %Saves the data if the save data button is pressed.
+        function saveDataCallback(this, ~, ~)   
+            save(this.Data,'save_dir',this.save_dir,'name',...
+                genFileName(this))
+        end
+        
+        %Saves the reference if the save ref button is pressed.
+        function saveRefCallback(this, ~, ~)
+            save(this.Ref,'save_dir',this.save_dir,'name',...
+                genFileName(this))
+        end
+                
+        %Base directory callback
         function baseDirCallback(this, hObject, ~)
             this.base_dir=get(hObject,'String');
         end
@@ -280,6 +324,16 @@ classdef MyDaq < handle
             end
         end
         
+        %Callback for session name edit box. Sets the session name.
+        function sessionNameCallback(this, hObject, ~)
+            this.session_name=get(hObject,'String');
+        end
+        
+        %Callback for filename edit box. Sets the file name.
+        function fileNameCallback(this, hObject,~)
+            this.file_name=get(hObject,'String');
+        end
+       
         %Callback for the analyze menu (popup menu for selecting fits).
         %Opens the correct MyFit object.
         function analyzeMenuCallback(this, hObject, ~)
@@ -314,16 +368,7 @@ classdef MyDaq < handle
             end
         end
         
-        %Callback for session name edit box. Sets the session name.
-        function sessionNameCallback(this, hObject, ~)
-            this.session_name=get(hObject,'String');
-        end
-        
-        %Callback for filename edit box. Sets the file name.
-        function fileNameCallback(this, hObject,~)
-            this.file_name=get(hObject,'String');
-        end
-       
+        %% Listener functions 
         %Callback function for NewFit listener. Plots the fit in the
         %window using the plotFit function of the MyFit object
         function plotNewFit(this, src, ~)
@@ -356,6 +401,8 @@ classdef MyDaq < handle
             end
         end
         
+        %% Get functions
+        
         %Get function from save directory
         function save_dir=get.save_dir(this)
             save_dir=[this.base_dir,datestr(now,'yyyy-mm-dd '),...
@@ -371,14 +418,19 @@ classdef MyDaq < handle
             end
         end
         
-        %Get function for fit names
-        function fit_names=get.fit_names(this)
-            fit_names=fieldnames(this.Fits);
+        %Get function for available instrument tags
+        function instr_tags=get.instr_tags(this)
+            instr_tags=fieldnames(this.InstrList);
         end
         
-        %Get function for instrument names
-        function instr_names=get.instr_names(this)
-            instr_names=fieldnames(this.Instruments);
+        %Get function for open fits
+        function open_fits=get.open_fits(this)
+            open_fits=fieldnames(this.Fits);
+        end
+        
+        %Get function for open instrument tags
+        function open_instrs=get.open_instrs(this)
+            open_instrs=fieldnames(this.Instruments);
         end
     end
 end
