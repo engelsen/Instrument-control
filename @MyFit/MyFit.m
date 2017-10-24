@@ -36,11 +36,13 @@ classdef MyFit < handle
     end
     
     methods
+        %Constructor function
         function this=MyFit(varargin)
             createFitStruct(this);
             createParser(this);
             parse(this.Parser,varargin{:});
             parseInputs(this);
+            
             if ismember('Data',this.Parser.UsingDefaults) &&...
                     ~ismember('x',this.Parser.UsingDefaults) &&...
                     ~ismember('y',this.Parser.UsingDefaults)
@@ -49,13 +51,15 @@ classdef MyFit < handle
                 this.Data.y=this.Parser.Results.y;
             end
             
-            if ~isempty(this.Data.x) || ~isempty(this.Data.y) && ...
-                    length(this.Data.y)==length(this.Data.x)
+            %If the data is appropriate, generates initial
+            %parameters 
+            if validateData(this)
                 genInitParams(this);
             else
                 this.init_params=ones(1,this.n_params);
             end
             
+            %Sets the scale_init to 1, this is used for the GUI.
             this.scale_init=ones(1,this.n_params);
             
             if this.enable_gui
@@ -63,9 +67,10 @@ classdef MyFit < handle
             end         
         end
         
-        %Creates the GUI of MyFit
+        %Creates the GUI of MyFit, in separate file.
         createGui(this);
         
+        %Deletion function of object
         function delete(this)
             if this.enable_gui
                 set(this.Gui.Window,'CloseRequestFcn','');
@@ -84,6 +89,7 @@ classdef MyFit < handle
             delete(this);
         end
         
+        %Creates parser for constructor
         function createParser(this)
             p=inputParser;
             addParameter(p,'fit_name','Linear',@ischar)
@@ -108,19 +114,21 @@ classdef MyFit < handle
                 end
             end
         end
-                
+        
+        %Fits the trace using currently set parameters, depending on the
+        %model.
         function fitTrace(this)
             this.Fit.x=this.x_vec;
             switch this.fit_name
                 case 'Linear'
+                    %Fits polynomial of order 1
                     this.coeffs=polyfit(this.Data.x,this.Data.y,1);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
                 case 'Quadratic'
+                    %Fits polynomial of order 2
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
                 case {'Exponential','Gaussian','Lorentzian'}
-                    doFit(this);
-                otherwise
                     doFit(this);
             end
             
@@ -131,6 +139,7 @@ classdef MyFit < handle
             if this.enable_plot; plotFit(this); end
         end
         
+        %Does the fit with the currently set parameters
         function doFit(this)
             this.Fitdata=fit(this.Data.x,this.Data.y,this.fit_function,...
                 'Lower',this.lim_lower,'Upper',this.lim_upper,...
@@ -139,18 +148,25 @@ classdef MyFit < handle
             this.coeffs=coeffvalues(this.Fitdata);
         end
         
+        %Triggers the NewFit event such that other objects can use this to
+        %e.g. plot new fits
         function triggerNewFit(this)
             notify(this,'NewFit');
         end
         
+        %Triggers the BeingDeleted event, in case there is cleanup to do
+        %elsewhere
         function triggerBeingDeleted(this)
             notify(this,'BeingDeleted');
         end
         
+        %Plots the trace contained in the Fit MyTrace object.
         function plotFit(this,varargin)
             this.Fit.plotTrace(this.plot_handle,varargin{:});
         end
         
+        %Creates the struct used to get all things relevant to the fit
+        %model
         function createFitStruct(this)
             %Adds fits
             addFit(this,'Linear','a*x+b','$$ax+b$$',{'a','b'},...
@@ -168,6 +184,8 @@ classdef MyFit < handle
                 {'Amplitude','Rate','Offset'});
         end
         
+        %Updates the GUI if the edit or slider boxes are changed from
+        %elsewhere.
         function updateGui(this)
             %Converts the scale variable to the value between 0 and 100
             %necessary for the slider
@@ -193,6 +211,8 @@ classdef MyFit < handle
             this.FitStruct.(fit_name).anon_fit_fun=anon_fit_fun;         
         end
         
+        %Generates model-dependent initial parameters, lower and upper
+        %boundaries.
         function genInitParams(this)
             switch this.fit_name
                 case 'Exponential'
@@ -209,6 +229,9 @@ classdef MyFit < handle
             end
         end
         
+        %Callback functions for sliders in GUI. Uses param_ind to find out
+        %which slider the call is coming from, this was implemented to
+        %speed up the callback.
         function sliderCallback(this, param_ind, hObject, ~)
             %Gets the value from the slider
             scale=get(hObject,'Value');
@@ -218,9 +241,9 @@ classdef MyFit < handle
             set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
                 'String',sprintf('%3.3e',this.scaled_params(param_ind)));
             if this.enable_plot; plotInitFun(this); end
-
         end
         
+        %Callback function for edit boxes in GUI
         function editCallback(this, hObject, ~)
             init_param=str2double(get(hObject,'String'));
             tag=get(hObject,'Tag');
@@ -236,6 +259,27 @@ classdef MyFit < handle
             if this.enable_plot; plotInitFun(this); end
         end
         
+        %Callback function for analyze button in GUI. Checks if the data is
+        %ready for fitting.
+        function analyzeCallback(this, ~, ~)
+            if validateData(this)
+                fitTrace(this);
+            else
+                error(['The length of x is %d and the length of y is',...
+                    ' %d. The lengths must be equal and greater than ',...
+                    'the number of fit parameters to perform a fit'],...
+                    length(this.Data.x), length(this.Data.y));
+            end
+        end
+        
+        %Checks if the class is ready to perform a fit
+        function bool=validateData(this)
+            bool=~isempty(this.Data.x) && ~isempty(this.Data.y) && ...
+                length(this.Data.x)==length(this.Data.y) && ...
+                length(this.Data.x)>=this.n_params;
+        end
+        
+        %Function for plotting fit model with current initial parameters.
         function plotInitFun(this)
             %Substantially faster than any alternative - generating 
             %anonymous functions is very cpu intensive. 

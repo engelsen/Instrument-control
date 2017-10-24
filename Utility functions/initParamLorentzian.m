@@ -1,5 +1,5 @@
 function [p_in,lim_lower,lim_upper]=initParamLorentzian(x,y)
-%Assumes form (a/pi)*b/2/((x-c)^2+(b/2)^2)+d
+%Assumes form a/((x-c)^2+(b/2)^2)+d
 
 [amp_max,ind_max]=max(y);
 [amp_min,ind_min]=min(y);
