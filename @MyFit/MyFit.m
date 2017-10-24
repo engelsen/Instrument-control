@@ -36,6 +36,8 @@ classdef MyFit < handle
     end
     
     methods
+        %%Class functions
+        
         %Constructor function
         function this=MyFit(varargin)
             createFitStruct(this);
@@ -73,6 +75,7 @@ classdef MyFit < handle
         %Deletion function of object
         function delete(this)
             if this.enable_gui
+                %Avoids loops
                 set(this.Gui.Window,'CloseRequestFcn','');
                 %Deletes the figure
                 delete(this.Gui.Window);
@@ -228,6 +231,29 @@ classdef MyFit < handle
                     this.init_params=ones(1,this.n_params);
             end
         end
+         %Checks if the class is ready to perform a fit
+        function bool=validateData(this)
+            bool=~isempty(this.Data.x) && ~isempty(this.Data.y) && ...
+                length(this.Data.x)==length(this.Data.y) && ...
+                length(this.Data.x)>=this.n_params;
+        end
+        
+        %Function for plotting fit model with current initial parameters.
+        function plotInitFun(this)
+            %Substantially faster than any alternative - generating 
+            %anonymous functions is very cpu intensive. 
+            
+            input_cell=num2cell(this.scaled_params);
+            y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,...
+                this.x_vec,input_cell{:});
+            if isempty(this.hline_init)
+                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec);
+            else
+                set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
+            end
+        end
+        
+        %% Callbacks
         
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
@@ -272,69 +298,58 @@ classdef MyFit < handle
             end
         end
         
-        %Checks if the class is ready to perform a fit
-        function bool=validateData(this)
-            bool=~isempty(this.Data.x) && ~isempty(this.Data.y) && ...
-                length(this.Data.x)==length(this.Data.y) && ...
-                length(this.Data.x)>=this.n_params;
-        end
+       
+        %% Set functions
         
-        %Function for plotting fit model with current initial parameters.
-        function plotInitFun(this)
-            %Substantially faster than any alternative - generating 
-            %anonymous functions is very cpu intensive. 
-            
-            input_cell=num2cell(this.scaled_params);
-            y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,...
-                this.x_vec,input_cell{:});
-            if isempty(this.hline_init)
-                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec);
-            else
-                set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
-            end
-        end
-        
+        %Set function for fit_name.
         function set.fit_name(this,fit_name)
             assert(ischar(fit_name),'The fit name must be a string');
-            this.fit_name=[upper(fit_name(1)),lower(fit_name(2:end))];
+            %Capitalizes the first letter
+            fit_name=[upper(fit_name(1)),lower(fit_name(2:end))];
+            %Checks it is a valid fit name
+            assert(ismember(fit_name,this.valid_fit_names),...
+                '%s is not a supported fit name',fit_name); %#ok<MCSUP>
+            this.fit_name=fit_name;
         end
         
+        %% Get functions for dependent variables
+        
+        %Generates the valid fit names
         function valid_fit_names=get.valid_fit_names(this)
             valid_fit_names=fieldnames(this.FitStruct);
         end
         
+        %Grabs the correct fit function from FitStruct
         function fit_function=get.fit_function(this)
-            assert(ismember(this.fit_name,this.valid_fit_names),...
-                '%s is not a supported fit name',this.fit_name);
             fit_function=this.FitStruct.(this.fit_name).fit_function;
         end
         
+        %Grabs the correct tex string from FitStruct
         function fit_tex=get.fit_tex(this)
-            assert(ismember(this.fit_name,this.valid_fit_names),...
-                '%s is not a supported fit name',this.fit_name);
             fit_tex=this.FitStruct.(this.fit_name).fit_tex;
         end
         
+        %Grabs the correct fit parameters from FitStruct
         function fit_params=get.fit_params(this)
-            assert(ismember(this.fit_name,this.valid_fit_names),...
-                '%s is not a supported fit name',this.fit_name);
             fit_params=this.FitStruct.(this.fit_name).fit_params;
         end
         
+        %Grabs the correct fit parameter names from FitStruct
         function fit_param_names=get.fit_param_names(this)
-            assert(ismember(this.fit_name,this.valid_fit_names),...
-                '%s is not a supported fit name',this.fit_name);
             fit_param_names=this.FitStruct.(this.fit_name).fit_param_names;
         end
         
+        %Calculates the scaled initial parameters
         function scaled_params=get.scaled_params(this)
             scaled_params=this.scale_init.*this.init_params;
         end
         
+        %Calculates the number of parameters in the fit function
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);
         end
         
+        %Generates a vector of x values for plotting
         function x_vec=get.x_vec(this)
             x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
         end

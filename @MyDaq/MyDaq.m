@@ -8,18 +8,16 @@ classdef MyDaq < handle
         Data;
         %Contains Background trace (MyTrace object)
         Background;
-        %Cell containing MyInstrument objects 
-        Instruments;
+        %Struct containing MyInstrument objects 
+        Instruments=struct()
         %Cell containing Cursor objects
         Cursors;
         %Struct containing MyFit objects
         Fits=struct();
         %Input parser
         Parser;
-        %Listeners for deletion of MyFit objects
-        ListenersDelete;
-        %Listeners for new fits from MyFit objects
-        ListenersNewFit;
+        %Struct for listeners
+        Listeners=struct();
         
         %Sets the colors of fits, data and reference
         fit_color='k';
@@ -38,6 +36,8 @@ classdef MyDaq < handle
     properties (Dependent=true)
         save_dir;
         main_plot;
+        fit_names;
+        instr_names;
     end
     
     methods
@@ -52,6 +52,29 @@ classdef MyDaq < handle
                 hold(this.main_plot,'on');
             end
             initDaq(this)
+        end
+        
+        function delete(this)
+            %Deletes the MyFit objects and their listeners
+            for i=1:length(this.fit_names)
+                delete(this.Fits.(this.fit_names{i}));
+                deleteListeners(this,this.fit_names{i});
+            end
+            
+            %Deletes the MyInstrument objects and their listeners
+            for i=1:length(this.instr_names)
+                delete(this.Instruments.(this.instr_names{i}));
+                deleteListeners(this,this.instr_names{i});
+            end
+            
+            if this.enable_gui
+                set(this.Gui.figure1,'CloseRequestFcn','');
+                %Deletes the figure
+                delete(this.Gui.figure1);
+                %Removes the figure handle to prevent memory leaks
+                this.Gui=[];
+            end
+            
         end
         
         %Creates parser for constructor function
@@ -93,9 +116,13 @@ classdef MyDaq < handle
             this.Data=MyTrace;
             this.Background=MyTrace;
         end
-        
+
         %Sets callback functions for the GUI
         function initGui(this)
+            %Close request function is set to delete function of the class
+            set(this.Gui.figure1, 'CloseRequestFcn',...
+                @(hObject,eventdata) closeFigure(this, hObject, ...
+                eventdata));
             set(this.Gui.BaseDir,'Callback',...
                 @(hObject, eventdata) baseDirCallback(this, hObject, ...
                 eventdata));
@@ -141,6 +168,11 @@ classdef MyDaq < handle
             set(this.Gui.AnalyzeMenu,'String',{'Select a routine...',...
                 'Linear Fit','Quadratic Fit','Exponential Fit',...
                 'Gaussian Fit','Lorentzian Fit'});
+        end
+        
+        %Executes when the GUI is closed
+        function closeFigure(this,~,~)
+            delete(this);
         end
         
         %Saves the data if the save data button is pressed.
@@ -194,7 +226,7 @@ classdef MyDaq < handle
         end
         
         %Callback for moving the data to reference.
-        function dataToRefCallback(this, hObject, ~)
+        function dataToRefCallback(this, ~, ~)
             this.Ref.x=this.Data.x;
             this.Ref.y=this.Data.y;
             this.Ref.plotTrace(this.main_plot);
@@ -220,7 +252,7 @@ classdef MyDaq < handle
         end
         
         %Callback for clear background button. Clears the background
-        function clearBgCallback(this, hObject, ~)
+        function clearBgCallback(this, ~, ~)
             this.Background.x=[];
             this.Background.y=[];
             this.Background.setVisible(this.main_plot,0);
@@ -271,12 +303,12 @@ classdef MyDaq < handle
                 %Sets up a listener for the BeingDeleted event, which
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.
-                this.ListenersDelete.(analyze_name)=...
+                this.Listeners.(analyze_name).Deletion=...
                     addlistener(this.Fits.(analyze_name),'BeingDeleted',...
                     @(src, eventdata) deleteFit(this, src, eventdata));
                 %Sets up a listener for the NewFit. Callback plots the fit
                 %on the main plot.
-                this.ListenersNewFit.(analyze_name)=...
+                this.Listeners.(analyze_name).NewFit=...
                     addlistener(this.Fits.(analyze_name),'NewFit',...
                     @(src, eventdata) plotNewFit(this, src, eventdata));
             end
@@ -299,10 +331,28 @@ classdef MyDaq < handle
         end
         
         %Callback function for BeingDeleted listener. Removes the relevant 
-        %field from the Fits struct.
+        %field from the Fits struct and deletes the listeners from the
+        %object.
         function deleteFit(this, src, ~)
+            %Deletes the object from the Fits struct
             if ismember(src.fit_name, fieldnames(this.Fits))
                 this.Fits=rmfield(this.Fits,src.fit_name);
+            end
+            
+            %Deletes the listeners from the Listeners struct.
+            deleteListeners(this, src.fit_name);
+        end
+        
+        %Function that deletes listeners from the listeners struct
+        function deleteListeners(this, obj_name)
+            if ismember(obj_name, fieldnames(this.Listeners))
+                names=fieldnames(this.Listeners.(obj_name));
+                for i=1:length(names)
+                    delete(this.Listeners.(obj_name).(names{i}));
+                    this.Listeners.(obj_name)=...
+                        rmfield(this.Listeners.(obj_name),names{i});
+                end
+                this.Listeners=rmfield(this.Listeners, obj_name);
             end
         end
         
@@ -319,6 +369,16 @@ classdef MyDaq < handle
             else
                 main_plot=[];
             end
+        end
+        
+        %Get function for fit names
+        function fit_names=get.fit_names(this)
+            fit_names=fieldnames(this.Fits);
+        end
+        
+        %Get function for instrument names
+        function instr_names=get.instr_names(this)
+            instr_names=fieldnames(this.Instruments);
         end
     end
 end
