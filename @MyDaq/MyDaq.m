@@ -41,6 +41,7 @@ classdef MyDaq < handle
         open_fits;
         open_instrs;
         instr_tags;
+        instr_names;
     end
     
     methods
@@ -60,16 +61,12 @@ classdef MyDaq < handle
         
         function delete(this)
             %Deletes the MyFit objects and their listeners
-            for i=1:length(this.open_fits)
-                delete(this.Fits.(this.open_fits{i}));
-                deleteListeners(this,this.open_fits{i});
-            end
+            cellfun(@(x) delete(this.Fits.(x)), this.open_fits);
+            cellfun(@(x) deleteListeners(this,x), this.open_fits);
             
             %Deletes the MyInstrument objects and their listeners
-            for i=1:length(this.open_instrs)
-                delete(this.Instruments.(this.open_instrs{i}));
-                deleteListeners(this,this.open_instrs{i});
-            end
+            cellfun(@(x) delete(this.Instruments.(x)), this.open_instrs);
+            cellfun(@(x) deleteListeners(this,x), this.open_instrs);
             
             if this.enable_gui
                 set(this.Gui.figure1,'CloseRequestFcn','');
@@ -77,8 +74,7 @@ classdef MyDaq < handle
                 delete(this.Gui.figure1);
                 %Removes the figure handle to prevent memory leaks
                 this.Gui=[];
-            end
-            
+            end         
         end
         
         %Creates parser for constructor function
@@ -186,11 +182,18 @@ classdef MyDaq < handle
             delete(this);
         end
         
+        %Adds an instrument to InstrList. Used by initialization functions.
         function addInstr(this,tag,name,type,interface,address)
-            this.InstrList.(tag).name=name;
-            this.InstrList.(tag).type=type;
-            this.InstrList.(tag).interface=interface;
-            this.InstrList.(tag).address=address;
+            %Usage: addInstr(this,tag,name,type,interface,address)
+            if ~ismember(tag,this.instr_tags)
+                this.InstrList.(tag).name=name;
+                this.InstrList.(tag).type=type;
+                this.InstrList.(tag).interface=interface;
+                this.InstrList.(tag).address=address;
+            else
+                error(['%s is already defined as an instrument. ',...
+                    'Please choose a different tag'],tag);
+            end
         end
         
         %Generates appropriate file name for the save file.
@@ -204,22 +207,19 @@ classdef MyDaq < handle
             savefile=[this.file_name,date_time];
         end
         
+        %Gets the tag corresponding to an instrument name
         function tag=getTag(this,instr_name)
-            for i=1:length(this.instr_tags)
-                if strcmp(instr_name,this.InstrList.(this.instr_tags{i}).name)
-                    tag=this.instr_tags{i};
-                    break
-                end
-            end
+            ind=cellfun(@(x) strcmp(this.InstrList.(x).name,instr_name),...
+                this.instr_tags);
+            tag=this.instr_tags{ind};
         end
-        %% Callbacks
         
-        function instrMenuCallback(this,hObject,~)
-            names=get(hObject,'String');
-            tag=getTag(this,names(get(hObject,'Value')));
+        %Opens the correct instrument
+        function openInstrument(this,tag)
             instr_type=InstrList.(tag).type;
             input_cell={this.InstrList.(tag).name,...
                 this.InstrList.(tag).interface,this.InstrList.(tag).address};
+            
             switch instr_type
                 case 'RSA'
                     this.Instruments.(tag)=MyRsa(input_cell{:});
@@ -227,6 +227,31 @@ classdef MyDaq < handle
                     this.Instruments.(tag)=MyScope(input_cell{:});
                 case 'NA'
                     this.Instruments.(tag)=MyNa(input_cell{:});
+            end
+            
+            %Adds listeners
+            this.Listeners.(tag).NewData=...
+                addlistener(this.Instruments.(tag),'NewData',...
+                @plotNewData);
+            this.Listeners.(tag).Deletion=...
+                addlistener(this.Instruments.(tag),'Deletion',...
+                @deleteInstrument);
+        end
+        
+        %% Callbacks
+        
+        %Callback for the instrument menu
+        function instrMenuCallback(this,hObject,~)
+            names=get(hObject,'String');
+            tag=getTag(this,names(get(hObject,'Value')));
+            
+            %If instrument is valid and not open, opens it. If it is valid
+            %and open it changes focus to the instrument control window.
+            if ismember(tag,this.instr_tags) && ...
+                    ~ismember(tag,this.open_instrs)
+                openInstrument(this,tag);
+            elseif ismember(tag,this.open_instrs)
+                figure(this.Instruments.(tag).figure1);
             end
         end
         
@@ -354,11 +379,11 @@ classdef MyDaq < handle
                 this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
                     'enable_plot',1,'plot_handle',this.main_plot,...
                     'Data',this.Data);
-                %Sets up a listener for the BeingDeleted event, which
+                %Sets up a listener for the Deletion event, which
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.
                 this.Listeners.(analyze_name).Deletion=...
-                    addlistener(this.Fits.(analyze_name),'BeingDeleted',...
+                    addlistener(this.Fits.(analyze_name),'Deletion',...
                     @(src, eventdata) deleteFit(this, src, eventdata));
                 %Sets up a listener for the NewFit. Callback plots the fit
                 %on the main plot.
@@ -375,7 +400,26 @@ classdef MyDaq < handle
             src.plotFit('Color',this.fit_color);
         end
         
-        %Callback function for BeingDeleted listener. Removes the relevant 
+        %Callback function for the NewData listener
+        function plotNewData(this, src, ~)
+            src.Data.plotTrace('Color',this.data_color)
+        end
+        
+        %Callback function for MyInstrument Deletion listener. Removes the
+        %relevant field from the Instruments struct and deletes the
+        %listeners from the object
+        function deleteInstrument(this, src, ~)
+            %Deletes the object from the Instruments struct
+            tag=getTag(this, src.name);
+            if ismember(tag, this.open_instrs)
+                this.Instruments=rmfield(this.Instruments,tag);
+            end
+            
+            %Deletes the listeners from the Listeners struct
+            deleteListeners(this, tag);
+        end
+        
+        %Callback function for MyFit Deletion listener. Removes the relevant 
         %field from the Fits struct and deletes the listeners from the
         %object.
         function deleteFit(this, src, ~)
@@ -388,7 +432,8 @@ classdef MyDaq < handle
             deleteListeners(this, src.fit_name);
         end
         
-        %Function that deletes listeners from the listeners struct
+        %Function that deletes listeners from the listeners struct,
+        %corresponding to an object of name obj_name
         function deleteListeners(this, obj_name)
             if ismember(obj_name, fieldnames(this.Listeners))
                 names=fieldnames(this.Listeners.(obj_name));
@@ -431,6 +476,13 @@ classdef MyDaq < handle
         %Get function for open instrument tags
         function open_instrs=get.open_instrs(this)
             open_instrs=fieldnames(this.Instruments);
+        end
+        
+        %Get function for instrument names
+        function instr_names=get.instr_names(this)
+            %Cell of strings is output, so UniformOutput must be 0.
+            instr_names=cellfun(@(x) this.InstrList.(x).name, ...
+                this.instr_tags,'UniformOutput',0);
         end
     end
 end

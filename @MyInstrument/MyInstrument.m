@@ -27,6 +27,7 @@ classdef MyInstrument < handle
     
     events 
         NewData;
+        Deletion;
     end
     
     methods
@@ -65,6 +66,11 @@ classdef MyInstrument < handle
             notify(this,'NewData')
         end
         
+        %Triggers event for deletion
+        function triggerDeletion(this)
+            notify(this,'Deletion');
+        end
+        
         
         function delete(this)
             %Removes close function from figure, prevents infinite loop
@@ -81,6 +87,7 @@ classdef MyInstrument < handle
             %Deletes the device object
             delete(this.Device);
             clear('this.Device');
+            triggerDeletion(this);
         end
         
     end

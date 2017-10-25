@@ -32,7 +32,7 @@ classdef MyFit < handle
     
     events 
         NewFit;
-        BeingDeleted;
+        Deletion;
     end
     
     methods
@@ -84,7 +84,7 @@ classdef MyFit < handle
             end
             if ~isempty(this.hline_init); delete(this.hline_init); end
             if ~isempty(this.Fit.hlines); delete(this.Fit.hlines{:}); end
-            triggerBeingDeleted(this);
+            triggerDeletion(this);
         end
 
         %Close figure callback simply calls delete function for class
@@ -157,10 +157,10 @@ classdef MyFit < handle
             notify(this,'NewFit');
         end
         
-        %Triggers the BeingDeleted event, in case there is cleanup to do
+        %Triggers the Deletion event, in case there is cleanup to do
         %elsewhere
-        function triggerBeingDeleted(this)
-            notify(this,'BeingDeleted');
+        function triggerDeletion(this)
+            notify(this,'Deletion');
         end
         
         %Plots the trace contained in the Fit MyTrace object.
