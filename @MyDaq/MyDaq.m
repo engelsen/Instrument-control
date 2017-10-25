@@ -42,6 +42,7 @@ classdef MyDaq < handle
         open_instrs;
         instr_tags;
         instr_names;
+        savefile;
     end
     
     methods
@@ -162,7 +163,9 @@ classdef MyDaq < handle
             set(this.Gui.ClearBg,'Callback',...
                 @(hObject, eventdata) clearBgCallback(this, hObject, ...
                 eventdata));
-            
+            set(this.Gui.SelTrace,'Callback',...
+                @(hObject,eventdata) selTraceCallback(this, hObject, ...
+                eventdata));
             %Initializes the AnalyzeMenu
             set(this.Gui.AnalyzeMenu,'Callback',...
                 @(hObject, eventdata) analyzeMenuCallback(this, hObject,...
@@ -196,17 +199,6 @@ classdef MyDaq < handle
             end
         end
         
-        %Generates appropriate file name for the save file.
-        function savefile=genFileName(this)
-            if get(this.Gui.AutoName,'Value')
-                date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
-            else
-                date_time='';
-            end
-            
-            savefile=[this.file_name,date_time];
-        end
-        
         %Gets the tag corresponding to an instrument name
         function tag=getTag(this,instr_name)
             ind=cellfun(@(x) strcmp(this.InstrList.(x).name,instr_name),...
@@ -216,35 +208,55 @@ classdef MyDaq < handle
         
         %Opens the correct instrument
         function openInstrument(this,tag)
-            instr_type=InstrList.(tag).type;
+            instr_type=this.InstrList.(tag).type;
             input_cell={this.InstrList.(tag).name,...
                 this.InstrList.(tag).interface,this.InstrList.(tag).address};
             
             switch instr_type
                 case 'RSA'
-                    this.Instruments.(tag)=MyRsa(input_cell{:});
+                    this.Instruments.(tag)=MyRsa(input_cell{:},...
+                        'gui','GuiRsa');
                 case 'Scope'
-                    this.Instruments.(tag)=MyScope(input_cell{:});
+                    this.Instruments.(tag)=MyScope(input_cell{:},...
+                        'gui','GuiScope');
                 case 'NA'
-                    this.Instruments.(tag)=MyNa(input_cell{:});
+                    this.Instruments.(tag)=MyNa(input_cell{:},...
+                        'gui','GuiNa');
             end
             
             %Adds listeners
             this.Listeners.(tag).NewData=...
                 addlistener(this.Instruments.(tag),'NewData',...
-                @plotNewData);
+                @(src, eventdata) acquireNewData(this, src, eventdata));
             this.Listeners.(tag).Deletion=...
                 addlistener(this.Instruments.(tag),'Deletion',...
-                @deleteInstrument);
+                @(src, eventdata) deleteInstrument(this, src, eventdata));
+        end
+        
+        function updateFits(this)
+            switch get(this.Gui.SelTrace,'Value')
+                case 1
+                    for i=1:length(this.open_fits)
+                        this.Fits.(this.open_fits{i}).Data=this.Data;
+                    end
+                case 2
+                    for i=1:length(this.open_fits)
+                        this.Fits.(this.open_fits{i}).Data=this.Ref;
+                    end
+            end
         end
         
         %% Callbacks
         
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
-            names=get(hObject,'String');
-            tag=getTag(this,names(get(hObject,'Value')));
-            
+            val=get(hObject,'Value');
+            if val~=1
+                names=get(hObject,'String');
+                tag=getTag(this,names(val));
+            else 
+                tag='';
+            end
             %If instrument is valid and not open, opens it. If it is valid
             %and open it changes focus to the instrument control window.
             if ismember(tag,this.instr_tags) && ...
@@ -255,16 +267,27 @@ classdef MyDaq < handle
             end
         end
         
+        function selTraceCallback(this, ~, ~)
+            updateFits(this)
+        end
         %Saves the data if the save data button is pressed.
-        function saveDataCallback(this, ~, ~)   
-            save(this.Data,'save_dir',this.save_dir,'name',...
-                genFileName(this))
+        function saveDataCallback(this, ~, ~)
+            if this.Data.validatePlot
+                save(this.Data,'save_dir',this.save_dir,'name',...
+                    this.savefile)
+            else
+                error('Data trace was empty, could not save');
+            end
         end
         
         %Saves the reference if the save ref button is pressed.
         function saveRefCallback(this, ~, ~)
-            save(this.Ref,'save_dir',this.save_dir,'name',...
-                genFileName(this))
+            if this.Data.validatePlot
+                save(this.Ref,'save_dir',this.save_dir,'name',...
+                    this.savefile)
+            else
+                error('Reference trace was empty, could not save')
+            end
         end
                 
         %Base directory callback
@@ -296,28 +319,41 @@ classdef MyDaq < handle
         
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
-            this.Ref.x=this.Data.x;
-            this.Ref.y=this.Data.y;
-            this.Ref.plotTrace(this.main_plot);
-            this.Ref.setVisible(this.main_plot,1);
-            set(this.Gui.ShowRef,'Value',1);
-            set(this.Gui.ShowRef, 'BackGroundColor',[0,1,.2]);
+            if this.Data.validatePlot
+                this.Ref.x=this.Data.x;
+                this.Ref.y=this.Data.y;
+                this.Ref.plotTrace(this.main_plot);
+                this.Ref.setVisible(this.main_plot,1);
+                updateFits(this);
+                set(this.Gui.ShowRef,'Value',1);
+                set(this.Gui.ShowRef, 'BackGroundColor',[0,1,.2]);
+            else
+                warning('Data trace was empty, could not move to reference')
+            end
         end
         
         %Callback for ref to bg button. Sends the reference to background
         function refToBgCallback(this, ~, ~)
-            this.Background.x=this.Ref.x;
-            this.Background.y=this.Ref.y;
-            this.Background.plotTrace(this.main_plot);
-            this.Background.setVisible(this.main_plot,1);
+            if this.Ref.validatePlot
+                this.Background.x=this.Ref.x;
+                this.Background.y=this.Ref.y;
+                this.Background.plotTrace(this.main_plot);
+                this.Background.setVisible(this.main_plot,1);
+            else
+                warning('Reference trace was empty, could not move to background')
+            end
         end
         
         %Callback for data to bg button. Sends the data to background
         function dataToBgCallback(this, ~, ~)
-            this.Background.x=this.Data.x;
-            this.Background.y=this.Data.y;
-            this.Background.plotTrace(this.main_plot);
-            this.Background.setVisible(this.main_plot,1);
+            if this.Data.validatePlot
+                this.Background.x=this.Data.x;
+                this.Background.y=this.Data.y;
+                this.Background.plotTrace(this.main_plot);
+                this.Background.setVisible(this.main_plot,1);
+            else
+                warning('Data trace was empty, could not move to background')
+            end
         end
         
         %Callback for clear background button. Clears the background
@@ -377,8 +413,8 @@ classdef MyDaq < handle
             elseif analyze_ind~=1
                 %Makes an instance of MyFit with correct parameters.
                 this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
-                    'enable_plot',1,'plot_handle',this.main_plot,...
-                    'Data',this.Data);
+                    'enable_plot',1,'plot_handle',this.main_plot);
+                updateFits(this);
                 %Sets up a listener for the Deletion event, which
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.
@@ -401,8 +437,9 @@ classdef MyDaq < handle
         end
         
         %Callback function for the NewData listener
-        function plotNewData(this, src, ~)
-            src.Data.plotTrace('Color',this.data_color)
+        function acquireNewData(this, src, ~)
+            this.Data=src.Trace;
+            src.Trace.plotTrace(this.main_plot,'Color',this.data_color)
         end
         
         %Callback function for MyInstrument Deletion listener. Removes the
@@ -484,5 +521,17 @@ classdef MyDaq < handle
             instr_names=cellfun(@(x) this.InstrList.(x).name, ...
                 this.instr_tags,'UniformOutput',0);
         end
+        
+        %Generates appropriate file name for the save file.
+        function savefile=get.savefile(this)
+            if get(this.Gui.AutoName,'Value')
+                date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
+            else
+                date_time='';
+            end
+            
+            savefile=[this.file_name,date_time];
+        end
+        
     end
 end

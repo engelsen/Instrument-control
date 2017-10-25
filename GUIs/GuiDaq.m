@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 25-Oct-2017 15:50:52
+% Last Modified by GUIDE v2.5 25-Oct-2017 18:22:32
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -495,19 +495,19 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on selection change in Trace.
-function Trace_Callback(hObject, eventdata, handles)
-% hObject    handle to Trace (see GCBO)
+% --- Executes on selection change in SelTrace.
+function SelTrace_Callback(hObject, eventdata, handles)
+% hObject    handle to SelTrace (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: contents = cellstr(get(hObject,'String')) returns Trace contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from Trace
+% Hints: contents = cellstr(get(hObject,'String')) returns SelTrace contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from SelTrace
 
 
 % --- Executes during object creation, after setting all properties.
-function Trace_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to Trace (see GCBO)
+function SelTrace_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to SelTrace (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -525,7 +525,7 @@ function Analyse_Callback(hObject, eventdata, handles)
 
 h_main_plot=getappdata(0,'h_main_plot');
 
-if(get(handles.Trace,'Value')==1)
+if(get(handles.SelTrace,'Value')==1)
     x_data=getappdata(h_main_plot,'x_data');
     y_data=getappdata(h_main_plot,'y_data');
     
@@ -706,7 +706,7 @@ if (get(handles.Load_data,'value')==1)
     setappdata(h_main_plot,'x_data',data_file(:,1));
     setappdata(h_main_plot,'y_data',data_file(:,2));
     
-    %Makes the trace visible when loaded
+    %Makes the seltrace visible when loaded
     set(handles.ShowData,'Value',1);
     setappdata(h_main_plot,'show_data',1);
     set(handles.ShowData, 'BackGroundColor',[0,1,.2]);
@@ -715,7 +715,7 @@ else
     setappdata(h_main_plot,'x_ref',data_file(:,1));
     setappdata(h_main_plot,'y_ref',data_file(:,2));
     
-    %Makes the trace visible when loaded
+    %Makes the seltrace visible when loaded
     set(handles.ShowRef,'Value',1);
     setappdata(h_main_plot,'show_ref',1);
     set(handles.ShowRef, 'BackGroundColor',[0,1,.2]);
@@ -741,11 +741,11 @@ function Save_figure_Callback(hObject, eventdata, handles)
 h_main_plot=getappdata(0,'h_main_plot');
 
 
-% Store the data trace
+% Store the data seltrace
 x_data=getappdata(h_main_plot,'x_data');
 y_data=getappdata(h_main_plot,'y_data');
 
-% Store the ref trace
+% Store the ref seltrace
 x_ref=getappdata(h_main_plot,'x_ref');
 y_ref=getappdata(h_main_plot,'y_ref');
 
