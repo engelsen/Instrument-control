@@ -12,8 +12,10 @@ classdef MyDaq < handle
         InstrList=struct();
         %Struct containing MyInstrument objects 
         Instruments=struct()
-        %Cell containing Cursor objects
+        %Struct containing Cursor objects
         Cursors;
+        %Struct containing Cursor labels
+        CrsLabels;
         %Struct containing MyFit objects
         Fits=struct();
         %Input parser
@@ -169,6 +171,9 @@ classdef MyDaq < handle
             set(this.Gui.VertCursor,'Callback',...
                 @(hObject, eventdata) vertCursorCallback(this, hObject,...
                 eventdata));
+            set(this.Gui.HorzCursor,'Callback',...
+                @(hObject, eventdata) horzCursorCallback(this, hObject,...
+                eventdata));
             
             %Initializes the AnalyzeMenu
             set(this.Gui.AnalyzeMenu,'Callback',...
@@ -237,7 +242,9 @@ classdef MyDaq < handle
                 @(src, eventdata) deleteInstrument(this, src, eventdata));
         end
         
+        %Updates fits
         function updateFits(this)
+            %Switch/case in case of more traces in the future
             switch get(this.Gui.SelTrace,'Value')
                 case 1
                     for i=1:length(this.open_fits)
@@ -250,18 +257,129 @@ classdef MyDaq < handle
             end
         end
         
+        %Creates either horizontal or vertical cursors
+        function createCursors(this,type)
+            %Checks that the cursors are of valid type
+            assert(strcmp(type,'Horizontal') || strcmp(type,'Vertical'),...
+                'Cursorbars must be vertical or horizontal.');
+            
+            %Sets the correct color for the type of cursor
+            switch type
+                case 'Horizontal'
+                    color=[0,0,1];
+                case 'Vertical'
+                    color=[1,0,0];
+            end
+            
+            %Creates first cursor
+            this.Cursors.(type){1}=cursorbar(this.main_plot,...
+                'TargetMarkerStyle','none',...
+                'ShowText','off','CursorLineWidth',0.5,...
+                'Orientation',type,'Tag',sprintf('%s1',type(1)));
+            %Creates second cursor
+            this.Cursors.(type){2}=this.Cursors.(type){1}.duplicate;
+            set(this.Cursors.(type){2},'Tag',sprintf('%s2',type(1)))
+            %Sets the cursor colors
+            setCursorColor(this,type,color)
+            %Makes labels for the cursors
+            labelCursors(this,type,color)
+        end
+        
+        %Labels cursors of a certain type and color
+        function labelCursors(this, type, color)
+            %Creates text boxes in a placeholder position
+            this.CrsLabels.(type)=cellfun(@(x) text(0,0,x.Tag),...
+                this.Cursors.(type),'UniformOutput',0);
+            %Sets colors and properties on the labels.
+            cellfun(@(x) set(x,'Color',color,'EdgeColor',color,...
+                'FontWeight','bold','FontSize',10,...
+                'HorizontalAlignment','center',...
+                'VerticalAlignment','middle'), this.CrsLabels.(type));
+            crs_loc=this.Cursors.(type){1}.location;
+            switch type
+                case 'Horizontal'
+                    %To set the offset off the side of the axes
+                    xlim=get(this.main_plot,'XLim');
+                    %Sets the position of the cursor labels
+                    cellfun(@(x) set(x, 'Position',[1.05*xlim(2),...
+                        crs_loc,0]),this.CrsLabels.Horizontal);
+                    %Sets the update function of the cursor to move the
+                    %text.
+                    this.Listeners.Horizontal=cellfun(@(x) ...
+                        addlistener(x,'UpdateCursorBar',...
+                        @(src, ~) horzCursorUpdate(this, src)),...
+                        this.Cursors.Horizontal,'UniformOutput',0);
+                case 'Vertical'
+                    %To set the offset off the top of the axes
+                    ylim=get(this.main_plot,'YLim');
+                    %Sets the position of the cursor labels
+                    cellfun(@(x) set(x, 'Position',...
+                        [crs_loc,1.08*ylim(2),0]),this.CrsLabels.Vertical);
+                    %Sets the update function of the cursors to move the
+                    %text
+                    this.Listeners.Vertical=cellfun(@(x) ...
+                        addlistener(x,'UpdateCursorBar',...
+                        @(src, ~) vertCursorUpdate(this, src)),...
+                        this.Cursors.Vertical,'UniformOutput',0);
+            end
+        end
+        
+        %Update function for vertical cursor labels
+        function vertCursorUpdate(this, src)
+            ind=str2double(src.Tag(2));
+            set(this.CrsLabels.Vertical{ind},'Position',[src.Location,...
+                this.CrsLabels.Vertical{ind}.Position(2),0]);
+        end
+        
+        %Update function for horizontal cursor labels
+        function horzCursorUpdate(this, src)
+            ind=str2double(src.Tag(2));
+            set(this.CrsLabels.Horizontal{ind},'Position',...
+                [this.CrsLabels.Horizontal{ind}.Position(1),...
+                src.Location,0])
+        end
+        
+        %Sets the color of the cursors of a certain type
+        function setCursorColor(this, type, color)
+            cellfun(@(x) set(x.TopHandle,'MarkerFaceColor',color),...
+                this.Cursors.(type));
+            cellfun(@(x) set(x.BottomHandle,'MarkerFaceColor',color),...
+                this.Cursors.(type));
+            cellfun(@(x) set(x,'CursorLineColor',color),...
+                this.Cursors.(type));
+        end
+        
+        %Deletes the cursors, their listeners and their labels.
+        function deleteCursors(this, type)
+            cellfun(@(x) deleteListeners(this,x.Tag), this.Cursors.(type));
+            cellfun(@(x) delete(x), this.Cursors.(type));
+            cellfun(@(x) delete(x), this.CrsLabels.(type));
+        end
+            
         %% Callbacks
         
-        function vertCursorCallback(this, ~, ~)
-            this.Cursors.Vertical{1}=cursorbar(this.main_plot,...
-                'CursorLineColor',[1,0,0],'TargetMarkerStyle','none',...
-                'ShowText','off','CursorLineWidth',0.5);
-            set(this.Cursors.Vertical{1}.TopHandle,'MarkerFaceColor','r');
-            set(this.Cursors.Vertical{1}.BottomHandle,'MarkerFaceColor','r');
-            this.Cursors.Vertical{2}=this.Cursors.Vertical{1}.duplicate;
-            set(this.Cursors.Vertical{2}.TopHandle,'MarkerFaceColor','r');
-            set(this.Cursors.Vertical{2}.BottomHandle,'MarkerFaceColor','r');
+        %Callback for creating vertical cursors
+        function vertCursorCallback(this, hObject, ~)
+            if get(hObject,'Value')
+                set(hObject, 'BackGroundColor',[0,1,.2]);
+                createCursors(this,'Vertical');
+            else
+                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                deleteCursors(this,'Vertical');
+            end
         end
+                
+        %Callback for creating horizontal cursors
+        function horzCursorCallback(this, hObject, ~)
+            if get(hObject,'Value')
+                set(hObject, 'BackGroundColor',[0,1,.2]);
+                createCursors(this,'Horizontal');
+            else
+                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                deleteCursors(this,'Horizontal');
+            end
+        end
+        
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
             val=get(hObject,'Value');
@@ -281,9 +399,11 @@ classdef MyDaq < handle
             end
         end
         
+        %Select trace callback
         function selTraceCallback(this, ~, ~)
             updateFits(this)
         end
+        
         %Saves the data if the save data button is pressed.
         function saveDataCallback(this, ~, ~)
             if this.Data.validatePlot
