@@ -247,25 +247,27 @@ classdef MyDaq < handle
         end
         
         %Updates fits
-        function updateFits(this)
-            %Finds out which trace the user wants to fit.
-            trace_opts=get(this.Gui.SelTrace,'String');
-            trace=trace_opts{get(this.Gui.SelTrace,'Value')};
-            
+        function updateFits(this)            
             %Pushes data into fits in the form of MyTrace objects, so that
-            %units etc follow. If vertical cursors are on, takes only data
-            %within cursors. Note the use of copy here! This is a handle
-            %class, so if normal assignment is used, this.Fits.Data and
+            %units etc follow.
             %this.(trace) would be referring to the same object.
             for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).Data=copy(this.(trace));
-                if ismember('Vert',fieldnames(this.Cursors))
-                    ind=findCursorData(this, trace);
-                    this.Fits.(this.open_fits{i}).Data.x=...
-                        this.(trace).x(ind);
-                    this.Fits.(this.open_fits{i}).Data.y=...
-                        this.(trace).y(ind);
-                end
+                this.Fits.(this.open_fits{i}).Data=getFitData(this);
+            end
+        end
+        
+        % If vertical cursors are on, takes only data
+        %within cursors. Note the use of copy here! This is a handle
+        %class, so if normal assignment is used, this.Fits.Data and
+        function Trace=getFitData(this)
+            %Finds out which trace the user wants to fit.
+            trace_opts=get(this.Gui.SelTrace,'String');
+            trace_str=trace_opts{get(this.Gui.SelTrace,'Value')};
+            Trace=copy(this.(trace_str));
+            if ismember('Vert',fieldnames(this.Cursors))
+                ind=findCursorData(this, trace_str);
+                Trace.x=this.(trace_str).x(ind);
+                Trace.y=this.(trace_str).y(ind);
             end
         end
         
@@ -613,10 +615,13 @@ classdef MyDaq < handle
                 %Changes focus to the relevant fit window
                 figure(this.Fits.(analyze_name).Gui.Window);
             elseif analyze_ind~=1
+                %Finds the right trace to put into MyFit
+                
                 %Makes an instance of MyFit with correct parameters.
                 this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
-                    'enable_plot',1,'plot_handle',this.main_plot);
-                updateFits(this);
+                    'enable_plot',1,'plot_handle',this.main_plot,...
+                    'Data',getFitData(this));
+
                 %Sets up a listener for the Deletion event, which
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.

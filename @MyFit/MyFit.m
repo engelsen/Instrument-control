@@ -51,7 +51,7 @@ classdef MyFit < handle
                 this.Data.x=this.Parser.Results.x;
                 this.Data.y=this.Parser.Results.y;
             end
-            
+
             %If the data is appropriate, generates initial
             %parameters 
             if validateData(this)
@@ -297,6 +297,11 @@ classdef MyFit < handle
         
         function clearFitCallback(this,~,~)
             clearFit(this);
+        end
+        
+        function initParamCallback(this,~,~)
+            genInitParams(this);
+            updateGui(this);
         end
         
     end
