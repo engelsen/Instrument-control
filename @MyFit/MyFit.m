@@ -32,7 +32,6 @@ classdef MyFit < handle
     
     events 
         NewFit;
-        Deletion;
     end
     
     methods
@@ -84,7 +83,6 @@ classdef MyFit < handle
             end
             if ~isempty(this.hline_init); delete(this.hline_init); end
             if ~isempty(this.Fit.hlines); delete(this.Fit.hlines{:}); end
-            triggerDeletion(this);
         end
 
         %Close figure callback simply calls delete function for class
@@ -157,17 +155,16 @@ classdef MyFit < handle
             notify(this,'NewFit');
         end
         
-        %Triggers the Deletion event, in case there is cleanup to do
-        %elsewhere
-        function triggerDeletion(this)
-            notify(this,'Deletion');
-        end
-        
         %Plots the trace contained in the Fit MyTrace object.
         function plotFit(this,varargin)
             this.Fit.plotTrace(this.plot_handle,varargin{:});
         end
         
+        %Clears the plots
+        function clearFit(this)
+            cellfun(@(x) delete(x), this.Fit.hlines);
+            this.Fit.hlines={};
+        end
         %Creates the struct used to get all things relevant to the fit
         %model
         function createFitStruct(this)
@@ -298,7 +295,14 @@ classdef MyFit < handle
             end
         end
         
-       
+        function clearFitCallback(this,~,~)
+            clearFit(this);
+        end
+        
+    end
+    
+    %% Get and set functions
+    methods
         %% Set functions
         
         %Set function for fit_name.

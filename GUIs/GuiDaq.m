@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 25-Oct-2017 15:50:52
+% Last Modified by GUIDE v2.5 25-Oct-2017 22:10:52
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -179,13 +179,13 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-% --- Executes on button press in Vertical_cursor.
-function Vertical_cursor_Callback(hObject, eventdata, handles)
-% hObject    handle to Vertical_cursor (see GCBO)
+% --- Executes on button press in VertCursor.
+function VertCursor_Callback(hObject, eventdata, handles)
+% hObject    handle to VertCursor (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of Vertical_cursor
+% Hint: get(hObject,'Value') returns toggle state of VertCursor
 h_main_plot=getappdata(0,'h_main_plot');
 
 VC_state=get(hObject,'Value');
@@ -215,13 +215,13 @@ elseif(VC_state==0)
     set(handles.V1_V2_Edit,'string','' )
 end
 
-% --- Executes on button press in Horizontal_cursor.
-function Horizontal_cursor_Callback(hObject, eventdata, handles)
-% hObject    handle to Horizontal_cursor (see GCBO)
+% --- Executes on button press in HorzCursor.
+function HorzCursor_Callback(hObject, eventdata, handles)
+% hObject    handle to HorzCursor (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of Horizontal_cursor
+% Hint: get(hObject,'Value') returns toggle state of HorzCursor
 h_main_plot=getappdata(0,'h_main_plot');
 
 VC_state=get(hObject,'Value');
@@ -290,7 +290,7 @@ function V1_Edit_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of V1_Edit as text
 %        str2double(get(hObject,'String')) returns contents of V1_Edit as a double
-% Hint: get(hObject,'Value') returns toggle state of Vertical_cursor
+% Hint: get(hObject,'Value') returns toggle state of VertCursor
 h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');

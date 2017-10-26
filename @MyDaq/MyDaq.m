@@ -162,6 +162,9 @@ classdef MyDaq < handle
             set(this.Gui.ClearBg,'Callback',...
                 @(hObject, eventdata) clearBgCallback(this, hObject, ...
                 eventdata));
+            set(this.Gui.VertCursor,'Callback',...
+                @(hObject, eventdata) vertCursorCallback(this, hObject,...
+                eventdata));
             
             %Initializes the AnalyzeMenu
             set(this.Gui.AnalyzeMenu,'Callback',...
@@ -234,12 +237,22 @@ classdef MyDaq < handle
                 addlistener(this.Instruments.(tag),'NewData',...
                 @plotNewData);
             this.Listeners.(tag).Deletion=...
-                addlistener(this.Instruments.(tag),'Deletion',...
+                addlistener(this.Instruments.(tag),'ObjectBeingDestroyed',...
                 @deleteInstrument);
         end
         
         %% Callbacks
         
+        function vertCursorCallback(this, ~, ~)
+            this.Cursors.Vertical{1}=cursorbar(this.main_plot,...
+                'CursorLineColor',[1,0,0],'TargetMarkerStyle','none',...
+                'ShowText','off','CursorLineWidth',0.5);
+            set(this.Cursors.Vertical{1}.TopHandle,'MarkerFaceColor','r');
+            set(this.Cursors.Vertical{1}.BottomHandle,'MarkerFaceColor','r');
+            this.Cursors.Vertical{2}=this.Cursors.Vertical{1}.duplicate;
+            set(this.Cursors.Vertical{2}.TopHandle,'MarkerFaceColor','r');
+            set(this.Cursors.Vertical{2}.BottomHandle,'MarkerFaceColor','r');
+        end
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
             names=get(hObject,'String');
@@ -383,7 +396,7 @@ classdef MyDaq < handle
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.
                 this.Listeners.(analyze_name).Deletion=...
-                    addlistener(this.Fits.(analyze_name),'Deletion',...
+                    addlistener(this.Fits.(analyze_name),'ObjectBeingDestroyed',...
                     @(src, eventdata) deleteFit(this, src, eventdata));
                 %Sets up a listener for the NewFit. Callback plots the fit
                 %on the main plot.
@@ -405,9 +418,9 @@ classdef MyDaq < handle
             src.Data.plotTrace('Color',this.data_color)
         end
         
-        %Callback function for MyInstrument Deletion listener. Removes the
-        %relevant field from the Instruments struct and deletes the
-        %listeners from the object
+        %Callback function for MyInstrument ObjectBeingDestroyed listener. 
+        %Removes the relevant field from the Instruments struct and deletes
+        %the listeners from the object
         function deleteInstrument(this, src, ~)
             %Deletes the object from the Instruments struct
             tag=getTag(this, src.name);
@@ -419,9 +432,9 @@ classdef MyDaq < handle
             deleteListeners(this, tag);
         end
         
-        %Callback function for MyFit Deletion listener. Removes the relevant 
-        %field from the Fits struct and deletes the listeners from the
-        %object.
+        %Callback function for MyFit ObjectBeingDestroyed listener. 
+        %Removes the relevant field from the Fits struct and deletes the 
+        %listeners from the object.
         function deleteFit(this, src, ~)
             %Deletes the object from the Fits struct
             if ismember(src.fit_name, fieldnames(this.Fits))
