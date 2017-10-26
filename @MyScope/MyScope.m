@@ -106,8 +106,6 @@ classdef MyScope <MyInstrument
                 'unit_y',unit_y(2),'name_x','Time','name_y','Voltage');
             %Triggers the event for acquired data
             triggerNewData(this);
-            
-            this.Trace.plotTrace(this.plot_handle);
         end
     end
 end

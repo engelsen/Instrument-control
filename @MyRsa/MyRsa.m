@@ -9,7 +9,7 @@ classdef MyRsa < MyInstrument
         point_no;
         enable_avg;
         read_cont;
-        Trace;
+        Trace=MyTrace();
         valid_points;
     end
     
@@ -31,8 +31,18 @@ classdef MyRsa < MyInstrument
             switch interface
                 case 'TCPIP'
                     connectTCPIP(this);
-            end        
-
+            end
+            
+            %Tests if device is working.
+            try
+                openDevice(this);
+                closeDevice(this);
+            catch
+                error(['Failed to open communications with device.',...
+                    ' Check that the address and interface is correct.',...
+                    ' Currently the address is %s and the interface is ',...
+                    '%s.'],this.address,this.interface)
+            end
             %Opens communications
             openDevice(this);
             %Finds the current status of the device
@@ -232,14 +242,11 @@ classdef MyRsa < MyInstrument
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
             %Trace object is created containing the data and its units
-            this.Trace=MyTrace('name','RsaData','x',x,'y',power_spectrum,'unit_y',...
+            setTrace(this.Trace,'name','RsaData','x',x,'y',power_spectrum,'unit_y',...
                 '$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power','unit_x',...
                 unit_x,'name_x',name_x);
             %Trigger acquired data event (inherited from MyInstrument)
             triggerNewData(this);
-            %Plotting for test purposes - to be removed in the future
-            figure
-            this.Trace.plotTrace(gca);
         end
         
     end

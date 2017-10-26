@@ -115,6 +115,12 @@ classdef MyTrace < handle
             end
         end
         
+        %Allows setting of multiple properties in one command.
+        function setTrace(this, varargin)
+            parse(this.Parser,varargin{:})
+            parseInputs(this, false);
+        end
+        
         %Sets the class variables to the inputs from the inputParser. Can
         %be used to reset class to default values if default_flag=true.
         function parseInputs(this, default_flag)
@@ -139,9 +145,7 @@ classdef MyTrace < handle
                 isa(plot_axes,'matlab.graphics.axis.Axes'),...
                 'Please input axes to plot in.')
             %Checks that x and y are the same size
-            assert(isequal(size(this.x), size(this.y)) || ...
-                (isvector(this.x) && isvector(this.y) && ...
-                numel(this.x) == numel(this.y)),...
+            assert(validatePlot(this),...
                 'The length of x and y must be identical to make a plot')
             %Parses inputs without resetting to defaults
             parse(this.Parser,varargin{:})
@@ -180,10 +184,50 @@ classdef MyTrace < handle
         end
         
         function ind=findLineInd(this, plot_axes)
-            ind=cellfun(@(x) ismember(x,findall(plot_axes,...
-                'Type','Line')),this.hlines);
+            if ~isempty(this.hlines)
+                ind=cellfun(@(x) ismember(x,findall(plot_axes,...
+                    'Type','Line')),this.hlines);
+            else
+                ind=[];
+            end
         end
         
+        %Checks if the data can be plotted
+        function bool=validatePlot(this)
+            bool=~isempty(this.x) && ~isempty(this.y)...
+                && length(this.x)==length(this.y);
+        end
+        
+                
+        function sum=plus(a,b)
+            checkArithmetic(a,b);
+            
+            sum=MyTrace('x',a.x,'y',a.y+b.y,'unit_x',a.unit_x,...
+                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+        end
+                
+        function sum=minus(a,b)
+            checkArithmetic(a,b);
+            
+            sum=MyTrace('x',a.x,'y',a.y-b.y,'unit_x',a.unit_x,...
+                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+        end
+        
+        function checkArithmetic(a,b)
+            assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
+                ['Both objects must be of type MyTrace to add,',...
+                'here they are type %s and %s'],class(a),class(b));
+            assert(strcmp(a.unit_x, b.unit_x) && strcmp(a.unit_y,b.unit_y),...
+                'The MyTrace classes must have the same units for arithmetic');
+            assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
+                'The length of x and y must be equal for arithmetic');
+            assert(all(a.x==b.x),...
+                'The MyTrace objects must have identical x-axis for arithmetic')
+        end
+    end
+    
+    %Set and get methods
+    methods
         %Set function for Color. Checks if it is a valid color.
         function set.Color(this, Color)
             assert(iscolor(Color),...
@@ -277,32 +321,6 @@ classdef MyTrace < handle
         %Get function for label_y, creates label from name_y and unit_y.
         function label_y=get.label_y(this)
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
-        end
-        
-        function sum=plus(a,b)
-            checkArithmetic(a,b);
-            
-            sum=MyTrace('x',a.x,'y',a.y+b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
-        end
-                
-        function sum=minus(a,b)
-            checkArithmetic(a,b);
-            
-            sum=MyTrace('x',a.x,'y',a.y-b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
-        end
-        
-        function checkArithmetic(a,b)
-            assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
-                ['Both objects must be of type MyTrace to add,',...
-                'here they are type %s and %s'],class(a),class(b));
-            assert(strcmp(a.unit_x, b.unit_x) && strcmp(a.unit_y,b.unit_y),...
-                'The MyTrace classes must have the same units for arithmetic');
-            assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
-                'The length of x and y must be equal for arithmetic');
-            assert(all(a.x==b.x),...
-                'The MyTrace objects must have identical x-axis for arithmetic')
         end
         
     end

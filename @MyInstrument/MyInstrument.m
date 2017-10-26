@@ -41,13 +41,6 @@ classdef MyInstrument < handle
             this.enable_gui=~ismember('gui',this.Parser.UsingDefaults);
             this.axes_handle=this.Parser.Results.axes_handle;
             
-            try
-                openDevice(this);
-                closeDevice(this);
-            catch
-                error(['Failed to open communications with device.',...
-                    ' Check that the address and interface is correct'])
-            end
             %If a gui input is given, load the gui 
             if this.enable_gui
                 %Loads the gui from the input gui string
