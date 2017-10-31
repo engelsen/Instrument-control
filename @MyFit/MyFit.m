@@ -146,10 +146,14 @@ classdef MyFit < handle
         
         %Does the fit with the currently set parameters
         function doFit(this)
+            %Fits with the below properties. Chosen for maximum accuracy.
             this.Fitdata=fit(this.Data.x,this.Data.y,this.fit_function,...
                 'Lower',this.lim_lower,'Upper',this.lim_upper,...
-                'StartPoint',this.init_params);
+                'StartPoint',this.init_params, ....
+                'MaxFunEvals',2000,'MaxIter',2000,'TolFun',1e-9);
+            %Puts the y values of the fit into the struct.
             this.Fit.y=this.Fitdata(this.Fit.x);
+            %Puts the coeffs into the class variable.
             this.coeffs=coeffvalues(this.Fitdata);
         end
         

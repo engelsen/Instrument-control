@@ -195,6 +195,10 @@ classdef MyDaq < handle
             set(this.Gui.CenterCursors,'Callback',...
                 @(hObject,eventdata) centerCursorsCallback(this,hObject,...
                 eventdata));
+            %Sets callback for the center cursors button
+            set(this.Gui.CopyPlot,'Callback',...
+                @(hObject,eventdata) copyPlotCallback(this,hObject,...
+                eventdata));
             
             %Initializes the AnalyzeMenu
             set(this.Gui.AnalyzeMenu,'Callback',...
@@ -443,10 +447,30 @@ classdef MyDaq < handle
             cellfun(@(x) delete(x), this.CrsLabels.(type));
             this.CrsLabels=rmfield(this.CrsLabels,type);            
         end
-            
+        
+        function copyPlot(this)
+            %Conditions sizes
+            posn=this.main_plot.OuterPosition;
+            posn=posn.*[1,1,0.82,1.1];
+            %Creates a new figure, this is to avoid copying all the buttons
+            %etc to the clipboard.
+            newFig = figure('visible','off','Units',this.main_plot.Units,...
+                'Position',posn);
+            %Copies the current axes into the new figure.
+            newHandle = copyobj(this.main_plot,newFig);
+            %Prints the figure to the clipboard
+            print(newFig,'-clipboard','-dbitmap');
+            %Deletes the figure
+            delete(newFig);
+        end
         %% Callbacks
         
-        %Call back for centering cursors
+        %Callback for copying the plot to clipboard
+        function copyPlotCallback(this,~,~)
+            copyPlot(this);
+        end
+        
+        %Callback for centering cursors
         function centerCursorsCallback(this, ~, ~)
             x_pos=mean(get(this.main_plot,'XLim'));
             y_pos=mean(get(this.main_plot,'YLim'));

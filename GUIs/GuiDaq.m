@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 26-Oct-2017 14:46:50
+% Last Modified by GUIDE v2.5 31-Oct-2017 12:19:30
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -964,3 +964,12 @@ function figure1_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to figure1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
+
+
+% --- Executes on button press in CopyPlot.
+function CopyPlot_Callback(hObject, eventdata, handles)
+% hObject    handle to CopyPlot (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of CopyPlot
