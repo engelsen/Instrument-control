@@ -132,12 +132,16 @@ classdef MyFit < handle
                 case {'Exponential','Gaussian','Lorentzian'}
                     doFit(this);
             end
-            
+            %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
+            %Resets the scale variables for the GUI
             this.scale_init=ones(1,this.n_params);
-            triggerNewFit(this);
+            %Updates the gui if it is enabled
             if this.enable_gui; updateGui(this); end
+            %Plots the fit if the flag is on
             if this.enable_plot; plotFit(this); end
+            %Triggers new fit event
+            triggerNewFit(this);
         end
         
         %Does the fit with the currently set parameters
