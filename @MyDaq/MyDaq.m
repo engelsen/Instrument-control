@@ -127,54 +127,71 @@ classdef MyDaq < handle
             set(this.Gui.figure1, 'CloseRequestFcn',...
                 @(hObject,eventdata) closeFigure(this, hObject, ...
                 eventdata));
+            %Sets callback for the edit box of the base directory
             set(this.Gui.BaseDir,'Callback',...
                 @(hObject, eventdata) baseDirCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the session name edit box
             set(this.Gui.SessionName,'Callback',...
                 @(hObject, eventdata) sessionNameCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the file name edit box
             set(this.Gui.FileName,'Callback',...
                 @(hObject, eventdata) fileNameCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the save data button
             set(this.Gui.SaveData,'Callback',...
                 @(hObject, eventdata) saveDataCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the save ref button
             set(this.Gui.SaveRef,'Callback',...
                 @(hObject, eventdata) saveRefCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the show data button
             set(this.Gui.ShowData,'Callback',...
                 @(hObject, eventdata) showDataCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the show reference button
             set(this.Gui.ShowRef,'Callback',...
                 @(hObject, eventdata) showRefCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the data to reference button
             set(this.Gui.DataToRef,'Callback',...
                 @(hObject, eventdata) dataToRefCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the LogY button
             set(this.Gui.LogY,'Callback',...
                 @(hObject, eventdata) logYCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the LogX button
             set(this.Gui.LogX,'Callback',...
                 @(hObject, eventdata) logXCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the data to background button
             set(this.Gui.DataToBg,'Callback',...
                 @(hObject, eventdata) dataToBgCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the ref to background button
             set(this.Gui.RefToBg,'Callback',...
                 @(hObject, eventdata) refToBgCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the clear background button
             set(this.Gui.ClearBg,'Callback',...
                 @(hObject, eventdata) clearBgCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the select trace popup menu
             set(this.Gui.SelTrace,'Callback',...
                 @(hObject,eventdata) selTraceCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the vertical cursor button
             set(this.Gui.VertCursor,'Callback',...
                 @(hObject, eventdata) cursorButtonCallback(this, hObject,...
                 eventdata));
+            %Sets callback for the horizontal cursors button
             set(this.Gui.HorzCursor,'Callback',...
                 @(hObject, eventdata) cursorButtonCallback(this, hObject,...
                 eventdata));
+            %Sets callback for the center cursors button
             set(this.Gui.CenterCursors,'Callback',...
                 @(hObject,eventdata) centerCursorsCallback(this,hObject,...
                 eventdata));
@@ -222,8 +239,11 @@ classdef MyDaq < handle
         %Opens the correct instrument
         function openInstrument(this,tag)
             instr_type=this.InstrList.(tag).type;
+            %Collects the correct inputs for creating the MyInstrument
+            %class
             input_cell={this.InstrList.(tag).name,...
-                this.InstrList.(tag).interface,this.InstrList.(tag).address};
+                this.InstrList.(tag).interface,...
+                this.InstrList.(tag).address};
             
             switch instr_type
                 case 'RSA'
@@ -237,7 +257,8 @@ classdef MyDaq < handle
                         'gui','GuiNa');
             end
             
-            %Adds listeners
+            %Adds listeners for new data and deletion of the instrument.
+            %These call plot functions and delete functions respectively.
             this.Listeners.(tag).NewData=...
                 addlistener(this.Instruments.(tag),'NewData',...
                 @(src, eventdata) acquireNewData(this, src, eventdata));
@@ -250,7 +271,6 @@ classdef MyDaq < handle
         function updateFits(this)            
             %Pushes data into fits in the form of MyTrace objects, so that
             %units etc follow.
-            %this.(trace) would be referring to the same object.
             for i=1:length(this.open_fits)
                 this.Fits.(this.open_fits{i}).Data=getFitData(this);
             end
@@ -259,6 +279,7 @@ classdef MyDaq < handle
         % If vertical cursors are on, takes only data
         %within cursors. Note the use of copy here! This is a handle
         %class, so if normal assignment is used, this.Fits.Data and
+        %this.(trace_str) will refer to the same object, causing roblems.
         function Trace=getFitData(this)
             %Finds out which trace the user wants to fit.
             trace_opts=get(this.Gui.SelTrace,'String');
@@ -330,7 +351,7 @@ classdef MyDaq < handle
                     %To set the offset off the side of the axes
                     xlim=get(this.main_plot,'XLim');
                     %Empirically determined nice point for labels
-                    xloc=1.05*xlim(2)-0.05*xlim(1);
+                    xloc=1.03*xlim(2)-0.03*xlim(1);
                     %Sets the position of the cursor labels
                     cellfun(@(x,y) set(x, 'Position',...
                         [xloc,y.Location,0]),...
@@ -408,15 +429,19 @@ classdef MyDaq < handle
         
         %Deletes the cursors, their listeners and their labels.
         function deleteCursors(this, type)
+            %Resets the edit boxes which contain cursor positions
             cellfun(@(x) set(this.Gui.(sprintf('Edit%s',x.Tag)),...
                 'String',''), this.Cursors.(type));
             set(this.Gui.(sprintf('Edit%s%s',this.Cursors.(type){2}.Tag,...
                 this.Cursors.(type){1}.Tag)),'String','');
+            %Deletes cursor listeners
             cellfun(@(x) deleteListeners(this,x.Tag), this.Cursors.(type));
+            %Deletes the cursors themselves
             cellfun(@(x) delete(x), this.Cursors.(type));
-            cellfun(@(x) delete(x), this.CrsLabels.(type)); 
             this.Cursors=rmfield(this.Cursors,type);
-            this.CrsLabels=rmfield(this.CrsLabels,type);
+            %Deletes cursor labels
+            cellfun(@(x) delete(x), this.CrsLabels.(type));
+            this.CrsLabels=rmfield(this.CrsLabels,type);            
         end
             
         %% Callbacks
@@ -427,10 +452,11 @@ classdef MyDaq < handle
             y_pos=mean(get(this.main_plot,'YLim'));
             
             for i=1:length(this.open_crs)
-                if strcmp(this.open_crs,'Horz') 
-                    pos=x_pos; 
-                else
-                    pos=y_pos;
+                switch this.open_crs{i}
+                    case 'Horz'
+                        pos=y_pos;
+                    case 'Vert'
+                        pos=x_pos;
                 end
                 
                 %Centers the position
@@ -448,6 +474,7 @@ classdef MyDaq < handle
         %Callback for creating vertical cursors
         function cursorButtonCallback(this, hObject, ~)
             tag=get(hObject,'Tag');
+            %Gets the first four characters of the tag (Vert or Horz)
             type=tag(1:4);
             
             if get(hObject,'Value')
@@ -624,8 +651,6 @@ classdef MyDaq < handle
                 %Changes focus to the relevant fit window
                 figure(this.Fits.(analyze_name).Gui.Window);
             elseif analyze_ind~=1
-                %Finds the right trace to put into MyFit
-                
                 %Makes an instance of MyFit with correct parameters.
                 this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
                     'enable_plot',1,'plot_handle',this.main_plot,...
@@ -637,6 +662,7 @@ classdef MyDaq < handle
                 this.Listeners.(analyze_name).Deletion=...
                     addlistener(this.Fits.(analyze_name),'ObjectBeingDestroyed',...
                     @(src, eventdata) deleteFit(this, src, eventdata));
+                
                 %Sets up a listener for the NewFit. Callback plots the fit
                 %on the main plot.
                 this.Listeners.(analyze_name).NewFit=...
@@ -658,6 +684,7 @@ classdef MyDaq < handle
             this.Data=src.Trace;
             src.Trace.plotTrace(this.main_plot,'Color',this.data_color)
             updateCursors(this);
+            updateFits(this);
         end
         
         %Callback function for MyInstrument ObjectBeingDestroyed listener. 
@@ -692,11 +719,16 @@ classdef MyDaq < handle
         
         %Listener update function for vertical cursor
         function vertCursorUpdate(this, src)
+            %Finds the index of the cursor. All cursors are tagged
+            %V1,V2,H1,H2 etc, ind is the number.
             ind=str2double(src.Tag(2));
+            %Moves the cursor labels
             set(this.CrsLabels.Vert{ind},'Position',[src.Location,...
                 this.CrsLabels.Vert{ind}.Position(2),0]);
+            %Sets the edit box displaying the location of the cursor
             set(this.Gui.(sprintf('EditV%d',ind)),'String',...
                 num2str(src.Location));
+            %Sets the edit box displaying the difference in locations
             set(this.Gui.EditV2V1,'String',...
                 num2str(this.Cursors.Vert{2}.Location-...
                 this.Cursors.Vert{1}.Location))
@@ -704,12 +736,17 @@ classdef MyDaq < handle
         
         %Listener update function for horizontal cursor
         function horzCursorUpdate(this, src)
+            %Finds the index of the cursor. All cursors are tagged
+            %V1,V2,H1,H2 etc, ind is the number.
             ind=str2double(src.Tag(2));
+            %Moves the cursor labels
             set(this.CrsLabels.Horz{ind},'Position',...
                 [this.CrsLabels.Horz{ind}.Position(1),...
                 src.Location,0]);
+            %Sets the edit box displaying the location of the cursor
             set(this.Gui.(sprintf('EditH%d',ind)),'String',...
                 num2str(src.Location));
+            %Sets the edit box displaying the difference in locations
             set(this.Gui.EditH2H1,'String',...
                 num2str(this.Cursors.Horz{2}.Location-...
                 this.Cursors.Horz{1}.Location));
@@ -718,13 +755,18 @@ classdef MyDaq < handle
         %Function that deletes listeners from the listeners struct,
         %corresponding to an object of name obj_name
         function deleteListeners(this, obj_name)
+            %Finds if the object has listeners in the listeners structure
             if ismember(obj_name, fieldnames(this.Listeners))
+                %Grabs the fieldnames of the object's listeners structure
                 names=fieldnames(this.Listeners.(obj_name));
                 for i=1:length(names)
+                    %Deletes the listeners
                     delete(this.Listeners.(obj_name).(names{i}));
+                    %Removes the field from the structure
                     this.Listeners.(obj_name)=...
                         rmfield(this.Listeners.(obj_name),names{i});
                 end
+                %Removes the object's field from the structure
                 this.Listeners=rmfield(this.Listeners, obj_name);
             end
         end     
@@ -771,7 +813,7 @@ classdef MyDaq < handle
         %Generates appropriate file name for the save file.
         function savefile=get.savefile(this)
             if get(this.Gui.AutoName,'Value')
-                date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
+                date_time = datestr(now,'yyyy-mm-dd_HHMMSS');
             else
                 date_time='';
             end
@@ -779,6 +821,7 @@ classdef MyDaq < handle
             savefile=[this.file_name,date_time];
         end
         
+        %Get function that displays names of open cursors
         function open_crs=get.open_crs(this)
             open_crs=fieldnames(this.Cursors);
         end
