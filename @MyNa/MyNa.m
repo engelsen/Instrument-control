@@ -1,15 +1,18 @@
 classdef MyNa < MyInstrument
-    properties (SetAccess=protected, GetAccess=public)
+    properties (Access=public)
         ifbw;
         start_freq;
         stop_freq;
         cent_freq;
         span;
         power;
+    end
+    
+    properties (GetAccess=public, SetAccess=private)
         Trace;
     end
-
-    methods
+    
+    methods (Access=public)
         function this=MyNa(name, interface, address, varargin)
             this@MyInstrument(name, interface, address,varargin{:});
             createCommandList(this);
@@ -17,6 +20,58 @@ classdef MyNa < MyInstrument
             if this.enable_gui; initGui(this); end
         end
         
+        function start_freqCallback(this, hObject, ~)
+            this.start_freq=str2double(get(hObject,'String'))*1e6;
+            openDevice(this);
+            writeProperty(this,'start_freq',this.start_freq);
+            readStatus(this);
+            closeDevice(this);
+        end
+        
+        function stop_freqCallback(this, hObject, ~)
+            this.stop_freq=str2double(get(hObject,'String'))*1e6;
+            openDevice(this);
+            writeProperty(this,'stop_freq',this.stop_freq);
+            readStatus(this);
+            closeDevice(this);
+        end
+        
+        function cent_freqCallback(this, hObject, ~)
+            this.cent_freq=str2double(get(hObject,'String'))*1e6;
+            openDevice(this);
+            writeProperty(this,'cent_freq',this.cent_freq);
+            readStatus(this);
+            closeDevice(this);
+        end
+        
+        function spanCallback(this, hObject, ~)
+            this.span=str2double(get(hObject,'String'))*1e6;
+            openDevice(this);
+            writeProperty(this,'span',this.span);
+            readStatus(this)
+            closeDevice(this);
+        end
+        
+        function ifbwCallback(this, hObject, ~)
+            this.ifbw=str2double(get(hObject,'String'))*1e3;
+            openDevice(this);
+            writeProperty(this,'ifbw',this.ifbw);
+            closeDevice(this);
+        end
+        
+        function average_noCallback(this, hObject, ~)
+            this.average_no=str2double(get(hObject,'String'));
+            %Writes the average_no to the device only if averaging is
+            %enabled
+            openDevice(this);
+            writeProperty(this,'average_no',this.average_no);
+            closeDevice(this);
+        end
+        
+        
+    end
+    
+    methods (Access=private)
         function createCommandList(this)
             addCommand(this,'cent_freq','SENS:FREQ:CENT %d',...
                 'default',1.5e6,'attributes',{{'numeric'}},'write_flag',true);
@@ -28,7 +83,6 @@ classdef MyNa < MyInstrument
                 'default',1e6,'attributes',{{'numeric'}},'write_flag',true);
             addCommand(this,'power','SOUR:POW:LEV:IMM:AMPL %d',...
                 'default',1,'attributes',{{'numeric'}},'write_flag',true);
-
         end
         
         function initGui(this)
@@ -60,54 +114,5 @@ classdef MyNa < MyInstrument
                 @(hObject, eventdata) enable_avgCallback(this, hObject,...
                 eventdata));
         end
-        
-        function start_freqCallback(this, hObject, ~)
-            this.start_freq=str2double(get(hObject,'String'))*1e6;
-            openDevice(this);
-            writeProperty(this,'start_freq',this.start_freq);
-            readStatus(this);
-            closeDevice(this);
-        end
-        
-        function stop_freqCallback(this, hObject, ~)
-            this.stop_freq=str2double(get(hObject,'String'))*1e6;
-            openDevice(this);
-            writeProperty(this,'stop_freq',this.stop_freq);
-            readStatus(this);
-            closeDevice(this);
-        end
-        
-        function cent_freqCallback(this, hObject, ~)
-            this.cent_freq=str2double(get(hObject,'String'))*1e6;
-            openDevice(this);
-            writeProperty(this,'cent_freq',this.cent_freq);
-            readStatus(this);
-            closeDevice(this);
-        end
-        function spanCallback(this, hObject, ~)
-            this.span=str2double(get(hObject,'String'))*1e6;
-            openDevice(this);
-            writeProperty(this,'span',this.span);
-            readStatus(this)
-            closeDevice(this);
-        end
-        
-        function ifbwCallback(this, hObject, ~)
-            this.ifbw=str2double(get(hObject,'String'))*1e3;
-            openDevice(this);
-            writeProperty(this,'ifbw',this.ifbw);
-            closeDevice(this);
-        end
-        
-        function average_noCallback(this, hObject, ~)
-            this.average_no=str2double(get(hObject,'String'));
-            %Writes the average_no to the device only if averaging is
-            %enabled
-            openDevice(this);
-            writeProperty(this,'average_no',this.average_no);
-            closeDevice(this);
-        end
-        
-        
     end
 end

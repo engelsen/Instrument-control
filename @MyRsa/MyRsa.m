@@ -17,12 +17,13 @@ classdef MyRsa < MyInstrument
         freq_vec;
     end
     
-    methods
+    %% Constructor and destructor
+    methods (Access=public)
         function this=MyRsa(name,interface, address,varargin)
             this@MyInstrument(name, interface, address,varargin{:});
             if this.enable_gui; initGui(this); end
             
-            %Valid point numbers for Tektronix 5103 and 5106. 
+            %Valid point numbers for Tektronix 5103 and 5106.
             %Depends on the RSA. Remove this in the future.
             this.valid_points=[801,2401,4001,10401];
             
@@ -53,7 +54,8 @@ classdef MyRsa < MyInstrument
         end
     end
     
-    methods 
+    %% Private functions
+    methods (Access=private)
         function connectTCPIP(this)
             buffer = 1000 * 1024;
             visa_brand = 'ni';
@@ -64,15 +66,6 @@ classdef MyRsa < MyInstrument
                 'OutputBufferSize', buffer);
             set(this.Device,'InputBufferSize',1e6);
             set(this.Device,'Timeout',10);
-        end
-       
-        function readStatus(this)
-            result=readProperty(this,'rbw','cent_freq','span','start_freq',...
-                'stop_freq','enable_avg');
-            res_names=fieldnames(result);
-            for i=1:length(res_names)
-                this.(res_names{i})=result.(res_names{i});
-            end
         end
         
         function initGui(this)
@@ -108,7 +101,7 @@ classdef MyRsa < MyInstrument
                 eventdata));
         end
         
-        function initDevice(this)            
+        function initDevice(this)
             for i=1:this.command_no
                 if this.CommandList.(this.command_names{i}).write_flag
                     write(this, ...
@@ -120,10 +113,37 @@ classdef MyRsa < MyInstrument
             end
         end
         
-        function reinitCallback(this, hObject, ~)
-            reinitDevice(this);
-            %Turns off indicator
-            set(hObject,'Value',0);
+        function createCommandList(this)
+            addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN %d',...
+                'default',1,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this, 'rbw','DPSA:BAND:RES %d Hz',...
+                'default',1e3,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this, 'span', 'DPSA:FREQ:SPAN %d Hz',...
+                'default',1e6,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,  'start_freq','DPSA:FREQ:STAR %d Hz',...
+                'default',1e6,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this, 'stop_freq','DPSA:FREQ:STOP %d Hz',...
+                'default',2e6,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,  'cent_freq','DPSA:FREQ:CENT %d Hz',...
+                'default',1.5e6,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this, 'point_no','DPSA:POIN:COUN P%d',...
+                'default',10401,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,'enable_avg','TRAC3:DPSA:COUN:ENABLE %d',...
+                'default',0,'attributes',{{'numeric'}},'write_flag',true);
+            addCommand(this,'read_cont','INIT:CONT %s','default','on',...
+                'attributes',{{'char'}},'write_flag',true);
+        end
+    end
+    
+    %% Public functions including callbacks
+    methods (Access=public)
+        function readStatus(this)
+            result=readProperty(this,'rbw','cent_freq','span','start_freq',...
+                'stop_freq','enable_avg');
+            res_names=fieldnames(result);
+            for i=1:length(res_names)
+                this.(res_names{i})=result.(res_names{i});
+            end
         end
         
         function reinitDevice(this)
@@ -132,6 +152,32 @@ classdef MyRsa < MyInstrument
             initDevice(this);
             writeProperty(this, 'read_cont','on')
             closeDevice(this);
+        end
+        
+        function readSingle(this)
+            openDevice(this);
+            readStatus(this);
+            fwrite(this.Device, 'fetch:dpsa:res:trace3?');
+            data = binblockread(this.Device,'float');
+            closeDevice(this);
+            x=this.freq_vec/1e6;
+            unit_x='MHz';
+            name_x='Frequency';
+            %Calculates the power spectrum from the data, which is in dBm.
+            %Output is in V^2/Hz
+            power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
+            %Trace object is created containing the data and its units
+            setTrace(this.Trace,'name','RsaData','x',x,'y',power_spectrum,'unit_y',...
+                '$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power','unit_x',...
+                unit_x,'name_x',name_x);
+            %Trigger acquired data event (inherited from MyInstrument)
+            triggerNewData(this);
+        end
+        
+        function reinitCallback(this, hObject, ~)
+            reinitDevice(this);
+            %Turns off indicator
+            set(hObject,'Value',0);
         end
         
         function point_noCallback(this, hObject, ~)
@@ -166,6 +212,7 @@ classdef MyRsa < MyInstrument
             readStatus(this);
             closeDevice(this);
         end
+        
         function spanCallback(this, hObject, ~)
             this.span=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
@@ -190,27 +237,6 @@ classdef MyRsa < MyInstrument
             closeDevice(this);
         end
         
-        function createCommandList(this)
-            addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN %d',...
-                'default',1,'attributes',{{'numeric'}},'write_flag',true);
-            addCommand(this, 'rbw','DPSA:BAND:RES %d Hz',...
-                'default',1e3,'attributes',{{'numeric'}},'write_flag',true);
-            addCommand(this, 'span', 'DPSA:FREQ:SPAN %d Hz',...
-                'default',1e6,'attributes',{{'numeric'}},'write_flag',true);
-            addCommand(this,  'start_freq','DPSA:FREQ:STAR %d Hz',...
-                'default',1e6,'attributes',{{'numeric'}},'write_flag',true);
-            addCommand(this, 'stop_freq','DPSA:FREQ:STOP %d Hz',...
-                'default',2e6,'attributes',{{'numeric'}},'write_flag',true);
-            addCommand(this,  'cent_freq','DPSA:FREQ:CENT %d Hz',...
-                'default',1.5e6,'attributes',{{'numeric'}},'write_flag',true); 
-            addCommand(this, 'point_no','DPSA:POIN:COUN P%d',...
-                'default',10401,'attributes',{{'numeric'}},'write_flag',true);
-            addCommand(this,'enable_avg','TRAC3:DPSA:COUN:ENABLE %d',...
-                'default',0,'attributes',{{'numeric'}},'write_flag',true);
-            addCommand(this,'read_cont','INIT:CONT %s','default','on',...
-                'attributes',{{'char'}},'write_flag',true);
-        end
-        
         function fetchCallback(this, hObject, ~)
             %Fetches the data using the settings given. This function can
             %in principle be used in the future to add further fetch
@@ -221,37 +247,17 @@ classdef MyRsa < MyInstrument
             end
             set(this.Gui.fetch_single,'Value',0);
         end
-
+        
         function enable_avgCallback(this, hObject, ~)
             this.enable_avg=get(hObject,'Value');
             openDevice(this)
             writeProperty(this,'enable_avg',this.enable_avg);
             closeDevice(this);
         end
-                
-        function readSingle(this)
-            openDevice(this);
-            readStatus(this);
-            fwrite(this.Device, 'fetch:dpsa:res:trace3?');
-            data = binblockread(this.Device,'float');            
-            closeDevice(this);
-            x=this.freq_vec/1e6;
-            unit_x='MHz';
-            name_x='Frequency';
-            %Calculates the power spectrum from the data, which is in dBm.
-            %Output is in V^2/Hz
-            power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
-            %Trace object is created containing the data and its units
-            setTrace(this.Trace,'name','RsaData','x',x,'y',power_spectrum,'unit_y',...
-                '$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power','unit_x',...
-                unit_x,'name_x',name_x);
-            %Trigger acquired data event (inherited from MyInstrument)
-            triggerNewData(this);
-        end
-        
     end
     
-    methods 
+    %% Set functions
+    methods
         %Set function for central frequency, changes gui to show central
         %frequency in MHz
         function set.cent_freq(this, cent_freq)
@@ -269,6 +275,7 @@ classdef MyRsa < MyInstrument
                 set(this.Gui.rbw,'String',this.rbw/1e3);
             end
         end
+        
         %Set function for enable_avg, changes gui
         function set.enable_avg(this, enable_avg)
             assert(isnumeric(enable_avg),...
@@ -290,7 +297,7 @@ classdef MyRsa < MyInstrument
             end
         end
         
-
+        
         %Set function for start frequency, changes gui to show start
         %frequency in MHz
         function set.start_freq(this, start_freq)
@@ -333,20 +340,20 @@ classdef MyRsa < MyInstrument
                     set(this.Gui.point_no,'Value',find(ind));
                 end
             else
-               error('Invalid number of points chosen for RSA')
+                error('Invalid number of points chosen for RSA')
             end
         end
-
-        
     end
+    
+    %% Get functions
     methods
         %Generates a vector of frequencies between the start and stop
         %frequency of length equal to the point number
         function freq_vec=get.freq_vec(this)
-           freq_vec=linspace(this.start_freq,this.stop_freq,...
-               this.point_no) ;
+            freq_vec=linspace(this.start_freq,this.stop_freq,...
+                this.point_no) ;
         end
     end
-        
+    
 end
 
