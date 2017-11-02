@@ -32,7 +32,6 @@ classdef MyFit < handle
     
     events 
         NewFit;
-        Deletion;
     end
     
     methods
@@ -52,7 +51,7 @@ classdef MyFit < handle
                 this.Data.x=this.Parser.Results.x;
                 this.Data.y=this.Parser.Results.y;
             end
-            
+
             %If the data is appropriate, generates initial
             %parameters 
             if validateData(this)
@@ -84,7 +83,6 @@ classdef MyFit < handle
             end
             if ~isempty(this.hline_init); delete(this.hline_init); end
             if ~isempty(this.Fit.hlines); delete(this.Fit.hlines{:}); end
-            triggerDeletion(this);
         end
 
         %Close figure callback simply calls delete function for class
@@ -134,20 +132,28 @@ classdef MyFit < handle
                 case {'Exponential','Gaussian','Lorentzian'}
                     doFit(this);
             end
-            
+            %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
+            %Resets the scale variables for the GUI
             this.scale_init=ones(1,this.n_params);
-            triggerNewFit(this);
+            %Updates the gui if it is enabled
             if this.enable_gui; updateGui(this); end
+            %Plots the fit if the flag is on
             if this.enable_plot; plotFit(this); end
+            %Triggers new fit event
+            triggerNewFit(this);
         end
         
         %Does the fit with the currently set parameters
         function doFit(this)
+            %Fits with the below properties. Chosen for maximum accuracy.
             this.Fitdata=fit(this.Data.x,this.Data.y,this.fit_function,...
                 'Lower',this.lim_lower,'Upper',this.lim_upper,...
-                'StartPoint',this.init_params);
+                'StartPoint',this.init_params, ....
+                'MaxFunEvals',2000,'MaxIter',2000,'TolFun',1e-9);
+            %Puts the y values of the fit into the struct.
             this.Fit.y=this.Fitdata(this.Fit.x);
+            %Puts the coeffs into the class variable.
             this.coeffs=coeffvalues(this.Fitdata);
         end
         
@@ -157,17 +163,16 @@ classdef MyFit < handle
             notify(this,'NewFit');
         end
         
-        %Triggers the Deletion event, in case there is cleanup to do
-        %elsewhere
-        function triggerDeletion(this)
-            notify(this,'Deletion');
-        end
-        
         %Plots the trace contained in the Fit MyTrace object.
         function plotFit(this,varargin)
             this.Fit.plotTrace(this.plot_handle,varargin{:});
         end
         
+        %Clears the plots
+        function clearFit(this)
+            cellfun(@(x) delete(x), this.Fit.hlines);
+            this.Fit.hlines={};
+        end
         %Creates the struct used to get all things relevant to the fit
         %model
         function createFitStruct(this)
@@ -298,7 +303,19 @@ classdef MyFit < handle
             end
         end
         
-       
+        function clearFitCallback(this,~,~)
+            clearFit(this);
+        end
+        
+        function initParamCallback(this,~,~)
+            genInitParams(this);
+            updateGui(this);
+        end
+        
+    end
+    
+    %% Get and set functions
+    methods
         %% Set functions
         
         %Set function for fit_name.

@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 25-Oct-2017 18:22:32
+% Last Modified by GUIDE v2.5 31-Oct-2017 12:19:30
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -54,7 +54,6 @@ function GuiDaq_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for GuiDaq
 handles.output = hObject;
 
-set(handles.figure1,'WindowButtonUpFcn',@figure1_WindowButtonUpFcn);
 setappdata(0,'h_main_plot',gcf);
 setappdata(gcf,'x_data',0);
 setappdata(gcf,'y_data',0);
@@ -179,118 +178,19 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-% --- Executes on button press in Vertical_cursor.
-function Vertical_cursor_Callback(hObject, eventdata, handles)
-% hObject    handle to Vertical_cursor (see GCBO)
+% --- Executes on button press in VertCursor.
+function VertCursor_Callback(~,~,~)%#ok<DEFNU>
+function HorzCursor_Callback(~,~,~)%#ok<DEFNU>
+function CenterCursors_Callback(~,~,~)%#ok<DEFNU>
+
+function EditV1_Callback(hObject, eventdata, handles)
+% hObject    handle to EditV1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of Vertical_cursor
-h_main_plot=getappdata(0,'h_main_plot');
-
-VC_state=get(hObject,'Value');
-
-setappdata(h_main_plot,'Vcursor_toggle_state',VC_state);
-
-axes=findobj(h_main_plot,'type','axes');
-
-if(VC_state==1)
-    Vertical_curs=Vertical_cursors(axes);
-    setappdata(h_main_plot,'Vertical_curs',Vertical_curs);
-    set(hObject, 'BackGroundColor',[0,1,.2]);
-    set(handles.V1_Edit,'enable','on' )
-    set(handles.V2_Edit,'enable','on' )
-    set(handles.V1_V2_Edit,'enable','on' )
-elseif(VC_state==0)
-    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
-    Vertical_curs.off();
-    set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-    
-    set(handles.V1_Edit,'enable','inactive' )
-    set(handles.V2_Edit,'enable','inactive' )
-    set(handles.V1_V2_Edit,'enable','inactive' )
-    
-    set(handles.V1_Edit,'string','' )
-    set(handles.V2_Edit,'string','' )
-    set(handles.V1_V2_Edit,'string','' )
-end
-
-% --- Executes on button press in Horizontal_cursor.
-function Horizontal_cursor_Callback(hObject, eventdata, handles)
-% hObject    handle to Horizontal_cursor (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Horizontal_cursor
-h_main_plot=getappdata(0,'h_main_plot');
-
-VC_state=get(hObject,'Value');
-
-setappdata(h_main_plot,'Hcursor_toggle_state',VC_state);
-
-axes=findobj(h_main_plot,'type','axes');
-
-if(VC_state==1)
-    Horizontal_curs=Horizontal_cursors(axes);
-    setappdata(h_main_plot,'Horizontal_curs',Horizontal_curs);
-    set(hObject, 'BackGroundColor',[0,1,.2]);
-    
-    set(handles.H1_Edit,'enable','on' )
-    set(handles.H2_Edit,'enable','on' )
-    set(handles.H2_H1_Edit,'enable','on' )
-elseif(VC_state==0)
-    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
-    Horizontal_curs.off();
-    set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-    
-    set(handles.H1_Edit,'enable','inactive' )
-    set(handles.H2_Edit,'enable','inactive' )
-    set(handles.H2_H1_Edit,'enable','inactive' )
-    
-    set(handles.H1_Edit,'string','' )
-    set(handles.H2_Edit,'string','' )
-    set(handles.H2_H1_Edit,'string','' )
-end
-
-% --- Executes on button press in Center_cursor.
-function Center_cursor_Callback(hObject, eventdata, handles)
-% hObject    handle to Center_cursor (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h_main_plot=getappdata(0,'h_main_plot');
-
-
-Hcursor_toggle_state=getappdata(h_main_plot,'Hcursor_toggle_state');
-if (Hcursor_toggle_state==1)
-    Horizontal_curs=getappdata(h_main_plot,'Horizontal_curs');
-    Horizontal_curs.off();
-    Horizontal_curs.add();
-end
-
-Vcursor_toggle_state=getappdata(h_main_plot,'Vcursor_toggle_state');
-if (Vcursor_toggle_state==1)
-    Vertical_curs=getappdata(h_main_plot,'Vertical_curs');
-    Vertical_curs.off();
-    Vertical_curs.add();
-end
-
-Vertical_ref_state=getappdata(h_main_plot,'Vertical_ref_state');
-if (Vertical_ref_state==1)
-    Vertical_ref_curs=getappdata(h_main_plot,'Vertical_ref_curs');
-    Vertical_ref_curs.off();
-    Vertical_ref_curs.add();
-end
-
-axes=findobj(h_main_plot,'type','axes');
-
-function V1_Edit_Callback(hObject, eventdata, handles)
-% hObject    handle to V1_Edit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of V1_Edit as text
-%        str2double(get(hObject,'String')) returns contents of V1_Edit as a double
-% Hint: get(hObject,'Value') returns toggle state of Vertical_cursor
+% Hints: get(hObject,'String') returns contents of EditV1 as text
+%        str2double(get(hObject,'String')) returns contents of EditV1 as a double
+% Hint: get(hObject,'Value') returns toggle state of VertCursor
 h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
@@ -303,8 +203,8 @@ v_curs_val(1)=str2num(get(hObject,'String'));
 Vertical_curs.add(v_curs_val);
 
 % --- Executes during object creation, after setting all properties.
-function V1_Edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to V1_Edit (see GCBO)
+function EditV1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditV1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -314,13 +214,13 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function V2_Edit_Callback(hObject, eventdata, handles)
-% hObject    handle to V2_Edit (see GCBO)
+function EditV2_Callback(hObject, eventdata, handles)
+% hObject    handle to EditV2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of V2_Edit as text
-%        str2double(get(hObject,'String')) returns contents of V2_Edit as a double
+% Hints: get(hObject,'String') returns contents of EditV2 as text
+%        str2double(get(hObject,'String')) returns contents of EditV2 as a double
 h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
@@ -332,8 +232,8 @@ v_curs_val(2)=str2num(get(hObject,'String'));
 Vertical_curs.add(v_curs_val);
 
 % --- Executes during object creation, after setting all properties.
-function V2_Edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to V2_Edit (see GCBO)
+function EditV2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditV2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -343,17 +243,17 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function V1_V2_Edit_Callback(hObject, eventdata, handles)
-% hObject    handle to V1_V2_Edit (see GCBO)
+function EditV2V1_Callback(hObject, eventdata, handles)
+% hObject    handle to EditV2V1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of V1_V2_Edit as text
-%        str2double(get(hObject,'String')) returns contents of V1_V2_Edit as a double
+% Hints: get(hObject,'String') returns contents of EditV2V1 as text
+%        str2double(get(hObject,'String')) returns contents of EditV2V1 as a double
 
 % --- Executes during object creation, after setting all properties.
-function V1_V2_Edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to V1_V2_Edit (see GCBO)
+function EditV2V1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditV2V1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -363,13 +263,13 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function H1_Edit_Callback(hObject, eventdata, handles)
-% hObject    handle to H1_Edit (see GCBO)
+function EditH1_Callback(hObject, eventdata, handles)
+% hObject    handle to EditH1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of H1_Edit as text
-%        str2double(get(hObject,'String')) returns contents of H1_Edit as a double
+% Hints: get(hObject,'String') returns contents of EditH1 as text
+%        str2double(get(hObject,'String')) returns contents of EditH1 as a double
 h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
@@ -381,8 +281,8 @@ h_curs_val(1)=str2num(get(hObject,'String'));
 Horizontal_curs.add(h_curs_val);
 
 % --- Executes during object creation, after setting all properties.
-function H1_Edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to H1_Edit (see GCBO)
+function EditH1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditH1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -392,13 +292,13 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function H2_Edit_Callback(hObject, eventdata, handles)
-% hObject    handle to H2_Edit (see GCBO)
+function EditH2_Callback(hObject, eventdata, handles)
+% hObject    handle to EditH2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of H2_Edit as text
-%        str2double(get(hObject,'String')) returns contents of H2_Edit as a double
+% Hints: get(hObject,'String') returns contents of EditH2 as text
+%        str2double(get(hObject,'String')) returns contents of EditH2 as a double
 h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
@@ -410,8 +310,8 @@ h_curs_val(2)=str2num(get(hObject,'String'));
 Horizontal_curs.add(h_curs_val);
 
 % --- Executes during object creation, after setting all properties.
-function H2_Edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to H2_Edit (see GCBO)
+function EditH2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditH2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -421,17 +321,11 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function H2_H1_Edit_Callback(hObject, eventdata, handles)
-% hObject    handle to H2_H1_Edit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of H2_H1_Edit as text
-%        str2double(get(hObject,'String')) returns contents of H2_H1_Edit as a double
+function EditH2H1_Callback(hObject, eventdata, handles)
 
 % --- Executes during object creation, after setting all properties.
-function H2_H1_Edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to H2_H1_Edit (see GCBO)
+function EditH2H1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditH2H1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -495,14 +389,8 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on selection change in SelTrace.
-function SelTrace_Callback(hObject, eventdata, handles)
-% hObject    handle to SelTrace (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns SelTrace contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from SelTrace
+%Now in MyDaq
+function SelTrace_Callback(~, ~, ~)%#ok<DEFNU>
 
 
 % --- Executes during object creation, after setting all properties.
@@ -628,16 +516,8 @@ function open_folder_Callback(hObject, eventdata, handles)
 folder_name = uigetdir('C:\Users\ghadimi\Desktop');
 set(handles.BaseDir,'string',[folder_name,'\']);
 
-
-
-function SessionName_Callback(hObject, eventdata, handles)
-% hObject    handle to SessionName (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of SessionName as text
-%        str2double(get(hObject,'String')) returns contents of SessionName as a double
-
+%Function now in MyDaq
+function SessionName_Callback(~,~,~) %#ok<DEFNU>
 
 % --- Executes during object creation, after setting all properties.
 function SessionName_CreateFcn(hObject, eventdata, handles)
@@ -652,7 +532,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 %Placeholder, defined in MyDaq
-function FileName_Callback(hObject, eventdata, handles)
+function FileName_Callback(~,~,~) %#ok<DEFNU>
 
 % --- Executes during object creation, after setting all properties.
 function FileName_CreateFcn(hObject, eventdata, handles)
@@ -667,16 +547,8 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in AutoName.
-function AutoName_Callback(hObject, eventdata, handles)
-% hObject    handle to AutoName (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of AutoName
-
-
-%Callback now defined in class MyDaq.
+%%Callback now defined in class MyDaq.
+function AutoName_Callback(~,~,~) %#ok<DEFNU>
 function SaveData_Callback(~, ~, ~) %#ok<DEFNU>
 function SaveRef_Callback(~, ~, ~) %#ok<DEFNU>
 
@@ -723,13 +595,6 @@ end
 
 update_axes
 
-% --- Executes on mouse press over figure background, over a disabled or
-% --- inactive control, or over an mainplot background. Strangely this
-% needs to exist to make the VerticalCursors work
-function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
-function figure1_WindowButtonUpFcn(hObject, eventdata, handles)
-%Not sure what this is
-function Untitled_1_Callback(hObject, eventdata, handles)
 
 % --------------------------------------------------------------------
 function Save_figure_Callback(hObject, eventdata, handles)
@@ -878,24 +743,7 @@ delete(ftmp);
 %Placeholders
 function LogY_Callback(~, ~, ~) %#ok<DEFNU>
 function LogX_Callback(~, ~, ~) %#ok<DEFNU>
-
-% --- Executes on button press in Clear_fit.
-function Clear_fit_Callback(hObject, eventdata, handles)
-% hObject    handle to Clear_fit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% import the main data object
-h_main_plot=getappdata(0,'h_main_plot');
-
-% Check if the show analyzed data flag is on, turn it off or Vise versa
-show_fit_flag=getappdata(h_main_plot,'show_fit_flag');    % a flag to show or not show the fitted data
-if(show_fit_flag==1)
-    setappdata(h_main_plot,'show_fit_flag',0);    % reset the flag to zero
-end
-
-
-update_axes
+function Clear_fit_Callback(~,~,~) %#ok<DEFNU>
 
 % This is the main function of this window which update the axis with the
 % proper plots (ref or data) and cursors
@@ -1116,3 +964,12 @@ function figure1_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to figure1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
+
+
+% --- Executes on button press in CopyPlot.
+function CopyPlot_Callback(hObject, eventdata, handles)
+% hObject    handle to CopyPlot (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of CopyPlot

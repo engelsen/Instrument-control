@@ -12,8 +12,10 @@ classdef MyDaq < handle
         InstrList=struct();
         %Struct containing MyInstrument objects 
         Instruments=struct()
-        %Cell containing Cursor objects
-        Cursors;
+        %Struct containing Cursor objects
+        Cursors=struct();
+        %Struct containing Cursor labels
+        CrsLabels=struct();
         %Struct containing MyFit objects
         Fits=struct();
         %Input parser
@@ -40,6 +42,7 @@ classdef MyDaq < handle
         main_plot;
         open_fits;
         open_instrs;
+        open_crs;
         instr_tags;
         instr_names;
         savefile;
@@ -124,48 +127,79 @@ classdef MyDaq < handle
             set(this.Gui.figure1, 'CloseRequestFcn',...
                 @(hObject,eventdata) closeFigure(this, hObject, ...
                 eventdata));
+            %Sets callback for the edit box of the base directory
             set(this.Gui.BaseDir,'Callback',...
                 @(hObject, eventdata) baseDirCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the session name edit box
             set(this.Gui.SessionName,'Callback',...
                 @(hObject, eventdata) sessionNameCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the file name edit box
             set(this.Gui.FileName,'Callback',...
                 @(hObject, eventdata) fileNameCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the save data button
             set(this.Gui.SaveData,'Callback',...
                 @(hObject, eventdata) saveDataCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the save ref button
             set(this.Gui.SaveRef,'Callback',...
                 @(hObject, eventdata) saveRefCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the show data button
             set(this.Gui.ShowData,'Callback',...
                 @(hObject, eventdata) showDataCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the show reference button
             set(this.Gui.ShowRef,'Callback',...
                 @(hObject, eventdata) showRefCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the data to reference button
             set(this.Gui.DataToRef,'Callback',...
                 @(hObject, eventdata) dataToRefCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the LogY button
             set(this.Gui.LogY,'Callback',...
                 @(hObject, eventdata) logYCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the LogX button
             set(this.Gui.LogX,'Callback',...
                 @(hObject, eventdata) logXCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the data to background button
             set(this.Gui.DataToBg,'Callback',...
                 @(hObject, eventdata) dataToBgCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the ref to background button
             set(this.Gui.RefToBg,'Callback',...
                 @(hObject, eventdata) refToBgCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the clear background button
             set(this.Gui.ClearBg,'Callback',...
                 @(hObject, eventdata) clearBgCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the select trace popup menu
             set(this.Gui.SelTrace,'Callback',...
                 @(hObject,eventdata) selTraceCallback(this, hObject, ...
                 eventdata));
+            %Sets callback for the vertical cursor button
+            set(this.Gui.VertCursor,'Callback',...
+                @(hObject, eventdata) cursorButtonCallback(this, hObject,...
+                eventdata));
+            %Sets callback for the horizontal cursors button
+            set(this.Gui.HorzCursor,'Callback',...
+                @(hObject, eventdata) cursorButtonCallback(this, hObject,...
+                eventdata));
+            %Sets callback for the center cursors button
+            set(this.Gui.CenterCursors,'Callback',...
+                @(hObject,eventdata) centerCursorsCallback(this,hObject,...
+                eventdata));
+            %Sets callback for the center cursors button
+            set(this.Gui.CopyPlot,'Callback',...
+                @(hObject,eventdata) copyPlotCallback(this,hObject,...
+                eventdata));
+            
             %Initializes the AnalyzeMenu
             set(this.Gui.AnalyzeMenu,'Callback',...
                 @(hObject, eventdata) analyzeMenuCallback(this, hObject,...
@@ -209,8 +243,11 @@ classdef MyDaq < handle
         %Opens the correct instrument
         function openInstrument(this,tag)
             instr_type=this.InstrList.(tag).type;
+            %Collects the correct inputs for creating the MyInstrument
+            %class
             input_cell={this.InstrList.(tag).name,...
-                this.InstrList.(tag).interface,this.InstrList.(tag).address};
+                this.InstrList.(tag).interface,...
+                this.InstrList.(tag).address};
             
             switch instr_type
                 case 'RSA'
@@ -224,29 +261,254 @@ classdef MyDaq < handle
                         'gui','GuiNa');
             end
             
-            %Adds listeners
+            %Adds listeners for new data and deletion of the instrument.
+            %These call plot functions and delete functions respectively.
             this.Listeners.(tag).NewData=...
                 addlistener(this.Instruments.(tag),'NewData',...
                 @(src, eventdata) acquireNewData(this, src, eventdata));
             this.Listeners.(tag).Deletion=...
-                addlistener(this.Instruments.(tag),'Deletion',...
+                addlistener(this.Instruments.(tag),'ObjectBeingDestroyed',...
                 @(src, eventdata) deleteInstrument(this, src, eventdata));
         end
         
-        function updateFits(this)
-            switch get(this.Gui.SelTrace,'Value')
-                case 1
-                    for i=1:length(this.open_fits)
-                        this.Fits.(this.open_fits{i}).Data=this.Data;
-                    end
-                case 2
-                    for i=1:length(this.open_fits)
-                        this.Fits.(this.open_fits{i}).Data=this.Ref;
-                    end
+        %Updates fits
+        function updateFits(this)            
+            %Pushes data into fits in the form of MyTrace objects, so that
+            %units etc follow.
+            for i=1:length(this.open_fits)
+                this.Fits.(this.open_fits{i}).Data=getFitData(this);
             end
         end
         
+        % If vertical cursors are on, takes only data
+        %within cursors. Note the use of copy here! This is a handle
+        %class, so if normal assignment is used, this.Fits.Data and
+        %this.(trace_str) will refer to the same object, causing roblems.
+        function Trace=getFitData(this)
+            %Finds out which trace the user wants to fit.
+            trace_opts=get(this.Gui.SelTrace,'String');
+            trace_str=trace_opts{get(this.Gui.SelTrace,'Value')};
+            Trace=copy(this.(trace_str));
+            if ismember('Vert',fieldnames(this.Cursors))
+                ind=findCursorData(this, trace_str);
+                Trace.x=this.(trace_str).x(ind);
+                Trace.y=this.(trace_str).y(ind);
+            end
+        end
+        
+        %Finds data between vertical cursors in the given trace
+        function ind=findCursorData(this, trace)
+            curs_pos=sort([this.Cursors.Vert{1}.Location,...
+                this.Cursors.Vert{2}.Location]);
+            ind=(this.(trace).x>curs_pos(1) & this.(trace).x<curs_pos(2));
+        end
+        
+        %Creates either horizontal or vertical cursors
+        function createCursors(this,type)
+            %Checks that the cursors are of valid type
+            assert(strcmp(type,'Horz') || strcmp(type,'Vert'),...
+                'Cursorbars must be vertical or horizontal.');
+            
+            %Sets the correct color for the type of cursor
+            switch type
+                case 'Horz'
+                    color=[0,0,1];
+                    crs_type='Horizontal';
+                case 'Vert'
+                    color=[1,0,0];
+                    crs_type='Vertical';
+            end
+            
+            %Creates first cursor
+            this.Cursors.(type){1}=cursorbar(this.main_plot,...
+                'TargetMarkerStyle','none',...
+                'ShowText','off','CursorLineWidth',0.5,...
+                'Orientation',crs_type,'Tag',sprintf('%s1',type(1)));
+            %Creates second cursor
+            this.Cursors.(type){2}=this.Cursors.(type){1}.duplicate;
+            set(this.Cursors.(type){2},'Tag',sprintf('%s2',type(1)))
+            %Sets the cursor colors
+            setCursorColor(this,type,color);
+            %Makes labels for the cursors
+            labelCursors(this,type,color);
+            addCursorListeners(this,type);
+            cellfun(@(x) notify(x, 'UpdateCursorBar'), this.Cursors.(type));
+        end
+        
+        %Labels cursors of a certain type and color
+        function labelCursors(this, type, color)
+            %Creates text boxes in a placeholder position
+            this.CrsLabels.(type)=cellfun(@(x) text(0,0,x.Tag),...
+                this.Cursors.(type),'UniformOutput',0);
+            %Sets colors and properties on the labels.
+            cellfun(@(x) set(x,'Color',color,'EdgeColor',color,...
+                'FontWeight','bold','FontSize',10,...
+                'HorizontalAlignment','center',...
+                'VerticalAlignment','middle'), this.CrsLabels.(type));
+            positionCursorLabels(this, type);
+        end
+        
+        %Resets the position of the labels 
+        function positionCursorLabels(this, type)
+            switch type
+                case 'Horz'
+                    %To set the offset off the side of the axes
+                    xlim=get(this.main_plot,'XLim');
+                    %Empirically determined nice point for labels
+                    xloc=1.03*xlim(2)-0.03*xlim(1);
+                    %Sets the position of the cursor labels
+                    cellfun(@(x,y) set(x, 'Position',...
+                        [xloc,y.Location,0]),...
+                        this.CrsLabels.Horz,this.Cursors.Horz);
+                    
+                case 'Vert'
+                    %To set the offset off the top of the axes
+                    ylim=get(this.main_plot,'YLim');
+                    %Empirically determined nice point for labels
+                    yloc=1.05*ylim(2)-0.05*ylim(1);
+                    %Sets the position of the cursor labels
+                    cellfun(@(x,y) set(x, 'Position',...
+                        [y.Location,yloc,0]),...
+                        this.CrsLabels.Vert,this.Cursors.Vert);
+            end
+            %Setting the position causes the line to update
+            cellfun(@(x) set(x, 'Location', x.Location),...
+                this.Cursors.(type));
+        end
+        
+        %Adds listeners for cursors
+        function addCursorListeners(this,type)
+            switch type
+                case 'Horz'
+                    %Sets the update function of the cursor to move the
+                    %text.
+                    this.Listeners.Horz.Update=cellfun(@(x) ...
+                        addlistener(x,'UpdateCursorBar',...
+                        @(src, ~) horzCursorUpdate(this, src)),...
+                        this.Cursors.Horz,'UniformOutput',0);
+                case 'Vert'
+                    %Sets the update function of the cursors to move the
+                    %text
+                    this.Listeners.Vert.Update=cellfun(@(x) ...
+                        addlistener(x,'UpdateCursorBar',...
+                        @(src, ~) vertCursorUpdate(this, src)),...
+                        this.Cursors.Vert,'UniformOutput',0);
+                    %Sets the update function for end drag to update fits
+                    this.Listeners.Vert.EndDrag=cellfun(@(x) ...
+                        addlistener(x,'EndDrag',...
+                        @(~,~) updateFits(this)),this.Cursors.Vert,...
+                        'UniformOutput',0);
+            end
+        end
+        
+        %Sets the color of the cursors of a certain type
+        function setCursorColor(this, type, color)
+            cellfun(@(x) set(x.TopHandle,'MarkerFaceColor',color),...
+                this.Cursors.(type));
+            cellfun(@(x) set(x.BottomHandle,'MarkerFaceColor',color),...
+                this.Cursors.(type));
+            cellfun(@(x) set(x,'CursorLineColor',color),...
+                this.Cursors.(type));
+        end
+        
+        %Updates the cursors to fill the axes
+        function updateCursors(this)
+            for i=1:length(this.open_crs)
+                switch this.open_crs{i}
+                    case 'Vert'
+                        cellfun(@(x) set(x.TopHandle, 'YData',...
+                            this.main_plot.YLim(2)), this.Cursors.Vert);
+                        cellfun(@(x) set(x.BottomHandle, 'YData',...
+                            this.main_plot.YLim(1)), this.Cursors.Vert);
+                    case 'Horz'
+                        cellfun(@(x) set(x.TopHandle, 'XData',...
+                            this.main_plot.XLim(2)), this.Cursors.Horz);
+                        cellfun(@(x) set(x.BottomHandle, 'XData',...
+                            this.main_plot.XLim(1)), this.Cursors.Horz);
+                end
+                positionCursorLabels(this,this.open_crs{i});
+            end
+
+        end
+        
+        %Deletes the cursors, their listeners and their labels.
+        function deleteCursors(this, type)
+            %Resets the edit boxes which contain cursor positions
+            cellfun(@(x) set(this.Gui.(sprintf('Edit%s',x.Tag)),...
+                'String',''), this.Cursors.(type));
+            set(this.Gui.(sprintf('Edit%s%s',this.Cursors.(type){2}.Tag,...
+                this.Cursors.(type){1}.Tag)),'String','');
+            %Deletes cursor listeners
+            cellfun(@(x) deleteListeners(this,x.Tag), this.Cursors.(type));
+            %Deletes the cursors themselves
+            cellfun(@(x) delete(x), this.Cursors.(type));
+            this.Cursors=rmfield(this.Cursors,type);
+            %Deletes cursor labels
+            cellfun(@(x) delete(x), this.CrsLabels.(type));
+            this.CrsLabels=rmfield(this.CrsLabels,type);            
+        end
+        
+        function copyPlot(this)
+            %Conditions sizes
+            posn=this.main_plot.OuterPosition;
+            posn=posn.*[1,1,0.82,1.1];
+            %Creates a new figure, this is to avoid copying all the buttons
+            %etc to the clipboard.
+            newFig = figure('visible','off','Units',this.main_plot.Units,...
+                'Position',posn);
+            %Copies the current axes into the new figure.
+            newHandle = copyobj(this.main_plot,newFig);
+            %Prints the figure to the clipboard
+            print(newFig,'-clipboard','-dbitmap');
+            %Deletes the figure
+            delete(newFig);
+        end
         %% Callbacks
+        
+        %Callback for copying the plot to clipboard
+        function copyPlotCallback(this,~,~)
+            copyPlot(this);
+        end
+        
+        %Callback for centering cursors
+        function centerCursorsCallback(this, ~, ~)
+            x_pos=mean(get(this.main_plot,'XLim'));
+            y_pos=mean(get(this.main_plot,'YLim'));
+            
+            for i=1:length(this.open_crs)
+                switch this.open_crs{i}
+                    case 'Horz'
+                        pos=y_pos;
+                    case 'Vert'
+                        pos=x_pos;
+                end
+                
+                %Centers the position
+                cellfun(@(x) set(x,'Location',pos), ...
+                    this.Cursors.(this.open_crs{i}));
+                %Triggers the UpdateCursorBar event, which triggers
+                %listener callback to reposition text
+                cellfun(@(x) notify(x,'UpdateCursorBar'),...
+                    this.Cursors.(this.open_crs{i}));
+                cellfun(@(x) notify(x,'EndDrag'),...
+                    this.Cursors.(this.open_crs{i}));
+            end
+        end
+        
+        %Callback for creating vertical cursors
+        function cursorButtonCallback(this, hObject, ~)
+            tag=get(hObject,'Tag');
+            %Gets the first four characters of the tag (Vert or Horz)
+            type=tag(1:4);
+            
+            if get(hObject,'Value')
+                set(hObject, 'BackGroundColor',[0,1,.2]);
+                createCursors(this,type);
+            else
+                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                deleteCursors(this,type);
+            end
+        end
         
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
@@ -267,9 +529,11 @@ classdef MyDaq < handle
             end
         end
         
+        %Select trace callback
         function selTraceCallback(this, ~, ~)
             updateFits(this)
         end
+        
         %Saves the data if the save data button is pressed.
         function saveDataCallback(this, ~, ~)
             if this.Data.validatePlot
@@ -413,14 +677,16 @@ classdef MyDaq < handle
             elseif analyze_ind~=1
                 %Makes an instance of MyFit with correct parameters.
                 this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
-                    'enable_plot',1,'plot_handle',this.main_plot);
-                updateFits(this);
+                    'enable_plot',1,'plot_handle',this.main_plot,...
+                    'Data',getFitData(this));
+
                 %Sets up a listener for the Deletion event, which
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.
                 this.Listeners.(analyze_name).Deletion=...
-                    addlistener(this.Fits.(analyze_name),'Deletion',...
+                    addlistener(this.Fits.(analyze_name),'ObjectBeingDestroyed',...
                     @(src, eventdata) deleteFit(this, src, eventdata));
+                
                 %Sets up a listener for the NewFit. Callback plots the fit
                 %on the main plot.
                 this.Listeners.(analyze_name).NewFit=...
@@ -434,17 +700,20 @@ classdef MyDaq < handle
         %window using the plotFit function of the MyFit object
         function plotNewFit(this, src, ~)
             src.plotFit('Color',this.fit_color);
+            updateCursors(this);
         end
         
         %Callback function for the NewData listener
         function acquireNewData(this, src, ~)
             this.Data=src.Trace;
             src.Trace.plotTrace(this.main_plot,'Color',this.data_color)
+            updateCursors(this);
+            updateFits(this);
         end
         
-        %Callback function for MyInstrument Deletion listener. Removes the
-        %relevant field from the Instruments struct and deletes the
-        %listeners from the object
+        %Callback function for MyInstrument ObjectBeingDestroyed listener. 
+        %Removes the relevant field from the Instruments struct and deletes
+        %the listeners from the object
         function deleteInstrument(this, src, ~)
             %Deletes the object from the Instruments struct
             tag=getTag(this, src.name);
@@ -456,9 +725,9 @@ classdef MyDaq < handle
             deleteListeners(this, tag);
         end
         
-        %Callback function for MyFit Deletion listener. Removes the relevant 
-        %field from the Fits struct and deletes the listeners from the
-        %object.
+        %Callback function for MyFit ObjectBeingDestroyed listener. 
+        %Removes the relevant field from the Fits struct and deletes the 
+        %listeners from the object.
         function deleteFit(this, src, ~)
             %Deletes the object from the Fits struct
             if ismember(src.fit_name, fieldnames(this.Fits))
@@ -467,21 +736,64 @@ classdef MyDaq < handle
             
             %Deletes the listeners from the Listeners struct.
             deleteListeners(this, src.fit_name);
+            
+            %Updates cursors since the fits are removed from the plot
+            updateCursors(this);
         end
         
+        %Listener update function for vertical cursor
+        function vertCursorUpdate(this, src)
+            %Finds the index of the cursor. All cursors are tagged
+            %V1,V2,H1,H2 etc, ind is the number.
+            ind=str2double(src.Tag(2));
+            %Moves the cursor labels
+            set(this.CrsLabels.Vert{ind},'Position',[src.Location,...
+                this.CrsLabels.Vert{ind}.Position(2),0]);
+            %Sets the edit box displaying the location of the cursor
+            set(this.Gui.(sprintf('EditV%d',ind)),'String',...
+                num2str(src.Location));
+            %Sets the edit box displaying the difference in locations
+            set(this.Gui.EditV2V1,'String',...
+                num2str(this.Cursors.Vert{2}.Location-...
+                this.Cursors.Vert{1}.Location))
+        end
+        
+        %Listener update function for horizontal cursor
+        function horzCursorUpdate(this, src)
+            %Finds the index of the cursor. All cursors are tagged
+            %V1,V2,H1,H2 etc, ind is the number.
+            ind=str2double(src.Tag(2));
+            %Moves the cursor labels
+            set(this.CrsLabels.Horz{ind},'Position',...
+                [this.CrsLabels.Horz{ind}.Position(1),...
+                src.Location,0]);
+            %Sets the edit box displaying the location of the cursor
+            set(this.Gui.(sprintf('EditH%d',ind)),'String',...
+                num2str(src.Location));
+            %Sets the edit box displaying the difference in locations
+            set(this.Gui.EditH2H1,'String',...
+                num2str(this.Cursors.Horz{2}.Location-...
+                this.Cursors.Horz{1}.Location));
+        end
+               
         %Function that deletes listeners from the listeners struct,
         %corresponding to an object of name obj_name
         function deleteListeners(this, obj_name)
+            %Finds if the object has listeners in the listeners structure
             if ismember(obj_name, fieldnames(this.Listeners))
+                %Grabs the fieldnames of the object's listeners structure
                 names=fieldnames(this.Listeners.(obj_name));
                 for i=1:length(names)
+                    %Deletes the listeners
                     delete(this.Listeners.(obj_name).(names{i}));
+                    %Removes the field from the structure
                     this.Listeners.(obj_name)=...
                         rmfield(this.Listeners.(obj_name),names{i});
                 end
+                %Removes the object's field from the structure
                 this.Listeners=rmfield(this.Listeners, obj_name);
             end
-        end
+        end     
         
         %% Get functions
         
@@ -525,7 +837,7 @@ classdef MyDaq < handle
         %Generates appropriate file name for the save file.
         function savefile=get.savefile(this)
             if get(this.Gui.AutoName,'Value')
-                date_time = datestr(now,'yyyy-mm-dd_HH.MM.SS');
+                date_time = datestr(now,'yyyy-mm-dd_HHMMSS');
             else
                 date_time='';
             end
@@ -533,5 +845,9 @@ classdef MyDaq < handle
             savefile=[this.file_name,date_time];
         end
         
+        %Get function that displays names of open cursors
+        function open_crs=get.open_crs(this)
+            open_crs=fieldnames(this.Cursors);
+        end
     end
 end

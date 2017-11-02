@@ -1,4 +1,4 @@
-classdef MyTrace < handle
+classdef MyTrace < handle & matlab.mixin.Copyable
     properties
         x=[];
         y=[];
