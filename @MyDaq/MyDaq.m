@@ -80,7 +80,9 @@ classdef MyDaq < handle
                 this.Gui=[];
             end         
         end
-        
+    end
+    
+    methods (Access=private)
         %Creates parser for constructor function
         function createParser(this)
            p=inputParser;
@@ -463,6 +465,9 @@ classdef MyDaq < handle
             %Deletes the figure
             delete(newFig);
         end
+    end
+    
+    methods
         %% Callbacks
         
         %Callback for copying the plot to clipboard
@@ -704,7 +709,7 @@ classdef MyDaq < handle
                     @(src, eventdata) plotNewFit(this, src, eventdata));
             end
         end
-        
+ 
         %% Listener functions 
         %Callback function for NewFit listener. Plots the fit in the
         %window using the plotFit function of the MyFit object
