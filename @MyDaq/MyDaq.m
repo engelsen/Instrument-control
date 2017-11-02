@@ -457,7 +457,7 @@ classdef MyDaq < handle
             newFig = figure('visible','off','Units',this.main_plot.Units,...
                 'Position',posn);
             %Copies the current axes into the new figure.
-            newHandle = copyobj(this.main_plot,newFig);
+            newHandle = copyobj(this.main_plot,newFig); %#ok<NASGU>
             %Prints the figure to the clipboard
             print(newFig,'-clipboard','-dbitmap');
             %Deletes the figure

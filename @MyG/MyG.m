@@ -73,6 +73,7 @@ classdef MyG < handle
             cellfun(@(x) set(this.Gui.([x,'Edit']),'Callback',...
                 @(hObject,~) editCallback(this,hObject)),...
                 this.var_tags);
+            set(this.Gui.CopyButton,'Callback',@(~,~) copyCallback(this));
             set(this.Gui.figure1, 'CloseRequestFcn',...
                 @(~,~) closeFigure(this));
         end
@@ -94,13 +95,15 @@ classdef MyG < handle
             
             %Finds the mechanical frequency and the fwhm
             [~,mech_freq]=max(this.MechTrace);
-            gamma_m=calcFwhm(this.MechTrace)
+            gamma_m=calcFwhm(this.MechTrace);
             q_m=mech_freq/gamma_m;
             
+            %Defines constants and finds mechanical phononon number
             k_b=1.38e-23;
             h=6.63e-34;
             n_m=k_b*this.temp/(h*mech_freq);
             
+            %Calculates g_0
             g0=(v_rms_mech/v_rms_eom)*this.beta*mech_freq/sqrt(4*n_m);
             
             set(this.Gui.MechFreq,'String',num2str(mech_freq/1e6,4));
@@ -120,6 +123,17 @@ classdef MyG < handle
             tag_str=erase(get(hObject,'Tag'),'Edit');
             var_str=this.VarStruct.(tag_str).var;
             this.(var_str)=str2double(get(hObject,'String'));
+        end
+        
+        %Callback function for copying values to clipboard
+        function copyCallback(this)
+            mech_freq=get(this.Gui.MechFreq,'String');
+            q_m=get(this.Gui.Q,'String');
+            gamma_m=get(this.Gui.Linewidth,'String');
+            g0=get(this.Gui.g0,'String');
+            copy_string=sprintf('%s \t %s \t %s \t %s',...
+                mech_freq,q_m,gamma_m,g0);
+            clipboard('copy',copy_string);
         end
     end
     

@@ -22,7 +22,7 @@ function varargout = GuiGCal(varargin)
 
 % Edit the above text to modify the response to help GuiGCal
 
-% Last Modified by GUIDE v2.5 02-Nov-2017 13:50:30
+% Last Modified by GUIDE v2.5 02-Nov-2017 16:11:33
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -75,15 +75,6 @@ varargout{1} = handles.output;
 
 
 
-function PEomEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to PEomEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of PEomEdit as text
-%        str2double(get(hObject,'String')) returns contents of PEomEdit as a double
-
-
 % --- Executes during object creation, after setting all properties.
 function PEomEdit_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to PEomEdit (see GCBO)
@@ -96,15 +87,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
-function VPiEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to VPiEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of VPiEdit as text
-%        str2double(get(hObject,'String')) returns contents of VPiEdit as a double
 
 
 % --- Executes during object creation, after setting all properties.
@@ -121,15 +103,6 @@ end
 
 
 
-function TempEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to TempEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of TempEdit as text
-%        str2double(get(hObject,'String')) returns contents of TempEdit as a double
-
-
 % --- Executes during object creation, after setting all properties.
 function TempEdit_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to TempEdit (see GCBO)
@@ -141,22 +114,6 @@ function TempEdit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
-
-% --- Executes on button press in pushbutton4.
-function pushbutton4_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton4 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
-function BetaEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to BetaEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of BetaEdit as text
-%        str2double(get(hObject,'String')) returns contents of BetaEdit as a double
 
 
 % --- Executes during object creation, after setting all properties.

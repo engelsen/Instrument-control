@@ -1,5 +1,5 @@
 classdef MyTrace < handle & matlab.mixin.Copyable
-    properties
+    properties (Access=public)
         x=[];
         y=[];
         name='placeholder';
@@ -7,15 +7,21 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         Marker='.';
         LineStyle='-'
         MarkerSize=6;
-        Parser;
         name_x='x';
         name_y='y';
         unit_x='';
         unit_y='';
         save_dir='';
         load_path='';
+    end
+    
+    properties (GetAccess=public, SetAccess=private)
         %Cell that contains handles the trace is plotted in
         hlines={};
+    end
+    
+    properties (Access=private)
+        Parser;
     end
     
     properties (Dependent=true)
@@ -23,7 +29,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         label_y;
     end
     
-    methods
+    methods (Access=public)
         function this=MyTrace(varargin)
             createParser(this);
             parse(this.Parser,varargin{:});
@@ -32,28 +38,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             if ~ismember('load_path',this.Parser.UsingDefaults)
                 loadTrace(this,this.load_path);
             end
-        end
-        
-        %Creates the input parser for the class. Includes default values
-        %for all optional parameters.
-        function createParser(this)
-            p=inputParser;
-            addParameter(p,'name','placeholder');
-            addParameter(p,'x',[]);
-            addParameter(p,'y',[]);
-            addParameter(p,'Color','b');
-            addParameter(p,'Marker','none');
-            addParameter(p,'LineStyle','-');
-            addParameter(p,'MarkerSize',6);
-            addParameter(p,'unit_x','x');
-            addParameter(p,'unit_y','y');
-            addParameter(p,'name_x','x');
-            addParameter(p,'name_y','y');
-            %Default save folder is the current directory upon
-            %instantiation
-            addParameter(p,'save_dir',pwd);
-            addParameter(p,'load_path','');
-            this.Parser=p;
         end
         
         %Defines the save function for the class. Saves the data with
@@ -131,28 +115,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function setTrace(this, varargin)
             parse(this.Parser,varargin{:})
             parseInputs(this, false);
-        end
-        
-        %Sets the class variables to the inputs from the inputParser. Can
-        %be used to reset class to default values if default_flag=true.
-        function parseInputs(this, default_flag)
-            for i=1:length(this.Parser.Parameters)
-                %Sets the value if there was an input or if the default
-                %flag is on. The default flag is used to reset the class to
-                %its default values.
-                if default_flag || ~any(ismember(this.Parser.Parameters{i},...
-                        this.Parser.UsingDefaults))
-                    this.(this.Parser.Parameters{i})=...
-                        this.Parser.Results.(this.Parser.Parameters{i});
-                end
-            end
-        end
+        end      
         
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
         function plotTrace(this,plot_axes,varargin)
-            %Checks that there are axes to plot 
+            %Checks that there are axes to plot
             assert(exist('plot_axes','var') && ...
                 isa(plot_axes,'matlab.graphics.axis.Axes'),...
                 'Please input axes to plot in.')
@@ -173,8 +142,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Sets the correct color and label options
             set(this.hlines{ind},'Color',this.Color,'LineStyle',...
-                    this.LineStyle,'Marker',this.Marker,...
-                    'MarkerSize',this.MarkerSize);
+                this.LineStyle,'Marker',this.Marker,...
+                'MarkerSize',this.MarkerSize);
             xlabel(plot_axes,this.label_x,'Interpreter','LaTeX');
             ylabel(plot_axes,this.label_y,'Interpreter','LaTeX');
             set(plot_axes,'TickLabelInterpreter','LaTeX');
@@ -184,7 +153,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         %it to the appropriate visible setting.
         function setVisible(this, plot_axes, bool)
             if bool
-                vis='on'; 
+                vis='on';
             else
                 vis='off';
             end
@@ -193,6 +162,101 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             if ~isempty(ind) && any(ind)
                 set(this.hlines{ind},'Visible',vis)
             end
+        end
+        %Defines addition of two MyTrace objects
+        function sum=plus(a,b)
+            checkArithmetic(a,b);
+            
+            sum=MyTrace('x',a.x,'y',a.y+b.y,'unit_x',a.unit_x,...
+                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+        end
+        
+        %Defines subtraction of two MyTrace objects
+        function sum=minus(a,b)
+            checkArithmetic(a,b);
+            
+            sum=MyTrace('x',a.x,'y',a.y-b.y,'unit_x',a.unit_x,...
+                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+        end
+        
+        function [max_val,max_x]=max(this)
+            assert(validatePlot(this),['MyTrace object must contain',...
+                ' nonempty data vectors of equal length to find the max'])
+            [max_val,max_ind]=max(this.y);
+            max_x=this.x(max_ind);
+        end
+        
+        function fwhm=calcFwhm(this)
+            assert(validatePlot(this),['MyTrace object must contain',...
+                ' nonempty data vectors of equal length to find the fwhm'])
+            [max_val,~]=max(this);
+            ind1=find(this.y>max_val/2,1,'first');
+            ind2=find(this.y>max_val/2,1,'last');
+            fwhm=this.x(ind2)-this.x(ind1);
+        end
+        
+        %Integrates the trace numerically
+        function area=integrate(this)
+            assert(validatePlot(this),['MyTrace object must contain',...
+                ' nonempty data vectors of equal length to integrate'])
+            area=trapz(this.x,this.y);
+        end
+        
+        %Checks if the object is empty
+        function bool=isempty(this)
+            bool=isempty(this.x) && isempty(this.y);
+        end
+    end
+    
+    methods (Access=private)
+        %Creates the input parser for the class. Includes default values
+        %for all optional parameters.
+        function createParser(this)
+            p=inputParser;
+            addParameter(p,'name','placeholder');
+            addParameter(p,'x',[]);
+            addParameter(p,'y',[]);
+            addParameter(p,'Color','b');
+            addParameter(p,'Marker','none');
+            addParameter(p,'LineStyle','-');
+            addParameter(p,'MarkerSize',6);
+            addParameter(p,'unit_x','x');
+            addParameter(p,'unit_y','y');
+            addParameter(p,'name_x','x');
+            addParameter(p,'name_y','y');
+            %Default save folder is the current directory upon
+            %instantiation
+            addParameter(p,'save_dir',pwd);
+            addParameter(p,'load_path','');
+            this.Parser=p;
+        end
+        
+        %Sets the class variables to the inputs from the inputParser. Can
+        %be used to reset class to default values if default_flag=true.
+        function parseInputs(this, default_flag)
+            for i=1:length(this.Parser.Parameters)
+                %Sets the value if there was an input or if the default
+                %flag is on. The default flag is used to reset the class to
+                %its default values.
+                if default_flag || ~any(ismember(this.Parser.Parameters{i},...
+                        this.Parser.UsingDefaults))
+                    this.(this.Parser.Parameters{i})=...
+                        this.Parser.Results.(this.Parser.Parameters{i});
+                end
+            end
+        end
+        
+        %Checks if arithmetic can be done with MyTrace objects.
+        function checkArithmetic(a,b)
+            assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
+                ['Both objects must be of type MyTrace to add,',...
+                'here they are type %s and %s'],class(a),class(b));
+            assert(strcmp(a.unit_x, b.unit_x) && strcmp(a.unit_y,b.unit_y),...
+                'The MyTrace classes must have the same units for arithmetic');
+            assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
+                'The length of x and y must be equal for arithmetic');
+            assert(all(a.x==b.x),...
+                'The MyTrace objects must have identical x-axis for arithmetic')
         end
         
         %Finds the hline handle that is plotted in the specified axes
@@ -209,62 +273,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function bool=validatePlot(this)
             bool=~isempty(this.x) && ~isempty(this.y)...
                 && length(this.x)==length(this.y);
-        end
-        
-        %Defines addition of two MyTrace objects        
-        function sum=plus(a,b)
-            checkArithmetic(a,b);
-            
-            sum=MyTrace('x',a.x,'y',a.y+b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
-        end
-                
-        %Defines subtraction of two MyTrace objects
-        function sum=minus(a,b)
-            checkArithmetic(a,b);
-            
-            sum=MyTrace('x',a.x,'y',a.y-b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
-        end
-        
-        function [max_val,max_x]=max(this)
-            assert(validatePlot(this),['MyTrace object must contain',...
-                ' nonempty data vectors of equal length to find the max'])
-            [max_val,max_ind]=max(this.y);
-            max_x=this.x(max_ind);
-        end
-            
-        function fwhm=calcFwhm(this)
-            assert(validatePlot(this),['MyTrace object must contain',...
-                ' nonempty data vectors of equal length to find the fwhm'])
-            [max_val,~]=max(this);
-            ind1=find(this.y>max_val/2,1,'first');
-            ind2=find(this.y>max_val/2,1,'last');
-            fwhm=this.x(ind2)-this.x(ind1);
-        end
-        %Checks if arithmetic can be done with MyTrace objects.
-        function checkArithmetic(a,b)
-            assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
-                ['Both objects must be of type MyTrace to add,',...
-                'here they are type %s and %s'],class(a),class(b));
-            assert(strcmp(a.unit_x, b.unit_x) && strcmp(a.unit_y,b.unit_y),...
-                'The MyTrace classes must have the same units for arithmetic');
-            assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
-                'The length of x and y must be equal for arithmetic');
-            assert(all(a.x==b.x),...
-                'The MyTrace objects must have identical x-axis for arithmetic')
-        end
-        
-        %Integrates the trace numerically
-        function area=integrate(this)
-            assert(validatePlot(this),['MyTrace object must contain',...
-                ' nonempty data vectors of equal length to integrate'])
-            area=trapz(this.x,this.y);
-        end
-        
-        %Checks if the object is empty
-        function bool=isempty(this)
-            bool=isempty(this.x) && isempty(this.y);
         end
     end
     
