@@ -67,11 +67,23 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             if ~exist(this.save_dir,'dir')
                 mkdir(this.save_dir)
             end
+            
+            %Adds the \ at the end if it was not added by the user.
+            if ~strcmp(this.save_dir(end),'\')
+                this.save_dir(end)=[];
+            end
+            
             %Creates a file name out of the name of the class and the save
             %directory
-            filename=[this.save_dir,'\',this.name,'.txt'];
+            filename=[this.save_dir,this.name,'.txt'];
             %Creates the file
             fileID=fopen(filename,'w');
+            
+            %MATLAB returns -1 for the fileID if the file could not be
+            %opened
+            if fileID==-1
+                error('File could not be created.');
+            end
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x)]);
@@ -183,6 +195,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             end
         end
         
+        %Finds the hline handle that is plotted in the specified axes
         function ind=findLineInd(this, plot_axes)
             if ~isempty(this.hlines)
                 ind=cellfun(@(x) ismember(x,findall(plot_axes,...
@@ -198,7 +211,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 && length(this.x)==length(this.y);
         end
         
-                
+        %Defines addition of two MyTrace objects        
         function sum=plus(a,b)
             checkArithmetic(a,b);
             
@@ -206,6 +219,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
         end
                 
+        %Defines subtraction of two MyTrace objects
         function sum=minus(a,b)
             checkArithmetic(a,b);
             
@@ -213,6 +227,22 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
         end
         
+        function [max_val,max_x]=max(this)
+            assert(validatePlot(this),['MyTrace object must contain',...
+                ' nonempty data vectors of equal length to find the max'])
+            [max_val,max_ind]=max(this.y);
+            max_x=this.x(max_ind);
+        end
+            
+        function fwhm=calcFwhm(this)
+            assert(validatePlot(this),['MyTrace object must contain',...
+                ' nonempty data vectors of equal length to find the fwhm'])
+            [max_val,~]=max(this);
+            ind1=find(this.y>max_val/2,1,'first');
+            ind2=find(this.y>max_val/2,1,'last');
+            fwhm=this.x(ind2)-this.x(ind1);
+        end
+        %Checks if arithmetic can be done with MyTrace objects.
         function checkArithmetic(a,b)
             assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
                 ['Both objects must be of type MyTrace to add,',...
@@ -223,6 +253,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 'The length of x and y must be equal for arithmetic');
             assert(all(a.x==b.x),...
                 'The MyTrace objects must have identical x-axis for arithmetic')
+        end
+        
+        %Integrates the trace numerically
+        function area=integrate(this)
+            assert(validatePlot(this),['MyTrace object must contain',...
+                ' nonempty data vectors of equal length to integrate'])
+            area=trapz(this.x,this.y);
+        end
+        
+        %Checks if the object is empty
+        function bool=isempty(this)
+            bool=isempty(this.x) && isempty(this.y);
         end
     end
     

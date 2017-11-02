@@ -553,11 +553,6 @@ classdef MyDaq < handle
                 error('Reference trace was empty, could not save')
             end
         end
-                
-        %Base directory callback
-        function baseDirCallback(this, hObject, ~)
-            this.base_dir=get(hObject,'String');
-        end
         
         %Toggle button callback for showing the data trace.
         function showDataCallback(this, hObject, ~)
@@ -586,7 +581,7 @@ classdef MyDaq < handle
             if this.Data.validatePlot
                 this.Ref.x=this.Data.x;
                 this.Ref.y=this.Data.y;
-                this.Ref.plotTrace(this.main_plot);
+                this.Ref.plotTrace(this.main_plot,'Color',this.ref_color);
                 this.Ref.setVisible(this.main_plot,1);
                 updateFits(this);
                 set(this.Gui.ShowRef,'Value',1);
@@ -649,14 +644,28 @@ classdef MyDaq < handle
             end
         end
         
+        %Base directory callback
+        function baseDirCallback(this, hObject, ~)
+            this.base_dir=get(hObject,'String');
+            for i=1:length(this.open_fits)
+                this.Fits.(this.open_fits{i}).save_dir=this.save_dir;
+            end
+        end
+        
         %Callback for session name edit box. Sets the session name.
         function sessionNameCallback(this, hObject, ~)
             this.session_name=get(hObject,'String');
+            for i=1:length(this.open_fits)
+                this.Fits.(this.open_fits{i}).save_dir=this.save_dir;
+            end
         end
         
         %Callback for filename edit box. Sets the file name.
         function fileNameCallback(this, hObject,~)
             this.file_name=get(hObject,'String');
+            for i=1:length(this.open_fits)
+                this.Fits.(this.open_fits{i}).save_name=this.file_name;
+            end
         end
        
         %Callback for the analyze menu (popup menu for selecting fits).
@@ -678,7 +687,8 @@ classdef MyDaq < handle
                 %Makes an instance of MyFit with correct parameters.
                 this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
                     'enable_plot',1,'plot_handle',this.main_plot,...
-                    'Data',getFitData(this));
+                    'Data',getFitData(this),'save_dir',this.save_dir,...
+                    'save_name',this.file_name);
 
                 %Sets up a listener for the Deletion event, which
                 %removes the MyFit object from the Fits structure if it is
@@ -793,7 +803,15 @@ classdef MyDaq < handle
                 %Removes the object's field from the structure
                 this.Listeners=rmfield(this.Listeners, obj_name);
             end
-        end     
+        end
+        
+        %% Set functions
+        function set.base_dir(this,base_dir)
+            if ~strcmp(base_dir(end),'\')
+                base_dir(end+1)='\';
+            end
+            this.base_dir=base_dir;
+        end
         
         %% Get functions
         

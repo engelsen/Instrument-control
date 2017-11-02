@@ -22,7 +22,7 @@ function varargout = GuiGCal(varargin)
 
 % Edit the above text to modify the response to help GuiGCal
 
-% Last Modified by GUIDE v2.5 02-Nov-2017 13:36:47
+% Last Modified by GUIDE v2.5 02-Nov-2017 13:50:30
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -75,18 +75,18 @@ varargout{1} = handles.output;
 
 
 
-function v_RF_input_Callback(hObject, eventdata, handles)
-% hObject    handle to v_RF_input (see GCBO)
+function PEomEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to PEomEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of v_RF_input as text
-%        str2double(get(hObject,'String')) returns contents of v_RF_input as a double
+% Hints: get(hObject,'String') returns contents of PEomEdit as text
+%        str2double(get(hObject,'String')) returns contents of PEomEdit as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function v_RF_input_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to v_RF_input (see GCBO)
+function PEomEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to PEomEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -98,18 +98,18 @@ end
 
 
 
-function V_pi_input_Callback(hObject, eventdata, handles)
-% hObject    handle to V_pi_input (see GCBO)
+function VPiEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to VPiEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of V_pi_input as text
-%        str2double(get(hObject,'String')) returns contents of V_pi_input as a double
+% Hints: get(hObject,'String') returns contents of VPiEdit as text
+%        str2double(get(hObject,'String')) returns contents of VPiEdit as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function V_pi_input_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to V_pi_input (see GCBO)
+function VPiEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to VPiEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -121,18 +121,18 @@ end
 
 
 
-function Temperature_Callback(hObject, eventdata, handles)
-% hObject    handle to Temperature (see GCBO)
+function TempEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to TempEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of Temperature as text
-%        str2double(get(hObject,'String')) returns contents of Temperature as a double
+% Hints: get(hObject,'String') returns contents of TempEdit as text
+%        str2double(get(hObject,'String')) returns contents of TempEdit as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function Temperature_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to Temperature (see GCBO)
+function TempEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to TempEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -150,41 +150,18 @@ function pushbutton4_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-% --- Executes on slider movement.
-function Linewidth_Adj_Callback(hObject, eventdata, handles)
-% hObject    handle to Linewidth_Adj (see GCBO)
+function BetaEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to BetaEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+% Hints: get(hObject,'String') returns contents of BetaEdit as text
+%        str2double(get(hObject,'String')) returns contents of BetaEdit as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function Linewidth_Adj_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to Linewidth_Adj (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
-
-function beta_input_Callback(hObject, eventdata, handles)
-% hObject    handle to beta_input (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of beta_input as text
-%        str2double(get(hObject,'String')) returns contents of beta_input as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function beta_input_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to beta_input (see GCBO)
+function BetaEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to BetaEdit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

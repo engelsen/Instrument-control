@@ -16,6 +16,8 @@ classdef MyFit < handle
         enable_plot;
         plot_handle;
         hline_init;
+        save_name;
+        save_dir;
     end
     
     properties (Dependent=true)
@@ -101,6 +103,8 @@ classdef MyFit < handle
             addParameter(p,'enable_gui',1);
             addParameter(p,'enable_plot',0);
             addParameter(p,'plot_handle',[]);
+            addParameter(p,'save_dir',[]);
+            addParameter(p,'save_name',[]);
             this.Parser=p;
         end
         
@@ -259,7 +263,22 @@ classdef MyFit < handle
         end
         
         %% Callbacks
-        
+        %Save function callback
+        function saveCallback(this,~,~)
+            assert(~isempty(this.save_dir),'Save directory is not specified');
+            assert(ischar(this.save_dir),...
+                ['Save directory is not specified.',...
+                ' Should be of type char but is %s.'], ...
+                class(this.save_dir))
+            try 
+                this.Fit.save('name',this.save_name,...
+                    'save_dir',this.save_dir)
+            catch
+                error(['Attempted to save to directory %s',...
+                    ' with file name %s, but failed'],this.save_dir,...
+                    this.save_name);
+            end
+        end
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
         %speed up the callback.
