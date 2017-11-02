@@ -4,7 +4,6 @@ classdef MyInstrument < handle
         name='';
         interface='';
         address='';
-        axes_handle=[];
         %Logical for whether gui is enabled
         enable_gui=false;
         %Contains the GUI handles
@@ -20,16 +19,20 @@ classdef MyInstrument < handle
         CommandParser;
     end
     
+    properties (Access=public)
+        axes_handle=[];
+    end
+    
     properties (Dependent=true)
         command_names;
         command_no;
     end
     
-    events 
+    events
         NewData;
     end
     
-    methods
+    methods (Access=public)
         function this=MyInstrument(name, interface, address, varargin)
             createParser(this);
             parse(this.Parser,name,interface,address,varargin{:});
@@ -41,7 +44,7 @@ classdef MyInstrument < handle
             this.enable_gui=~ismember('gui',this.Parser.UsingDefaults);
             this.axes_handle=this.Parser.Results.axes_handle;
             
-            %If a gui input is given, load the gui 
+            %If a gui input is given, load the gui
             if this.enable_gui
                 %Loads the gui from the input gui string
                 this.Gui=guihandles(eval(this.Parser.Results.gui));
@@ -51,11 +54,6 @@ classdef MyInstrument < handle
                     @(hObject,eventdata) closeFigure(this, hObject, ...
                     eventdata));
             end
-        end
-        
-        %Triggers event for acquired data
-        function triggerNewData(this)
-            notify(this,'NewData')
         end
         
         function delete(this)
@@ -73,36 +71,6 @@ classdef MyInstrument < handle
             %Deletes the device object
             delete(this.Device);
             clear('this.Device');
-        end
-        
-    end
-    
-    methods
-        
-        %Checks if the connection to the device is open
-        function bool=isopen(this)
-            bool=strcmp(this.Device.Status, 'open');
-        end
-        
-        function createParser(this)
-            p=inputParser;
-            addRequired(p,'name',@ischar);
-            addRequired(p,'interface',@ischar);
-            addRequired(p,'address',@ischar);
-            addParameter(p,'gui','placeholder',@ischar);
-            addParameter(p,'axes_handle',[]);
-            this.Parser=p;
-        end
-            
-        
-        %Sends a read command to the device
-        function result=read(this,command)
-            result=query(this.Device, command);
-        end
-        
-        %Writes to the device
-        function write(this, command)
-            fprintf(this.Device, command);
         end
         
         function writeProperty(this, varargin)
@@ -142,9 +110,43 @@ classdef MyInstrument < handle
             end
         end
         
+    end
+    
+    methods (Access=private)
+        function createParser(this)
+            p=inputParser;
+            addRequired(p,'name',@ischar);
+            addRequired(p,'interface',@ischar);
+            addRequired(p,'address',@ischar);
+            addParameter(p,'gui','placeholder',@ischar);
+            addParameter(p,'axes_handle',[]);
+            this.Parser=p;
+        end
+    end
+    
+    methods (Access=protected)
+        %Triggers event for acquired data
+        function triggerNewData(this)
+            notify(this,'NewData')
+        end
+        
+        %Checks if the connection to the device is open
+        function bool=isopen(this)
+            bool=strcmp(this.Device.Status, 'open');
+        end
+        
+        %Sends a read command to the device
+        function result=read(this,command)
+            result=query(this.Device, command);
+        end
+        
+        %Writes to the device
+        function write(this, command)
+            fprintf(this.Device, command);
+        end
+        
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
-
             p=inputParser;
             addRequired(p,'tag',@ischar);
             addRequired(p,'command',@ischar);
@@ -171,7 +173,6 @@ classdef MyInstrument < handle
                 this.CommandList.(tag).attributes=p.Results.attributes;
             end
         end
-        
         
         %Creates inputParser using the command list
         function createCommandParser(this)
@@ -227,7 +228,10 @@ classdef MyInstrument < handle
         function closeFigure(this,~,~)
             delete(this);
         end
-        
+    end
+    
+    %% Get functions
+    methods
         function command_names=get.command_names(this)
             command_names=fieldnames(this.CommandList);
         end
@@ -235,9 +239,5 @@ classdef MyInstrument < handle
         function command_no=get.command_no(this)
             command_no=length(this.command_names);
         end
-        
     end
-    
-    
-    
 end
