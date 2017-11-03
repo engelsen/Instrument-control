@@ -278,7 +278,7 @@ classdef MyDaq < handle
             %Pushes data into fits in the form of MyTrace objects, so that
             %units etc follow.
             for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).Data=getFitData(this);
+                this.Fits.(this.open_fits{i}).Data=getFitData(this,'Vert');
             end
         end
         
@@ -286,23 +286,23 @@ classdef MyDaq < handle
         %within cursors. Note the use of copy here! This is a handle
         %class, so if normal assignment is used, this.Fits.Data and
         %this.(trace_str) will refer to the same object, causing roblems.
-        function Trace=getFitData(this)
+        function Trace=getFitData(this,name)
             %Finds out which trace the user wants to fit.
-            trace_opts=get(this.Gui.SelTrace,'String');
-            trace_str=trace_opts{get(this.Gui.SelTrace,'Value')};
-            Trace=copy(this.(trace_str));
-            if ismember('Vert',fieldnames(this.Cursors))
-                ind=findCursorData(this, trace_str);
-                Trace.x=this.(trace_str).x(ind);
-                Trace.y=this.(trace_str).y(ind);
+            trc_opts=get(this.Gui.SelTrace,'String');
+            trc_str=trc_opts{get(this.Gui.SelTrace,'Value')};
+            Trace=copy(this.(trc_str));
+            if ismember(name,fieldnames(this.Cursors))
+                ind=findCursorData(this, trc_str, name);
+                Trace.x=this.(trc_str).x(ind);
+                Trace.y=this.(trc_str).y(ind);
             end
         end
         
-        %Finds data between vertical cursors in the given trace
-        function ind=findCursorData(this, trace)
-            curs_pos=sort([this.Cursors.Vert{1}.Location,...
-                this.Cursors.Vert{2}.Location]);
-            ind=(this.(trace).x>curs_pos(1) & this.(trace).x<curs_pos(2));
+        %Finds data between named cursors in the given trace
+        function ind=findCursorData(this, trc_str, name)
+            crs_pos=sort([this.Cursors.(name){1}.Location,...
+                this.Cursors.(name){2}.Location]);
+            ind=(this.(trc_str).x>crs_pos(1) & this.(trc_str).x<crs_pos(2));
         end
         
         %Creates either horizontal or vertical cursors
@@ -310,13 +310,13 @@ classdef MyDaq < handle
             %Checks that the cursors are of valid type
             assert(strcmp(type,'Horz') || strcmp(type,'Vert'),...
                 'Cursorbars must be vertical or horizontal.');
-            
-            %Sets the correct color for the type of cursor
-            switch type
-                case 'Horz'
+
+            %Sets the correct color for the cursor
+            switch name
+                case 'HorzData'
                     color=[0,0,1];
                     crs_type='Horizontal';
-                case 'Vert'
+                case 'VertData'
                     color=[1,0,0];
                     crs_type='Vertical';
             end
@@ -325,10 +325,10 @@ classdef MyDaq < handle
             this.Cursors.(name){1}=cursorbar(this.main_plot,...
                 'TargetMarkerStyle','none',...
                 'ShowText','off','CursorLineWidth',0.5,...
-                'Orientation',crs_type,'Tag',sprintf('%s1',name(1)));
+                'Orientation',crs_type,'Tag',sprintf('%s1',name));
             %Creates second cursor
             this.Cursors.(name){2}=this.Cursors.(name){1}.duplicate;
-            set(this.Cursors.(name){2},'Tag',sprintf('%s2',name(1)))
+            set(this.Cursors.(name){2},'Tag',sprintf('%s2',name))
             %Sets the cursor colors
             cellfun(@(x) setCursorColor(x, color),this.Cursors.(name));
             %Makes labels for the cursors
@@ -340,8 +340,9 @@ classdef MyDaq < handle
         %Labels cursors of a certain type and color
         function labelCursors(this, name, type, color)
             %Creates text boxes in a placeholder position
-            this.CrsLabels.(name)=cellfun(@(x) text(0,0,x.Tag),...
-                this.Cursors.(name),'UniformOutput',0);
+            this.CrsLabels.(name)=cellfun(@(x) text(0,0,...
+                [x.Tag(1),x.Tag(end)]),this.Cursors.(name),...
+                'UniformOutput',0);
             %Sets colors and properties on the labels.
             cellfun(@(x) set(x,'Color',color,'EdgeColor',color,...
                 'FontWeight','bold','FontSize',10,...
@@ -353,7 +354,7 @@ classdef MyDaq < handle
         %Resets the position of the labels 
         function positionCursorLabels(this, name, type)
             switch type
-                case 'Horz'
+                case {'Horz','horizontal'}
                     %To set the offset off the side of the axes
                     xlim=get(this.main_plot,'XLim');
                     %Empirically determined nice point for labels
@@ -363,7 +364,7 @@ classdef MyDaq < handle
                         [xloc,y.Location,0]),...
                         this.CrsLabels.(name),this.Cursors.(name));
                     
-                case 'Vert'
+                case {'Vert','vertical'}
                     %To set the offset off the top of the axes
                     ylim=get(this.main_plot,'YLim');
                     %Empirically determined nice point for labels
@@ -381,24 +382,24 @@ classdef MyDaq < handle
         %Adds listeners for cursors
         function addCursorListeners(this,name,type)
             switch type
-                case 'Horz'
+                case {'Horz','horizontal'}
                     %Sets the update function of the cursor to move the
                     %text.
                     this.Listeners.(name).Update=cellfun(@(x) ...
                         addlistener(x,'UpdateCursorBar',...
                         @(src, ~) horzCursorUpdate(this, src)),...
                         this.Cursors.(name),'UniformOutput',0);
-                case 'Vert'
+                case {'Vert','vertical'}
                     %Sets the update function of the cursors to move the
                     %text
-                    this.Listeners.Vert.Update=cellfun(@(x) ...
+                    this.Listeners.(name).Update=cellfun(@(x) ...
                         addlistener(x,'UpdateCursorBar',...
                         @(src, ~) vertCursorUpdate(this, src)),...
-                        this.Cursors.Vert,'UniformOutput',0);
+                        this.Cursors.(name),'UniformOutput',0);
                     %Sets the update function for end drag to update fits
-                    this.Listeners.Vert.EndDrag=cellfun(@(x) ...
+                    this.Listeners.(name).EndDrag=cellfun(@(x) ...
                         addlistener(x,'EndDrag',...
-                        @(~,~) updateFits(this)),this.Cursors.Vert,...
+                        @(~,~) updateFits(this)),this.Cursors.(name),...
                         'UniformOutput',0);
             end
         end
@@ -406,30 +407,34 @@ classdef MyDaq < handle
         %Updates the cursors to fill the axes
         function updateCursors(this)
             for i=1:length(this.open_crs)
-                switch this.open_crs{i}
-                    case 'Vert'
+                type=this.Cursors.(this.open_crs{i}){1}.Orientation;
+                name=this.open_crs{i};
+                switch type
+                    case 'vertical'
                         cellfun(@(x) set(x.TopHandle, 'YData',...
-                            this.main_plot.YLim(2)), this.Cursors.Vert);
+                            this.main_plot.YLim(2)), this.Cursors.(name));
                         cellfun(@(x) set(x.BottomHandle, 'YData',...
-                            this.main_plot.YLim(1)), this.Cursors.Vert);
-                    case 'Horz'
+                            this.main_plot.YLim(1)), this.Cursors.(name));
+                    case 'horizontal'
                         cellfun(@(x) set(x.TopHandle, 'XData',...
-                            this.main_plot.XLim(2)), this.Cursors.Horz);
+                            this.main_plot.XLim(2)), this.Cursors.(name));
                         cellfun(@(x) set(x.BottomHandle, 'XData',...
-                            this.main_plot.XLim(1)), this.Cursors.Horz);
+                            this.main_plot.XLim(1)), this.Cursors.(name));
                 end
-                positionCursorLabels(this,this.open_crs{i});
+                positionCursorLabels(this,name,type);
             end
 
         end
         
         %Deletes the cursors, their listeners and their labels.
         function deleteCursors(this, name)
-            %Resets the edit boxes which contain cursor positions
-            cellfun(@(x) set(this.Gui.(sprintf('Edit%s',x.Tag)),...
-                'String',''), this.Cursors.(name));
-            set(this.Gui.(sprintf('Edit%s%s',this.Cursors.(name){2}.Tag,...
-                this.Cursors.(name){1}.Tag)),'String','');
+            if contains(name,'Data')
+                %Resets the edit boxes which contain cursor positions
+                set(this.Gui.(sprintf('Edit%s1',name(1))),'String','')
+                set(this.Gui.(sprintf('Edit%s2',name(1))),'String','')
+                set(this.Gui.(sprintf('Edit%s2%s1',name(1),name(1))),...
+                    'String','');
+            end
             %Deletes cursor listeners
             cellfun(@(x) deleteListeners(this,x.Tag), this.Cursors.(name));
             %Deletes the cursors themselves
@@ -471,10 +476,10 @@ classdef MyDaq < handle
             y_pos=mean(get(this.main_plot,'YLim'));
             
             for i=1:length(this.open_crs)
-                switch this.open_crs{i}
-                    case 'Horz'
+                switch this.Cursors.(this.open_crs{i}){1}.Orientation
+                    case 'horizontal'
                         pos=y_pos;
-                    case 'Vert'
+                    case 'vertical'
                         pos=x_pos;
                 end
                 
@@ -490,7 +495,7 @@ classdef MyDaq < handle
             end
         end
         
-        %Callback for creating vertical cursors
+        %Callback for creating vertical data cursors
         function cursorButtonCallback(this, hObject, ~)
             tag=get(hObject,'Tag');
             %Gets the first four characters of the tag (Vert or Horz)
@@ -498,10 +503,10 @@ classdef MyDaq < handle
             
             if get(hObject,'Value')
                 set(hObject, 'BackGroundColor',[0,1,.2]);
-                createCursors(this,type,type);
+                createCursors(this,[type,'Data'],type);
             else
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-                deleteCursors(this,type);
+                deleteCursors(this,[type,'Data']);
             end
         end
         
@@ -679,10 +684,11 @@ classdef MyDaq < handle
                 %Changes focus to the relevant fit window
                 figure(this.Fits.(analyze_name).Gui.Window);
             elseif analyze_ind~=1
+                DataTrace=getFitData(this,'Vert');
                 %Makes an instance of MyFit with correct parameters.
                 this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
                     'enable_plot',1,'plot_handle',this.main_plot,...
-                    'Data',getFitData(this),'save_dir',this.save_dir,...
+                    'Data',DataTrace,'save_dir',this.save_dir,...
                     'save_name',this.file_name);
 
                 %Sets up a listener for the Deletion event, which
@@ -749,36 +755,42 @@ classdef MyDaq < handle
         %Listener update function for vertical cursor
         function vertCursorUpdate(this, src)
             %Finds the index of the cursor. All cursors are tagged
-            %V1,V2,H1,H2 etc, ind is the number.
-            ind=str2double(src.Tag(2));
+            %(name)1, (name)2, e.g. VertData2, ind is the number.
+            ind=str2double(src.Tag(end));
+            tag=src.Tag(1:(end-1));
             %Moves the cursor labels
-            set(this.CrsLabels.Vert{ind},'Position',[src.Location,...
-                this.CrsLabels.Vert{ind}.Position(2),0]);
-            %Sets the edit box displaying the location of the cursor
-            set(this.Gui.(sprintf('EditV%d',ind)),'String',...
-                num2str(src.Location));
-            %Sets the edit box displaying the difference in locations
-            set(this.Gui.EditV2V1,'String',...
-                num2str(this.Cursors.Vert{2}.Location-...
-                this.Cursors.Vert{1}.Location))
+            set(this.CrsLabels.(tag){ind},'Position',[src.Location,...
+                this.CrsLabels.(tag){ind}.Position(2),0]);
+            if strcmp(tag,'VertData')
+                %Sets the edit box displaying the location of the cursor
+                set(this.Gui.(sprintf('EditV%d',ind)),'String',...
+                    num2str(src.Location));
+                %Sets the edit box displaying the difference in locations
+                set(this.Gui.EditV2V1,'String',...
+                    num2str(this.Cursors.VertData{2}.Location-...
+                    this.Cursors.VertData{1}.Location))
+            end
         end
         
         %Listener update function for horizontal cursor
         function horzCursorUpdate(this, src)
             %Finds the index of the cursor. All cursors are tagged
-            %V1,V2,H1,H2 etc, ind is the number.
-            ind=str2double(src.Tag(2));
+            %(name)1, (name)2, e.g. VertData2, ind is the number.
+            ind=str2double(src.Tag(end));
+            tag=src.Tag(1:(end-1));
             %Moves the cursor labels
-            set(this.CrsLabels.Horz{ind},'Position',...
-                [this.CrsLabels.Horz{ind}.Position(1),...
+            set(this.CrsLabels.(tag){ind},'Position',...
+                [this.CrsLabels.(tag){ind}.Position(1),...
                 src.Location,0]);
-            %Sets the edit box displaying the location of the cursor
-            set(this.Gui.(sprintf('EditH%d',ind)),'String',...
-                num2str(src.Location));
-            %Sets the edit box displaying the difference in locations
-            set(this.Gui.EditH2H1,'String',...
-                num2str(this.Cursors.Horz{2}.Location-...
-                this.Cursors.Horz{1}.Location));
+            if strcmp(tag,'HorzData')
+                %Sets the edit box displaying the location of the cursor
+                set(this.Gui.(sprintf('EditH%d',ind)),'String',...
+                    num2str(src.Location));
+                %Sets the edit box displaying the difference in locations
+                set(this.Gui.EditH2H1,'String',...
+                    num2str(this.Cursors.HorzData{2}.Location-...
+                    this.Cursors.HorzData{1}.Location));
+            end
         end
                
         %Function that deletes listeners from the listeners struct,
