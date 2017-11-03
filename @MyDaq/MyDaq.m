@@ -306,7 +306,7 @@ classdef MyDaq < handle
         end
         
         %Creates either horizontal or vertical cursors
-        function createCursors(this,type)
+        function createCursors(this,name,type)
             %Checks that the cursors are of valid type
             assert(strcmp(type,'Horz') || strcmp(type,'Vert'),...
                 'Cursorbars must be vertical or horizontal.');
@@ -322,36 +322,36 @@ classdef MyDaq < handle
             end
             
             %Creates first cursor
-            this.Cursors.(type){1}=cursorbar(this.main_plot,...
+            this.Cursors.(name){1}=cursorbar(this.main_plot,...
                 'TargetMarkerStyle','none',...
                 'ShowText','off','CursorLineWidth',0.5,...
-                'Orientation',crs_type,'Tag',sprintf('%s1',type(1)));
+                'Orientation',crs_type,'Tag',sprintf('%s1',name(1)));
             %Creates second cursor
-            this.Cursors.(type){2}=this.Cursors.(type){1}.duplicate;
-            set(this.Cursors.(type){2},'Tag',sprintf('%s2',type(1)))
+            this.Cursors.(name){2}=this.Cursors.(name){1}.duplicate;
+            set(this.Cursors.(name){2},'Tag',sprintf('%s2',name(1)))
             %Sets the cursor colors
-            setCursorColor(this,type,color);
+            cellfun(@(x) setCursorColor(x, color),this.Cursors.(name));
             %Makes labels for the cursors
-            labelCursors(this,type,color);
-            addCursorListeners(this,type);
-            cellfun(@(x) notify(x, 'UpdateCursorBar'), this.Cursors.(type));
+            labelCursors(this,name,type,color);
+            addCursorListeners(this,name,type);
+            cellfun(@(x) notify(x, 'UpdateCursorBar'), this.Cursors.(name));
         end
         
         %Labels cursors of a certain type and color
-        function labelCursors(this, type, color)
+        function labelCursors(this, name, type, color)
             %Creates text boxes in a placeholder position
-            this.CrsLabels.(type)=cellfun(@(x) text(0,0,x.Tag),...
-                this.Cursors.(type),'UniformOutput',0);
+            this.CrsLabels.(name)=cellfun(@(x) text(0,0,x.Tag),...
+                this.Cursors.(name),'UniformOutput',0);
             %Sets colors and properties on the labels.
             cellfun(@(x) set(x,'Color',color,'EdgeColor',color,...
                 'FontWeight','bold','FontSize',10,...
                 'HorizontalAlignment','center',...
-                'VerticalAlignment','middle'), this.CrsLabels.(type));
-            positionCursorLabels(this, type);
+                'VerticalAlignment','middle'), this.CrsLabels.(name));
+            positionCursorLabels(this, name, type);
         end
         
         %Resets the position of the labels 
-        function positionCursorLabels(this, type)
+        function positionCursorLabels(this, name, type)
             switch type
                 case 'Horz'
                     %To set the offset off the side of the axes
@@ -361,7 +361,7 @@ classdef MyDaq < handle
                     %Sets the position of the cursor labels
                     cellfun(@(x,y) set(x, 'Position',...
                         [xloc,y.Location,0]),...
-                        this.CrsLabels.Horz,this.Cursors.Horz);
+                        this.CrsLabels.(name),this.Cursors.(name));
                     
                 case 'Vert'
                     %To set the offset off the top of the axes
@@ -371,23 +371,23 @@ classdef MyDaq < handle
                     %Sets the position of the cursor labels
                     cellfun(@(x,y) set(x, 'Position',...
                         [y.Location,yloc,0]),...
-                        this.CrsLabels.Vert,this.Cursors.Vert);
+                        this.CrsLabels.(name),this.Cursors.(name));
             end
             %Setting the position causes the line to update
             cellfun(@(x) set(x, 'Location', x.Location),...
-                this.Cursors.(type));
+                this.Cursors.(name));
         end
         
         %Adds listeners for cursors
-        function addCursorListeners(this,type)
+        function addCursorListeners(this,name,type)
             switch type
                 case 'Horz'
                     %Sets the update function of the cursor to move the
                     %text.
-                    this.Listeners.Horz.Update=cellfun(@(x) ...
+                    this.Listeners.(name).Update=cellfun(@(x) ...
                         addlistener(x,'UpdateCursorBar',...
                         @(src, ~) horzCursorUpdate(this, src)),...
-                        this.Cursors.Horz,'UniformOutput',0);
+                        this.Cursors.(name),'UniformOutput',0);
                 case 'Vert'
                     %Sets the update function of the cursors to move the
                     %text
@@ -401,16 +401,6 @@ classdef MyDaq < handle
                         @(~,~) updateFits(this)),this.Cursors.Vert,...
                         'UniformOutput',0);
             end
-        end
-        
-        %Sets the color of the cursors of a certain type
-        function setCursorColor(this, type, color)
-            cellfun(@(x) set(x.TopHandle,'MarkerFaceColor',color),...
-                this.Cursors.(type));
-            cellfun(@(x) set(x.BottomHandle,'MarkerFaceColor',color),...
-                this.Cursors.(type));
-            cellfun(@(x) set(x,'CursorLineColor',color),...
-                this.Cursors.(type));
         end
         
         %Updates the cursors to fill the axes
@@ -434,20 +424,20 @@ classdef MyDaq < handle
         end
         
         %Deletes the cursors, their listeners and their labels.
-        function deleteCursors(this, type)
+        function deleteCursors(this, name)
             %Resets the edit boxes which contain cursor positions
             cellfun(@(x) set(this.Gui.(sprintf('Edit%s',x.Tag)),...
-                'String',''), this.Cursors.(type));
-            set(this.Gui.(sprintf('Edit%s%s',this.Cursors.(type){2}.Tag,...
-                this.Cursors.(type){1}.Tag)),'String','');
+                'String',''), this.Cursors.(name));
+            set(this.Gui.(sprintf('Edit%s%s',this.Cursors.(name){2}.Tag,...
+                this.Cursors.(name){1}.Tag)),'String','');
             %Deletes cursor listeners
-            cellfun(@(x) deleteListeners(this,x.Tag), this.Cursors.(type));
+            cellfun(@(x) deleteListeners(this,x.Tag), this.Cursors.(name));
             %Deletes the cursors themselves
-            cellfun(@(x) delete(x), this.Cursors.(type));
-            this.Cursors=rmfield(this.Cursors,type);
+            cellfun(@(x) delete(x), this.Cursors.(name));
+            this.Cursors=rmfield(this.Cursors,name);
             %Deletes cursor labels
-            cellfun(@(x) delete(x), this.CrsLabels.(type));
-            this.CrsLabels=rmfield(this.CrsLabels,type);            
+            cellfun(@(x) delete(x), this.CrsLabels.(name));
+            this.CrsLabels=rmfield(this.CrsLabels,name);            
         end
         
         function copyPlot(this)
@@ -508,7 +498,7 @@ classdef MyDaq < handle
             
             if get(hObject,'Value')
                 set(hObject, 'BackGroundColor',[0,1,.2]);
-                createCursors(this,type);
+                createCursors(this,type,type);
             else
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
                 deleteCursors(this,type);
