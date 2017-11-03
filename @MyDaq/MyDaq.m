@@ -485,9 +485,18 @@ classdef MyDaq < handle
         
         %Callback for centering cursors
         function centerCursorsCallback(this, ~, ~)
-            x_pos=mean(get(this.main_plot,'XLim'));
-            y_pos=mean(get(this.main_plot,'YLim'));
+            if ~get(this.Gui.LogX,'Value')
+                x_pos=mean(get(this.main_plot,'XLim'));
+            else
+                x_pos=10^(mean(log10(get(this.main_plot,'XLim'))));
+            end
             
+            if ~get(this.Gui.LogX,'Value')
+                y_pos=mean(get(this.main_plot,'YLim'));
+            else
+                y_pos=10^(mean(log10(get(this.main_plot,'YLim'))));
+            end
+                        
             for i=1:length(this.open_crs)
                 switch this.Cursors.(this.open_crs{i}){1}.Orientation
                     case 'horizontal'
