@@ -73,7 +73,7 @@ classdef MyDaq < handle
             cellfun(@(x) deleteListeners(this,x), this.open_instrs);
             
             if this.enable_gui
-                set(this.Gui.figure1,'CloseRequestFcn','');
+                this.Gui.figure1.CloseRequestFcn='';
                 %Deletes the figure
                 delete(this.Gui.figure1);
                 %Removes the figure handle to prevent memory leaks
@@ -126,98 +126,76 @@ classdef MyDaq < handle
         %Sets callback functions for the GUI
         function initGui(this)
             %Close request function is set to delete function of the class
-            set(this.Gui.figure1, 'CloseRequestFcn',...
-                @(hObject,eventdata) closeFigure(this, hObject, ...
-                eventdata));
+            this.Gui.figure1.CloseRequestFcn=@(hObject,eventdata)...
+                closeFigure(this, hObject, eventdata);
             %Sets callback for the edit box of the base directory
-            set(this.Gui.BaseDir,'Callback',...
-                @(hObject, eventdata) baseDirCallback(this, hObject, ...
-                eventdata));
+            this.Gui.BaseDir.Callback=@(hObject, eventdata)...
+                baseDirCallback(this, hObject, eventdata);
             %Sets callback for the session name edit box
-            set(this.Gui.SessionName,'Callback',...
-                @(hObject, eventdata) sessionNameCallback(this, hObject, ...
-                eventdata));
+            this.Gui.SessionName.Callback=@(hObject, eventdata)...
+                sessionNameCallback(this, hObject, eventdata);
             %Sets callback for the file name edit box
-            set(this.Gui.FileName,'Callback',...
-                @(hObject, eventdata) fileNameCallback(this, hObject, ...
-                eventdata));
+            this.Gui.FileName.Callback=@(hObject, eventdata) ...
+                fileNameCallback(this, hObject,eventdata);
             %Sets callback for the save data button
-            set(this.Gui.SaveData,'Callback',...
-                @(hObject, eventdata) saveDataCallback(this, hObject, ...
-                eventdata));
+            this.Gui.SaveData.Callback=@(hObject, eventdata) ...
+                saveDataCallback(this, hObject,eventdata);
             %Sets callback for the save ref button
-            set(this.Gui.SaveRef,'Callback',...
-                @(hObject, eventdata) saveRefCallback(this, hObject, ...
-                eventdata));
+            this.Gui.SaveRef.Callback=@(hObject, eventdata)...
+                saveRefCallback(this, hObject, eventdata);
             %Sets callback for the show data button
-            set(this.Gui.ShowData,'Callback',...
-                @(hObject, eventdata) showDataCallback(this, hObject, ...
-                eventdata));
+            this.Gui.ShowData.Callback=@(hObject, eventdata)...
+                showDataCallback(this, hObject, eventdata);
             %Sets callback for the show reference button
-            set(this.Gui.ShowRef,'Callback',...
-                @(hObject, eventdata) showRefCallback(this, hObject, ...
-                eventdata));
+            this.Gui.ShowRef.Callback=@(hObject, eventdata)...
+                showRefCallback(this, hObject, eventdata);
             %Sets callback for the data to reference button
-            set(this.Gui.DataToRef,'Callback',...
-                @(hObject, eventdata) dataToRefCallback(this, hObject, ...
-                eventdata));
+            this.Gui.DataToRef.Callback=@(hObject, eventdata)...
+                dataToRefCallback(this, hObject, eventdata);
             %Sets callback for the LogY button
-            set(this.Gui.LogY,'Callback',...
-                @(hObject, eventdata) logYCallback(this, hObject, ...
-                eventdata));
+            this.Gui.LogY.Callback=@(hObject, eventdata) ...
+                logYCallback(this, hObject, eventdata);
             %Sets callback for the LogX button
-            set(this.Gui.LogX,'Callback',...
-                @(hObject, eventdata) logXCallback(this, hObject, ...
-                eventdata));
+            this.Gui.LogX.Callback=@(hObject, eventdata)...
+                logXCallback(this, hObject, eventdata);
             %Sets callback for the data to background button
-            set(this.Gui.DataToBg,'Callback',...
-                @(hObject, eventdata) dataToBgCallback(this, hObject, ...
-                eventdata));
+            this.Gui.DataToBg.Callback=@(hObject, eventdata) ...
+                dataToBgCallback(this, hObject,eventdata);
             %Sets callback for the ref to background button
-            set(this.Gui.RefToBg,'Callback',...
-                @(hObject, eventdata) refToBgCallback(this, hObject, ...
-                eventdata));
+            this.Gui.RefToBg.Callback=@(hObject, eventdata) ...
+                refToBgCallback(this, hObject,eventdata);
             %Sets callback for the clear background button
-            set(this.Gui.ClearBg,'Callback',...
-                @(hObject, eventdata) clearBgCallback(this, hObject, ...
-                eventdata));
+            this.Gui.ClearBg.Callback=@(hObject, eventdata)...
+                clearBgCallback(this, hObject,eventdata);
             %Sets callback for the select trace popup menu
-            set(this.Gui.SelTrace,'Callback',...
-                @(hObject,eventdata) selTraceCallback(this, hObject, ...
-                eventdata));
+            this.Gui.SelTrace.Callback=@(hObject,eventdata)...
+                selTraceCallback(this, hObject,eventdata);
             %Sets callback for the vertical cursor button
-            set(this.Gui.VertDataButton,'Callback',...
-                @(hObject, eventdata) cursorButtonCallback(this, hObject,...
-                eventdata));
+            this.Gui.VertDataButton.Callback=@(hObject, eventdata)...
+                cursorButtonCallback(this, hObject,eventdata);
             %Sets callback for the horizontal cursors button
-            set(this.Gui.HorzDataButton,'Callback',...
-                @(hObject, eventdata) cursorButtonCallback(this, hObject,...
-                eventdata));
+            this.Gui.HorzDataButton.Callback=@(hObject, eventdata)...
+                cursorButtonCallback(this, hObject,eventdata);
             %Sets callback for the reference cursors button
-            set(this.Gui.VertRefButton,'Callback',...
-                @(hObject, eventdata) cursorButtonCallback(this, hObject,...
-                eventdata));
+            this.Gui.VertRefButton.Callback=@(hObject, eventdata)...
+                cursorButtonCallback(this, hObject,eventdata);
             %Sets callback for the center cursors button
-            set(this.Gui.CenterCursors,'Callback',...
-                @(hObject,eventdata) centerCursorsCallback(this,hObject,...
-                eventdata));
+            this.Gui.CenterCursors.Callback=@(hObject,eventdata)...
+                centerCursorsCallback(this,hObject,eventdata);
             %Sets callback for the center cursors button
-            set(this.Gui.CopyPlot,'Callback',...
-                @(hObject,eventdata) copyPlotCallback(this,hObject,...
-                eventdata));
+            this.Gui.CopyPlot.Callback=@(hObject,eventdata)...
+                copyPlotCallback(this,hObject,eventdata);
             
             %Initializes the AnalyzeMenu
-            set(this.Gui.AnalyzeMenu,'Callback',...
-                @(hObject, eventdata) analyzeMenuCallback(this, hObject,...
-                eventdata));
-            set(this.Gui.AnalyzeMenu,'String',{'Select a routine...',...
+            this.Gui.AnalyzeMenu.Callback=@(hObject, eventdata)...
+                analyzeMenuCallback(this, hObject,eventdata);
+            this.Gui.AnalyzeMenu.String={'Select a routine...',...
                 'Linear Fit','Quadratic Fit','Exponential Fit',...
-                'Gaussian Fit','Lorentzian Fit'});
+                'Gaussian Fit','Lorentzian Fit','g0 calibration'};
             
             %Initializes the InstrMenu
-            set(this.Gui.InstrMenu,'Callback',...
-                @(hObject,eventdata) instrMenuCallback(this,hObject,...
-                eventdata));
+            this.Gui.InstrMenu.Callback=@(hObject,eventdata) ...
+                instrMenuCallback(this,hObject,eventdata);
         end
         
         %Executes when the GUI is closed
@@ -282,7 +260,7 @@ classdef MyDaq < handle
             %Pushes data into fits in the form of MyTrace objects, so that
             %units etc follow.
             for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).Data=getFitData(this,'Vert');
+                this.Fits.(this.open_fits{i}).Data=getFitData(this,'VertData');
             end
         end
         
@@ -292,8 +270,8 @@ classdef MyDaq < handle
         %this.(trace_str) will refer to the same object, causing roblems.
         function Trace=getFitData(this,name)
             %Finds out which trace the user wants to fit.
-            trc_opts=get(this.Gui.SelTrace,'String');
-            trc_str=trc_opts{get(this.Gui.SelTrace,'Value')};
+            trc_opts=this.Gui.SelTrace.String;
+            trc_str=trc_opts{this.Gui.SelTrace.Value};
             Trace=copy(this.(trc_str));
             if ismember(name,fieldnames(this.Cursors))
                 ind=findCursorData(this, trc_str, name);
@@ -443,10 +421,9 @@ classdef MyDaq < handle
         function deleteCursors(this, name)
             if contains(name,'Data')
                 %Resets the edit boxes which contain cursor positions
-                set(this.Gui.(sprintf('Edit%s1',name(1))),'String','')
-                set(this.Gui.(sprintf('Edit%s2',name(1))),'String','')
-                set(this.Gui.(sprintf('Edit%s2%s1',name(1),name(1))),...
-                    'String','');
+                this.Gui.(sprintf('Edit%s1',name(1))).String='';
+                this.Gui.(sprintf('Edit%s2',name(1))).String='';
+                this.Gui.(sprintf('Edit%s2%s1',name(1),name(1))).String='';
             end
             %Deletes cursor listeners
             cellfun(@(x) deleteListeners(this,x.Tag), this.Cursors.(name));
@@ -485,16 +462,16 @@ classdef MyDaq < handle
         
         %Callback for centering cursors
         function centerCursorsCallback(this, ~, ~)
-            if ~get(this.Gui.LogX,'Value')
-                x_pos=mean(get(this.main_plot,'XLim'));
+            if ~this.Gui.LogX.Value
+                x_pos=mean(this.main_plot.XLim);
             else
-                x_pos=10^(mean(log10(get(this.main_plot,'XLim'))));
+                x_pos=10^(mean(log10(this.main_plot.XLim)));
             end
             
-            if ~get(this.Gui.LogX,'Value')
-                y_pos=mean(get(this.main_plot,'YLim'));
+            if ~this.Gui.LogX.Value
+                y_pos=mean(this.main_plot.YLim);
             else
-                y_pos=10^(mean(log10(get(this.main_plot,'YLim'))));
+                y_pos=10^(mean(log10(this.main_plot.YLim)));
             end
                         
             for i=1:length(this.open_crs)
@@ -519,24 +496,24 @@ classdef MyDaq < handle
         
         %Callback for creating vertical data cursors
         function cursorButtonCallback(this, hObject, ~)
-            name=erase(get(hObject,'Tag'),'Button');
+            name=erase(hObject.Tag,'Button');
             %Gets the first four characters of the tag (Vert or Horz)
             type=name(1:4);
             
-            if get(hObject,'Value')
-                set(hObject, 'BackGroundColor',[0,1,0.2]);
+            if hObject.Value
+                hObject.BackgroundColor=[0,1,0.2];
                 createCursors(this,name,type);
             else
-                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                hObject.BackgroundColor=[0.941,0.941,0.941];
                 deleteCursors(this,name);
             end
         end
         
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
-            val=get(hObject,'Value');
+            val=hObject.Value;
             if val~=1
-                names=get(hObject,'String');
+                names=hObject.String;
                 tag=getTag(this,names(val));
             else 
                 tag='';
@@ -578,22 +555,22 @@ classdef MyDaq < handle
         
         %Toggle button callback for showing the data trace.
         function showDataCallback(this, hObject, ~)
-            if get(hObject,'Value')
-                set(hObject, 'BackGroundColor',[0,1,0.2]);
+            if hObject.Value
+                hObject.BackgroundColor=[0,1,0.2];
                 setVisible(this.Data,this.main_plot,1);
             else
-                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                hObject.BackgroundColor=[0.941,0.941,0.941];
                 setVisible(this.Data,this.main_plot,0);
             end
         end
         
         %Toggle button callback for showing the ref trace
         function showRefCallback(this, hObject, ~)
-            if get(hObject,'Value')
-                set(hObject, 'BackGroundColor',[0,1,0.2]);
+            if hObject.Value
+                hObject.BackgroundColor=[0,1,0.2];
                 setVisible(this.Ref,this.main_plot,1);
             else
-                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                hObject.BackgroundColor=[0.941,0.941,0.941];
                 setVisible(this.Ref,this.main_plot,0);
             end
         end
@@ -606,8 +583,8 @@ classdef MyDaq < handle
                 this.Ref.plotTrace(this.main_plot,'Color',this.ref_color);
                 this.Ref.setVisible(this.main_plot,1);
                 updateFits(this);
-                set(this.Gui.ShowRef,'Value',1);
-                set(this.Gui.ShowRef, 'BackGroundColor',[0,1,0.2]);
+                this.Gui.ShowRef.Value=1;
+                this.Gui.ShowRef.BackgroundColor=[0,1,0.2];
             else
                 warning('Data trace was empty, could not move to reference')
             end
@@ -646,12 +623,12 @@ classdef MyDaq < handle
         
         %Callback for LogY button. Sets the YScale to log/lin
         function logYCallback(this, hObject, ~)
-            if get(hObject,'Value')
-                set(this.main_plot,'YScale','Log');
-                set(hObject, 'BackGroundColor',[0,1,0.2]);
+            if hObject.Value
+                this.main_plot.YScale='Log';
+                hObject.BackgroundColor=[0,1,0.2];
             else
-                set(this.main_plot,'YScale','Linear');
-                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                this.main_plot.YScale='Linear';
+                hObject.BackgroundColor=[0.941,0.941,0.941];
             end
         end
         
@@ -659,16 +636,16 @@ classdef MyDaq < handle
         function logXCallback(this, hObject, ~)
             if get(hObject,'Value')
                 set(this.main_plot,'XScale','Log');
-                set(hObject, 'BackGroundColor',[0,1,0.2]);
+                set(hObject, 'BackgroundColor',[0,1,0.2]);
             else
                 set(this.main_plot,'XScale','Linear');
-                set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
+                set(hObject, 'BackgroundColor',[0.941,0.941,0.941]);
             end
         end
         
         %Base directory callback
         function baseDirCallback(this, hObject, ~)
-            this.base_dir=get(hObject,'String');
+            this.base_dir=hObject.String;
             for i=1:length(this.open_fits)
                 this.Fits.(this.open_fits{i}).save_dir=this.save_dir;
             end
@@ -676,7 +653,7 @@ classdef MyDaq < handle
         
         %Callback for session name edit box. Sets the session name.
         function sessionNameCallback(this, hObject, ~)
-            this.session_name=get(hObject,'String');
+            this.session_name=hObject.String;
             for i=1:length(this.open_fits)
                 this.Fits.(this.open_fits{i}).save_dir=this.save_dir;
             end
@@ -684,7 +661,7 @@ classdef MyDaq < handle
         
         %Callback for filename edit box. Sets the file name.
         function fileNameCallback(this, hObject,~)
-            this.file_name=get(hObject,'String');
+            this.file_name=hObject.String;
             for i=1:length(this.open_fits)
                 this.Fits.(this.open_fits{i}).save_name=this.file_name;
             end
@@ -693,10 +670,9 @@ classdef MyDaq < handle
         %Callback for the analyze menu (popup menu for selecting fits).
         %Opens the correct MyFit object.
         function analyzeMenuCallback(this, hObject, ~)
-            analyze_list=get(hObject,'String');
-            analyze_ind=get(hObject,'Value');
+            analyze_ind=hObject.Value;
             %Finds the correct fit name
-            analyze_name=analyze_list{analyze_ind};
+            analyze_name=hObject.String{analyze_ind};
             analyze_name=analyze_name(1:(strfind(analyze_name,' ')-1));
             analyze_name=[upper(analyze_name(1)),analyze_name(2:end)];
             
@@ -785,12 +761,12 @@ classdef MyDaq < handle
                 this.CrsLabels.(tag){ind}.Position(2),0]);
             if strcmp(tag,'VertData')
                 %Sets the edit box displaying the location of the cursor
-                set(this.Gui.(sprintf('EditV%d',ind)),'String',...
-                    num2str(src.Location));
+                this.Gui.(sprintf('EditV%d',ind)).String=...
+                    num2str(src.Location);
                 %Sets the edit box displaying the difference in locations
-                set(this.Gui.EditV2V1,'String',...
+                this.Gui.EditV2V1.String=...
                     num2str(this.Cursors.VertData{2}.Location-...
-                    this.Cursors.VertData{1}.Location))
+                    this.Cursors.VertData{1}.Location);
             end
         end
         
@@ -806,12 +782,12 @@ classdef MyDaq < handle
                 src.Location,0]);
             if strcmp(tag,'HorzData')
                 %Sets the edit box displaying the location of the cursor
-                set(this.Gui.(sprintf('EditH%d',ind)),'String',...
-                    num2str(src.Location));
+                this.Gui.(sprintf('EditH%d',ind)).String=...
+                    num2str(src.Location);
                 %Sets the edit box displaying the difference in locations
-                set(this.Gui.EditH2H1,'String',...
+                this.Gui.EditH2H1.String=...
                     num2str(this.Cursors.HorzData{2}.Location-...
-                    this.Cursors.HorzData{1}.Location));
+                    this.Cursors.HorzData{1}.Location);
             end
         end
                

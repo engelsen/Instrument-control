@@ -13,9 +13,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         unit_y='';
         save_dir='';
         load_path='';
-    end
-    
-    properties (GetAccess=public, SetAccess=private)
         %Cell that contains handles the trace is plotted in
         hlines={};
     end
@@ -206,6 +203,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function bool=isempty(this)
             bool=isempty(this.x) && isempty(this.y);
         end
+        
+        %Checks if the data can be plotted
+        function bool=validatePlot(this)
+            bool=~isempty(this.x) && ~isempty(this.y)...
+                && length(this.x)==length(this.y);
+        end
     end
     
     methods (Access=private)
@@ -267,12 +270,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             else
                 ind=[];
             end
-        end
-        
-        %Checks if the data can be plotted
-        function bool=validatePlot(this)
-            bool=~isempty(this.x) && ~isempty(this.y)...
-                && length(this.x)==length(this.y);
         end
     end
     
