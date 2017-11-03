@@ -186,11 +186,15 @@ classdef MyDaq < handle
                 @(hObject,eventdata) selTraceCallback(this, hObject, ...
                 eventdata));
             %Sets callback for the vertical cursor button
-            set(this.Gui.VertCursor,'Callback',...
+            set(this.Gui.VertDataButton,'Callback',...
                 @(hObject, eventdata) cursorButtonCallback(this, hObject,...
                 eventdata));
             %Sets callback for the horizontal cursors button
-            set(this.Gui.HorzCursor,'Callback',...
+            set(this.Gui.HorzDataButton,'Callback',...
+                @(hObject, eventdata) cursorButtonCallback(this, hObject,...
+                eventdata));
+            %Sets callback for the reference cursors button
+            set(this.Gui.VertRefButton,'Callback',...
                 @(hObject, eventdata) cursorButtonCallback(this, hObject,...
                 eventdata));
             %Sets callback for the center cursors button
@@ -319,6 +323,9 @@ classdef MyDaq < handle
                 case 'VertData'
                     color=[1,0,0];
                     crs_type='Vertical';
+                case 'VertRef'
+                    color=[0.5,0,0.5];
+                    crs_type='Vertical';
             end
             
             %Creates first cursor
@@ -339,9 +346,15 @@ classdef MyDaq < handle
         
         %Labels cursors of a certain type and color
         function labelCursors(this, name, type, color)
+            switch name
+                case {'VertData', 'HorzData'}
+                    lbl_str=name(1);
+                case {'VertRef'}
+                    lbl_str='R';
+            end
             %Creates text boxes in a placeholder position
             this.CrsLabels.(name)=cellfun(@(x) text(0,0,...
-                [x.Tag(1),x.Tag(end)]),this.Cursors.(name),...
+                [lbl_str,x.Tag(end)]),this.Cursors.(name),...
                 'UniformOutput',0);
             %Sets colors and properties on the labels.
             cellfun(@(x) set(x,'Color',color,'EdgeColor',color,...
@@ -497,16 +510,16 @@ classdef MyDaq < handle
         
         %Callback for creating vertical data cursors
         function cursorButtonCallback(this, hObject, ~)
-            tag=get(hObject,'Tag');
+            name=erase(get(hObject,'Tag'),'Button');
             %Gets the first four characters of the tag (Vert or Horz)
-            type=tag(1:4);
+            type=name(1:4);
             
             if get(hObject,'Value')
-                set(hObject, 'BackGroundColor',[0,1,.2]);
-                createCursors(this,[type,'Data'],type);
+                set(hObject, 'BackGroundColor',[0,1,0.2]);
+                createCursors(this,name,type);
             else
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-                deleteCursors(this,[type,'Data']);
+                deleteCursors(this,name);
             end
         end
         
@@ -557,7 +570,7 @@ classdef MyDaq < handle
         %Toggle button callback for showing the data trace.
         function showDataCallback(this, hObject, ~)
             if get(hObject,'Value')
-                set(hObject, 'BackGroundColor',[0,1,.2]);
+                set(hObject, 'BackGroundColor',[0,1,0.2]);
                 setVisible(this.Data,this.main_plot,1);
             else
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
@@ -585,7 +598,7 @@ classdef MyDaq < handle
                 this.Ref.setVisible(this.main_plot,1);
                 updateFits(this);
                 set(this.Gui.ShowRef,'Value',1);
-                set(this.Gui.ShowRef, 'BackGroundColor',[0,1,.2]);
+                set(this.Gui.ShowRef, 'BackGroundColor',[0,1,0.2]);
             else
                 warning('Data trace was empty, could not move to reference')
             end
@@ -626,7 +639,7 @@ classdef MyDaq < handle
         function logYCallback(this, hObject, ~)
             if get(hObject,'Value')
                 set(this.main_plot,'YScale','Log');
-                set(hObject, 'BackGroundColor',[0,1,.2]);
+                set(hObject, 'BackGroundColor',[0,1,0.2]);
             else
                 set(this.main_plot,'YScale','Linear');
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
@@ -637,7 +650,7 @@ classdef MyDaq < handle
         function logXCallback(this, hObject, ~)
             if get(hObject,'Value')
                 set(this.main_plot,'XScale','Log');
-                set(hObject, 'BackGroundColor',[0,1,.2]);
+                set(hObject, 'BackGroundColor',[0,1,0.2]);
             else
                 set(this.main_plot,'XScale','Linear');
                 set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);

@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 31-Oct-2017 12:19:30
+% Last Modified by GUIDE v2.5 03-Nov-2017 16:14:36
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -178,9 +178,9 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-% --- Executes on button press in VertCursor.
-function VertCursor_Callback(~,~,~)%#ok<DEFNU>
-function HorzCursor_Callback(~,~,~)%#ok<DEFNU>
+% --- Executes on button press in VertDataButton.
+function VertDataButton_Callback(~,~,~)%#ok<DEFNU>
+function HorzDataButton_Callback(~,~,~)%#ok<DEFNU>
 function CenterCursors_Callback(~,~,~)%#ok<DEFNU>
 
 function EditV1_Callback(hObject, eventdata, handles)
@@ -190,7 +190,7 @@ function EditV1_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of EditV1 as text
 %        str2double(get(hObject,'String')) returns contents of EditV1 as a double
-% Hint: get(hObject,'Value') returns toggle state of VertCursor
+% Hint: get(hObject,'Value') returns toggle state of VertDataButton
 h_main_plot=getappdata(0,'h_main_plot');
 
 axes=findobj(h_main_plot,'type','axes');
@@ -973,3 +973,12 @@ function CopyPlot_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of CopyPlot
+
+
+% --- Executes on button press in VertRefButton.
+function VertRefButton_Callback(hObject, eventdata, handles)
+% hObject    handle to VertRefButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of VertRefButton
