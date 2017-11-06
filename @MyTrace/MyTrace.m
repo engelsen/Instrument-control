@@ -44,15 +44,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %function, to change the name or save directory.
             parse(this.Parser,varargin{:});
             parseInputs(this,false);
+            
+            %Adds the \ at the end if it was not added by the user.
+            if ~strcmp(this.save_dir(end),'\')
+                this.save_dir(end+1)='\';
+            end
+            
             %Creates save directory if it does not exist
             if ~exist(this.save_dir,'dir')
                 mkdir(this.save_dir)
             end
             
-            %Adds the \ at the end if it was not added by the user.
-            if ~strcmp(this.save_dir(end),'\')
-                this.save_dir(end)=[];
-            end
+
             
             %Creates a file name out of the name of the class and the save
             %directory
@@ -68,35 +71,41 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x)]);
-            if cw<9; cw=9; end
+            %Minimum column width of 9.
+            if cw<16; cw=16; end
+            
             
             %Makes a format string with the correct column width. %% makes
-            %a % symbol in sprintf, thus if cw=14, below is %14s\t%14s\r\n.
+            %a % symbol in sprintf, thus if cw=18, below is %18s\t%18s\r\n.
             %\r\n prints a carriage return, ensuring linebreak in NotePad.
             fprintf(fileID,sprintf('%%%ds\t%%%ds\r\n',cw,cw),...
                 this.label_x, this.label_y);
             %Saves in scientific notation with correct column width defined
-            %above. Again if cw=14, we get %14.3e\t%14.3e\r\n
-            fprintf(fileID,sprintf('%%%d.3e\t%%%d.3e\r\n',cw,cw),...
+            %above. Again if cw=14, we get %14.10e\t%14.10e\r\n
+            fprintf(fileID,sprintf('%%%d.10e\t%%%d.10e\r\n',cw,cw),...
                 [this.x, this.y]');
             fclose(fileID);
         end
         
         function loadTrace(this, file_path)
-            if ~exist(this.load_path,'file')
+            if ~exist(file_path,'file')
                 error('File does not exist, please choose a different load path')
             end
-            load_data=tdfread(file_path);
-            this.load_path=file_path;
-            data_labels=fieldnames(load_data);
-            %Code for left bracket
-            ind_start=strfind(data_labels, '0x28');
-            %Code for right bracket
-            ind_stop=strfind(data_labels, '0x29');
+
+            
+            read_opts=detectImportOptions(file_path);
+            DataTable=readtable(file_path,read_opts);
+            
+            data_labels=DataTable.Properties.VariableNames;
+            
+            %Finds where the unit is specified, within parantheses.
+            %Forces indices to be in cells for later.
+            ind_start=strfind(data_labels, '(','ForceCellOutput',true);
+            ind_stop=strfind(data_labels, ')','ForceCellOutput',true);
             
             col_name={'x','y'};
-            for i=1:2
-                if ~isempty(ind_start) && ~isempty(ind_stop)
+            for i=1:length(ind_start)
+                if ~isempty(ind_start{i}) && ~isempty(ind_stop{i})
                     %Extracts the data labels from the file
                     this.(sprintf('unit_%s',col_name{i}))=...
                         data_labels{i}((ind_start{i}+4):(ind_stop{i}-1));
@@ -104,15 +113,16 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                         data_labels{i}(1:(ind_start{i}-2));
                 end
                 %Loads the data into the trace
-                this.(col_name{i})=load_data.(data_labels{i});
+                this.(col_name{i})=DataTable.(data_labels{i});
             end
+            this.load_path=file_path;
         end
         
         %Allows setting of multiple properties in one command.
         function setTrace(this, varargin)
             parse(this.Parser,varargin{:})
             parseInputs(this, false);
-        end      
+        end
         
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional

@@ -3,9 +3,9 @@ classdef MyDaq < handle
         %Contains GUI handles
         Gui;
         %Contains Reference trace (MyTrace object)
-        Ref;
+        Ref=MyTrace();
         %Contains Data trace (MyTrace object)
-        Data;
+        Data=MyTrace();
         %Contains Background trace (MyTrace object)
         Background;
         %Struct containing available instruments
@@ -185,6 +185,9 @@ classdef MyDaq < handle
             %Sets callback for the center cursors button
             this.Gui.CopyPlot.Callback=@(hObject,eventdata)...
                 copyPlotCallback(this,hObject,eventdata);
+            %Sets callback for load trace button
+            this.Gui.LoadButton.Callback=@(hObject,eventdata)...
+                loadDataCallback(this,hObject,eventdata);
             
             %Initializes the AnalyzeMenu
             this.Gui.AnalyzeMenu.Callback=@(hObject, eventdata)...
@@ -675,35 +678,81 @@ classdef MyDaq < handle
             analyze_name=hObject.String{analyze_ind};
             analyze_name=analyze_name(1:(strfind(analyze_name,' ')-1));
             analyze_name=[upper(analyze_name(1)),analyze_name(2:end)];
+
             
+            switch analyze_name
+                case {'Linear','Quadratic','Lorentzian','Gaussian'}
+                    openMyFit(this,analyze_name);
+                case 'G0'
+                    openMyG(this);
+            end
+        end
+        
+        function openMyFit(this,fit_name)
             %Sees if the fit object is already open, if it is, changes the
             %focus to it, if not, opens it.
-            if ismember(analyze_name,fieldnames(this.Fits))
+            if ismember(fit_name,fieldnames(this.Fits))
                 %Changes focus to the relevant fit window
-                figure(this.Fits.(analyze_name).Gui.Window);
-            elseif analyze_ind~=1
-                DataTrace=getFitData(this,'Vert');
+                figure(this.Fits.(fit_name).Gui.Window);
+            else
+                %Gets the data for the fit using the getFitData function
+                %with the vertical cursors
+                DataTrace=getFitData(this,'VertData');
                 %Makes an instance of MyFit with correct parameters.
-                this.Fits.(analyze_name)=MyFit('fit_name',analyze_name,...
-                    'enable_plot',1,'plot_handle',this.main_plot,...
-                    'Data',DataTrace,'save_dir',this.save_dir,...
+                this.Fits.(fit_name)=MyFit(...
+                    'fit_name',fit_name,...
+                    'enable_plot',1,...
+                    'plot_handle',this.main_plot,...
+                    'Data',DataTrace,...
+                    'save_dir',this.save_dir,...
                     'save_name',this.file_name);
-
+                
                 %Sets up a listener for the Deletion event, which
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.
-                this.Listeners.(analyze_name).Deletion=...
-                    addlistener(this.Fits.(analyze_name),'ObjectBeingDestroyed',...
+                this.Listeners.(fit_name).Deletion=...
+                    addlistener(this.Fits.(fit_name),'ObjectBeingDestroyed',...
                     @(src, eventdata) deleteFit(this, src, eventdata));
                 
                 %Sets up a listener for the NewFit. Callback plots the fit
                 %on the main plot.
-                this.Listeners.(analyze_name).NewFit=...
-                    addlistener(this.Fits.(analyze_name),'NewFit',...
+                this.Listeners.(fit_name).NewFit=...
+                    addlistener(this.Fits.(fit_name),'NewFit',...
                     @(src, eventdata) plotNewFit(this, src, eventdata));
+                
+                %Sets up a listener for NewInitVal
+                this.Listeners.(fit_name).NewInitVal=...
+                    addlistener(this.Fits.(fit_name),'NewInitVal',...
+                    @(~,~) updateCursors(this));
             end
         end
- 
+        
+        function openMyG(this)
+            MechTrace=getFitData(this,'VertData');
+            CalTrace=getFitData(this,'VertRef');
+            this.Fits.G0=MyG('MechTrace',MechTrace,'CalTrace',CalTrace);
+        end
+        
+        function loadDataCallback(this, ~, ~)
+            
+            if isempty(this.base_dir)
+                warning('Please input a valid folder name for loading a trace');
+                this.base_dir=pwd;
+            end
+            
+%             try
+                [load_name,path_name]=uigetfile('.txt','Select the trace',...
+                    this.base_dir);
+                load_path=[path_name,load_name];
+                dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
+                loadTrace(this.(dest_trc),load_path);
+                this.(dest_trc).plotTrace(this.main_plot,...
+                    'Color',this.(sprintf('%s_color',lower(dest_trc))));
+                
+%             catch
+%                 error('Please select a valid file');
+%             end            
+        end
         %% Listener functions 
         %Callback function for NewFit listener. Plots the fit in the
         %window using the plotFit function of the MyFit object
@@ -715,10 +764,10 @@ classdef MyDaq < handle
         %Callback function for the NewData listener
         function acquireNewData(this, src, ~)
             this.Data=src.Trace;
-            src.Trace.plotTrace(this.main_plot,'Color',this.data_color)
+            clearData(src);
+            this.Data.plotTrace(this.main_plot,'Color',this.data_color)
             updateCursors(this);
             updateFits(this);
-            clearData(src);
         end
         
         %Callback function for MyInstrument ObjectBeingDestroyed listener. 
@@ -746,6 +795,9 @@ classdef MyDaq < handle
             
             %Deletes the listeners from the Listeners struct.
             deleteListeners(this, src.fit_name);
+            
+            %Clears the fits
+            src.clearFit;
             
             %Updates cursors since the fits are removed from the plot
             updateCursors(this);

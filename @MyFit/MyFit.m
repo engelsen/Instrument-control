@@ -40,6 +40,7 @@ classdef MyFit < handle
     
     events
         NewFit;
+        NewInitVal;
     end
     
     %%Public methods
@@ -166,6 +167,8 @@ classdef MyFit < handle
             %Updates the correct initial parameter
             this.init_params(param_ind)=init_param;
             if this.enable_plot; plotInitFun(this); end
+            %Triggers event for new init values
+            triggerNewInitVal(this);
         end
         
         %Callback function for analyze button in GUI. Checks if the data is
@@ -216,6 +219,7 @@ classdef MyFit < handle
         %Clears the plots
         function clearFit(this)
             cellfun(@(x) delete(x), this.Fit.hlines);
+            delete(this.hline_init);
             this.Fit.hlines={};
         end
                 
@@ -284,6 +288,10 @@ classdef MyFit < handle
         %e.g. plot new fits
         function triggerNewFit(this)
             notify(this,'NewFit');
+        end
+        
+        function triggerNewInitVal(this)
+            notify(this,'NewInitVal');
         end
 
         %Creates the struct used to get all things relevant to the fit

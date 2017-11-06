@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 03-Nov-2017 16:14:36
+% Last Modified by GUIDE v2.5 06-Nov-2017 16:13:48
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -552,9 +552,9 @@ function AutoName_Callback(~,~,~) %#ok<DEFNU>
 function SaveData_Callback(~, ~, ~) %#ok<DEFNU>
 function SaveRef_Callback(~, ~, ~) %#ok<DEFNU>
 
-% --- Executes on button press in load_file.
-function load_file_Callback(hObject, eventdata, handles)
-% hObject    handle to load_file (see GCBO)
+% --- Executes on button press in LoadButton.
+function LoadButton_Callback(hObject, eventdata, handles)
+% hObject    handle to LoadButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
@@ -982,3 +982,26 @@ function VertRefButton_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of VertRefButton
+
+
+% --- Executes on selection change in DestTrc.
+function DestTrc_Callback(hObject, eventdata, handles)
+% hObject    handle to DestTrc (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns DestTrc contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from DestTrc
+
+
+% --- Executes during object creation, after setting all properties.
+function DestTrc_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to DestTrc (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
