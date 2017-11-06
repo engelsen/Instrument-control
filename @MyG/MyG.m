@@ -1,5 +1,7 @@
 classdef MyG < handle
     properties
+        %Name or tag of instance
+        name
         %Trace of mechanical resonance
         MechTrace;
         %Trace of calibration tone
@@ -50,6 +52,7 @@ classdef MyG < handle
                 {'nonempty'});
             addParameter(p,'MechTrace',MyTrace(),validateTrace);
             addParameter(p,'CalTrace',MyTrace(),validateTrace);
+            addParameter(p,'name','placeholder',@ischar);
             cellfun(@(x) addParameter(p, this.VarStruct.(x).var,...
                 this.VarStruct.(x).default), this.var_tags);
             this.Parser=p;
@@ -73,22 +76,22 @@ classdef MyG < handle
             cellfun(@(x) set(this.Gui.([x,'Edit']),'Callback',...
                 @(hObject,~) editCallback(this,hObject)),...
                 this.var_tags);
-            set(this.Gui.CopyButton,'Callback',@(~,~) copyCallback(this));
-            set(this.Gui.figure1, 'CloseRequestFcn',...
-                @(~,~) closeFigure(this));
+            this.Gui.CopyButton.Callback=@(~,~) copyCallback(this);
+            this.Gui.figure1.CloseRequestFcn=@(~,~) closeFigure(this);
+            this.Gui.AnalyzeButton.Callback=@(~,~) calcG(this);
         end
         
         function calcG(this)
             %Conditions the caltrace by doing background subtraction, then
             %finds the area
-            cal_bg=mean(this.CalTrace.y(1:5),this.CalTrace.y((end-4):end));
+            cal_bg=mean([this.CalTrace.y(1:5);this.CalTrace.y((end-4):end)]);
             this.CalTrace.y=this.CalTrace.y-cal_bg;
             cal_area=integrate(this.CalTrace);
             v_rms_eom=sqrt(cal_area);
             
             %Conditions the mechtrace by doing background subtraction, then
             %finds the area
-            mech_bg=mean(this.MechTrace.y(1:5),this.MechTrace.y((end-4):end));
+            mech_bg=mean([this.MechTrace.y(1:5);this.MechTrace.y((end-4):end)]);
             this.MechTrace.y=this.MechTrace.y-mech_bg;
             mech_area=integrate(this.MechTrace);
             v_rms_mech=sqrt(mech_area);
@@ -114,7 +117,7 @@ classdef MyG < handle
         
         %The close figure function calls the deletion method.
         function closeFigure(this)
-            delete(this)
+            delete(this);
         end
         
         %Generic editbox callback which sets the appropriate property of
@@ -141,12 +144,12 @@ classdef MyG < handle
     methods
         function set.beta(this,beta)
             this.beta=beta;
-            set(this.Gui.BetaEdit,'String',num2str(this.beta));
+            set(this.Gui.BetaEdit,'String',num2str(this.beta)); %#ok<MCSUP>
         end
         
         function set.temp(this,temp)
             this.temp=temp;
-            set(this.Gui.TempEdit,'String',num2str(this.temp));
+            set(this.Gui.TempEdit,'String',num2str(this.temp)); %#ok<MCSUP>
         end
     end
     

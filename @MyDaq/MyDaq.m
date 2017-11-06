@@ -629,9 +629,11 @@ classdef MyDaq < handle
             if hObject.Value
                 this.main_plot.YScale='Log';
                 hObject.BackgroundColor=[0,1,0.2];
+                updateCursors(this);
             else
                 this.main_plot.YScale='Linear';
                 hObject.BackgroundColor=[0.941,0.941,0.941];
+                updateCursors(this);
             end
         end
         
@@ -640,9 +642,11 @@ classdef MyDaq < handle
             if get(hObject,'Value')
                 set(this.main_plot,'XScale','Log');
                 set(hObject, 'BackgroundColor',[0,1,0.2]);
+                updateCursors(this);
             else
                 set(this.main_plot,'XScale','Linear');
                 set(hObject, 'BackgroundColor',[0.941,0.941,0.941]);
+                updateCursors(this);
             end
         end
         
@@ -730,7 +734,13 @@ classdef MyDaq < handle
         function openMyG(this)
             MechTrace=getFitData(this,'VertData');
             CalTrace=getFitData(this,'VertRef');
-            this.Fits.G0=MyG('MechTrace',MechTrace,'CalTrace',CalTrace);
+            this.Fits.G0=MyG('MechTrace',MechTrace,'CalTrace',CalTrace,...
+                'name','G0');
+            
+            %Adds listener for object being destroyed
+            this.Listeners.G0.Deletion=addlistener(this.Fits.G0,...
+                'ObjectBeingDestroyed',...
+                @(~,~) deleteObj(this,'G0'));
         end
         
         function loadDataCallback(this, ~, ~)
@@ -740,7 +750,7 @@ classdef MyDaq < handle
                 this.base_dir=pwd;
             end
             
-%             try
+            try
                 [load_name,path_name]=uigetfile('.txt','Select the trace',...
                     this.base_dir);
                 load_path=[path_name,load_name];
@@ -748,10 +758,9 @@ classdef MyDaq < handle
                 loadTrace(this.(dest_trc),load_path);
                 this.(dest_trc).plotTrace(this.main_plot,...
                     'Color',this.(sprintf('%s_color',lower(dest_trc))));
-                
-%             catch
-%                 error('Please select a valid file');
-%             end            
+            catch
+                error('Please select a valid file');
+            end            
         end
         %% Listener functions 
         %Callback function for NewFit listener. Plots the fit in the
@@ -788,19 +797,21 @@ classdef MyDaq < handle
         %Removes the relevant field from the Fits struct and deletes the 
         %listeners from the object.
         function deleteFit(this, src, ~)
-            %Deletes the object from the Fits struct
-            if ismember(src.fit_name, fieldnames(this.Fits))
-                this.Fits=rmfield(this.Fits,src.fit_name);
-            end
-            
-            %Deletes the listeners from the Listeners struct.
-            deleteListeners(this, src.fit_name);
+            %Deletes the object from the Fits struct and deletes listeners 
+            deleteObj(this,src.fit_name);
             
             %Clears the fits
             src.clearFit;
             
             %Updates cursors since the fits are removed from the plot
             updateCursors(this);
+        end
+        
+        function deleteObj(this,name)
+            if ismember(name,this.open_fits)
+                this.Fits=rmfield(this.Fits,name);
+            end
+            deleteListeners(this, name);
         end
         
         %Listener update function for vertical cursor

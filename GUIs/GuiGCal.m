@@ -22,7 +22,7 @@ function varargout = GuiGCal(varargin)
 
 % Edit the above text to modify the response to help GuiGCal
 
-% Last Modified by GUIDE v2.5 02-Nov-2017 16:11:33
+% Last Modified by GUIDE v2.5 06-Nov-2017 21:07:25
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -127,3 +127,10 @@ function BetaEdit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in AnalyzeButton.
+function AnalyzeButton_Callback(hObject, eventdata, handles)
+% hObject    handle to AnalyzeButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
