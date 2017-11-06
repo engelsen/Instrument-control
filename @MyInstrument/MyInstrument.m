@@ -17,6 +17,8 @@ classdef MyInstrument < handle
         CommandList;
         %Parses commands using an inputParser object
         CommandParser;
+        %Trace object for storing data
+        Trace=MyTrace();
     end
     
     properties (Access=public)
@@ -71,6 +73,12 @@ classdef MyInstrument < handle
             %Deletes the device object
             delete(this.Device);
             clear('this.Device');
+        end
+        
+        %Clears data from trace to save memory.
+        function clearData(this)
+            this.Trace.x=[];
+            this.Trace.y=[];
         end
         
         function writeProperty(this, varargin)

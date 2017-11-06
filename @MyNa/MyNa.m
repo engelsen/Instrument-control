@@ -8,10 +8,6 @@ classdef MyNa < MyInstrument
         power;
     end
     
-    properties (GetAccess=public, SetAccess=private)
-        Trace;
-    end
-    
     methods (Access=public)
         function this=MyNa(name, interface, address, varargin)
             this@MyInstrument(name, interface, address,varargin{:});

@@ -3,10 +3,6 @@ classdef MyScope <MyInstrument
         channel;
     end
     
-    properties (GetAccess=public, SetAccess=private)
-        Trace=MyTrace();
-    end
-    
     methods (Access=public)
         function this=MyScope(name, interface, address, varargin)
             this@MyInstrument(name, interface, address, varargin{:});

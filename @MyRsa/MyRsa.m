@@ -9,7 +9,6 @@ classdef MyRsa < MyInstrument
         point_no;
         enable_avg;
         read_cont;
-        Trace=MyTrace();
         valid_points;
     end
     

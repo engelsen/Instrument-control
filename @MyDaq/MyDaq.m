@@ -718,6 +718,7 @@ classdef MyDaq < handle
             src.Trace.plotTrace(this.main_plot,'Color',this.data_color)
             updateCursors(this);
             updateFits(this);
+            clearData(src);
         end
         
         %Callback function for MyInstrument ObjectBeingDestroyed listener. 
