@@ -7,7 +7,7 @@ classdef MyDaq < handle
         %Contains Data trace (MyTrace object)
         Data=MyTrace();
         %Contains Background trace (MyTrace object)
-        Background;
+        Background=MyTrace();
         %Struct containing available instruments
         InstrList=struct();
         %Struct containing MyInstrument objects 
@@ -186,9 +186,17 @@ classdef MyDaq < handle
         %Updates fits
         function updateFits(this)            
             %Pushes data into fits in the form of MyTrace objects, so that
-            %units etc follow.
+            %units etc follow. 
             for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).Data=getFitData(this,'VertData');
+                switch this.open_fits{i}
+                    case {'Linear','Quadratic','Gaussian','Lorentzian',...
+                            'Exponential','Beta'}
+                        this.Fits.(this.open_fits{i}).Data=...
+                            getFitData(this,'VertData');
+                    case {'G0'}
+                        this.Fits.G0.MechTrace=getFitData(this,'VertData');
+                        this.Fits.G0.CalTrace=getFitData(this,'VertRef');
+                end
             end
         end
         
@@ -199,7 +207,13 @@ classdef MyDaq < handle
         %Name input is the name of the cursor to be used to extract data.
         %If the cursor is not open, it takes all the data from the selected
         %trace in the analysis trace selection dropdown
-        function Trace=getFitData(this,name)
+        function Trace=getFitData(this,varargin)
+            %Parses varargin input
+            p=inputParser;
+            addOptional(p,'name','',@ischar);
+            parse(p,varargin{:})
+            name=p.Results.name;
+            
             %Finds out which trace the user wants to fit.
             trc_opts=this.Gui.SelTrace.String;
             trc_str=trc_opts{this.Gui.SelTrace.Value};
@@ -610,17 +624,19 @@ classdef MyDaq < handle
             analyze_name=hObject.String{analyze_ind};
             analyze_name=analyze_name(1:(strfind(analyze_name,' ')-1));
             analyze_name=[upper(analyze_name(1)),analyze_name(2:end)];
-
             
             switch analyze_name
                 case {'Linear','Quadratic','Lorentzian','Gaussian'}
                     openMyFit(this,analyze_name);
                 case 'G0'
                     openMyG(this);
+                case 'Beta'
+                    openMyBeta(this);
             end
         end
         
         function openMyFit(this,fit_name)
+            
             %Sees if the fit object is already open, if it is, changes the
             %focus to it, if not, opens it.
             if ismember(fit_name,fieldnames(this.Fits))
@@ -659,18 +675,39 @@ classdef MyDaq < handle
             end
         end
         
+        %Opens MyG class if it is not open.
         function openMyG(this)
-            MechTrace=getFitData(this,'VertData');
-            CalTrace=getFitData(this,'VertRef');
-            this.Fits.G0=MyG('MechTrace',MechTrace,'CalTrace',CalTrace,...
-                'name','G0');
-            
-            %Adds listener for object being destroyed
-            this.Listeners.G0.Deletion=addlistener(this.Fits.G0,...
-                'ObjectBeingDestroyed',...
-                @(~,~) deleteObj(this,'G0'));
+            if ismember('G0',this.open_fits)
+                figure(this.Fits.G0.Gui.figure1);
+            else
+                MechTrace=getFitData(this,'VertData');
+                CalTrace=getFitData(this,'VertRef');
+                this.Fits.G0=MyG('MechTrace',MechTrace,'CalTrace',CalTrace,...
+                    'name','G0');
+                
+                %Adds listener for object being destroyed
+                this.Listeners.G0.Deletion=addlistener(this.Fits.G0,...
+                    'ObjectBeingDestroyed',...
+                    @(~,~) deleteObj(this,'G0'));
+            end
         end
         
+        %Opens MyBeta class if it is not open.
+        function openMyBeta(this)
+            if ismember('Beta', this.open_fits)
+                figure(this.Fits.Beta.Gui.figure1);
+            else
+                DataTrace=getFitData(this);
+                this.Fits.Beta=MyBeta('Data',DataTrace);
+                
+                %Adds listener for object being destroyed, to perform cleanup
+                this.Listeners.Beta.Deletion=addlistener(this.Fits.Beta,...
+                    'ObjectBeingDestroyed',...
+                    @(~,~) deleteObj(this,'Beta'));
+            end
+        end
+        
+        %Callback for load data button
         function loadDataCallback(this, ~, ~)
             
             if isempty(this.base_dir)
@@ -735,6 +772,8 @@ classdef MyDaq < handle
             updateCursors(this);
         end
         
+        %Callback function for other analysis method deletion listeners.
+        %Does the same as above.
         function deleteObj(this,name)
             if ismember(name,this.open_fits)
                 this.Fits=rmfield(this.Fits,name);

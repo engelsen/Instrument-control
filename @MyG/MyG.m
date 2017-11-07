@@ -1,19 +1,35 @@
 classdef MyG < handle
-    properties
+    properties (Access=public)
         %Name or tag of instance
         name
         %Trace of mechanical resonance
         MechTrace;
         %Trace of calibration tone
         CalTrace;
+        
+        temp;
+        beta;
+    end
+    
+    properties (GetAccess=public, SetAccess=private)
         %Struct containing Gui handles
         Gui;
+        %Gui flag
+        enable_gui;
+        %Stores value of g0
+        g0;
+        gamma_m;
+        mech_freq;
+        q_m;
+        k_b=1.38e-23;
+        h=6.63e-34;
+    end
+    
+    properties (Access=private)
         %Struct containing variable names corresponding to Gui edits
         VarStruct;
         %Contains inputParser
         Parser;
-        temp;
-        beta;
     end
     
     properties (Dependent=true)
@@ -25,15 +41,17 @@ classdef MyG < handle
             createVarStruct(this);
             createParser(this);
             parse(this.Parser,varargin{:})
-            this.Gui=guihandles(eval('GuiGCal'));
-            
+                       
             this.MechTrace=this.Parser.Results.MechTrace;
             this.CalTrace=this.Parser.Results.CalTrace;
-            
             this.beta=this.Parser.Results.beta;
             this.temp=this.Parser.Results.temp;
-            
-            initGui(this);
+            this.enable_gui=this.Parser.Results.enable_gui;
+           
+            if this.enable_gui
+                 this.Gui=guihandles(eval('GuiGCal'));
+                 initGui(this);
+            end
         end
         
         %Class deletion function
@@ -53,6 +71,7 @@ classdef MyG < handle
             addParameter(p,'MechTrace',MyTrace(),validateTrace);
             addParameter(p,'CalTrace',MyTrace(),validateTrace);
             addParameter(p,'name','placeholder',@ischar);
+            addParameter(p,'enable_gui',true);
             cellfun(@(x) addParameter(p, this.VarStruct.(x).var,...
                 this.VarStruct.(x).default), this.var_tags);
             this.Parser=p;
@@ -97,22 +116,24 @@ classdef MyG < handle
             v_rms_mech=sqrt(mech_area);
             
             %Finds the mechanical frequency and the fwhm
-            [~,mech_freq]=max(this.MechTrace);
-            gamma_m=calcFwhm(this.MechTrace);
-            q_m=mech_freq/gamma_m;
+            [~,this.mech_freq]=max(this.MechTrace);
+            this.gamma_m=calcFwhm(this.MechTrace);
+
             
             %Defines constants and finds mechanical phononon number
-            k_b=1.38e-23;
-            h=6.63e-34;
-            n_m=k_b*this.temp/(h*mech_freq);
+
+            n_m=this.k_b*this.temp/(this.h*this.mech_freq);
             
             %Calculates g_0
-            g0=(v_rms_mech/v_rms_eom)*this.beta*mech_freq/sqrt(4*n_m);
+            this.g0=(v_rms_mech/v_rms_eom)*...
+                this.beta*this.mech_freq/sqrt(4*n_m);
             
-            set(this.Gui.MechFreq,'String',num2str(mech_freq/1e6,4));
-            set(this.Gui.Q,'String',num2str(q_m,6));
-            set(this.Gui.Linewidth,'String',num2str(gamma_m,5));
-            set(this.Gui.g0,'String',num2str(g0,5));
+            if this.enable_gui
+                set(this.Gui.MechFreq,'String',num2str(this.mech_freq/1e6,4));
+                set(this.Gui.Q,'String',num2str(this.q_m,6));
+                set(this.Gui.Linewidth,'String',num2str(this.gamma_m,5));
+                set(this.Gui.g0,'String',num2str(this.g0,5));
+            end
         end
         
         %The close figure function calls the deletion method.
@@ -126,16 +147,13 @@ classdef MyG < handle
             tag_str=erase(get(hObject,'Tag'),'Edit');
             var_str=this.VarStruct.(tag_str).var;
             this.(var_str)=str2double(get(hObject,'String'));
+            calcG(this);
         end
         
         %Callback function for copying values to clipboard
         function copyCallback(this)
-            mech_freq=get(this.Gui.MechFreq,'String');
-            q_m=get(this.Gui.Q,'String');
-            gamma_m=get(this.Gui.Linewidth,'String');
-            g0=get(this.Gui.g0,'String');
             copy_string=sprintf('%s \t %s \t %s \t %s',...
-                mech_freq,q_m,gamma_m,g0);
+                this.mech_freq,this.q_m,this.gamma_m,this.g0);
             clipboard('copy',copy_string);
         end
     end
@@ -144,12 +162,17 @@ classdef MyG < handle
     methods
         function set.beta(this,beta)
             this.beta=beta;
-            set(this.Gui.BetaEdit,'String',num2str(this.beta)); %#ok<MCSUP>
+            if this.enable_gui 
+                this.Gui.BetaEdit.String=num2str(this.beta); %#ok<MCSUP>
+            end
         end
         
         function set.temp(this,temp)
             this.temp=temp;
-            set(this.Gui.TempEdit,'String',num2str(this.temp)); %#ok<MCSUP>
+            if this.enable_gui 
+                this.Gui.TempEdit.String=num2str(this.temp); 
+            end
+            
         end
     end
     
@@ -157,6 +180,14 @@ classdef MyG < handle
     methods
         function var_tags=get.var_tags(this)
             var_tags=fieldnames(this.VarStruct);
+        end
+        
+        function q_m=get.q_m(this)
+            try
+                q_m=this.mech_freq/this.gamma_m;
+            catch
+                q_m=NaN;
+            end
         end
     end
 end
