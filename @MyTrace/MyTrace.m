@@ -203,10 +203,19 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         end
         
         %Integrates the trace numerically
-        function area=integrate(this)
+        function area=integrate(this,varargin)
             assert(validatePlot(this),['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to integrate'])
-            area=trapz(this.x,this.y);
+            
+            %Input parser for optional inputs
+            p=inputParser;
+            %Default is to use all the data in the trace
+            addOptional(p,'ind',true(1,length(this.x)));
+            parse(p,varargin{:});
+            ind=p.Results.ind;
+            
+            %Integrates the data contained in the indexed part.
+            area=trapz(this.x(ind),this.y(ind));
         end
         
         %Checks if the object is empty
