@@ -48,7 +48,7 @@ classdef MyDaq < handle
         savefile;
     end
     
-    methods
+    methods (Access=public)
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
@@ -190,7 +190,7 @@ classdef MyDaq < handle
             for i=1:length(this.open_fits)
                 switch this.open_fits{i}
                     case {'Linear','Quadratic','Gaussian','Lorentzian',...
-                            'Exponential','Beta'}
+                            'Exponential','Beta','DoubleLorentzian'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
                     case {'G0'}
@@ -397,7 +397,7 @@ classdef MyDaq < handle
         end
     end
     
-    methods
+    methods (Access=public)
         %% Callbacks
         
         %Callback for copying the plot to clipboard
@@ -622,13 +622,15 @@ classdef MyDaq < handle
             analyze_ind=hObject.Value;
             %Finds the correct fit name
             analyze_name=hObject.String{analyze_ind};
-            analyze_name=analyze_name(1:(strfind(analyze_name,' ')-1));
-            analyze_name=[upper(analyze_name(1)),analyze_name(2:end)];
+            analyze_name=erase(analyze_name,'Fit');
+            analyze_name=erase(analyze_name,'Calibration');
+            analyze_name=erase(analyze_name,' ');
             
             switch analyze_name
-                case {'Linear','Quadratic','Lorentzian','Gaussian'}
+                case {'Linear','Quadratic','Lorentzian','Gaussian',...
+                        'DoubleLorentzian'}
                     openMyFit(this,analyze_name);
-                case 'G0'
+                case 'g0'
                     openMyG(this);
                 case 'Beta'
                     openMyBeta(this);
@@ -727,6 +729,9 @@ classdef MyDaq < handle
                 error('Please select a valid file');
             end            
         end
+    end
+    
+    methods (Access=public)
         %% Listener functions 
         %Callback function for NewFit listener. Plots the fit in the
         %window using the plotFit function of the MyFit object
@@ -840,7 +845,10 @@ classdef MyDaq < handle
                 this.Listeners=rmfield(this.Listeners, obj_name);
             end
         end
-        
+    end
+    
+    methods
+           
         %% Set functions
         function set.base_dir(this,base_dir)
             if ~strcmp(base_dir(end),'\')

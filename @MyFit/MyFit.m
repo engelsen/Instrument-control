@@ -15,13 +15,13 @@ classdef MyFit < handle
         Fit;
         Gui;
         Fitdata;
+        FitStruct;
         coeffs;
         fit_name='Linear'
     end
     
     properties (Access=private)
         Parser;
-        FitStruct;
         enable_gui=1;
         hline_init;
     end
@@ -60,20 +60,15 @@ classdef MyFit < handle
                 this.Data.y=this.Parser.Results.y;
             end
             
-            %If the data is appropriate, generates initial
-            %parameters
-            if validateData(this)
-                genInitParams(this);
-            else
-                this.init_params=ones(1,this.n_params);
-            end
-            
             %Sets the scale_init to 1, this is used for the GUI.
             this.scale_init=ones(1,this.n_params);
+            this.init_params=ones(1,this.n_params);
             
-            if this.enable_gui
-                createGui(this);
-            end
+            if this.enable_gui; createGui(this); end
+            
+            %If the data is appropriate, generates initial
+            %parameters
+            if validateData(this); genInitParams(this); end
         end
         
         %Deletion function of object
@@ -107,8 +102,11 @@ classdef MyFit < handle
                     %Fits polynomial of order 2
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case {'Exponential','Gaussian','Lorentzian'}
+                case {'Exponential','Gaussian','Lorentzian',...
+                        'DoubleLorentzian'}
                     doFit(this);
+                otherwise
+                    error('Selected fit is invalid');
             end
             %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
@@ -146,7 +144,7 @@ classdef MyFit < handle
             %Gets the value from the slider
             scale=get(hObject,'Value');
             %Updates the scale with a new value
-            this.scale_init(param_ind)=10^((scale-50)/25);
+            this.scale_init(param_ind)=10^((scale-50)/50);
             %Updates the edit box with the new value from the slider
             set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
                 'String',sprintf('%3.3e',this.scaled_params(param_ind)));
@@ -206,9 +204,14 @@ classdef MyFit < handle
                 case 'Lorentzian'
                     [this.init_params,this.lim_lower,this.lim_upper]=...
                         initParamLorentzian(this.Data.x,this.Data.y);
+                case 'DoubleLorentzian'
+                    [this.init_params,this.lim_lower,this.lim_upper]=...
+                        initParamDblLorentzian(this.Data.x,this.Data.y);
                 otherwise
                     this.init_params=ones(1,this.n_params);
             end
+            
+            if this.enable_gui; plotInitFun(this); end
         end
         
         %Plots the trace contained in the Fit MyTrace object.
@@ -220,6 +223,7 @@ classdef MyFit < handle
         function clearFit(this)
             cellfun(@(x) delete(x), this.Fit.hlines);
             delete(this.hline_init);
+            this.hline_init=[];
             this.Fit.hlines={};
         end
                 
@@ -305,12 +309,18 @@ classdef MyFit < handle
             addFit(this,'Gaussian','a*exp(-((x-c)/b)^2/2)+d',...
                 '$$ae^{-\frac{(x-c)^2}{2b^2}}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
-            addFit(this,'Lorentzian','a/((x-c)^2+(b/2)^2)+d',...
-                '$$\frac{a}{(x-c)^2+(b/2)^2}+d$$',{'a','b','c','d'},...
+            addFit(this,'Lorentzian','1/pi*a*b/2/((x-c)^2+(b/2)^2)+d',...
+                '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$',{'a','b','c','d'},...
                 {'Amplitude','Width','Center','Offset'});
             addFit(this,'Exponential','a*exp(b*x)+c',...
                 '$$ae^{bx}+c$$',{'a','b','c'},...
                 {'Amplitude','Rate','Offset'});
+            addFit(this,'DoubleLorentzian',...
+                '1/pi*b/2*a/((x-c)^2+(b/2)^2)+1/pi*e/2*d/((x-f)^2+(e/2)^2)+g',...
+                '$$\frac{a}{(x-c)^2+(b/2)^2}+\frac{d}{(x-f)^2+(e/2)^2}+g$$',...
+                {'a','b','c','d','e','f','g'},...
+                {'Amplitude 1','Width 1','Center 1','Amplitude 2',...
+                'Width 2','Center 2','Offset'});
         end
         
         %Updates the GUI if the edit or slider boxes are changed from
@@ -318,7 +328,7 @@ classdef MyFit < handle
         function updateGui(this)
             %Converts the scale variable to the value between 0 and 100
             %necessary for the slider
-            slider_vals=25*log10(this.scale_init)+50;
+            slider_vals=50*log10(this.scale_init)+50;
             for i=1:this.n_params
                 set(this.Gui.(sprintf('Edit_%s',this.fit_params{i})),...
                     'String',sprintf('%3.3e',this.scaled_params(i)));
@@ -358,9 +368,10 @@ classdef MyFit < handle
             %Capitalizes the first letter
             fit_name=[upper(fit_name(1)),lower(fit_name(2:end))];
             %Checks it is a valid fit name
-            assert(ismember(fit_name,this.valid_fit_names),...
-                '%s is not a supported fit name',fit_name); %#ok<MCSUP>
-            this.fit_name=fit_name;
+            ind=strcmpi(fit_name,this.valid_fit_names);%#ok<MCSUP>
+            assert(any(ind),'%s is not a supported fit name',fit_name); 
+            
+            this.fit_name=this.valid_fit_names{ind};
         end
         
         %% Get functions for dependent variables
