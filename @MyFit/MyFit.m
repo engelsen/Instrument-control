@@ -172,14 +172,12 @@ classdef MyFit < handle
         %Callback function for analyze button in GUI. Checks if the data is
         %ready for fitting.
         function analyzeCallback(this, ~, ~)
-            if validateData(this)
-                fitTrace(this);
-            else
-                error(['The length of x is %d and the length of y is',...
-                    ' %d. The lengths must be equal and greater than ',...
-                    'the number of fit parameters to perform a fit'],...
-                    length(this.Data.x), length(this.Data.y));
-            end
+            assert(validateData(this),...
+                ['The length of x is %d and the length of y is',...
+                ' %d. The lengths must be equal and greater than ',...
+                'the number of fit parameters to perform a fit'],...
+                length(this.Data.x),length(this.Data.y))
+            fitTrace(this);
         end
         
         function clearFitCallback(this,~,~)
@@ -194,23 +192,41 @@ classdef MyFit < handle
         %Generates model-dependent initial parameters, lower and upper
         %boundaries.
         function genInitParams(this)
+            assert(validateData(this), ['The data must be vectors of',...
+                ' equal length greater than the number of fit parameters.',...
+                ' Currently the number of fit parameters is %d, the',...
+                ' length of x is %d and the length of y is %d'],...
+                this.n_params,length(this.Data.x),length(this.Data.y));
+            %Cell for putting parameters in to be interpreted in the
+            %parser. Element 1 contains the init params, Element 2 contains
+            %the lower limits and Element 3 contains the upper limits.
+            params={};
+            
             switch this.fit_name
                 case 'Exponential'
-                    [this.init_params,this.lim_lower,this.lim_upper]=...
+                    [params{1},params{2},params{3}]=...
                         initParamExponential(this.Data.x,this.Data.y);
                 case 'Gaussian'
-                    [this.init_params,this.lim_lower,this.lim_upper]=...
+                    [params{1},params{2},params{3}]=...
                         initParamGaussian(this.Data.x,this.Data.y);
                 case 'Lorentzian'
-                    [this.init_params,this.lim_lower,this.lim_upper]=...
+                    [params{1},params{2},params{3}]=...
                         initParamLorentzian(this.Data.x,this.Data.y);
                 case 'DoubleLorentzian'
-                    [this.init_params,this.lim_lower,this.lim_upper]=...
+                    [params{1},params{2},params{3}]=...
                         initParamDblLorentzian(this.Data.x,this.Data.y);
-                otherwise
-                    this.init_params=ones(1,this.n_params);
             end
             
+            %Validates the initial parameters
+            p=createFitParser(this.n_params);
+            parse(p,params{:});
+            
+            %Loads the parsed results into the class variables
+            this.init_params=p.Results.init_params;
+            this.lim_lower=p.Results.lower;
+            this.lim_upper=p.Results.upper;            
+            
+            %Plots the fit function with the new initial parameters
             if this.enable_gui; plotInitFun(this); end
         end
         
@@ -371,7 +387,7 @@ classdef MyFit < handle
             ind=strcmpi(fit_name,this.valid_fit_names);%#ok<MCSUP>
             assert(any(ind),'%s is not a supported fit name',fit_name); 
             
-            this.fit_name=this.valid_fit_names{ind};
+            this.fit_name=this.valid_fit_names{ind}; %#ok<MCSUP>
         end
         
         %% Get functions for dependent variables
