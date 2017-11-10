@@ -1,6 +1,6 @@
 function initUhq(this)
 this.save_dir='W:\Measurement Campaigns\';
-
+%addInstr(this, tag, name, type, interface, address)
 if this.enable_gui
     set(this.Gui.InstrumentMenu,'String',{'Select the device',...
         'Oscilloscope 1 (Tektronix DPO 4034)',...

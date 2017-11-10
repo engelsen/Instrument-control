@@ -228,6 +228,15 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             bool=~isempty(this.x) && ~isempty(this.y)...
                 && length(this.x)==length(this.y);
         end
+        
+        function hline=getLineHandle(this,ax)
+            ind=findLineInd(this,ax);
+            if ~isempty(ind)
+                hline=this.hlines{ind}; 
+            else
+                hline=[];
+            end
+        end
     end
     
     methods (Access=private)

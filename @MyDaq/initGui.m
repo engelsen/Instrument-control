@@ -78,4 +78,9 @@ this.Gui.AnalyzeMenu.String={'Select a routine...',...
 %Initializes the InstrMenu
 this.Gui.InstrMenu.Callback=@(hObject,eventdata) ...
     instrMenuCallback(this,hObject,eventdata);
+
+%Initializes the axis
+this.main_plot.Box='on';
+this.main_plot.XLabel.String='x';
+this.main_plot.YLabel.String='y';
 end

@@ -58,7 +58,8 @@ classdef MyScope <MyInstrument
         
         function cont_readCallback(this, hObject, ~)
             while get(hObject,'Value')
-                readTrace(this)
+                readTrace(this);
+                pause(1);
             end
         end
     end
