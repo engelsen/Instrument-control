@@ -105,7 +105,6 @@ classdef MyDaq < handle
         %Initializes the class depending on the computer name
         function initDaq(this)
             computer_name=getenv('computername');
-            
             switch computer_name
                 case 'LPQM1PCLAB2'
                     initRt(this);
@@ -462,6 +461,8 @@ classdef MyDaq < handle
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
             val=hObject.Value;
+            %Finds the correct instrument tag as long as an instrument is
+            %selected
             if val~=1
                 names=hObject.String;
                 tag=getTag(this,names(val));
@@ -580,32 +581,30 @@ classdef MyDaq < handle
             if hObject.Value
                 this.main_plot.YScale='Log';
                 hObject.BackgroundColor=[0,1,0.2];
-                updateAxis(this);
-                updateCursors(this);
             else
                 this.main_plot.YScale='Linear';
                 hObject.BackgroundColor=[0.941,0.941,0.941];
-                updateAxis(this);
-                updateCursors(this);
             end
+            updateAxis(this);
+            updateCursors(this);
         end
         
-        %Callback for LogX button. Sets the XScale to log/lin
+        %Callback for LogX button. Sets the XScale to log/lin. Updates the
+        %axis and cursors afterwards.
         function logXCallback(this, hObject, ~)
             if get(hObject,'Value')
                 set(this.main_plot,'XScale','Log');
                 set(hObject, 'BackgroundColor',[0,1,0.2]);
-                updateAxis(this);
-                updateCursors(this);
             else
                 set(this.main_plot,'XScale','Linear');
                 set(hObject, 'BackgroundColor',[0.941,0.941,0.941]);
-                updateAxis(this);
-                updateCursors(this);
             end
+            updateAxis(this);
+            updateCursors(this);
         end
         
-        %Base directory callback
+        %Base directory callback. Sets the base directory. Also
+        %updates fit objects with the new save directory.
         function baseDirCallback(this, hObject, ~)
             this.base_dir=hObject.String;
             for i=1:length(this.open_fits)
@@ -613,7 +612,8 @@ classdef MyDaq < handle
             end
         end
         
-        %Callback for session name edit box. Sets the session name.
+        %Callback for session name edit box. Sets the session name. Also
+        %updates fit objects with the new save directory.
         function sessionNameCallback(this, hObject, ~)
             this.session_name=hObject.String;
             for i=1:length(this.open_fits)
@@ -621,7 +621,8 @@ classdef MyDaq < handle
             end
         end
         
-        %Callback for filename edit box. Sets the file name.
+        %Callback for filename edit box. Sets the file name. Also
+        %updates fit objects with the new file name.
         function fileNameCallback(this, hObject,~)
             this.file_name=hObject.String;
             for i=1:length(this.open_fits)
@@ -633,7 +634,8 @@ classdef MyDaq < handle
         %Opens the correct MyFit object.
         function analyzeMenuCallback(this, hObject, ~)
             analyze_ind=hObject.Value;
-            %Finds the correct fit name
+            %Finds the correct fit name by erasing spaces and other
+            %superfluous strings
             analyze_name=hObject.String{analyze_ind};
             analyze_name=erase(analyze_name,'Fit');
             analyze_name=erase(analyze_name,'Calibration');
@@ -651,8 +653,7 @@ classdef MyDaq < handle
         end
         
         function openMyFit(this,fit_name)
-            
-            %Sees if the fit object is already open, if it is, changes the
+            %Sees if the MyFit object is already open, if it is, changes the
             %focus to it, if not, opens it.
             if ismember(fit_name,fieldnames(this.Fits))
                 %Changes focus to the relevant fit window
@@ -724,7 +725,6 @@ classdef MyDaq < handle
         
         %Callback for load data button
         function loadDataCallback(this, ~, ~)
-            
             if isempty(this.base_dir)
                 warning('Please input a valid folder name for loading a trace');
                 this.base_dir=pwd;

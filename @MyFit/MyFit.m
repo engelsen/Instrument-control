@@ -263,6 +263,13 @@ classdef MyFit < handle
         %Creates the GUI of MyFit, in separate file.
         createGui(this);
         
+        %Creates a panel for the GUI, in separate file
+        createMechTab(this, bg_color, button_h);
+        
+        %Creats two vboxes (from GUI layouts) to display values of
+        %quantities
+        createUnitDisp(this, bg_color, h_parent, name);
+        
         %Creates parser for constructor
         function createParser(this)
             p=inputParser;
@@ -333,7 +340,7 @@ classdef MyFit < handle
                 {'Amplitude','Rate','Offset'});
             addFit(this,'DoubleLorentzian',...
                 '1/pi*b/2*a/((x-c)^2+(b/2)^2)+1/pi*e/2*d/((x-f)^2+(e/2)^2)+g',...
-                '$$\frac{a}{(x-c)^2+(b/2)^2}+\frac{d}{(x-f)^2+(e/2)^2}+g$$',...
+                '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+\frac{d}{\pi}\frac{e/2}{(x-f)^2+(e/2)^2}+g$$',...
                 {'a','b','c','d','e','f','g'},...
                 {'Amplitude 1','Width 1','Center 1','Amplitude 2',...
                 'Width 2','Center 2','Offset'});
