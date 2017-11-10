@@ -13,6 +13,9 @@ lim_lower=[-Inf,0,-Inf,-Inf];
     'MinPeakDistance',range(x)/2,'SortStr','descend',...
     'NPeaks',1);
 
+%If the prominence of the peak in the positive signal is greater, we adapt
+%our limits and parameters accordingly, if negative signal has a greater
+%prominence, we use this for fitting.
 if proms(1)>proms(2)
     ind=1;
     p_in(4)=min(y);
@@ -23,6 +26,7 @@ else
 end
 
 p_in(2)=widths(ind);
+%Calculates the amplitude, as when x=c, the amplitude is 2a/(pi*b)
 p_in(1)=proms(ind)*pi*p_in(2)/2;
 p_in(3)=locs(ind);
 

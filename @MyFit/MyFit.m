@@ -180,10 +180,13 @@ classdef MyFit < handle
             fitTrace(this);
         end
         
+        %Callback for clearing the fits on the axis.
         function clearFitCallback(this,~,~)
             clearFit(this);
         end
         
+        %Callback function for generate init parameters button. Updates GUI
+        %afterwards
         function initParamCallback(this,~,~)
             genInitParams(this);
             updateGui(this);
