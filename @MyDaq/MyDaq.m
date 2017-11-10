@@ -201,10 +201,7 @@ classdef MyDaq < handle
         end
         
         % If vertical cursors are on, takes only data
-        %within cursors. Note the use of copy here! This is a handle
-        %class, so if normal assignment is used, this.Fits.Data and
-        %this.(trace_str) will refer to the same object, causing roblems.
-        %Name input is the name of the cursor to be used to extract data.
+        %within cursors. 
         %If the cursor is not open, it takes all the data from the selected
         %trace in the analysis trace selection dropdown
         function Trace=getFitData(this,varargin)
@@ -217,6 +214,10 @@ classdef MyDaq < handle
             %Finds out which trace the user wants to fit.
             trc_opts=this.Gui.SelTrace.String;
             trc_str=trc_opts{this.Gui.SelTrace.Value};
+            % Note the use of copy here! This is a handle
+            %class, so if normal assignment is used, this.Fits.Data and
+            %this.(trace_str) will refer to the same object, causing roblems.
+            %Name input is the name of the cursor to be used to extract data.
             Trace=copy(this.(trc_str));
             if ismember(name,fieldnames(this.Cursors))
                 ind=findCursorData(this, trc_str, name);
@@ -395,6 +396,10 @@ classdef MyDaq < handle
             %Deletes the figure
             delete(newFig);
         end
+        
+        function updateAxis(this)
+            axis(this.main_plot,'tight');
+        end
     end
     
     methods (Access=public)
@@ -503,9 +508,11 @@ classdef MyDaq < handle
             if hObject.Value
                 hObject.BackgroundColor=[0,1,0.2];
                 setVisible(this.Data,this.main_plot,1);
+                updateAxis(this);
             else
                 hObject.BackgroundColor=[0.941,0.941,0.941];
                 setVisible(this.Data,this.main_plot,0);
+                updateAxis(this);
             end
         end
         
@@ -514,9 +521,11 @@ classdef MyDaq < handle
             if hObject.Value
                 hObject.BackgroundColor=[0,1,0.2];
                 setVisible(this.Ref,this.main_plot,1);
+                updateAxis(this);
             else
                 hObject.BackgroundColor=[0.941,0.941,0.941];
                 setVisible(this.Ref,this.main_plot,0);
+                updateAxis(this);
             end
         end
         
@@ -571,10 +580,12 @@ classdef MyDaq < handle
             if hObject.Value
                 this.main_plot.YScale='Log';
                 hObject.BackgroundColor=[0,1,0.2];
+                updateAxis(this);
                 updateCursors(this);
             else
                 this.main_plot.YScale='Linear';
                 hObject.BackgroundColor=[0.941,0.941,0.941];
+                updateAxis(this);
                 updateCursors(this);
             end
         end
@@ -584,10 +595,12 @@ classdef MyDaq < handle
             if get(hObject,'Value')
                 set(this.main_plot,'XScale','Log');
                 set(hObject, 'BackgroundColor',[0,1,0.2]);
+                updateAxis(this);
                 updateCursors(this);
             else
                 set(this.main_plot,'XScale','Linear');
                 set(hObject, 'BackgroundColor',[0.941,0.941,0.941]);
+                updateAxis(this);
                 updateCursors(this);
             end
         end
@@ -725,6 +738,8 @@ classdef MyDaq < handle
                 loadTrace(this.(dest_trc),load_path);
                 this.(dest_trc).plotTrace(this.main_plot,...
                     'Color',this.(sprintf('%s_color',lower(dest_trc))));
+                updateAxis(this);
+                updateCursors(this);
             catch
                 error('Please select a valid file');
             end            
@@ -737,14 +752,18 @@ classdef MyDaq < handle
         %window using the plotFit function of the MyFit object
         function plotNewFit(this, src, ~)
             src.plotFit('Color',this.fit_color);
+            updateAxis(this);
             updateCursors(this);
         end
         
         %Callback function for the NewData listener
         function acquireNewData(this, src, ~)
-            this.Data=src.Trace;
+            hline=getLineHandle(this.Data,this.main_plot);
+            this.Data=copy(src.Trace);
+            if ~isempty(hline); this.Data.hlines{1}=hline; end
             clearData(src);
             this.Data.plotTrace(this.main_plot,'Color',this.data_color)
+            updateAxis(this);
             updateCursors(this);
             updateFits(this);
         end
