@@ -11,6 +11,12 @@ classdef MyNa < MyInstrument
     methods (Access=public)
         function this=MyNa(name, interface, address, varargin)
             this@MyInstrument(name, interface, address,varargin{:});
+            
+            switch interface
+                case 'TCPIP'
+                    connectTCPIP(this);
+            end
+            
             createCommandList(this);
             createCommandParser(this);
             if this.enable_gui; initGui(this); end
@@ -64,7 +70,9 @@ classdef MyNa < MyInstrument
             closeDevice(this);
         end
         
-        
+        function fetchCallback(this, ~, ~)
+            readSingle(this);
+        end
     end
     
     methods (Access=private)
@@ -82,12 +90,10 @@ classdef MyNa < MyInstrument
         end
         
         function initGui(this)
-            set(this.Gui.reinit, 'Callback',...
-                @(hObject, eventdata) reinitCallback(this, hObject,...
-                eventdata));
-            set(this.Gui.start_freq, 'Callback',...
-                @(hObject, eventdata) start_freqCallback(this, hObject,...
-                eventdata));
+            this.Gui.reinit.Callback=@(hObject, eventdata)...
+                reinitCallback(this, hObject,eventdata);
+            this.Gui.start_freq.Callback=@(hObject, eventdata)...
+                start_freqCallback(this, hObject,eventdata);
             set(this.Gui.stop_freq, 'Callback',...
                 @(hObject, eventdata) stop_freqCallback(this, hObject,...
                 eventdata));
@@ -109,6 +115,27 @@ classdef MyNa < MyInstrument
             set(this.Gui.enable_avg, 'Callback',...
                 @(hObject, eventdata) enable_avgCallback(this, hObject,...
                 eventdata));
+        end
+        
+        function connectTCPIP(this)
+            buffer = 1000 * 1024;
+            visa_brand = 'ni';
+            visa_address_rsa = sprintf('TCPIP0::%s::inst0::INSTR',...
+                this.address);
+            this.Device=visa(visa_brand, visa_address_rsa,...
+                'InputBufferSize', buffer,...
+                'OutputBufferSize', buffer);
+            set(this.Device,'Timeout',10);
+        end
+        
+        function readSingle(this)
+            openDevice(this);
+            % read trace data, assumes NA is set to ASC mode for data transfer
+            this.Trace.x = str2double(strsplit(read(this,'SENS:FREQ:DATA?'),','));
+            ydata = strsplit(read(this,'CALC:DATA:FDAT?'),',');
+            closeDevice(this);
+            this.Trace.y = str2double(ydata(1:2:end));
+            triggerNewData(this);
         end
     end
 end
