@@ -62,8 +62,8 @@ classdef MyInstrument < handle
             %Removes close function from figure, prevents infinite loop
             if this.enable_gui
                 set(this.Gui.figure1,'CloseRequestFcn','');
-                %Deletes the figure
-                delete(this.Gui.figure1);
+                %Deletes the figure handles
+                structfun(@(x) delete(x), this.Gui);
                 %Removes the figure handle to prevent memory leaks
                 this.Gui=[];
             end
@@ -94,7 +94,7 @@ classdef MyInstrument < handle
             for i=1:length(exec)
                 command=sprintf(this.CommandList.(exec{i}).command,...
                     this.CommandParser.Results.(exec{i}));
-                write(this, command);
+                fprintf(this.Device, command);
             end
         end
         
@@ -114,7 +114,8 @@ classdef MyInstrument < handle
                     [this.CommandList.(varargin{i}).command(1:(ind-2)),'?'];
                 %Reads the property from the device and stores it in the
                 %correct place
-                result.(varargin{i})=str2double(this.read(read_command));
+                result.(varargin{i})=...
+                    str2double(query(this.Device,read_command));
             end
         end
         
@@ -142,17 +143,7 @@ classdef MyInstrument < handle
         function bool=isopen(this)
             bool=strcmp(this.Device.Status, 'open');
         end
-        
-        %Sends a read command to the device
-        function result=read(this,command)
-            result=query(this.Device, command);
-        end
-        
-        %Writes to the device
-        function write(this, command)
-            fprintf(this.Device, command);
-        end
-        
+             
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
             p=inputParser;
