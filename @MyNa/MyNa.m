@@ -131,8 +131,9 @@ classdef MyNa < MyInstrument
         function readSingle(this)
             openDevice(this);
             % read trace data, assumes NA is set to ASC mode for data transfer
-            this.Trace.x = str2double(strsplit(read(this,'SENS:FREQ:DATA?'),','));
-            ydata = strsplit(query(this.Device,'CALC:DATA:FDAT?'),',');
+            this.Trace.x=str2double(strsplit(query(this.Device,...
+                'SENS:FREQ:DATA?'),','));
+            ydata=strsplit(query(this.Device,'CALC:DATA:FDAT?'),',');
             closeDevice(this);
             this.Trace.y = str2double(ydata(1:2:end));
             triggerNewData(this);
