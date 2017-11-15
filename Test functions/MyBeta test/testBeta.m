@@ -1,4 +1,4 @@
-file_path='C:\Users\engelsen\Documents\MATLAB\beta_cal_4.018MHz.txt';
+file_path='M:\Measurement Campaigns\2016-09-27 A8CD15 g0\beta_cal_4.018MHz.txt';
 
 test=MyBeta;
 

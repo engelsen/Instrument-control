@@ -1,6 +1,8 @@
 classdef MyFit < handle
     properties (Access=public)
         Data;
+        %Contains values used for calibration, e.g. frequency references
+        CalStruct;
         init_params=[];
         scale_init=[];
         lim_lower;
