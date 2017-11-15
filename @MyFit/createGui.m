@@ -4,7 +4,7 @@ function createGui(this)
 fit_name=[upper(this.fit_name(1)),this.fit_name(2:end)];
 
 %Defines the colors for the Gui
-rgb_blue=[0.5843-0.4,0.8157-0.4,1];
+rgb_blue=[0.1843,0.4157,1];
 rgb_white=[1,1,1];
 
 %Width of the edit boxes in the GUI
@@ -82,17 +82,15 @@ set(this.Gui.FitVbox,'Heights',[button_h,button_h,button_h,button_h]);
 this.Gui.TabPanel=uix.TabPanel('Parent',this.Gui.UserPanel,...
     'BackgroundColor',rgb_white);
 
-switch lower(this.fit_name)
-    case 'exponential'
-        createMechTab(this, rgb_white, button_h);
-        this.Gui.TabPanel.TabTitles={'Mech.'};
-    case 'lorentzian'
-        this.Gui.OpticsTab=uix.Panel('Parent', this.Gui.TabPanel,...
-            'Padding', 0, 'BackgroundColor',rgb_white);
-        createMechTab(this, rgb_white, button_h);
-
-        this.Gui.TabPanel.TabTitles={'Optics','Mech.'};
-        
+%Creates the user values panel with associated tabs. The cellfun here
+%creates the appropriately named tabs. To add a tab, add a new field to the
+%UserGuiStruct.
+usertabs=fieldnames(this.UserGuiStruct);
+if ~isempty(usertabs)
+    cellfun(@(x) createTab(this,x,rgb_white,button_h),usertabs);
+    this.Gui.TabPanel.TabTitles=...
+        cellfun(@(x) this.UserGuiStruct.(x).tab_title, usertabs,...
+        'UniformOutput',0);
 end
 
 %We first make the BoxPanels to speed up the process. Otherwise everything

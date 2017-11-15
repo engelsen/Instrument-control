@@ -1,9 +1,27 @@
-function createUnitDisp(this, bg_color, h_parent,name)
-hbox_str=sprintf('%sDispHBox',name);
-this.Gui.(hbox_str)=uix.HBox('Parent',h_parent,...
-    'BackgroundColor',bg_color);
-this.Gui.(sprintf('%sNameVBox',name))=uix.VBox('Parent',this.Gui.(hbox_str));
-this.Gui.(sprintf('%sValueVBox',name))=uix.VBox('Parent',this.Gui.(hbox_str));
-set(this.Gui.(hbox_str),'Widths',[-4,-2]);
+function createUnitDisp(this,varargin)
+p=inputParser;
+addParameter(p,'BackgroundColor','w');
+addParameter(p,'Tag','Placeholder',@ischar);
+addParameter(p,'Parent','Placeholder',@ischar);
+addParameter(p,'Title','Placeholder',@ischar);
+addParameter(p,'Enable','on',@ischar);
+addParameter(p,'init_val',1,@isnumeric);
+parse(p,varargin{:});
+
+vbox_name=sprintf('%sNameVBox',p.Results.Parent);
+vbox_edit=sprintf('%sEditVBox',p.Results.Parent);
+label_name=sprintf('%sLabel',p.Results.Tag);
+value_name=sprintf('%sEdit',p.Results.Tag);
+
+this.Gui.(label_name)=annotation(this.Gui.(vbox_name),...
+    'textbox',[0.5,0.5,0.3,0.3],...
+    'String',p.Results.Title,'Units','Normalized',...
+    'HorizontalAlignment','Left','VerticalAlignment','middle',...
+    'FontSize',10,'BackgroundColor',p.Results.BackgroundColor);
+this.Gui.(value_name)=uicontrol('Parent',this.Gui.(vbox_edit),...
+    'Style','edit','String',num2str(p.Results.init_val),...
+    'HorizontalAlignment','Right',...
+    'FontSize',10,'Enable',p.Results.Enable,'Tag',p.Results.Tag,...
+    'Callback',@(hObject,~) userEditCallback(this,hObject));
 
 end

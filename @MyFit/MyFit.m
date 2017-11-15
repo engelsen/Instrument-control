@@ -1,8 +1,8 @@
 classdef MyFit < handle
     properties (Access=public)
         Data;
-        %Contains values used for calibration, e.g. frequency references
-        CalStruct;
+        %Contains values used 
+        UserVals
         init_params=[];
         scale_init=[];
         lim_lower;
@@ -23,6 +23,8 @@ classdef MyFit < handle
     end
     
     properties (Access=private)
+        %Structure used for initializing GUI of userpanel
+        UserGuiStruct;
         Parser;
         enable_gui=1;
         hline_init;
@@ -65,7 +67,10 @@ classdef MyFit < handle
             %Sets the scale_init to 1, this is used for the GUI.
             this.scale_init=ones(1,this.n_params);
             this.init_params=ones(1,this.n_params);
-            
+            %Creates the structure that contains variables for calibration
+            %of fit results
+            createUserGuiStruct(this);
+            initUserVals(this);
             if this.enable_gui; createGui(this); end
             
             %If the data is appropriate, generates initial
@@ -121,6 +126,43 @@ classdef MyFit < handle
             %Triggers new fit event
             triggerNewFit(this);
         end
+        
+        function createUserGuiStruct(this)
+           switch this.fit_name
+               case 'Lorentzian'
+                   addUserField(this,'Mech','MechLw','Linewidth (Hz)',1,'off')
+                   addUserField(this,'Mech','Q','Qualify Factor',1,'off')
+                   addUserField(this,'Mech','Freq','Frequency (MHz)',1,'on')
+                   this.UserGuiStruct.Mech.tab_title='Mech.';
+                   
+                   addUserField(this,'Opt','Spacing','Line Spacing',1,'on');
+                   addUserField(this,'Opt','LineNo','Number of lines',1,'on');
+                   addUserField(this,'Opt','OptLw','Linewidth (MHz)',1,'off');
+                   this.UserGuiStruct.Opt.tab_title='Optical';
+               otherwise
+                   this.UserGuiStruct=struct();
+           end
+        end
+        
+        function addUserField(this, parent, tag, title, ...
+                init_val,change_flag)
+            this.UserGuiStruct.(parent).(tag).title=title;
+            this.UserGuiStruct.(parent).(tag).init_val=init_val;
+            this.UserGuiStruct.(parent).(tag).change_flag=change_flag;    
+        end
+        
+        function initUserVals(this)
+            names=fieldnames(this.UserGuiStruct);
+            for i=1:length(names)
+                val_fields=fieldnames(this.UserGuiStruct.(names{i}));
+                
+                for j=1:length(val_fields)
+                    this.UserVals.(val_fields{j})=...
+                        this.UserGuiStruct.(names{i}).(val_fields{j});
+                end
+            end
+                
+            end
         
         %% Callbacks
         %Save function callback
@@ -192,6 +234,17 @@ classdef MyFit < handle
         function initParamCallback(this,~,~)
             genInitParams(this);
             updateGui(this);
+        end
+        
+        %Callback function for calibration fields
+        function userEditCallback(this, hObject)
+            tag=hObject.Tag;
+            if ~isnumeric(hObject.Value)
+                hObject.Value=1;
+                error('Give numeric value for %s field',tag)
+            end
+            
+            this.UserVals.(tag)=str2double(hObject.String);
         end
         
         %Generates model-dependent initial parameters, lower and upper
@@ -269,12 +322,17 @@ classdef MyFit < handle
         createGui(this);
         
         %Creates a panel for the GUI, in separate file
-        createMechTab(this, bg_color, button_h);
-        
+        createTab(this, tab_tag, bg_color, button_h);
+
         %Creats two vboxes (from GUI layouts) to display values of
         %quantities
-        createUnitDisp(this, bg_color, h_parent, name);
+        createUnitBox(this, bg_color, h_parent, name);
         
+        %Creates edit box inside a UnitDisp for showing label and value of
+        %a quantity. Used in conjunction with createUnitBox
+        createUnitDisp(this,varargin);
+        
+
         %Creates parser for constructor
         function createParser(this)
             p=inputParser;
