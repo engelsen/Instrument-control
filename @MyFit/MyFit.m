@@ -1,8 +1,6 @@
 classdef MyFit < handle
     properties (Access=public)
         Data;
-        %Contains values used 
-        UserVals
         init_params=[];
         scale_init=[];
         lim_lower;
@@ -31,6 +29,7 @@ classdef MyFit < handle
     end
     
     properties (Dependent=true)
+        UserVals;
         fit_function;
         fit_tex;
         fit_params;
@@ -70,9 +69,7 @@ classdef MyFit < handle
             %Creates the structure that contains variables for calibration
             %of fit results
             createUserGuiStruct(this);
-            initUserVals(this);
             if this.enable_gui; createGui(this); end
-            
             %If the data is appropriate, generates initial
             %parameters
             if validateData(this); genInitParams(this); end
@@ -151,19 +148,6 @@ classdef MyFit < handle
             this.UserGuiStruct.(parent).(tag).change_flag=change_flag;    
         end
         
-        function initUserVals(this)
-            names=fieldnames(this.UserGuiStruct);
-            for i=1:length(names)
-                val_fields=fieldnames(this.UserGuiStruct.(names{i}));
-                
-                for j=1:length(val_fields)
-                    this.UserVals.(val_fields{j})=...
-                        this.UserGuiStruct.(names{i}).(val_fields{j});
-                end
-            end
-                
-            end
-        
         %% Callbacks
         %Save function callback
         function saveCallback(this,~,~)
@@ -234,17 +218,6 @@ classdef MyFit < handle
         function initParamCallback(this,~,~)
             genInitParams(this);
             updateGui(this);
-        end
-        
-        %Callback function for calibration fields
-        function userEditCallback(this, hObject)
-            tag=hObject.Tag;
-            if ~isnumeric(hObject.Value)
-                hObject.Value=1;
-                error('Give numeric value for %s field',tag)
-            end
-            
-            this.UserVals.(tag)=str2double(hObject.String);
         end
         
         %Generates model-dependent initial parameters, lower and upper
@@ -423,6 +396,15 @@ classdef MyFit < handle
             end
         end
         
+        function updateUserGui(this)
+            tab_tags=fieldnames(this.UserGuiStruct);
+            for i=1:length(tab_tags)
+                cellfun(@(x) set(this.Gui.([x,'Edit']),...
+                    'String',num2str(this.UserVals.(x))),...
+                    fieldnames(this.UserGuiStruct.(tab_tags{i})));
+            end
+        end
+        
         %Adds a fit to the list of fits
         function addFit(this,fit_name,fit_function,fit_tex,fit_params,...
                 fit_param_names)
@@ -447,6 +429,15 @@ classdef MyFit < handle
     %% Get and set functions
     methods
         %% Set functions
+        %The set function for UserVals simply sets the appropriate GUI
+        %elements
+        function set.UserVals(this, UserVals)
+            tags=fieldnames(UserVals);
+            for i=1:length(tags)
+                this.Gui.([tags{i},'Edit']).String=...
+                    num2str(UserVals.(tags{i}));
+            end
+        end
         
         %Set function for fit_name.
         function set.fit_name(this,fit_name)
@@ -459,8 +450,20 @@ classdef MyFit < handle
             
             this.fit_name=this.valid_fit_names{ind}; %#ok<MCSUP>
         end
-        
+
         %% Get functions for dependent variables
+        %Gets the values for the UserVals structure from the GUI
+        function UserVals=get.UserVals(this)
+            names=fieldnames(this.UserGuiStruct);
+            for i=1:length(names)
+                tags=fieldnames(this.UserGuiStruct.(names{i}));
+                tags(strcmp(tags,'tab_title'))=[];
+                for j=1:length(tags)
+                    UserVals.(tags{j})=...
+                        str2double(this.Gui.([tags{j},'Edit']).String);
+                end
+            end
+        end
         
         %Generates the valid fit names
         function valid_fit_names=get.valid_fit_names(this)
