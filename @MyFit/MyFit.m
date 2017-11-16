@@ -1,4 +1,5 @@
-classdef MyFit < handle & dynamicprops
+classdef MyFit < dynamicprops
+    %Note that dynamicprops classes are handle classes.
     properties (Access=public)
         Data;
         init_params=[];

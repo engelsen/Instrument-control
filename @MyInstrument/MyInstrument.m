@@ -1,4 +1,4 @@
-classdef MyInstrument < handle
+classdef MyInstrument < dynamicprops
     
     properties (SetAccess=protected, GetAccess=public)
         name='';
@@ -159,11 +159,14 @@ classdef MyInstrument < handle
             this.CommandList.(tag).write_flag=p.Results.write_flag;
             
             %Adds a default value and the attributes the inputs must have
+            %and creates a new property in the class
             if p.Results.write_flag
                 %Adds the default value
                 this.CommandList.(tag).default=p.Results.default;
                 %Adds the necessary attributes for the input to the command
                 this.CommandList.(tag).attributes=p.Results.attributes;
+                %Adds a property to the class corresponding to the tag
+                addprop(this,tag);
             end
         end
         
