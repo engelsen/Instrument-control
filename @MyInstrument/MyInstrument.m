@@ -144,11 +144,11 @@ classdef MyInstrument < dynamicprops
             addRequired(p,'tag',@ischar);
             addRequired(p,'command',@ischar);
             addParameter(p,'default','placeholder');
-            addParameter(p,'attributes','placeholder',@iscell)
+            addParameter(p,'attributes','placeholder',@iscell);
             %If the write flag is on, it means this command can be used to
             %write a parameter to the device
-            addParameter(p,'write_flag',false,@islogical)
-            
+            addParameter(p,'write_flag',false,@islogical);
+            addParameter(p,'conv_factor',1,@isnumeric);
             parse(p,tag,command,varargin{:});
             if ~isprop(this, tag) && p.Results.write_flag
                 error('All commands must have a tag matching the property they modify')
@@ -165,6 +165,8 @@ classdef MyInstrument < dynamicprops
                 this.CommandList.(tag).default=p.Results.default;
                 %Adds the necessary attributes for the input to the command
                 this.CommandList.(tag).attributes=p.Results.attributes;
+                %Adds a conversion factor for displaying the value
+                this.CommandList.(tag).conv_factor=p.Results.conv_factor;
                 %Adds a property to the class corresponding to the tag
                 addprop(this,tag);
             end
