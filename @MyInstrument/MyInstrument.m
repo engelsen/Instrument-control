@@ -150,10 +150,7 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'write_flag',false,@islogical);
             addParameter(p,'conv_factor',1,@isnumeric);
             parse(p,tag,command,varargin{:});
-            if ~isprop(this, tag) && p.Results.write_flag
-                error('All commands must have a tag matching the property they modify')
-            end
-            
+
             %Adds the command to be sent to the device
             this.CommandList.(tag).command=command;
             this.CommandList.(tag).write_flag=p.Results.write_flag;

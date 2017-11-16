@@ -1,14 +1,5 @@
 classdef MyRsa < MyInstrument
     properties (SetAccess=protected, GetAccess=public)
-        rbw;
-        start_freq;
-        stop_freq;
-        cent_freq;
-        span;
-        average_no;
-        point_no;
-        enable_avg;
-        read_cont;
         valid_points;
     end
     
@@ -22,12 +13,11 @@ classdef MyRsa < MyInstrument
             this@MyInstrument(name, interface, address,varargin{:});
             if this.enable_gui; initGui(this); end
             
+            createCommandList(this);
+            createCommandParser(this);
             %Valid point numbers for Tektronix 5103 and 5106.
             %Depends on the RSA. Remove this in the future.
             this.valid_points=[801,2401,4001,10401];
-            
-            createCommandList(this);
-            createCommandParser(this);
             switch interface
                 case 'TCPIP'
                     connectTCPIP(this);
@@ -43,6 +33,8 @@ classdef MyRsa < MyInstrument
                     ' Currently the address is %s and the interface is ',...
                     '%s.'],this.address,this.interface)
             end
+            
+            if this.enable_gui; setGuiProps(this); end
             %Opens communications
             openDevice(this);
             %Finds the current status of the device
@@ -65,6 +57,27 @@ classdef MyRsa < MyInstrument
                 'OutputBufferSize', buffer);
             set(this.Device,'InputBufferSize',1e6);
             set(this.Device,'Timeout',10);
+        end
+        
+        function setGuiProps(this)
+            prop_names=fieldnames(this.CommandList);
+            for i=1:length(prop_names)
+                tag=prop_names{i};
+                h_prop=findprop(this,tag);
+                h_prop.GetMethod=@(this) getInstrProp(this, tag);
+                h_prop.SetMethod=@(this, val) setInstrProp(this, tag, val);
+                h_prop.Dependent=true;
+                h_prop
+            end
+        end
+        
+        function setInstrProp(this, tag, val)
+            writeProperty(this, tag, val);
+            this.Gui.(tag).String=num2str(val);
+        end
+        
+        function val=getInstrProp(this, tag)
+            val=str2double(this.Gui.(tag));
         end
         
         function initGui(this)
@@ -255,96 +268,96 @@ classdef MyRsa < MyInstrument
         end
     end
     
-    %% Set functions
-    methods
-        %Set function for central frequency, changes gui to show central
-        %frequency in MHz
-        function set.cent_freq(this, cent_freq)
-            this.cent_freq=cent_freq;
-            if this.enable_gui
-                set(this.Gui.cent_freq,'String',this.cent_freq/1e6);
-            end
-        end
-        
-        %Set function for rbw, changes gui to show rbw in kHz
-        function set.rbw(this, rbw)
-            assert(isnumeric(rbw) && rbw>0,'RBW must be a positive double');
-            this.rbw=rbw;
-            if this.enable_gui
-                set(this.Gui.rbw,'String',this.rbw/1e3);
-            end
-        end
-        
-        %Set function for enable_avg, changes gui
-        function set.enable_avg(this, enable_avg)
-            assert(isnumeric(enable_avg),...
-                'Flag for averaging must be a number')
-            assert(enable_avg==1 || enable_avg==0,...
-                'Flag for averaging must be 0 or 1')
-            this.enable_avg=enable_avg;
-            if this.enable_gui
-                set(this.Gui.enable_avg,'Value',this.enable_avg)
-            end
-        end
-        
-        %Set function for span, changes gui to show span in MHz
-        function set.span(this, span)
-            assert(isnumeric(span) && span>0,...
-                'Span must be a positive number');
-            this.span=span;
-            if this.enable_gui
-                set(this.Gui.span,'String',this.span/1e6);
-            end
-        end
-        
-        
-        %Set function for start frequency, changes gui to show start
-        %frequency in MHz
-        function set.start_freq(this, start_freq)
-            assert(isnumeric(start_freq),'Start frequency must be a number');
-            this.start_freq=start_freq;
-            if this.enable_gui
-                set(this.Gui.start_freq,'String',this.start_freq/1e6);
-            end
-        end
-        
-        %Set function for stop frequency, changes gui to show stop
-        %frequency in MHz
-        function set.stop_freq(this, stop_freq)
-            assert(isnumeric(stop_freq),...
-                'Stop frequency must be a number');
-            this.stop_freq=stop_freq;
-            if this.enable_gui
-                set(this.Gui.stop_freq,'String',this.stop_freq/1e6)
-            end
-        end
-        
-        %Set function for average number, also changes GUI
-        function set.average_no(this, average_no)
-            assert(isnumeric(average_no),'Number of averages must be a number')
-            assert(logical(mod(average_no,1))==0 && average_no>0,...
-                'Number of averages must be a positive integer')
-            this.average_no=average_no;
-            if this.enable_gui
-                set(this.Gui.average_no,'String',this.average_no);
-            end
-        end
-        
-        %Set function for point number, checks it is valid and changes GUI
-        function set.point_no(this, point_no)
-            if ismember(point_no,this.valid_points)
-                this.point_no=point_no;
-                if this.enable_gui
-                    ind=strcmp(get(this.Gui.point_no,'String'),...
-                        num2str(point_no));
-                    set(this.Gui.point_no,'Value',find(ind));
-                end
-            else
-                error('Invalid number of points chosen for RSA')
-            end
-        end
-    end
-    
+%     %% Set functions
+%     methods
+%         %Set function for central frequency, changes gui to show central
+%         %frequency in MHz
+%         function set.cent_freq(this, cent_freq)
+%             this.cent_freq=cent_freq;
+%             if this.enable_gui
+%                 set(this.Gui.cent_freq,'String',this.cent_freq/1e6);
+%             end
+%         end
+%         
+%         %Set function for rbw, changes gui to show rbw in kHz
+%         function set.rbw(this, rbw)
+%             assert(isnumeric(rbw) && rbw>0,'RBW must be a positive double');
+%             this.rbw=rbw;
+%             if this.enable_gui
+%                 set(this.Gui.rbw,'String',this.rbw/1e3);
+%             end
+%         end
+%         
+%         %Set function for enable_avg, changes gui
+%         function set.enable_avg(this, enable_avg)
+%             assert(isnumeric(enable_avg),...
+%                 'Flag for averaging must be a number')
+%             assert(enable_avg==1 || enable_avg==0,...
+%                 'Flag for averaging must be 0 or 1')
+%             this.enable_avg=enable_avg;
+%             if this.enable_gui
+%                 set(this.Gui.enable_avg,'Value',this.enable_avg)
+%             end
+%         end
+%         
+%         %Set function for span, changes gui to show span in MHz
+%         function set.span(this, span)
+%             assert(isnumeric(span) && span>0,...
+%                 'Span must be a positive number');
+%             this.span=span;
+%             if this.enable_gui
+%                 set(this.Gui.span,'String',this.span/1e6);
+%             end
+%         end
+%         
+%         
+%         %Set function for start frequency, changes gui to show start
+%         %frequency in MHz
+%         function set.start_freq(this, start_freq)
+%             assert(isnumeric(start_freq),'Start frequency must be a number');
+%             this.start_freq=start_freq;
+%             if this.enable_gui
+%                 set(this.Gui.start_freq,'String',this.start_freq/1e6);
+%             end
+%         end
+%         
+%         %Set function for stop frequency, changes gui to show stop
+%         %frequency in MHz
+%         function set.stop_freq(this, stop_freq)
+%             assert(isnumeric(stop_freq),...
+%                 'Stop frequency must be a number');
+%             this.stop_freq=stop_freq;
+%             if this.enable_gui
+%                 set(this.Gui.stop_freq,'String',this.stop_freq/1e6)
+%             end
+%         end
+%         
+%         %Set function for average number, also changes GUI
+%         function set.average_no(this, average_no)
+%             assert(isnumeric(average_no),'Number of averages must be a number')
+%             assert(logical(mod(average_no,1))==0 && average_no>0,...
+%                 'Number of averages must be a positive integer')
+%             this.average_no=average_no;
+%             if this.enable_gui
+%                 set(this.Gui.average_no,'String',this.average_no);
+%             end
+%         end
+%         
+%         %Set function for point number, checks it is valid and changes GUI
+%         function set.point_no(this, point_no)
+%             if ismember(point_no,this.valid_points)
+%                 this.point_no=point_no;
+%                 if this.enable_gui
+%                     ind=strcmp(get(this.Gui.point_no,'String'),...
+%                         num2str(point_no));
+%                     set(this.Gui.point_no,'Value',find(ind));
+%                 end
+%             else
+%                 error('Invalid number of points chosen for RSA')
+%             end
+%         end
+%     end
+%     
     %% Get functions
     methods
         %Generates a vector of frequencies between the start and stop
