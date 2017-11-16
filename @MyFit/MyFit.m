@@ -1,4 +1,4 @@
-classdef MyFit < handle
+classdef MyFit < handle & dynamicprops
     properties (Access=public)
         Data;
         init_params=[];
@@ -29,7 +29,6 @@ classdef MyFit < handle
     end
     
     properties (Dependent=true)
-        UserVals;
         fit_function;
         fit_tex;
         fit_params;
@@ -54,7 +53,7 @@ classdef MyFit < handle
             createParser(this);
             parse(this.Parser,varargin{:});
             parseInputs(this);
-            
+
             if ismember('Data',this.Parser.UsingDefaults) &&...
                     ~ismember('x',this.Parser.UsingDefaults) &&...
                     ~ismember('y',this.Parser.UsingDefaults)
@@ -74,7 +73,7 @@ classdef MyFit < handle
             %parameters
             if validateData(this); genInitParams(this); end
         end
-        
+
         %Deletion function of object
         function delete(this)
             if this.enable_gui
@@ -88,6 +87,7 @@ classdef MyFit < handle
             if ~isempty(this.hline_init); delete(this.hline_init); end
             if ~isempty(this.Fit.hlines); delete(this.Fit.hlines{:}); end
         end
+        
         %Close figure callback simply calls delete function for class
         function closeFigure(this,~,~)
             delete(this);
@@ -145,7 +145,27 @@ classdef MyFit < handle
                 init_val,change_flag)
             this.UserGuiStruct.(parent).(tag).title=title;
             this.UserGuiStruct.(parent).(tag).init_val=init_val;
-            this.UserGuiStruct.(parent).(tag).change_flag=change_flag;    
+            this.UserGuiStruct.(parent).(tag).change_flag=change_flag;
+            
+            %Adds the new property to the class
+            addUserProp(this, tag);
+        end
+        
+        function addUserProp(this,tag)
+            prop=addprop(this,tag);
+            if this.enable_gui
+                prop.GetMethod=@(this) getUserVal(this,tag);
+                prop.SetMethod=@(this, val) setUserVal(this, val, tag);
+                prop.Dependent=true;
+            end
+        end
+        
+        function val=getUserVal(this, tag)
+            val=str2double(this.Gui.([tag,'Edit']).String);
+        end
+        
+        function setUserVal(this, val, tag)
+            this.Gui.([tag,'Edit']).String=num2str(val);
         end
         
         %% Callbacks
@@ -396,15 +416,6 @@ classdef MyFit < handle
             end
         end
         
-        function updateUserGui(this)
-            tab_tags=fieldnames(this.UserGuiStruct);
-            for i=1:length(tab_tags)
-                cellfun(@(x) set(this.Gui.([x,'Edit']),...
-                    'String',num2str(this.UserVals.(x))),...
-                    fieldnames(this.UserGuiStruct.(tab_tags{i})));
-            end
-        end
-        
         %Adds a fit to the list of fits
         function addFit(this,fit_name,fit_function,fit_tex,fit_params,...
                 fit_param_names)
@@ -429,15 +440,6 @@ classdef MyFit < handle
     %% Get and set functions
     methods
         %% Set functions
-        %The set function for UserVals simply sets the appropriate GUI
-        %elements
-        function set.UserVals(this, UserVals)
-            tags=fieldnames(UserVals);
-            for i=1:length(tags)
-                this.Gui.([tags{i},'Edit']).String=...
-                    num2str(UserVals.(tags{i}));
-            end
-        end
         
         %Set function for fit_name.
         function set.fit_name(this,fit_name)
@@ -452,18 +454,6 @@ classdef MyFit < handle
         end
 
         %% Get functions for dependent variables
-        %Gets the values for the UserVals structure from the GUI
-        function UserVals=get.UserVals(this)
-            names=fieldnames(this.UserGuiStruct);
-            for i=1:length(names)
-                tags=fieldnames(this.UserGuiStruct.(names{i}));
-                tags(strcmp(tags,'tab_title'))=[];
-                for j=1:length(tags)
-                    UserVals.(tags{j})=...
-                        str2double(this.Gui.([tags{j},'Edit']).String);
-                end
-            end
-        end
         
         %Generates the valid fit names
         function valid_fit_names=get.valid_fit_names(this)
