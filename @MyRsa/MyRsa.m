@@ -125,7 +125,7 @@ classdef MyRsa < MyInstrument
                 'default',1.5e6,'attributes',{{'numeric'}},...
                 'conv_factor',1e6);
             addCommand(this, 'point_no','DPSA:POIN:COUN P%i',...
-                'default',10401,'attributes',{{'numeric'}},true);
+                'default',10401,'attributes',{{'numeric'}});
             addCommand(this,'enable_avg','TRAC3:DPSA:COUN:ENABLE %d',...
                 'default',0,'attributes',{{'numeric'}});
             addCommand(this,'read_cont','INIT:CONT %s','default','on',...
@@ -135,19 +135,10 @@ classdef MyRsa < MyInstrument
     
     %% Public functions including callbacks
     methods (Access=public)
-        function readStatus(this)
-            result=readProperty(this,'rbw','cent_freq','span','start_freq',...
-                'stop_freq','enable_avg');
-            res_names=fieldnames(result);
-            for i=1:length(res_names)
-                this.(res_names{i})=result.(res_names{i});
-            end
-        end
         
         function reinitDevice(this)
             openDevice(this);
-            readStatus(this);
-            initDevice(this);
+            readAll(this);
             writeProperty(this, 'read_cont','on')
             closeDevice(this);
         end
@@ -160,16 +151,14 @@ classdef MyRsa < MyInstrument
             %Reads status at the end.
             readStatus(this);
             closeDevice(this);
-            x=this.freq_vec/1e6;
-            unit_x='MHz';
-            name_x='Frequency';
+            x_vec=this.freq_vec/1e6;
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
             %Trace object is created containing the data and its units
-            setTrace(this.Trace,'name','RsaData','x',x,'y',power_spectrum,'unit_y',...
-                '$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power','unit_x',...
-                unit_x,'name_x',name_x);
+            setTrace(this.Trace,'name','RsaData','x',x_vec,'y',power_spectrum,...
+                'unit_y','$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power',...
+                'unit_x','MHz','name_x','Frequency');
 
             %Trigger acquired data event (inherited from MyInstrument)
             triggerNewData(this);
