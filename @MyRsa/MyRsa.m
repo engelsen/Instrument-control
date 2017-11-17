@@ -38,9 +38,9 @@ classdef MyRsa < MyInstrument
             %Opens communications
             openDevice(this);
             %Finds the current status of the device
-            readStatus(this);
-            %Initializes the device
-            initDevice(this);
+            readAll(this);
+            %Writes default parameters to the device
+            writeProperty(this,'write_all_defaults',true);
             closeDevice(this);
         end
     end
@@ -71,12 +71,32 @@ classdef MyRsa < MyInstrument
         end
         
         function setInstrProp(this, tag, val)
-            writeProperty(this, tag, val);
-            this.Gui.(tag).String=num2str(val);
+            switch this.Gui.(tag).Style
+                case 'edit'
+                    this.Gui.(tag).String=...
+                        num2str(val/this.CommandList.(tag).conv_factor);
+                case  'checkbox'
+                    this.Gui.(tag).Value=val;
+                case 'popupmenu'
+                    ind=find(strcmp(this.Gui.(tag).String,num2str(val)));
+                    this.Gui.(tag).Value=ind;
+                otherwise
+                    error('No appropriate GUI field was found for %s',tag);
+            end
         end
         
         function val=getInstrProp(this, tag)
-            val=str2double(this.Gui.(tag));
+            switch this.Gui.(tag).Style
+                case 'edit'
+                    val=str2double(this.Gui.(tag).String)*...
+                        this.CommandList.(tag).conv_factor;
+                case 'checkbox'
+                    val=this.Gui.(tag).Value;
+                case 'popupmenu'
+                    val=str2double(this.Gui.(tag).String(this.Gui.(tag).Value));
+                otherwise
+                    error('No appropriate GUI field was found for %s',tag);
+            end
         end
         
         function initGui(this)
@@ -107,29 +127,29 @@ classdef MyRsa < MyInstrument
 
         
         function createCommandList(this)
-            addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN %d',...
+            addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN',...
                 'default',1,'attributes',{{'numeric'}});
-            addCommand(this, 'rbw','DPSA:BAND:RES %d',...
+            addCommand(this, 'rbw','DPSA:BAND:RES',...
                 'default',1e3,'attributes',{{'numeric'}},...
                 'conv_factor',1e3);
-            addCommand(this, 'span', 'DPSA:FREQ:SPAN %d',...
+            addCommand(this, 'span', 'DPSA:FREQ:SPAN',...
                 'default',1e6,'attributes',{{'numeric'}},...
                 'conv_factor',1e6);
-            addCommand(this,  'start_freq','DPSA:FREQ:STAR %d',...
+            addCommand(this,  'start_freq','DPSA:FREQ:STAR',...
                 'default',1e6,'attributes',{{'numeric'}},...
                 'conv_factor',1e6);
-            addCommand(this, 'stop_freq','DPSA:FREQ:STOP %d',...
+            addCommand(this, 'stop_freq','DPSA:FREQ:STOP',...
                 'default',2e6,'attributes',{{'numeric'}},...
                 'conv_factor',1e6);
-            addCommand(this,  'cent_freq','DPSA:FREQ:CENT %d',...
+            addCommand(this, 'cent_freq','DPSA:FREQ:CENT',...
                 'default',1.5e6,'attributes',{{'numeric'}},...
                 'conv_factor',1e6);
-            addCommand(this, 'point_no','DPSA:POIN:COUN P%i',...
-                'default',10401,'attributes',{{'numeric'}});
-            addCommand(this,'enable_avg','TRAC3:DPSA:COUN:ENABLE %d',...
+            addCommand(this, 'point_no','DPSA:POIN:COUN P',...
+                'default',10401,'attributes',{{'numeric'}},'access','w');
+            addCommand(this, 'enable_avg','TRAC3:DPSA:COUN:ENABLE',...
                 'default',0,'attributes',{{'numeric'}});
-            addCommand(this,'read_cont','INIT:CONT %s','default','on',...
-                'attributes',{{'char'}});
+            addCommand(this, 'read_cont','INIT:CONT','default',1,...
+                'attributes',{{'numeric'}});
         end
     end
     
@@ -139,7 +159,7 @@ classdef MyRsa < MyInstrument
         function reinitDevice(this)
             openDevice(this);
             readAll(this);
-            writeProperty(this, 'read_cont','on')
+            writeProperty(this, 'read_cont',1)
             closeDevice(this);
         end
         
@@ -149,7 +169,7 @@ classdef MyRsa < MyInstrument
             fwrite(this.Device, 'fetch:dpsa:res:trace3?');
             data = binblockread(this.Device,'float');
             %Reads status at the end.
-            readStatus(this);
+            readAll(this);
             closeDevice(this);
             x_vec=this.freq_vec/1e6;
             %Calculates the power spectrum from the data, which is in dBm.
@@ -175,7 +195,7 @@ classdef MyRsa < MyInstrument
             this.point_no=str2double(value_list{get(hObject,'Value')});
             openDevice(this);
             writeProperty(this,'point_no',this.point_no);
-            readStatus(this);
+            readAll(this);
             closeDevice(this);
         end
         
@@ -183,7 +203,7 @@ classdef MyRsa < MyInstrument
             this.start_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'start_freq',this.start_freq);
-            readStatus(this);
+            readAll(this);
             closeDevice(this);
         end
         
@@ -191,7 +211,7 @@ classdef MyRsa < MyInstrument
             this.stop_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'stop_freq',this.stop_freq);
-            readStatus(this);
+            readAll(this);
             closeDevice(this);
         end
         
@@ -199,7 +219,7 @@ classdef MyRsa < MyInstrument
             this.cent_freq=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'cent_freq',this.cent_freq);
-            readStatus(this);
+            readAll(this);
             closeDevice(this);
         end
         
@@ -207,7 +227,7 @@ classdef MyRsa < MyInstrument
             this.span=str2double(get(hObject,'String'))*1e6;
             openDevice(this);
             writeProperty(this,'span',this.span);
-            readStatus(this)
+            readAll(this)
             closeDevice(this);
         end
         

@@ -82,8 +82,8 @@ classdef MyInstrument < dynamicprops
         function writeProperty(this, varargin)
             %Parses the inputs using the CommandParser
             parse(this.CommandParser, varargin{:});
-            
-            if ~p.Results.write_all_defaults
+
+            if ~this.CommandParser.Results.write_all_defaults
                 %Finds the writeable commands that are supplied by the user
                 ind=~ismember(this.CommandParser.Parameters,...
                     this.CommandParser.UsingDefaults);
@@ -91,17 +91,20 @@ classdef MyInstrument < dynamicprops
                 exec=this.CommandParser.Parameters(ind);
             else
                 exec=this.CommandParser.Parameters;
+                %Removes write_all_defaults from the list of commands to be
+                %executed
+                exec(strcmp(exec,'write_all_defaults'))=[];
             end
             
             for i=1:length(exec)
                 %Creates the write command using the right string spec
                 write_command=[this.CommandList.(exec{i}).command,...
-                    '%',this.CommandList.(exec{i}).str_spec];
+                    ' %',this.CommandList.(exec{i}).str_spec];
                 %Gets the value to write to the device
-                write_val=this.CommandList.Results.(exec{i});
+                this.(exec{i})=this.CommandParser.Results.(exec{i});
+                command=sprintf(write_command, this.(exec{i}));
                 %Sends command to device
-                fprintf(this.Device, write_command, write_val);
-                this.(exec{i})=write_val;
+                fprintf(this.Device, command);
             end
         end
         
@@ -120,17 +123,29 @@ classdef MyInstrument < dynamicprops
         
         function result=readProperty(this, varargin)
             result=struct();
-            for i=1:length(varargin)
+            ind=cellfun(@(x) contains(this.CommandList.(x).access,'r'),...
+                varargin);
+            
+            exec=varargin(ind);
+            
+            if any(~ind)
+                disp('Some specified properties are write-only:')
+                non_exec=varargin(~ind);
+                disp(non_exec{:});
+            end
+            
+            
+            for i=1:length(exec)
                 %Creates the correct read command
-                read_command=[this.CommandList.(varargin{i}).command,'?'];
+                read_command=[this.CommandList.(exec{i}).command,'?'];
                 
                 %Reads the property from the device and stores it in the
                 %correct place
                 res_str = query(this.Device,read_command);
-                if strcmp(this.CommandList.(varargin{i}).attributes{1},'string')
-                    result.(varargin{i})= res_str(1:(end-1));
+                if strcmp(this.CommandList.(exec{i}).attributes{1},'string')
+                    result.(exec{i})= res_str(1:(end-1));
                 else
-                    result.(varargin{i})= str2double(res_str);
+                    result.(exec{i})= str2double(res_str);
                 end
             end
         end
@@ -148,7 +163,9 @@ classdef MyInstrument < dynamicprops
         
         % Execute all the read commands and update corresponding properties
         function readAll(this)
-            result=readProperty(this, this.command_names{:});
+            ind=cellfun(@(x) contains(this.CommandList.(x).access,'r'),...
+                this.command_names);
+            result=readProperty(this, this.command_names{ind});
             res_names=fieldnames(result);
             for i=1:length(res_names)
                 this.(res_names{i})=result.(res_names{i});

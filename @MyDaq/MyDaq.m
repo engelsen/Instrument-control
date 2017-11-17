@@ -475,7 +475,7 @@ classdef MyDaq < handle
                     ~ismember(tag,this.open_instrs)
                 openInstrument(this,tag);
             elseif ismember(tag,this.open_instrs)
-                figure(this.Instruments.(tag).figure1);
+                figure(this.Instruments.(tag).Gui.figure1);
             end
         end
         
