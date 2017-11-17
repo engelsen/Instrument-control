@@ -22,7 +22,7 @@ function varargout = GuiRsa(varargin)
 
 % Edit the above text to modify the response to help GuiRsa
 
-% Last Modified by GUIDE v2.5 10-Nov-2017 15:10:21
+% Last Modified by GUIDE v2.5 17-Nov-2017 13:20:09
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -99,3 +99,12 @@ end
 
 % --- Executes when user attempts to close figure1.
 function figure1_CloseRequestFcn(hObject, eventdata, handles)
+
+
+% --- Executes on button press in read_cont.
+function read_cont_Callback(hObject, eventdata, handles)
+% hObject    handle to read_cont (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of read_cont
