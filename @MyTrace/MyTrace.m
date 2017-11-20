@@ -55,8 +55,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 mkdir(this.save_dir)
             end
             
-
-            
             %Creates a file name out of the name of the class and the save
             %directory
             filename=[this.save_dir,this.name,'.txt'];
@@ -71,18 +69,29 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x)]);
-            %Minimum column width of 9.
-            if cw<16; cw=16; end
+            %Minimum column width of 21.
+            if cw<21; cw=21; end
             
+            diff=length(this.x)-length(this.y);
             
+            if diff<0
+                this.x=[this.x;zeros(-diff,1)];
+                warning(['Zero padded x vector as the saved vectors are',...
+                    ' not of the same length']);
+            elseif diff>0
+                this.y=[this.y;zeros(diff,1)];
+                warning(['Zero padded y vector as the saved vectors are',...
+                    ' not of the same length']);
+            end
+
             %Makes a format string with the correct column width. %% makes
             %a % symbol in sprintf, thus if cw=18, below is %18s\t%18s\r\n.
             %\r\n prints a carriage return, ensuring linebreak in NotePad.
             fprintf(fileID,sprintf('%%%ds\t%%%ds\r\n',cw,cw),...
                 this.label_x, this.label_y);
             %Saves in scientific notation with correct column width defined
-            %above. Again if cw=14, we get %14.10e\t%14.10e\r\n
-            fprintf(fileID,sprintf('%%%d.10e\t%%%d.10e\r\n',cw,cw),...
+            %above. Again if cw=20, we get %14.10e\t%14.10e\r\n
+            fprintf(fileID,sprintf('%%%d.15e\t%%%d.15e\r\n',cw,cw),...
                 [this.x, this.y]');
             fclose(fileID);
         end

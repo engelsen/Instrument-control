@@ -1,6 +1,7 @@
 classdef MyScope <MyInstrument
     properties (Access=public)
         channel;
+        Trace=MyTrace();
     end
     
     methods (Access=public)
@@ -25,8 +26,8 @@ classdef MyScope <MyInstrument
             fprintf(this.Device,'DATa:ENCdg ASCIi');
             
             % Reading the units of x and y
-            unit_y = strtrim(query(this.Device,'WFMOutpre:YUNit?'));
-            unit_x = strtrim(query(this.Device,'WFMOutpre:XUNit?'));
+            unit_y = readProperty('unit_y');
+            unit_x = readProperty('unit_x');
             
             % Reading the vertical spacing between points
             step_y = str2num(query(this.Device,'WFMOutpre:YMUlt?')); %#ok<ST2NM>
@@ -67,7 +68,10 @@ classdef MyScope <MyInstrument
     methods (Access=private)
         function createCommandList(this)
             addCommand(this,'channel','DATa:SOUrce CH%d','default',1,...
-                'attributes',{{'numeric'}},'write_flag',true);
+                'attributes',{{'numeric'}},'access','rw');
+            addCommand(this,'unit_x','WFMOutpre:XUNit','access','r');
+            addCommand(this,'unit_y','WFMOutpre:YUNit','access','r');
+            addCommand(this,'step_y','WFMOutpre:YMUlt','access','r');
         end
         function connectTCPIP(this)
             this.Device= visa('ni',...
