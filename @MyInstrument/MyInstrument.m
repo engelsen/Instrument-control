@@ -1,4 +1,4 @@
-classdef MyInstrument < handle
+classdef MyInstrument < dynamicprops
     
     properties (SetAccess=protected, GetAccess=public)
         name='';
@@ -74,43 +74,101 @@ classdef MyInstrument < handle
         function clearData(this)
             this.Trace.x=[];
             this.Trace.y=[];
-        end
+        end      
         
+        %Writes properties to device. Can take multiple inputs. With the
+        %option init_device, the function writes default to all the
+        %available writeable parameters.
         function writeProperty(this, varargin)
             %Parses the inputs using the CommandParser
             parse(this.CommandParser, varargin{:});
-            
-            %Finds the commands that are supplied by the user
-            ind=~ismember(this.CommandParser.Parameters,...
-                this.CommandParser.UsingDefaults);
-            %Creates a list of commands to be executed
-            exec=this.CommandParser.Parameters(ind);
+
+            if ~this.CommandParser.Results.write_all_defaults
+                %Finds the writeable commands that are supplied by the user
+                ind=~ismember(this.CommandParser.Parameters,...
+                    this.CommandParser.UsingDefaults);
+                %Creates a list of commands to be executed
+                exec=this.CommandParser.Parameters(ind);
+            else
+                exec=this.CommandParser.Parameters;
+                %Removes write_all_defaults from the list of commands to be
+                %executed
+                exec(strcmp(exec,'write_all_defaults'))=[];
+            end
             
             for i=1:length(exec)
-                command=sprintf(this.CommandList.(exec{i}).command,...
-                    this.CommandParser.Results.(exec{i}));
+                %Creates the write command using the right string spec
+                write_command=[this.CommandList.(exec{i}).command,...
+                    ' %',this.CommandList.(exec{i}).str_spec];
+                %Gets the value to write to the device
+                this.(exec{i})=this.CommandParser.Results.(exec{i});
+                command=sprintf(write_command, this.(exec{i}));
+                %Sends command to device
                 fprintf(this.Device, command);
             end
         end
         
+        %Wrapper for writeProperty that opens the device
+        function writePropertyHedged(this, varargin)
+            this.openDevice();
+            try
+                this.writeProperty(varargin{:});
+            catch
+                disp('Error while writing the properties:');
+                disp(varargin);
+            end
+            this.readAll();
+            closeDevice(this);
+        end
+        
         function result=readProperty(this, varargin)
             result=struct();
-            for i=1:length(varargin)
-                %Finds the index of the % sign which indicates where the value
-                %to be written is supplied
-                ind=strfind(this.CommandList.(varargin{i}).command,'%');
-                if ~any(ind)
-                    error('%s is not a valid tag for a command in %s',...
-                        varargin{i},class(this));
-                end
-                
+            ind=cellfun(@(x) contains(this.CommandList.(x).access,'r'),...
+                varargin);
+            
+            exec=varargin(ind);
+            
+            if any(~ind)
+                disp('Some specified properties are write-only:')
+                non_exec=varargin(~ind);
+                disp(non_exec{:});
+            end
+            
+            
+            for i=1:length(exec)
                 %Creates the correct read command
-                read_command=...
-                    [this.CommandList.(varargin{i}).command(1:(ind-2)),'?'];
+                read_command=[this.CommandList.(exec{i}).command,'?'];
+                
                 %Reads the property from the device and stores it in the
                 %correct place
-                result.(varargin{i})=...
-                    str2double(query(this.Device,read_command));
+                res_str = query(this.Device,read_command);
+                if strcmp(this.CommandList.(exec{i}).attributes{1},'string')
+                    result.(exec{i})= res_str(1:(end-1));
+                else
+                    result.(exec{i})= str2double(res_str);
+                end
+            end
+        end
+
+        function result = readPropertyHedged(this, varargin)
+            this.openDevice();
+            try
+                result = this.readProperty(varargin{:});
+            catch
+                disp('Error while reading the properties:');
+                disp(varargin);
+            end
+            this.closeDevice();
+        end
+        
+        % Execute all the read commands and update corresponding properties
+        function readAll(this)
+            ind=cellfun(@(x) contains(this.CommandList.(x).access,'r'),...
+                this.command_names);
+            result=readProperty(this, this.command_names{ind});
+            res_names=fieldnames(result);
+            for i=1:length(res_names)
+                this.(res_names{i})=result.(res_names{i});
             end
         end
         
@@ -144,26 +202,34 @@ classdef MyInstrument < handle
             addRequired(p,'tag',@ischar);
             addRequired(p,'command',@ischar);
             addParameter(p,'default','placeholder');
-            addParameter(p,'attributes','placeholder',@iscell)
+            addParameter(p,'attributes','placeholder',@iscell);
+            addParameter(p,'str_spec','d',@ischar);
             %If the write flag is on, it means this command can be used to
             %write a parameter to the device
-            addParameter(p,'write_flag',false,@islogical)
-            
+            addParameter(p,'access','rw',@ischar);
+            addParameter(p,'conv_factor',1,@isnumeric);
             parse(p,tag,command,varargin{:});
-            if ~isprop(this, tag) && p.Results.write_flag
-                error('All commands must have a tag matching the property they modify')
-            end
-            
+
             %Adds the command to be sent to the device
             this.CommandList.(tag).command=command;
-            this.CommandList.(tag).write_flag=p.Results.write_flag;
+            this.CommandList.(tag).access=p.Results.access;
+            
+            write_flag=contains(p.Results.access,'w');
+%             read_flag=contains(p.Results.access,'r');
             
             %Adds a default value and the attributes the inputs must have
-            if p.Results.write_flag
+            %and creates a new property in the class
+            if write_flag
+                %Adds the string specifier to the list
+                this.CommandList.(tag).str_spec=p.Results.str_spec;
                 %Adds the default value
                 this.CommandList.(tag).default=p.Results.default;
                 %Adds the necessary attributes for the input to the command
                 this.CommandList.(tag).attributes=p.Results.attributes;
+                %Adds a conversion factor for displaying the value
+                this.CommandList.(tag).conv_factor=p.Results.conv_factor;
+                %Adds a property to the class corresponding to the tag
+                addprop(this,tag);
             end
         end
         
@@ -173,6 +239,9 @@ classdef MyInstrument < handle
             %Requires input of the appropriate class
             p=inputParser;
             p.StructExpand=0;
+            %Flag for whether the command should initialize the device with
+            %defaults
+            addParameter(p, 'write_all_defaults',false,@islogical);
             
             for i=1:this.command_no
                 %Adds optional inputs for each command, with the
