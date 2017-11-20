@@ -13,6 +13,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         unit_y='';
         save_dir='';
         load_path='';
+        save_pres=15;
         %Cell that contains handles the trace is plotted in
         hlines={};
     end
@@ -24,6 +25,45 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     properties (Dependent=true)
         label_x;
         label_y;
+    end
+    methods (Access=private)
+                %Creates the input parser for the class. Includes default values
+        %for all optional parameters.
+        function createParser(this)
+            p=inputParser;
+            addParameter(p,'name','placeholder');
+            addParameter(p,'x',[]);
+            addParameter(p,'y',[]);
+            addParameter(p,'Color','b');
+            addParameter(p,'Marker','none');
+            addParameter(p,'LineStyle','-');
+            addParameter(p,'MarkerSize',6);
+            addParameter(p,'unit_x','x');
+            addParameter(p,'unit_y','y');
+            addParameter(p,'name_x','x');
+            addParameter(p,'name_y','y');
+            %Default save folder is the current directory upon
+            %instantiation
+            addParameter(p,'save_dir',pwd);
+            addParameter(p,'load_path','');
+            addParameter(p,'save_pres',15);
+            this.Parser=p;
+        end
+        
+        %Sets the class variables to the inputs from the inputParser. Can
+        %be used to reset class to default values if default_flag=true.
+        function parseInputs(this, default_flag)
+            for i=1:length(this.Parser.Parameters)
+                %Sets the value if there was an input or if the default
+                %flag is on. The default flag is used to reset the class to
+                %its default values.
+                if default_flag || ~any(ismember(this.Parser.Parameters{i},...
+                        this.Parser.UsingDefaults))
+                    this.(this.Parser.Parameters{i})=...
+                        this.Parser.Results.(this.Parser.Parameters{i});
+                end
+            end
+        end
     end
     
     methods (Access=public)
@@ -68,12 +108,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             end
             
             %Finds appropriate column width
-            cw=max([length(this.label_y),length(this.label_x)]);
-            %Minimum column width of 21.
-            if cw<21; cw=21; end
-            
+            cw=max([length(this.label_y),length(this.label_x),...
+                this.save_pres+7]);
+
+            %Pads the vectors if they are not equal length
             diff=length(this.x)-length(this.y);
-            
             if diff<0
                 this.x=[this.x;zeros(-diff,1)];
                 warning(['Zero padded x vector as the saved vectors are',...
@@ -87,12 +126,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %Makes a format string with the correct column width. %% makes
             %a % symbol in sprintf, thus if cw=18, below is %18s\t%18s\r\n.
             %\r\n prints a carriage return, ensuring linebreak in NotePad.
-            fprintf(fileID,sprintf('%%%ds\t%%%ds\r\n',cw,cw),...
+            title_format_str=sprintf('%%%is\t%%%is\r\n',cw,cw);
+            fprintf(fileID,title_format_str,...
                 this.label_x, this.label_y);
             %Saves in scientific notation with correct column width defined
             %above. Again if cw=20, we get %14.10e\t%14.10e\r\n
-            fprintf(fileID,sprintf('%%%d.15e\t%%%d.15e\r\n',cw,cw),...
-                [this.x, this.y]');
+            data_format_str=sprintf('%%%i.%ie\t%%%i.%ie\r\n',...
+                cw,this.save_pres,cw,this.save_pres);
+            fprintf(fileID,data_format_str,[this.x, this.y]');
             fclose(fileID);
         end
         
@@ -249,43 +290,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     end
     
     methods (Access=private)
-        %Creates the input parser for the class. Includes default values
-        %for all optional parameters.
-        function createParser(this)
-            p=inputParser;
-            addParameter(p,'name','placeholder');
-            addParameter(p,'x',[]);
-            addParameter(p,'y',[]);
-            addParameter(p,'Color','b');
-            addParameter(p,'Marker','none');
-            addParameter(p,'LineStyle','-');
-            addParameter(p,'MarkerSize',6);
-            addParameter(p,'unit_x','x');
-            addParameter(p,'unit_y','y');
-            addParameter(p,'name_x','x');
-            addParameter(p,'name_y','y');
-            %Default save folder is the current directory upon
-            %instantiation
-            addParameter(p,'save_dir',pwd);
-            addParameter(p,'load_path','');
-            this.Parser=p;
-        end
-        
-        %Sets the class variables to the inputs from the inputParser. Can
-        %be used to reset class to default values if default_flag=true.
-        function parseInputs(this, default_flag)
-            for i=1:length(this.Parser.Parameters)
-                %Sets the value if there was an input or if the default
-                %flag is on. The default flag is used to reset the class to
-                %its default values.
-                if default_flag || ~any(ismember(this.Parser.Parameters{i},...
-                        this.Parser.UsingDefaults))
-                    this.(this.Parser.Parameters{i})=...
-                        this.Parser.Results.(this.Parser.Parameters{i});
-                end
-            end
-        end
-        
         %Checks if arithmetic can be done with MyTrace objects.
         function checkArithmetic(a,b)
             assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
