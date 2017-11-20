@@ -77,23 +77,28 @@ classdef MyInstrument < dynamicprops
         end      
         
         %Writes properties to device. Can take multiple inputs. With the
-        %option init_device, the function writes default to all the
+        %option all, the function writes default to all the
         %available writeable parameters.
         function writeProperty(this, varargin)
             %Parses the inputs using the CommandParser
             parse(this.CommandParser, varargin{:});
-
-            if ~this.CommandParser.Results.write_all_defaults
-                %Finds the writeable commands that are supplied by the user
-                ind=~ismember(this.CommandParser.Parameters,...
-                    this.CommandParser.UsingDefaults);
-                %Creates a list of commands to be executed
-                exec=this.CommandParser.Parameters(ind);
-            else
-                exec=this.CommandParser.Parameters;
-                %Removes write_all_defaults from the list of commands to be
-                %executed
-                exec(strcmp(exec,'write_all_defaults'))=[];
+            
+            % Finds the writeable commands that are supplied by the user
+            % and creates a list of commands to be executed
+            exec={};
+            for x = this.command_names
+                % Condition for adding a command to the execution list:
+                % The command has a write mode and either it was supplied a
+                % new value or the 'all' option is true
+                if this.CommandList.(x).write_flag &&...
+                        (~ismember(x, this.CommandParser.UsingDefaults) ...
+                        || this.CommandParser.Results.all)
+                    exec={exec,x};
+                elseif ~this.CommandList.(x).write_flag &&...
+                        ~ismember(x, this.CommandParser.UsingDefaults)
+                    % issue a warning if try to write a read-only command 
+                    warning('%s is a read-only command',x);   
+                end
             end
             
             for i=1:length(exec)
@@ -108,37 +113,46 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-        %Wrapper for writeProperty that opens the device
+        % Wrapper for writeProperty that opens and closes the device
         function writePropertyHedged(this, varargin)
             this.openDevice();
             try
                 this.writeProperty(varargin{:});
             catch
-                disp('Error while writing the properties:');
+                warning('Error while writing the properties:');
                 disp(varargin);
             end
-            this.readAll();
-            closeDevice(this);
+            this.readProperty('all');
+            this.closeDevice();
         end
         
         function result=readProperty(this, varargin)
-            result=struct();
-            ind=cellfun(@(x) contains(this.CommandList.(x).access,'r'),...
-                varargin);
+            result = struct();
+            read_all_flag = any(strcmp('all',varargin));
             
-            exec=varargin(ind);
-            
-            if any(~ind)
-                disp('Some specified properties are write-only:')
-                non_exec=varargin(~ind);
-                disp(non_exec{:});
+            exec={};
+            if read_all_flag
+                for x = this.command_names
+                    if this.CommandList.(x).read_flag
+                        exec={exec,x};
+                    end
+                end
+            else
+               for x = varargin
+                    % Selecs the commands from the input list taht have
+                    % read access
+                    if this.CommandList.(x).read_flag &&...
+                            any(strcmp(this.command_names, x))
+                        exec={exec,x};
+                    else
+                        warning('%s is not a valid read command', x);
+                    end
+                end 
             end
-            
             
             for i=1:length(exec)
                 %Creates the correct read command
                 read_command=[this.CommandList.(exec{i}).command,'?'];
-                
                 %Reads the property from the device and stores it in the
                 %correct place
                 res_str = query(this.Device,read_command);
@@ -149,27 +163,17 @@ classdef MyInstrument < dynamicprops
                 end
             end
         end
-
+        
+        % Wrapper for readProperty that opens and closes the device
         function result = readPropertyHedged(this, varargin)
             this.openDevice();
             try
                 result = this.readProperty(varargin{:});
             catch
-                disp('Error while reading the properties:');
+                warning('Error while reading the properties:');
                 disp(varargin);
             end
             this.closeDevice();
-        end
-        
-        % Execute all the read commands and update corresponding properties
-        function readAll(this)
-            ind=cellfun(@(x) contains(this.CommandList.(x).access,'r'),...
-                this.command_names);
-            result=readProperty(this, this.command_names{ind});
-            res_names=fieldnames(result);
-            for i=1:length(res_names)
-                this.(res_names{i})=result.(res_names{i});
-            end
         end
         
     end
@@ -214,12 +218,12 @@ classdef MyInstrument < dynamicprops
             this.CommandList.(tag).command=command;
             this.CommandList.(tag).access=p.Results.access;
             
-            write_flag=contains(p.Results.access,'w');
-%             read_flag=contains(p.Results.access,'r');
+            this.CommandList.(tag).write_flag=contains(p.Results.access,'w');
+            this.CommandList.(tag).read_flag=contains(p.Results.access,'r');
             
             %Adds a default value and the attributes the inputs must have
             %and creates a new property in the class
-            if write_flag
+            if this.CommandList.(tag).write_flag
                 %Adds the string specifier to the list
                 this.CommandList.(tag).str_spec=p.Results.str_spec;
                 %Adds the default value
@@ -229,7 +233,9 @@ classdef MyInstrument < dynamicprops
                 %Adds a conversion factor for displaying the value
                 this.CommandList.(tag).conv_factor=p.Results.conv_factor;
                 %Adds a property to the class corresponding to the tag
-                addprop(this,tag);
+                if ~isprop(this,tag)
+                    addprop(this,tag);
+                end
             end
         end
         
@@ -241,7 +247,7 @@ classdef MyInstrument < dynamicprops
             p.StructExpand=0;
             %Flag for whether the command should initialize the device with
             %defaults
-            addParameter(p, 'write_all_defaults',false,@islogical);
+            addParameter(p, 'all',false,@islogical);
             
             for i=1:this.command_no
                 %Adds optional inputs for each command, with the
