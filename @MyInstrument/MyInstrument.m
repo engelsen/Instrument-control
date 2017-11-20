@@ -82,25 +82,24 @@ classdef MyInstrument < dynamicprops
         function writeProperty(this, varargin)
             %Parses the inputs using the CommandParser
             parse(this.CommandParser, varargin{:});
-            
-            % Finds the writeable commands that are supplied by the user
-            % and creates a list of commands to be executed
-            exec={};
-            for x = this.command_names
-                % Condition for adding a command to the execution list:
-                % The command has a write mode and either it was supplied a
-                % new value or the 'all' option is true
-                if this.CommandList.(x).write_flag &&...
-                        (~ismember(x, this.CommandParser.UsingDefaults) ...
-                        || this.CommandParser.Results.all)
-                    exec={exec,x};
-                elseif ~this.CommandList.(x).write_flag &&...
-                        ~ismember(x, this.CommandParser.UsingDefaults)
-                    % issue a warning if try to write a read-only command 
-                    warning('%s is a read-only command',x);   
+            % Finds writable commands to be included in the execution list
+            ind_w=structfun(@(x) x.write_flag, this.CommandList);
+            if this.CommandParser.Results.all
+                % If the 'all' is true, write all the commands
+                ind=ind_w;
+            else
+                % Check which commands were passed values
+                ind_val=cellfun(@(x)...
+                    (~ismember(x, this.CommandParser.UsingDefaults)),...
+                    this.command_names);
+                ind=ind_w&ind_val;
+                if any((~ind_w)&ind_val)
+                    % Issue warnings for read-only commands
+                    warning('The following commands are read only:');
+                    disp(this.command_names((~ind_w)&ind_val));
                 end
             end
-            
+            exec=this.command_names(ind);
             for i=1:length(exec)
                 %Creates the write command using the right string spec
                 write_command=[this.CommandList.(exec{i}).command,...
@@ -130,33 +129,35 @@ classdef MyInstrument < dynamicprops
             result = struct();
             read_all_flag = any(strcmp('all',varargin));
             
-            exec={};
             if read_all_flag
-                for x = this.command_names
-                    if this.CommandList.(x).read_flag
-                        exec={exec,x};
-                    end
-                end
+                % Read all the commands with read access 
+                ind=structfun(@(x) x.read_flag, this.CommandList);
+                exec=this.command_names(ind);
             else
-               for x = varargin
-                    % Selecs the commands from the input list taht have
-                    % read access
-                    if this.CommandList.(x).read_flag &&...
-                            any(strcmp(this.command_names, x))
-                        exec={exec,x};
-                    else
-                        warning('%s is not a valid read command', x);
-                    end
-                end 
+                ind_val=ismember(varargin,this.command_names);
+                varargin_val=varargin{ind_val};
+                if any(~ind_val)
+                    % Issue warnings for commands not in the command_names
+                    warning('The following are not valid commands:');
+                    disp(varargin{~ind_val});
+                end
+                ind_r=cellfun(@(x) this.CommandList.(tag).read_flag,...
+                    varargin_val);
+                if any(~ind_r)
+                    % Issue warnings for write-only commands
+                    warning('The following commands are write only:');
+                    disp(varargin_val{~ind_r});
+                end
+                exec=varargin_val(ind_r);
             end
-            
+            % Iterate over the commands list
             for i=1:length(exec)
                 %Creates the correct read command
                 read_command=[this.CommandList.(exec{i}).command,'?'];
                 %Reads the property from the device and stores it in the
                 %correct place
                 res_str = query(this.Device,read_command);
-                if strcmp(this.CommandList.(exec{i}).attributes{1},'string')
+                if strcmp(this.CommandList.(exec{i}).classes{1},'string')
                     result.(exec{i})= res_str(1:(end-1));
                 else
                     result.(exec{i})= str2double(res_str);
@@ -174,6 +175,36 @@ classdef MyInstrument < dynamicprops
                 disp(varargin);
             end
             this.closeDevice();
+        end
+        
+        %Connects to the device if it is not connected
+        function openDevice(this)
+            if ~isopen(this)
+                try
+                    fopen(this.Device);
+                catch
+                    try
+                        instr_list=instrfind('RemoteHost',this.address);
+                        fclose(instr_list);
+                        fopen(this.Device);
+                        warning('Multiple instrument objects of address %s exist',...
+                            this.address);
+                    catch
+                        error('Could not open device')
+                    end
+                end
+            end
+        end
+        
+        %Closes the connection to the device
+        function closeDevice(this)
+            if isopen(this)
+                try
+                    fclose(this.Device);
+                catch
+                    error('Could not close device')
+                end
+            end
         end
         
     end
@@ -202,16 +233,14 @@ classdef MyInstrument < dynamicprops
              
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
-            p=inputParser;
+            p=inputParser();
             addRequired(p,'tag',@ischar);
             addRequired(p,'command',@ischar);
             addParameter(p,'default','placeholder');
+            addParameter(p,'classes','placeholder',@iscell);
             addParameter(p,'attributes','placeholder',@iscell);
             addParameter(p,'str_spec','d',@ischar);
-            %If the write flag is on, it means this command can be used to
-            %write a parameter to the device
             addParameter(p,'access','rw',@ischar);
-            addParameter(p,'conv_factor',1,@isnumeric);
             parse(p,tag,command,varargin{:});
 
             %Adds the command to be sent to the device
@@ -224,15 +253,34 @@ classdef MyInstrument < dynamicprops
             %Adds a default value and the attributes the inputs must have
             %and creates a new property in the class
             if this.CommandList.(tag).write_flag
-                %Adds the string specifier to the list
-                this.CommandList.(tag).str_spec=p.Results.str_spec;
-                %Adds the default value
+                % Adds the string specifier to the list. if the format
+                % specifier is not given explicitly, try to infer
+                if ismember('str_spec',p.UsingDefaults)
+                    this.CommandList.(tag).str_spec=...
+                        formatSpecFromAttributes(this,p.Results.classes...
+                        ,p.Results.attributes);
+                else
+                    if isequal(p.Results.str_spec,'b')
+                        % b is a non-system specifier to represent the
+                        % logical type
+                        this.CommandList.(tag).str_spec='i';
+                    else
+                        this.CommandList.(tag).str_spec=p.Results.str_spec;
+                    end
+                end
+                % Adds the default value
                 this.CommandList.(tag).default=p.Results.default;
-                %Adds the necessary attributes for the input to the command
-                this.CommandList.(tag).attributes=p.Results.attributes;
-                %Adds a conversion factor for displaying the value
-                this.CommandList.(tag).conv_factor=p.Results.conv_factor;
-                %Adds a property to the class corresponding to the tag
+                % Adds the attributes for the input to the command. If not
+                % given explicitly, infer from the format specifier
+                if ismember('classes',p.UsingDefaults)
+                    res=AttributesFromFormatSpec(this, p.Results.str_spec);
+                    this.CommandList.(tag).classes=res{1};
+                    this.CommandList.(tag).attributes=res{2};
+                else
+                    this.CommandList.(tag).classes=p.Results.classes;
+                    this.CommandList.(tag).attributes=p.Results.attributes;
+                end
+                % Adds a property to the class corresponding to the tag
                 if ~isprop(this,tag)
                     addprop(this,tag);
                 end
@@ -249,46 +297,49 @@ classdef MyInstrument < dynamicprops
             %defaults
             addParameter(p, 'all',false,@islogical);
             
-            for i=1:this.command_no
+            for tag=this.command_names
                 %Adds optional inputs for each command, with the
                 %appropriate default value from the command list and the
                 %required attributes for the command input.
-                addParameter(p, this.command_names{i},...
-                    this.CommandList.(this.command_names{i}).default),...
+                addParameter(p, tag,...
+                    this.CommandList.(tag).default),...
                     @(x) validateattributes(x,...
-                    this.CommandList.(this.command_names{i}).attributes{1:end});
+                    this.CommandList.(tag).classes,...
+                    this.CommandList.(tag).attributes);
             end
             this.CommandParser=p;
         end
         
-        %Connects to the device if it is not connected
-        function openDevice(this)
-            if ~isopen(this)
-                try
-                    fopen(this.Device);
-                catch
-                    try
-                        instr_list=instrfind('RemoteHost',this.address);
-                        fclose(instr_list);
-                        fopen(this.Device);
-                        warning('Multiple instrument objects of address %s exist',...
-                            this.address);
-                    catch
-                        error('Could not open device')
-                    end
-                end
+        function str_spec=formatSpecFromAttributes(~,classes,attributes)
+            if ismember('string',classes)
+                str_spec='s';
+            elseif ismember('logical',classes)||...
+                    (ismember('numeric',classes)&&...
+                    ismember('integer',attributes))
+                str_spec='i';
+            else
+                %assign default value, i.e. double
+                str_spec='d';
             end
         end
         
-        %Closes the connection to the device
-        function closeDevice(this)
-            if isopen(this)
-                try
-                    fclose(this.Device);
-                catch
-                    
-                    error('Could not close device')
-                end
+        function [class,attribute]=AttributesFromFormatSpec(~, str_spec)
+            switch str_spec
+                case 'd'
+                    class={{'numeric'}};
+                    attribute={{}};
+                case 'i'
+                    class={{'numeric'}};
+                    attribute={{'integer'}};
+                case 's'
+                    class={{'string'}};
+                    attribute={{}};
+                case 'b'
+                    class={{'logical'}};
+                    attribute={{}};
+                otherwise
+                    class={{}};
+                    attribute={{}};
             end
         end
         
@@ -298,7 +349,7 @@ classdef MyInstrument < dynamicprops
         end
     end
     
-    %% Get functions
+    % Get functions
     methods
         function command_names=get.command_names(this)
             command_names=fieldnames(this.CommandList);
