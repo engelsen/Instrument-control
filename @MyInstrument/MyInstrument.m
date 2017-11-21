@@ -135,13 +135,13 @@ classdef MyInstrument < dynamicprops
                 exec=this.command_names(ind);
             else
                 ind_val=ismember(varargin,this.command_names);
-                varargin_val=varargin{ind_val};
+                varargin_val=varargin(ind_val);
                 if any(~ind_val)
                     % Issue warnings for commands not in the command_names
                     warning('The following are not valid commands:');
                     disp(varargin{~ind_val});
                 end
-                ind_r=cellfun(@(x) this.CommandList.(tag).read_flag,...
+                ind_r=cellfun(@(x) this.CommandList.(x).read_flag,...
                     varargin_val);
                 if any(~ind_r)
                     % Issue warnings for write-only commands
@@ -157,11 +157,13 @@ classdef MyInstrument < dynamicprops
                 %Reads the property from the device and stores it in the
                 %correct place
                 res_str = query(this.Device,read_command);
-                if strcmp(this.CommandList.(exec{i}).classes{1},'string')
+                if ismember('char',this.CommandList.(exec{i}).classes)
                     result.(exec{i})= res_str(1:(end-1));
                 else
                     result.(exec{i})= str2double(res_str);
                 end
+                %Assign the values read to the MyInstrument properties
+                this.(exec{i})=result.(exec{i});
             end
         end
         
@@ -220,7 +222,7 @@ classdef MyInstrument < dynamicprops
         end
     end
     
-    methods (Access=protected)
+    methods (Access=public)
         %Triggers event for acquired data
         function triggerNewData(this)
             notify(this,'NewData')
@@ -273,18 +275,19 @@ classdef MyInstrument < dynamicprops
                 % Adds the attributes for the input to the command. If not
                 % given explicitly, infer from the format specifier
                 if ismember('classes',p.UsingDefaults)
-                    res=AttributesFromFormatSpec(this, p.Results.str_spec);
-                    this.CommandList.(tag).classes=res{1};
-                    this.CommandList.(tag).attributes=res{2};
+                    [this.CommandList.(tag).classes,...
+                    this.CommandList.(tag).attributes]=...
+                    AttributesFromFormatSpec(this, p.Results.str_spec);
                 else
                     this.CommandList.(tag).classes=p.Results.classes;
                     this.CommandList.(tag).attributes=p.Results.attributes;
                 end
-                % Adds a property to the class corresponding to the tag
-                if ~isprop(this,tag)
-                    addprop(this,tag);
-                end
             end
+            % Adds a property to the class corresponding to the tag
+            if ~isprop(this,tag)
+                addprop(this,tag);
+            end
+            this.(tag)=p.Results.default;
         end
         
         %Creates inputParser using the command list
@@ -297,21 +300,22 @@ classdef MyInstrument < dynamicprops
             %defaults
             addParameter(p, 'all',false,@islogical);
             
-            for tag=this.command_names
+            for i=1:length(this.command_names)
                 %Adds optional inputs for each command, with the
                 %appropriate default value from the command list and the
                 %required attributes for the command input.
+                tag=this.command_names{i};
                 addParameter(p, tag,...
-                    this.CommandList.(tag).default),...
+                    this.CommandList.(tag).default,...
                     @(x) validateattributes(x,...
                     this.CommandList.(tag).classes,...
-                    this.CommandList.(tag).attributes);
+                    this.CommandList.(tag).attributes));
             end
             this.CommandParser=p;
         end
         
         function str_spec=formatSpecFromAttributes(~,classes,attributes)
-            if ismember('string',classes)
+            if ismember('char',classes)
                 str_spec='s';
             elseif ismember('logical',classes)||...
                     (ismember('numeric',classes)&&...
@@ -326,20 +330,20 @@ classdef MyInstrument < dynamicprops
         function [class,attribute]=AttributesFromFormatSpec(~, str_spec)
             switch str_spec
                 case 'd'
-                    class={{'numeric'}};
-                    attribute={{}};
+                    class={'numeric'};
+                    attribute={};
                 case 'i'
-                    class={{'numeric'}};
-                    attribute={{'integer'}};
+                    class={'numeric'};
+                    attribute={'integer'};
                 case 's'
-                    class={{'string'}};
-                    attribute={{}};
+                    class={'char'};
+                    attribute={};
                 case 'b'
-                    class={{'logical'}};
-                    attribute={{}};
+                    class={'logical'};
+                    attribute={};
                 otherwise
-                    class={{}};
-                    attribute={{}};
+                    class={};
+                    attribute={};
             end
         end
         
