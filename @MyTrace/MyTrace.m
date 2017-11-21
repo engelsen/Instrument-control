@@ -14,6 +14,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         save_dir='';
         load_path='';
         save_pres=15;
+        overwrite_flag
         %Cell that contains handles the trace is plotted in
         hlines={};
     end
@@ -47,6 +48,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             addParameter(p,'save_dir',pwd);
             addParameter(p,'load_path','');
             addParameter(p,'save_pres',15);
+            addParameter(p,'overwrite_flag',false);
             this.Parser=p;
         end
         
@@ -98,6 +100,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %Creates a file name out of the name of the class and the save
             %directory
             filename=[this.save_dir,this.name,'.txt'];
+            if exist(filename,'file') && ~this.overwrite_flag
+                switch questdlg('Would you like to overwrite?')
+                    case 'Yes'
+                        this.overwrite_flag=1;
+                    case 'No'
+                        warning('No file written as %s already exists',...
+                            filename);
+                    otherwise
+                        return
+                end
+            end
+            
             %Creates the file
             fileID=fopen(filename,'w');
             

@@ -30,15 +30,15 @@ classdef MyScope <MyInstrument
             unit_x = readProperty('unit_x');
             
             % Reading the vertical spacing between points
-            step_y = str2num(query(this.Device,'WFMOutpre:YMUlt?')); %#ok<ST2NM>
+            step_y = str2num(readProperty(this,'step_y'));
             
             % Reading the y axis data
-            y= str2num(query(this.Device,'CURVe?'))*step_y; %#ok<ST2NM>
+            y= str2num(query(this.Device,'CURVe?'))*step_y; 
             n_points=length(y);
             % Reading the horizontal spacing between points
-            x_step=str2num(query(this.Device,'WFMOutpre:XINcr?'));%#ok<ST2NM>
+            x_step=readProperty(this,'step_x');
             %Reads where the zero of the x-axis is
-            x_zero=str2num(query(this.Device,'WFMOutpre:XZEro?'));%#ok<ST2NM>
+            x_zero=readProperty(this,'x_zero');
             
             % Calculating the x axis
             x=linspace(x_zero,x_zero+x_step*(n_points-1),n_points);
@@ -69,10 +69,20 @@ classdef MyScope <MyInstrument
         function createCommandList(this)
             addCommand(this,'channel','DATa:SOUrce CH%d','default',1,...
                 'attributes',{{'numeric'}},'access','rw');
-            addCommand(this,'unit_x','WFMOutpre:XUNit','access','r');
-            addCommand(this,'unit_y','WFMOutpre:YUNit','access','r');
-            addCommand(this,'step_y','WFMOutpre:YMUlt','access','r');
+            addCommand(this,'unit_x','WFMOutpre:XUNit','access','r',...
+                'attributes',{{'char'}});
+            addCommand(this,'unit_y','WFMOutpre:YUNit','access','r',...
+                'attributes',{{'char'}});
+            addCommand(this,'step_y','WFMOutpre:YMUlt','access','r',...
+                'attributes',{{'numeric'}});
+            addCommand(this,'step_x','WFMOutpre:XINcr','access','r',...
+                'attributes',{{'numeric'}});
+            addCommand(this,'x_zero','WFMOutpre:XZEro','access','r',...
+                'attributes',{{'numeric'}});
+            addCommand(this,'y_data','CURVe','access','r',...
+                'attributes',{{'numeric'}});
         end
+        
         function connectTCPIP(this)
             this.Device= visa('ni',...
                 sprintf('TCPIP0::%s::inst0::INSTR',this.address));
