@@ -207,7 +207,6 @@ classdef MyInstrument < dynamicprops
             %If the write flag is on, it means this command can be used to
             %write a parameter to the device
             addParameter(p,'access','rw',@ischar);
-            addParameter(p,'conv_factor',1,@isnumeric);
             parse(p,tag,command,varargin{:});
 
             %Adds the command to be sent to the device

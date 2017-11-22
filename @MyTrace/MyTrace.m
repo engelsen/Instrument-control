@@ -118,7 +118,9 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %MATLAB returns -1 for the fileID if the file could not be
             %opened
             if fileID==-1
-                error('File could not be created.');
+                errordlg(sprintf('File %s could not be created.',filename),...
+                    'File error');
+                return
             end
             
             %Finds appropriate column width
