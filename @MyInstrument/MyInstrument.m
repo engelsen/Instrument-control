@@ -20,6 +20,13 @@ classdef MyInstrument < dynamicprops
         %Trace object for storing data
         Trace=MyTrace();
     end
+    
+    properties (Constant=true)
+        % Default parameters for VISA connection
+        DEFAULT_INP_BUFF_SIZE = 1e7; % buffer size bytes
+        DEFAULT_OUT_BUFF_SIZE = 1e7; % buffer size bytes
+        DEFAULT_TIMEOUT = 10; % Timeout in s
+    end
         
     properties (Dependent=true)
         command_names;
@@ -30,10 +37,22 @@ classdef MyInstrument < dynamicprops
         NewData;
     end
     
+    methods (Access=private)
+        function createParser(this)
+            p=inputParser;
+            addRequired(p,'interface',@ischar);
+            addRequired(p,'address',@ischar);
+            addParameter(p,'name','placeholder',@ischar);
+            addParameter(p,'gui','placeholder',@ischar);
+            addParameter(p,'visa_brand','ni',@ischar);
+            this.Parser=p;
+        end
+    end
+    
     methods (Access=public)
-        function this=MyInstrument(name, interface, address, varargin)
+        function this=MyInstrument(interface, address, varargin)
             createParser(this);
-            parse(this.Parser,name,interface,address,varargin{:});
+            parse(this.Parser,interface,address,varargin{:});
             
             %Loads parsed variables into class properties
             this.name=this.Parser.Results.name;
@@ -162,7 +181,7 @@ classdef MyInstrument < dynamicprops
                 else
                     result.(exec{i})= str2double(res_str);
                 end
-                %Assign the values read to the MyInstrument properties
+                %Assign the values to the MyInstrument properties
                 this.(exec{i})=result.(exec{i});
             end
         end
@@ -209,16 +228,10 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-    end
-    
-    methods (Access=private)
-        function createParser(this)
-            p=inputParser;
-            addRequired(p,'name',@ischar);
-            addRequired(p,'interface',@ischar);
-            addRequired(p,'address',@ischar);
-            addParameter(p,'gui','placeholder',@ischar);
-            this.Parser=p;
+        function configureDefaultVisa(this)
+            this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
+            this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
+            this.Device.Timeout = this.DEFAULT_TIMEOUT;
         end
     end
     
@@ -230,7 +243,12 @@ classdef MyInstrument < dynamicprops
         
         %Checks if the connection to the device is open
         function bool=isopen(this)
-            bool=strcmp(this.Device.Status, 'open');
+            try
+                bool=strcmp(this.Device.Status, 'open');
+            catch
+                warning('Cannot verify device Status property');
+                bool=false;
+            end
         end
              
         %Adds a command to the CommandList

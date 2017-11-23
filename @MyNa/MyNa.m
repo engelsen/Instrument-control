@@ -15,12 +15,16 @@ classdef MyNa < MyInstrument
     end
 
     methods
-        function this=MyNa(name, interface, address, varargin)
-            this@MyInstrument(name, interface, address,varargin{:});
+        function this=MyNa(interface, address, varargin)
+            this@MyInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
             
             switch interface
+                case 'visa'
+                    this.Device=visa(this.CommandParser.visa_brand,...
+                        address);
+                    configureDefaultVisa(this);
                 case 'TCPIP'
                     connectTCPIP(this);
             end
@@ -141,7 +145,8 @@ classdef MyNa < MyInstrument
         
         function startContSweep(this)
             this.openDevice(); 
-            this.writeProperty('cont_trig', 'ON');
+            %this.writeProperty('cont_trig', 'ON');
+            fprintf(this.Device,':INIT1:CONT');
             % Set the triger source to be remote control
             fprintf(this.Device,':TRIG:SOUR BUS');
             % Start a sweep cycle
