@@ -87,6 +87,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             fclose(fileID);
         end
         
+        function clearData(this)
+            this.x=[];
+            this.y=[];
+        end
+        
         function loadTrace(this, file_path)
             if ~exist(file_path,'file')
                 error('File does not exist, please choose a different load path')

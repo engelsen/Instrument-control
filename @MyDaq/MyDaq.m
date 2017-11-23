@@ -475,7 +475,10 @@ classdef MyDaq < handle
                     ~ismember(tag,this.open_instrs)
                 openInstrument(this,tag);
             elseif ismember(tag,this.open_instrs)
-                figure(this.Instruments.(tag).Gui.figure1);
+                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
+                    this.Instruments.(tag).Gui);
+                names=fieldnames(this.Instruments.(tag).Gui);
+                figure(this.Instruments.(tag).Gui.(names{ind}));
             end
         end
         

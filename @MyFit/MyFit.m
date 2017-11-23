@@ -70,6 +70,7 @@ classdef MyFit < dynamicprops
             %of fit results
             createUserGuiStruct(this);
             if this.enable_gui; createGui(this); end
+            setUserGuiCallbacks(this);
             %If the data is appropriate, generates initial
             %parameters
             if validateData(this); genInitParams(this); end
@@ -128,28 +129,51 @@ classdef MyFit < dynamicprops
         function createUserGuiStruct(this)
            switch this.fit_name
                case 'Lorentzian'
-                   addUserField(this,'Mech','MechLw','Linewidth (Hz)',1,'off')
-                   addUserField(this,'Mech','Q','Qualify Factor',1,'off')
-                   addUserField(this,'Mech','Freq','Frequency (MHz)',1,'on')
+                   addUserField(this,'Mech','MechLw','Linewidth (Hz)',1,...
+                       'enable_flag','off')
+                   addUserField(this,'Mech','Q','Qualify Factor',1e6,...
+                       'enable_flag','off')
+                   addUserField(this,'Mech','Freq','Frequency (MHz)',1)
                    this.UserGuiStruct.Mech.tab_title='Mech.';
                    
-                   addUserField(this,'Opt','Spacing','Line Spacing',1,'on');
-                   addUserField(this,'Opt','LineNo','Number of lines',1,'on');
-                   addUserField(this,'Opt','OptLw','Linewidth (MHz)',1,'off');
+                   addUserField(this,'Opt','Spacing','Line Spacing',1);
+                   addUserField(this,'Opt','LineNo','Number of lines',10);
+                   addUserField(this,'Opt','OptLw','Linewidth (MHz)',1,...
+                   'enable_flag','off');
                    this.UserGuiStruct.Opt.tab_title='Optical';
                otherwise
                    this.UserGuiStruct=struct();
            end
         end
         
+        function setUserGuiCallbacks(this)
+            
+        end
+        %Parent is the parent tab for the userfield, tag is the tag given
+        %to the GUI element, title is the text written next to the field,
+        %initial value is the initial value of the property and change_flag
+        %determines whether the gui element is enabled for writing or not.
         function addUserField(this, parent, tag, title, ...
-                init_val,change_flag)
-            this.UserGuiStruct.(parent).(tag).title=title;
-            this.UserGuiStruct.(parent).(tag).init_val=init_val;
-            this.UserGuiStruct.(parent).(tag).change_flag=change_flag;
+                init_val,varargin)
+            p=inputParser();
+            addRequired(p,'Parent');
+            addRequired(p,'Tag');
+            addRequired(p,'Title');
+            addRequired(p,'init_val');
+            addParameter(p,'enable_flag','on');
+            addParameter(p,'Callback','');
+            
+            parse(p,parent,tag,title,init_val,varargin{:});
+            tag=p.Results.Tag;
+            parent=p.Results.Parent;
+            this.UserGuiStruct.(parent).(tag).title=p.Results.Title;
+            this.UserGuiStruct.(parent).(tag).init_val=p.Results.init_val;
+            this.UserGuiStruct.(parent).(tag).enable_flag=...
+                p.Results.enable_flag;
             
             %Adds the new property to the class
             addUserProp(this, tag);
+            
         end
         
         function addUserProp(this,tag)
