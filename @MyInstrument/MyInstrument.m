@@ -26,6 +26,7 @@ classdef MyInstrument < dynamicprops
         DEFAULT_INP_BUFF_SIZE = 1e7; % buffer size bytes
         DEFAULT_OUT_BUFF_SIZE = 1e7; % buffer size bytes
         DEFAULT_TIMEOUT = 10; % Timeout in s
+        DEFAULT_VISA_BRAND = 'ni';
     end
         
     properties (Dependent=true)
@@ -39,12 +40,12 @@ classdef MyInstrument < dynamicprops
     
     methods (Access=private)
         function createParser(this)
-            p=inputParser;
+            p=inputParser();
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
-            addParameter(p,'name','placeholder',@ischar);
-            addParameter(p,'gui','placeholder',@ischar);
-            addParameter(p,'visa_brand','ni',@ischar);
+            addParameter(p,'name','',@ischar);
+            addParameter(p,'gui','',@ischar);
+            addParameter(p,'visa_brand',this.DEFAULT_VISA_BRAND,@ischar);
             this.Parser=p;
         end
     end
@@ -204,8 +205,10 @@ classdef MyInstrument < dynamicprops
                 try
                     fopen(this.Device);
                 catch
+                    % try to find and close all the devices with the same
+                    % VISA resource name
                     try
-                        instr_list=instrfind('RemoteHost',this.address);
+                        instr_list=instrfind('RsrcName',this.Device.RsrcName);
                         fclose(instr_list);
                         fopen(this.Device);
                         warning('Multiple instrument objects of address %s exist',...
@@ -220,11 +223,7 @@ classdef MyInstrument < dynamicprops
         %Closes the connection to the device
         function closeDevice(this)
             if isopen(this)
-                try
-                    fclose(this.Device);
-                catch
-                    error('Could not close device')
-                end
+                fclose(this.Device);
             end
         end
         

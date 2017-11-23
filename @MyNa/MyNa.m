@@ -22,7 +22,7 @@ classdef MyNa < MyInstrument
             
             switch interface
                 case 'visa'
-                    this.Device=visa(this.CommandParser.visa_brand,...
+                    this.Device=visa(this.Parser.Results.visa_brand,...
                         address);
                     configureDefaultVisa(this);
                 case 'TCPIP'
@@ -88,10 +88,13 @@ classdef MyNa < MyInstrument
             addCommand(this,...
                 'disp_type','DISP:WIND1:SPL', 'default','D1',...
                 'str_spec','s');
-            % Continuous sweep triggering 'ON'/'OFF'
+            % Continuous sweep triggering 
             addCommand(this,...
-                'cont_trig',':INIT1:CONT', 'default','OFF',...
-                'str_spec','s');
+                'cont_trig',':INIT1:CONT', 'default', 0,...
+                'str_spec','b');
+            addCommand(this,...
+                'trig_source', ':TRIG:SOUR', 'default', 'BUS',...
+                'str_spec','s')
             
             % Parametric commands for traces, i can be extended to 4
             for i = 1:2
@@ -133,29 +136,27 @@ classdef MyNa < MyInstrument
         
         function singleSweep(this)
             this.openDevice(); 
-            % Set the triger source to be remote control
-            fprintf(this.Device,':TRIG:SOUR BUS');
+            this.writeProperty('cont_trig', true);
+            % Set the triger source to remote control
+            this.writeProperty('trig_source', 'BUS');
             % Start a sweep cycle
             fprintf(this.Device,':TRIG:SING');
-            % Wait for the sweep to finish (the command returns 1) when it
-            % happens
+            % Wait for the sweep to finish (for the query to return 1)
             query(this.Device,'*OPC?');
             this.closeDevice();
         end
         
         function startContSweep(this)
             this.openDevice(); 
-            %this.writeProperty('cont_trig', 'ON');
-            fprintf(this.Device,':INIT1:CONT');
-            % Set the triger source to be remote control
-            fprintf(this.Device,':TRIG:SOUR BUS');
-            % Start a sweep cycle
-            fprintf(this.Device,':TRIG');
+            this.writeProperty('cont_trig', true);
+            % Set the triger source to be internal
+            this.writeProperty('trig_source', 'INT');
             this.closeDevice();
         end
         
         function abortSweep(this)
             this.openDevice();
+            this.writeProperty('trig_source', 'BUS');
             fprintf(this.Device,':ABOR');
             this.closeDevice();
         end
