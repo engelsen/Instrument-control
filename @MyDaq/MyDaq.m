@@ -113,7 +113,7 @@ classdef MyDaq < handle
                 case 'LPQM1PC2'
                     %Test case for testing on Nils' computer.
                 otherwise
-                    error('Please create an initialization function for this computer')
+                    warning('Please create an initialization function for this computer')
             end
             
             %Initializes empty trace objects
@@ -156,20 +156,19 @@ classdef MyDaq < handle
             instr_type=this.InstrList.(tag).type;
             %Collects the correct inputs for creating the MyInstrument
             %class
-            input_cell={this.InstrList.(tag).name,...
-                this.InstrList.(tag).interface,...
+            input_cell={this.InstrList.(tag).interface,...
                 this.InstrList.(tag).address};
             
             switch instr_type
                 case 'RSA'
                     this.Instruments.(tag)=MyRsa(input_cell{:},...
-                        'gui','GuiRsa');
+                        'gui','GuiRsa','name',this.InstrList.(tag).name);
                 case 'Scope'
                     this.Instruments.(tag)=MyScope(input_cell{:},...
-                        'gui','GuiScope');
+                        'gui','GuiScope','name',this.InstrList.(tag).name);
                 case 'NA'
                     this.Instruments.(tag)=MyNa(input_cell{:},...
-                        'gui','GuiNa');
+                        'gui','GuiNa','name',this.InstrList.(tag).name);
             end
             
             %Adds listeners for new data and deletion of the instrument.
@@ -188,10 +187,17 @@ classdef MyDaq < handle
             %units etc follow. 
             for i=1:length(this.open_fits)
                 switch this.open_fits{i}
-                    case {'Linear','Quadratic','Gaussian','Lorentzian',...
+                    case {'Linear','Quadratic','Gaussian',...
                             'Exponential','Beta','DoubleLorentzian'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
+                    case {'Lorentzian'}
+                        this.Fits.(this.open_fits{i}).Data=...
+                            getFitData(this,'VertData');
+                        ind=findCursorData(this,'Data','VertRef');
+                        x_dist=range(this.Data.x(ind));
+                        this.Fits.(this.open_fits{i}).Spacing=...
+                            x_dist/this.Fits.(this.open_fits{i}).LineNo;
                     case {'G0'}
                         this.Fits.G0.MechTrace=getFitData(this,'VertData');
                         this.Fits.G0.CalTrace=getFitData(this,'VertRef');
@@ -674,6 +680,7 @@ classdef MyDaq < handle
                     'save_dir',this.save_dir,...
                     'save_name',this.file_name);
                 
+                updateFits(this);
                 %Sets up a listener for the Deletion event, which
                 %removes the MyFit object from the Fits structure if it is
                 %deleted.
@@ -764,7 +771,7 @@ classdef MyDaq < handle
             hline=getLineHandle(this.Data,this.main_plot);
             this.Data=copy(src.Trace);
             if ~isempty(hline); this.Data.hlines{1}=hline; end
-            clearData(src);
+            clearData(src.Trace);
             this.Data.plotTrace(this.main_plot,'Color',this.data_color)
             updateAxis(this);
             updateCursors(this);

@@ -5,14 +5,22 @@ lim_upper=[Inf,Inf,Inf,Inf];
 lim_lower=[-Inf,0,-Inf,-Inf];
 
 %Finds peaks on the positive signal (max 1 peak)
-[~,locs(1),widths(1),proms(1)]=findpeaks(y,x,...
-    'MinPeakDistance',range(x)/2,'SortStr','descend',...
-    'NPeaks',1);
-%Finds peaks on the negative signal (max 1 peak)
-[~,locs(2),widths(2),proms(2)]=findpeaks(-y,x,...
-    'MinPeakDistance',range(x)/2,'SortStr','descend',...
-    'NPeaks',1);
+try
+    [~,locs(1),widths(1),proms(1)]=findpeaks(y,x,...
+        'MinPeakDistance',range(x)/2,'SortStr','descend',...
+        'NPeaks',1);
+catch
+    proms(1)=0;
+end
 
+%Finds peaks on the negative signal (max 1 peak)
+try
+    [~,locs(2),widths(2),proms(2)]=findpeaks(-y,x,...
+        'MinPeakDistance',range(x)/2,'SortStr','descend',...
+        'NPeaks',1);
+catch
+    proms(2)=0;
+end
 %If the prominence of the peak in the positive signal is greater, we adapt
 %our limits and parameters accordingly, if negative signal has a greater
 %prominence, we use this for fitting.

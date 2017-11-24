@@ -97,7 +97,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 error('File does not exist, please choose a different load path')
             end
 
-            
             read_opts=detectImportOptions(file_path);
             DataTable=readtable(file_path,read_opts);
             

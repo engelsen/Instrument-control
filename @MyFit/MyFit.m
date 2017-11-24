@@ -23,7 +23,7 @@ classdef MyFit < dynamicprops
     
     properties (Access=private)
         %Structure used for initializing GUI of userpanel
-        UserGuiStruct;
+        UserGui;
         Parser;
         enable_gui=1;
         hline_init;
@@ -70,7 +70,7 @@ classdef MyFit < dynamicprops
             %of fit results
             createUserGuiStruct(this);
             if this.enable_gui; createGui(this); end
-            setUserGuiCallbacks(this);
+
             %If the data is appropriate, generates initial
             %parameters
             if validateData(this); genInitParams(this); end
@@ -129,32 +129,38 @@ classdef MyFit < dynamicprops
         function createUserGuiStruct(this)
            switch this.fit_name
                case 'Lorentzian'
+                   %Parameters for the tab relating to mechanics
                    addUserField(this,'Mech','MechLw','Linewidth (Hz)',1,...
                        'enable_flag','off')
-                   addUserField(this,'Mech','Q','Qualify Factor',1e6,...
-                       'enable_flag','off')
-                   addUserField(this,'Mech','Freq','Frequency (MHz)',1)
-                   this.UserGuiStruct.Mech.tab_title='Mech.';
-                   
-                   addUserField(this,'Opt','Spacing','Line Spacing',1);
+                   addUserField(this,'Mech','Q',...
+                       'Qualify Factor (\times10^6)',1e6,...
+                       'enable_flag','off','conv_factor',1e6)
+                   addUserField(this,'Mech','MechFreq','Frequency (MHz)',1e6,...
+                       'conv_factor',1e6, 'Callback', @(~,~) calcMechQ(this) )
+                   this.UserGui.Tabs.Mech.tab_title='Mech.';
+                   %Parameters for the tab relating to optics
+                   addUserField(this,'Opt','Spacing',...
+                       'Line Spacing (MHz)',1e6,'conv_factor',1e6);
                    addUserField(this,'Opt','LineNo','Number of lines',10);
-                   addUserField(this,'Opt','OptLw','Linewidth (MHz)',1,...
-                   'enable_flag','off');
-                   this.UserGuiStruct.Opt.tab_title='Optical';
+                   addUserField(this,'Opt','OptLw','Linewidth (MHz)',1e6,...
+                   'enable_flag','off','conv_factor',1e6);
+                   this.UserGui.Tabs.Opt.tab_title='Optical';
                otherwise
-                   this.UserGuiStruct=struct();
+                   this.UserGui=struct('Fields',struct(),'Tabs',struct());
            end
         end
         
-        function setUserGuiCallbacks(this)
-            
+        function calcMechQ(this)
+            this.Q=this.MechFreq/this.MechLw; %#ok<MCNPR>
         end
+        
         %Parent is the parent tab for the userfield, tag is the tag given
         %to the GUI element, title is the text written next to the field,
         %initial value is the initial value of the property and change_flag
         %determines whether the gui element is enabled for writing or not.
         function addUserField(this, parent, tag, title, ...
                 init_val,varargin)
+            %Parsing inputs
             p=inputParser();
             addRequired(p,'Parent');
             addRequired(p,'Tag');
@@ -162,14 +168,21 @@ classdef MyFit < dynamicprops
             addRequired(p,'init_val');
             addParameter(p,'enable_flag','on');
             addParameter(p,'Callback','');
+            addParameter(p,'conv_factor',1);
             
             parse(p,parent,tag,title,init_val,varargin{:});
             tag=p.Results.Tag;
-            parent=p.Results.Parent;
-            this.UserGuiStruct.(parent).(tag).title=p.Results.Title;
-            this.UserGuiStruct.(parent).(tag).init_val=p.Results.init_val;
-            this.UserGuiStruct.(parent).(tag).enable_flag=...
+            
+            %Populates the UserGui struct
+            this.UserGui.Fields.(tag).parent=p.Results.Parent;
+            this.UserGui.Fields.(tag).title=p.Results.Title;
+            this.UserGui.Fields.(tag).init_val=p.Results.init_val;
+            this.UserGui.Fields.(tag).enable_flag=...
                 p.Results.enable_flag;
+            this.UserGui.Fields.(tag).conv_factor=p.Results.conv_factor;
+            this.UserGui.Fields.(tag).Callback=...
+                p.Results.Callback;
+
             
             %Adds the new property to the class
             addUserProp(this, tag);
@@ -186,11 +199,13 @@ classdef MyFit < dynamicprops
         end
         
         function val=getUserVal(this, tag)
-            val=str2double(this.Gui.([tag,'Edit']).String);
+            conv_factor=this.UserGui.Fields.(tag).conv_factor;
+            val=str2double(this.Gui.([tag,'Edit']).String)*conv_factor;
         end
         
         function setUserVal(this, val, tag)
-            this.Gui.([tag,'Edit']).String=num2str(val);
+            conv_factor=this.UserGui.Fields.(tag).conv_factor;
+            this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
         end
         
         %% Callbacks
