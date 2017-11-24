@@ -10,6 +10,8 @@ classdef MyFit < dynamicprops
         plot_handle;
         save_name;
         save_dir;
+        %Calibration values supplied externally
+        CalVals=struct();
     end
     
     properties (GetAccess=public, SetAccess=private)
@@ -54,7 +56,8 @@ classdef MyFit < dynamicprops
             createParser(this);
             parse(this.Parser,varargin{:});
             parseInputs(this);
-
+            initCalVals(this);
+            
             if ismember('Data',this.Parser.UsingDefaults) &&...
                     ~ismember('x',this.Parser.UsingDefaults) &&...
                     ~ismember('y',this.Parser.UsingDefaults)
@@ -95,6 +98,16 @@ classdef MyFit < dynamicprops
             delete(this);
         end
         
+        %Initializes the CalVals structure. 
+        function initCalVals(this)
+            switch this.fit_name
+                case 'Lorentzian'
+                    %Ref spacing is the spacing between the 
+                    this.CalVals.line_spacing=1;
+                case 'DoubleLorentzian'
+                    this.CalVals.line_spacing=1;
+            end
+        end
         %Fits the trace using currently set parameters, depending on the
         %model.
         function fitTrace(this)
@@ -108,12 +121,14 @@ classdef MyFit < dynamicprops
                     %Fits polynomial of order 2
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case {'Exponential','Gaussian','Lorentzian',...
-                        'DoubleLorentzian'}
+                case {'Exponential','Gaussian'}
+                    doFit(this)
+                case {'Lorentzian','DoubleLorentzian'}
                     doFit(this);
                 otherwise
                     error('Selected fit is invalid');
             end
+            calcUserParams(this);
             %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
             %Resets the scale variables for the GUI
@@ -126,32 +141,42 @@ classdef MyFit < dynamicprops
             triggerNewFit(this);
         end
         
+        function calcUserParams(this)
+            switch this.fit_name
+                case 'Lorentzian'
+                    this.mech_lw=this.coeffs(2); %#ok<MCNPR>
+                    this.mech_freq=this.coeffs(3); %#ok<MCNPR>
+                    calcMechQ(this);
+                    this.opt_lw=this.coeffs(2)*this.spacing*1e6*this.line_no/this.CalVals.line_spacing; %#ok<MCNPR>
+                otherwise
+            end
+            
+        end
+        
         function createUserGuiStruct(this)
            switch this.fit_name
                case 'Lorentzian'
                    %Parameters for the tab relating to mechanics
-                   addUserField(this,'Mech','MechLw','Linewidth (Hz)',1,...
+                   addUserField(this,'Mech','mech_lw','Linewidth (Hz)',1,...
                        'enable_flag','off')
                    addUserField(this,'Mech','Q',...
                        'Qualify Factor (\times10^6)',1e6,...
                        'enable_flag','off','conv_factor',1e6)
-                   addUserField(this,'Mech','MechFreq','Frequency (MHz)',1e6,...
-                       'conv_factor',1e6, 'Callback', @(~,~) calcMechQ(this) )
+                   addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
+                       'conv_factor',1e6, 'enable_flag','off')
                    this.UserGui.Tabs.Mech.tab_title='Mech.';
                    %Parameters for the tab relating to optics
-                   addUserField(this,'Opt','Spacing',...
-                       'Line Spacing (MHz)',1e6,'conv_factor',1e6);
-                   addUserField(this,'Opt','LineNo','Number of lines',10);
-                   addUserField(this,'Opt','OptLw','Linewidth (MHz)',1e6,...
+                   addUserField(this,'Opt','spacing',...
+                       'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
+                         'Callback', @(~,~) calcUserParams(this));
+                   addUserField(this,'Opt','line_no','Number of lines',10,...
+                         'Callback', @(~,~) calcUserParams(this));
+                   addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
                    'enable_flag','off','conv_factor',1e6);
                    this.UserGui.Tabs.Opt.tab_title='Optical';
                otherwise
                    this.UserGui=struct('Fields',struct(),'Tabs',struct());
            end
-        end
-        
-        function calcMechQ(this)
-            this.Q=this.MechFreq/this.MechLw; %#ok<MCNPR>
         end
         
         %Parent is the parent tab for the userfield, tag is the tag given
@@ -182,7 +207,6 @@ classdef MyFit < dynamicprops
             this.UserGui.Fields.(tag).conv_factor=p.Results.conv_factor;
             this.UserGui.Fields.(tag).Callback=...
                 p.Results.Callback;
-
             
             %Adds the new property to the class
             addUserProp(this, tag);

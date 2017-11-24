@@ -188,16 +188,17 @@ classdef MyDaq < handle
             for i=1:length(this.open_fits)
                 switch this.open_fits{i}
                     case {'Linear','Quadratic','Gaussian',...
-                            'Exponential','Beta','DoubleLorentzian'}
+                            'Exponential','Beta'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
-                    case {'Lorentzian'}
+                    case {'Lorentzian','DoubleLorentzian'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
-                        ind=findCursorData(this,'Data','VertRef');
-                        x_dist=range(this.Data.x(ind));
-                        this.Fits.(this.open_fits{i}).Spacing=...
-                            x_dist/this.Fits.(this.open_fits{i}).LineNo;
+                        if isfield(this.Cursors,'VertRef')
+                            ind=findCursorData(this,'Data','VertRef');
+                            this.Fits.(this.open_fits{i}).CalVals.line_spacing=...
+                                range(this.Data.x(ind));
+                        end
                     case {'G0'}
                         this.Fits.G0.MechTrace=getFitData(this,'VertData');
                         this.Fits.G0.CalTrace=getFitData(this,'VertRef');
@@ -224,7 +225,7 @@ classdef MyDaq < handle
             %this.(trace_str) will refer to the same object, causing roblems.
             %Name input is the name of the cursor to be used to extract data.
             Trace=copy(this.(trc_str));
-            if ismember(name,fieldnames(this.Cursors))
+            if isfield(this.Cursors,name)
                 ind=findCursorData(this, trc_str, name);
                 Trace.x=this.(trc_str).x(ind);
                 Trace.y=this.(trc_str).y(ind);
