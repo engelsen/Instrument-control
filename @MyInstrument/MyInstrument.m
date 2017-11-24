@@ -67,7 +67,10 @@ classdef MyInstrument < dynamicprops
                 this.Gui=guihandles(eval(this.Parser.Results.gui));
                 %Sets figure close function such that class will know when
                 %figure is closed
-                set(this.Gui.figure1, 'CloseRequestFcn',...
+                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
+                    this.Gui);
+                names=fieldnames(this.Gui);
+                set(this.Gui.(names{ind}), 'CloseRequestFcn',...
                     @(hObject,eventdata) closeFigure(this, hObject, ...
                     eventdata));
             end
@@ -76,7 +79,12 @@ classdef MyInstrument < dynamicprops
         function delete(this)
             %Removes close function from figure, prevents infinite loop
             if this.enable_gui
-                set(this.Gui.figure1,'CloseRequestFcn','');
+                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
+                    this.Gui);
+                names=fieldnames(this.Gui);
+                set(this.Gui.(names{ind}), 'CloseRequestFcn',...
+                    @(hObject,eventdata) closeFigure(this, hObject, ...
+                    eventdata));
                 %Deletes the figure handles
                 structfun(@(x) delete(x), this.Gui);
                 %Removes the figure handle to prevent memory leaks

@@ -74,7 +74,7 @@ classdef MyRsa < MyInstrument
             switch this.Gui.(tag).Style
                 case 'edit'
                     this.Gui.(tag).String=...
-                        num2str(val/this.CommandList.(tag).conv_factor);
+                        num2str(val/this.ConvFactors.(tag));
                 case  'checkbox'
                     this.Gui.(tag).Value=val;
                 case 'popupmenu'
@@ -89,7 +89,7 @@ classdef MyRsa < MyInstrument
             switch this.Gui.(tag).Style
                 case 'edit'
                     val=str2double(this.Gui.(tag).String)*...
-                        this.CommandList.(tag).conv_factor;
+                        this.ConvFactors.(tag);
                 case 'checkbox'
                     val=this.Gui.(tag).Value;
                 case 'popupmenu'
@@ -128,28 +128,28 @@ classdef MyRsa < MyInstrument
         
         function createCommandList(this)
             addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN',...
-                'default',1,'attributes',{{'numeric'}});
+                'default',1,'str_spec','i');
             addCommand(this, 'rbw','DPSA:BAND:RES',...
-                'default',1e3,'attributes',{{'numeric'}},...
-                'conv_factor',1e3);
+                'default',1e3,'str_spec','d')
+            this.ConvFactors.rbw=1e3;
             addCommand(this, 'span', 'DPSA:FREQ:SPAN',...
-                'default',1e6,'attributes',{{'numeric'}},...
-                'conv_factor',1e6);
+                'default',1e6,'str_spec','d'},...
+            this.ConvFactors.span=1e6;
             addCommand(this,  'start_freq','DPSA:FREQ:STAR',...
-                'default',1e6,'attributes',{{'numeric'}},...
-                'conv_factor',1e6);
+                'default',1e6,'str_spec','d')
+            this.ConvFactors.start_freq=1e6;
             addCommand(this, 'stop_freq','DPSA:FREQ:STOP',...
-                'default',2e6,'attributes',{{'numeric'}},...
-                'conv_factor',1e6);
+                'default',2e6,'str_spec','d')
+            this.ConvFactors.stop_freq=1e6;
             addCommand(this, 'cent_freq','DPSA:FREQ:CENT',...
-                'default',1.5e6,'attributes',{{'numeric'}},...
-                'conv_factor',1e6);
+                'default',1.5e6,'str_spec','d')
+            this.ConvFactors.cent_freq=1e6;
             addCommand(this, 'point_no','DPSA:POIN:COUN P',...
-                'default',10401,'attributes',{{'numeric'}},'access','w');
+                'default',10401,'str_spec','i','access','w');
             addCommand(this, 'enable_avg','TRAC3:DPSA:COUN:ENABLE',...
-                'default',0,'attributes',{{'numeric'}});
+                'default',0,'str_spec','i');
             addCommand(this, 'read_cont','INIT:CONT','default',1,...
-                'attributes',{{'numeric'}});
+                'str_spec','i');
         end
     end
     

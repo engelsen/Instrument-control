@@ -85,11 +85,13 @@ this.Gui.TabPanel=uix.TabPanel('Parent',this.Gui.UserPanel,...
 %Creates the user values panel with associated tabs. The cellfun here
 %creates the appropriately named tabs. To add a tab, add a new field to the
 %UserGuiStruct.
-usertabs=fieldnames(this.UserGuiStruct);
+
+usertabs=fieldnames(this.UserGui.Tabs);
+
 if ~isempty(usertabs)
     cellfun(@(x) createTab(this,x,rgb_white,button_h),usertabs);
     this.Gui.TabPanel.TabTitles=...
-        cellfun(@(x) this.UserGuiStruct.(x).tab_title, usertabs,...
+        cellfun(@(x) this.UserGui.Tabs.(x).tab_title, usertabs,...
         'UniformOutput',0);
 end
 
