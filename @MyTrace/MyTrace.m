@@ -2,7 +2,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     properties (Access=public)
         x=[];
         y=[];
-        name='placeholder';
         Color='b';
         Marker='.';
         LineStyle='-'
@@ -11,6 +10,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         name_y='y';
         unit_x='';
         unit_y='';
+        filename='placeholder';
         save_dir='';
         load_path='';
         save_pres=15;
@@ -32,7 +32,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         %for all optional parameters.
         function createParser(this)
             p=inputParser;
-            addParameter(p,'name','placeholder');
+            addParameter(p,'filename','placeholder');
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
             addParameter(p,'Color','b');
@@ -99,27 +99,27 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Creates a file name out of the name of the class and the save
             %directory
-            filename=[this.save_dir,this.name,'.txt'];
-            if exist(filename,'file') && ~this.overwrite_flag
-                switch questdlg('Would you like to overwrite?')
+            fullfilename=[this.save_dir,this.filename,'.txt'];
+            if exist(fullfilename,'file') && ~this.overwrite_flag
+                switch questdlg('Would you like to overwrite?',...
+                        'File already exists', 'Yes', 'No', 'No')
                     case 'Yes'
                         this.overwrite_flag=1;
-                    case 'No'
-                        warning('No file written as %s already exists',...
-                            filename);
                     otherwise
+                        warning('No file written as %s already exists',...
+                            fullfilename);
                         return
                 end
             end
             
             %Creates the file
-            fileID=fopen(filename,'w');
+            fileID=fopen(fullfilename,'w');
             
             %MATLAB returns -1 for the fileID if the file could not be
             %opened
             if fileID==-1
-                errordlg(sprintf('File %s could not be created.',filename),...
-                    'File error');
+                errordlg(sprintf('File %s could not be created.',...
+                    fullfilename),'File error');
                 return
             end
             
@@ -200,7 +200,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function plotTrace(this,plot_axes,varargin)
             %Checks that there are axes to plot
             assert(exist('plot_axes','var') && ...
-                isa(plot_axes,'matlab.graphics.axis.Axes'),...
+                (isa(plot_axes,'matlab.graphics.axis.Axes')||...
+                isa(plot_axes,'matlab.ui.control.UIAxes')),...
                 'Please input axes to plot in.')
             %Checks that x and y are the same size
             assert(validatePlot(this),...
@@ -381,10 +382,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         end
         
         %Set function for name, checks if input is a string.
-        function set.name(this, name)
+        function set.filename(this, name)
             assert(ischar(name),'Name must be a string, not a %s',...
                 class(name));
-            this.name=name;
+            this.filename=name;
         end
         
         %Set function for unit_x, checks if input is a string.
