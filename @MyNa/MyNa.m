@@ -10,8 +10,8 @@ classdef MyNa < MyInstrument
         form1 = 'MLOG';
         form2 = 'PHAS';
         
-        data1 = struct();
-        data2 = struct();
+        Trace1 = MyTrace();
+        Trace2 = MyTrace();
     end
 
     methods
@@ -39,6 +39,11 @@ classdef MyNa < MyInstrument
                     ' Currently the address is %s and the interface is ',...
                     '%s.'],this.address,this.interface)
             end
+            
+            this.Trace1.unit_x = 'Hz';
+            this.Trace1.name_x = 'Frequency';
+            this.Trace2.unit_x = 'Hz';
+            this.Trace2.name_x = 'Frequency';
         end
         
         % Command attributes are {class, attributtes} accepted by
@@ -107,19 +112,24 @@ classdef MyNa < MyInstrument
             end
         end
         
-        function readTrace(this, nTrace)
+        function data = readTrace(this, nTrace)
             this.writeActiveTrace(nTrace);
-            dtag = sprintf('data%i', nTrace);
             freq_str = strsplit(query(this.Device,'SENS1:FREQ:DATA?'),',');
             data_str = strsplit(query(this.Device,'CALC1:DATA:FDAT?'),',');
-            this.(dtag).x = str2double(freq_str);
+            data = struct();
+            data.x = str2double(freq_str);
             % In the returned string there is in general 2 values for each
             % frequency point. In the Smith data format this can be used to
             % transfer magnitude and phase of the signal in one trace. With
             % MLOG, MLIN and PHAS format settings every 2-nd element should
             % be 0
-            this.(dtag).y = str2double(data_str(1:2:end));
-            this.(dtag).y2 = str2double(data_str(2:2:end));
+            data.y1 = str2double(data_str(1:2:end));
+            data.y2 = str2double(data_str(2:2:end));
+            
+            % set the Trace properties
+            trace_tag = sprintf('Trace%i', nTrace);
+            this.(trace_tag).x = data.x;
+            this.(trace_tag).y = data.y1;
         end
         
         function writeActiveTrace(this, nTrace)

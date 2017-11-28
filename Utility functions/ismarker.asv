@@ -1,0 +1,4 @@
+function bool=ismarker(marker)
+bool=sum(strcmpi
+
+end
