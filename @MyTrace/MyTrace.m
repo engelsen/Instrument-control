@@ -3,10 +3,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         x=[];
         y=[];
         name='placeholder';
-        Color='b';
-        Marker='.';
-        LineStyle='-'
-        MarkerSize=6;
         name_x='x';
         name_y='y';
         unit_x='';
@@ -35,10 +31,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             addParameter(p,'name','placeholder');
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
-            addParameter(p,'Color','b');
-            addParameter(p,'Marker','none');
-            addParameter(p,'LineStyle','-');
-            addParameter(p,'MarkerSize',6);
             addParameter(p,'unit_x','x');
             addParameter(p,'unit_y','y');
             addParameter(p,'name_x','x');
@@ -86,6 +78,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %function, to change the name or save directory.
             parse(this.Parser,varargin{:});
             parseInputs(this,false);
+            addParameter(p,'save_dir',pwd);
+            addParameter(p,'Color','b');
+            addParameter(p,'Marker','none');
+            addParameter(p,'LineStyle','-');
+            addParameter(p,'MarkerSize',6);
+            
             
             %Adds the \ at the end if it was not added by the user.
             if ~strcmp(this.save_dir(end),'\')

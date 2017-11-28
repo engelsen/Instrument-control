@@ -46,7 +46,14 @@ this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
 
 %Sets the heights and minimum heights of the four vertical boxes. -1 means
 %it resizes with the window
-set(this.Gui.MainVbox,'Heights',[40,-1,-1,100],'MinimumHeights',[40,80,50,100]);
+if this.n_userfields>3
+    min_height=this.n_userfields+2;
+else
+    min_height=5;
+end
+
+set(this.Gui.MainVbox,'Heights',[40,-1,-1,100],...
+    'MinimumHeights',[40,80,min_height*button_h,100]);
 
 %Here we create the save panel in the GUI.
 this.Gui.FitPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
@@ -147,7 +154,7 @@ for i=1:this.n_params
     
 end
 
-%Makes all the panels at the bottom visible together
+%Makes all the panels at the bottom visible at the same time
 cellfun(@(x) set(this.Gui.(x),'Visible','on'),panel_str);
 
 end

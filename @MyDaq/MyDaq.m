@@ -424,7 +424,7 @@ classdef MyDaq < handle
                 x_pos=10^(mean(log10(this.main_plot.XLim)));
             end
             
-            if ~this.Gui.LogX.Value
+            if ~this.Gui.LogY.Value
                 y_pos=mean(this.main_plot.YLim);
             else
                 y_pos=10^(mean(log10(this.main_plot.YLim)));
@@ -500,7 +500,7 @@ classdef MyDaq < handle
                 save(this.Data,'save_dir',this.save_dir,'name',...
                     this.savefile)
             else
-                error('Data trace was empty, could not save');
+                errdlg('Data trace was empty, could not save');
             end
         end
         
@@ -510,7 +510,7 @@ classdef MyDaq < handle
                 save(this.Ref,'save_dir',this.save_dir,'name',...
                     this.savefile)
             else
-                error('Reference trace was empty, could not save')
+                errdlg('Reference trace was empty, could not save')
             end
         end
         

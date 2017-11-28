@@ -12,6 +12,7 @@ classdef MyFit < dynamicprops
         save_dir;
         %Calibration values supplied externally
         CalVals=struct();
+        init_color='c';
     end
     
     properties (GetAccess=public, SetAccess=private)
@@ -41,6 +42,7 @@ classdef MyFit < dynamicprops
         scaled_params;
         init_param_fun;
         x_vec;
+        n_userfields;
     end
     
     events
@@ -146,11 +148,18 @@ classdef MyFit < dynamicprops
                 case 'Lorentzian'
                     this.mech_lw=this.coeffs(2); %#ok<MCNPR>
                     this.mech_freq=this.coeffs(3); %#ok<MCNPR>
-                    calcMechQ(this);
-                    this.opt_lw=this.coeffs(2)*this.spacing*1e6*this.line_no/this.CalVals.line_spacing; %#ok<MCNPR>
+                    this.Q=this.mech_freq/this.mech_lw;
+                    this.opt_lw=convOptLinewidth(this,this.coeffs(2)); %#ok<MCNPR>
+                case 'DoubleLorentzian'
+                    this.opt_lw1=convOptLinewidth(this,this.coeffs(2)); %#ok<MCNPR>
+                    this.opt_lw2=convOptLinewidth(this,this.coeffs(5)); %#ok<MCNPR>
                 otherwise
             end
             
+        end
+        
+        function real_lw=convOptLinewidth(this,lw)
+            real_lw=lw*this.spacing*1e6*this.line_no/this.CalVals.line_spacing;
         end
         
         function createUserGuiStruct(this)
@@ -174,6 +183,21 @@ classdef MyFit < dynamicprops
                    addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
                    'enable_flag','off','conv_factor',1e6);
                    this.UserGui.Tabs.Opt.tab_title='Optical';
+               case 'DoubleLorentzian'
+                   addUserField(this,'Opt','spacing',...
+                       'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
+                       'Callback', @(~,~) calcUserParams(this));
+                   addUserField(this,'Opt','line_no','Number of lines',10,...
+                       'Callback', @(~,~) calcUserParams(this));
+                   addUserField(this,'Opt','opt_lw1','Linewidth 1 (MHz)',1e6,...
+                       'enable_flag','off','conv_factor',1e6);
+                   addUserField(this,'Opt','opt_lw2','Linewidth 2 (MHz)',1e6,...
+                       'enable_flag','off','conv_factor',1e6);
+                   addUserField(this,'Opt','mode_split',...
+                       'Modal splitting (MHz)',1e6,...
+                       'enable_flag','off','conv_factor',1e6);
+                   this.UserGui.Tabs.Opt.tab_title='Optical';
+                   
                otherwise
                    this.UserGui=struct('Fields',struct(),'Tabs',struct());
            end
@@ -367,7 +391,8 @@ classdef MyFit < dynamicprops
             y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,...
                 this.x_vec,input_cell{:});
             if isempty(this.hline_init)
-                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec);
+                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec,...
+                    'Color',this.init_color);
             else
                 set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
             end
@@ -557,6 +582,11 @@ classdef MyFit < dynamicprops
         %Generates a vector of x values for plotting
         function x_vec=get.x_vec(this)
             x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
+        end
+        
+        
+        function n_userfields=get.n_userfields(this)
+            n_userfields=length(fieldnames(this.UserGui.Fields));
         end
     end
 end
