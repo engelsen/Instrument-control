@@ -227,18 +227,27 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 'The length of x and y must be identical to make a plot')
             %Parses inputs 
             p=inputParser();
+            
             validateColor=@(x) assert(iscolor(x),...
                 'Input must be a valid color. See iscolor function');
             addParameter(p,'Color','b',validateColor);
+            
             validateMarker=@(x) assert(ismarker(x),...
                 'Input must be a valid marker. See ismarker function');
             addParameter(p,'Marker','none',validateMarker);
+            
             validateLine=@(x) assert(isline(x),...
                 'Input must be a valid linestyle. See isline function');
             addParameter(p,'LineStyle','-',validateLine);
+            
             addParameter(p,'MarkerSize',6,...
                 @(x) validateattributes(x,{'numeric'},{'positive'}));
             addParameter(p,'make_labels',false,@islogical);
+            
+            interpreters={'none','tex','latex'};
+            validateInterpreter=@(x) assert(contains(x,interpreters),...
+                'Interpreter must be none, tex or latex');
+            addParameter(p,'Interpreter','latex',validateInterpreter);
             parse(p,varargin{:});
             
             ind=findLineInd(this, plot_axes);
@@ -255,9 +264,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 'MarkerSize',p.Results.MarkerSize);
             
             if p.Results.make_labels
-                xlabel(plot_axes,this.label_x,'Interpreter','LaTeX');
-                ylabel(plot_axes,this.label_y,'Interpreter','LaTeX');
-                set(plot_axes,'TickLabelInterpreter','LaTeX');
+                interpreter=p.Results.Interpreter;
+                xlabel(plot_axes,this.label_x,'Interpreter',interpreter);
+                ylabel(plot_axes,this.label_y,'Interpreter',interpreter);
+                set(plot_axes,'TickLabelInterpreter',interpreter);
             end
         end
         
