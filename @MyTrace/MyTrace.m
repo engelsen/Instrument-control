@@ -2,10 +2,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     properties (Access=public)
         x=[];
         y=[];
-<<<<<<< HEAD
         name='placeholder';
-=======
->>>>>>> master
         name_x='x';
         name_y='y';
         unit_x='';

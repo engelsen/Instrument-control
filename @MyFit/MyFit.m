@@ -148,24 +148,29 @@ classdef MyFit < dynamicprops
                 case 'Lorentzian'
                     this.mech_lw=this.coeffs(2); %#ok<MCNPR>
                     this.mech_freq=this.coeffs(3); %#ok<MCNPR>
-                    this.Q=this.mech_freq/this.mech_lw;
-                    this.opt_lw=convOptLinewidth(this,this.coeffs(2)); %#ok<MCNPR>
+                    this.Q=this.mech_freq/this.mech_lw; %#ok<MCNPR>
+                    this.opt_lw=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
                 case 'DoubleLorentzian'
-                    this.opt_lw1=convOptLinewidth(this,this.coeffs(2)); %#ok<MCNPR>
-                    this.opt_lw2=convOptLinewidth(this,this.coeffs(5)); %#ok<MCNPR>
+                    this.opt_lw1=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
+                    this.opt_lw2=convOptFreq(this,this.coeffs(5)); %#ok<MCNPR>
+                    splitting=abs(this.coeffs(6)-this.coeffs(3));
+                    this.mode_split=convOptFreq(this,splitting); %#ok<MCNPR>
                 otherwise
             end
             
         end
         
-        function real_lw=convOptLinewidth(this,lw)
-            real_lw=lw*this.spacing*1e6*this.line_no/this.CalVals.line_spacing;
+        function real_freq=convOptFreq(this,freq)
+            real_freq=freq*this.spacing*this.line_no/this.CalVals.line_spacing;
         end
         
         function createUserGuiStruct(this)
+            this.UserGui=struct('Fields',struct(),'Tabs',struct());
            switch this.fit_name
                case 'Lorentzian'
                    %Parameters for the tab relating to mechanics
+                   this.UserGui.Tabs.Mech.tab_title='Mech.';
+                   this.UserGui.Tabs.Mech.Children={};
                    addUserField(this,'Mech','mech_lw','Linewidth (Hz)',1,...
                        'enable_flag','off')
                    addUserField(this,'Mech','Q',...
@@ -173,8 +178,10 @@ classdef MyFit < dynamicprops
                        'enable_flag','off','conv_factor',1e6)
                    addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
                        'conv_factor',1e6, 'enable_flag','off')
-                   this.UserGui.Tabs.Mech.tab_title='Mech.';
+                   
                    %Parameters for the tab relating to optics
+                   this.UserGui.Tabs.Opt.tab_title='Optical';
+                   this.UserGui.Tabs.Opt.Children={};
                    addUserField(this,'Opt','spacing',...
                        'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
                          'Callback', @(~,~) calcUserParams(this));
@@ -182,8 +189,10 @@ classdef MyFit < dynamicprops
                          'Callback', @(~,~) calcUserParams(this));
                    addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
                    'enable_flag','off','conv_factor',1e6);
-                   this.UserGui.Tabs.Opt.tab_title='Optical';
+                   
                case 'DoubleLorentzian'
+                   this.UserGui.Tabs.Opt.tab_title='Optical';
+                   this.UserGui.Tabs.Opt.Children={};
                    addUserField(this,'Opt','spacing',...
                        'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
                        'Callback', @(~,~) calcUserParams(this));
@@ -196,10 +205,8 @@ classdef MyFit < dynamicprops
                    addUserField(this,'Opt','mode_split',...
                        'Modal splitting (MHz)',1e6,...
                        'enable_flag','off','conv_factor',1e6);
-                   this.UserGui.Tabs.Opt.tab_title='Optical';
                    
                otherwise
-                   this.UserGui=struct('Fields',struct(),'Tabs',struct());
            end
         end
         
@@ -232,6 +239,7 @@ classdef MyFit < dynamicprops
             this.UserGui.Fields.(tag).Callback=...
                 p.Results.Callback;
             
+            this.UserGui.Tabs.(p.Results.Parent).Children{end+1}=tag;
             %Adds the new property to the class
             addUserProp(this, tag);
             
@@ -583,7 +591,6 @@ classdef MyFit < dynamicprops
         function x_vec=get.x_vec(this)
             x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
         end
-        
         
         function n_userfields=get.n_userfields(this)
             n_userfields=length(fieldnames(this.UserGui.Fields));

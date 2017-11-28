@@ -13,13 +13,31 @@ edit_width=140;
 %Height of buttons in GUI
 button_h=25;
 
+%Minimum height of the four vboxes composing the gui.
+title_h=40;
+equation_h=80;
+slider_h=100;
+
+%Finds the minimum height in button heights of the user field panel. This
+%is used to calculate the height of the figure.
+tab_fields=fieldnames(this.UserGui.Tabs);
+max_fields=max(cellfun(@(x) length(this.UserGui.Tabs.(x).Children),tab_fields));
+if max_fields>3
+    min_user_h=max_fields+2;
+else
+    min_user_h=5;
+end
+
+userpanel_h=min_user_h*button_h;
+fig_h=title_h+equation_h+slider_h+userpanel_h;
+
 %Name sets the title of the window, NumberTitle turns off the FigureN text
 %that would otherwise be before the title, MenuBar is the menu normally on
 %the figure, toolbar is the toolbar normally on the figure.
 %HandleVisibility refers to whether gcf, gca etc will grab this figure.
 this.Gui.Window = figure('Name', 'MyFit', 'NumberTitle', 'off', ...
     'MenuBar', 'none', 'Toolbar', 'none', 'HandleVisibility', 'off',...
-    'Units','Pixels','Position',[500,500,edit_width*this.n_params,400]);
+    'Units','Pixels','Position',[500,500,edit_width*this.n_params,fig_h]);
 %Sets the close function (runs when x is pressed) to be class function
 set(this.Gui.Window, 'CloseRequestFcn',...
     @(hObject,eventdata) closeFigure(this, hObject,eventdata));
@@ -46,14 +64,8 @@ this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
 
 %Sets the heights and minimum heights of the four vertical boxes. -1 means
 %it resizes with the window
-if this.n_userfields>3
-    min_height=this.n_userfields+2;
-else
-    min_height=5;
-end
-
-set(this.Gui.MainVbox,'Heights',[40,-1,-1,100],...
-    'MinimumHeights',[40,80,min_height*button_h,100]);
+set(this.Gui.MainVbox,'Heights',[title_h,-1,-1,slider_h],...
+    'MinimumHeights',[title_h,equation_h,userpanel_h,slider_h]);
 
 %Here we create the save panel in the GUI.
 this.Gui.FitPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
@@ -113,7 +125,7 @@ for i=1:this.n_params
         'Padding',0,'BackgroundColor', 'w',...
         'Title',sprintf('%s (%s)',this.fit_param_names{i},this.fit_params{i}),...
         'TitleColor',rgb_blue,...
-        'Position',[1+edit_width*(i-1),1,edit_width,100],...
+        'Position',[1+edit_width*(i-1),1,edit_width,slider_h],...
         'Visible','off');
 end
 
