@@ -185,34 +185,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             parse(this.Parser,varargin{:})
             parseInputs(this, false);
         end
-%                 %Set function for Color. Checks if it is a valid color.
-%         function set.Color(this, Color)
-%             assert(iscolor(Color),...
-%                 '%s is not a valid MATLAB default color or RGB triplet',...
-%                 Color);
-%             this.Color=Color;
-%         end
-%         
-%         %Set function for Marker. Checks if it is a valid
-%         %marker style.
-%         function set.Marker(this, Marker)
-%             assert(ismarker(Marker),...
-%                 '%s is not a valid MATLAB MarkerStyle',Marker);
-%             this.Marker=Marker;
-%         end
-%                 %Set function for LineStyle, checks if input is a valid line style.
-%         function set.LineStyle(this, LineStyle)
-%             assert(isline(LineStyle),...
-%                 '%s is not a valid MATLAB LineStyle',LineStyle);
-%             this.LineStyle=LineStyle;
-%         end
-%         
-%         %Set function for MarkerSize, checks if input is a positive number.
-%         function set.MarkerSize(this, MarkerSize)
-%             assert(isnumeric(MarkerSize) && MarkerSize>0,...
-%                 'MarkerSize must be a numeric value greater than zero');
-%             this.MarkerSize=MarkerSize;
-%         end
+
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
@@ -381,8 +354,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     
     %Set and get methods
     methods
-
-        
         %Set function for x, checks if it is a vector of doubles.
         function set.x(this, x)
             assert(isnumeric(x),...
