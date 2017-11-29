@@ -1,6 +1,7 @@
 classdef MyRsa < MyInstrument
     properties (SetAccess=protected, GetAccess=public)
         valid_points;
+        ConvFactors=struct();
     end
     
     properties (Dependent=true)
@@ -9,8 +10,8 @@ classdef MyRsa < MyInstrument
     
     %% Constructor and destructor
     methods (Access=public)
-        function this=MyRsa(name,interface, address,varargin)
-            this@MyInstrument(name, interface, address,varargin{:});
+        function this=MyRsa(interface, address,varargin)
+            this@MyInstrument(interface, address,varargin{:});
             if this.enable_gui; initGui(this); end
             
             createCommandList(this);
@@ -38,9 +39,9 @@ classdef MyRsa < MyInstrument
             %Opens communications
             openDevice(this);
             %Finds the current status of the device
-            readAll(this);
+            readProperty(this,'all');
             %Writes default parameters to the device
-            writeProperty(this,'write_all_defaults',true);
+            writeProperty(this,'all',true);
             closeDevice(this);
         end
     end
@@ -129,11 +130,12 @@ classdef MyRsa < MyInstrument
         function createCommandList(this)
             addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN',...
                 'default',1,'str_spec','i');
+            this.ConvFactors.average_no=1;
             addCommand(this, 'rbw','DPSA:BAND:RES',...
                 'default',1e3,'str_spec','d')
             this.ConvFactors.rbw=1e3;
             addCommand(this, 'span', 'DPSA:FREQ:SPAN',...
-                'default',1e6,'str_spec','d'},...
+                'default',1e6,'str_spec','d'),...
             this.ConvFactors.span=1e6;
             addCommand(this,  'start_freq','DPSA:FREQ:STAR',...
                 'default',1e6,'str_spec','d')
@@ -158,7 +160,7 @@ classdef MyRsa < MyInstrument
         
         function reinitDevice(this)
             openDevice(this);
-            readAll(this);
+            readProperty(this,'all');
             writeProperty(this, 'read_cont',1)
             closeDevice(this);
         end
@@ -169,16 +171,16 @@ classdef MyRsa < MyInstrument
             fwrite(this.Device, 'fetch:dpsa:res:trace3?');
             data = binblockread(this.Device,'float');
             %Reads status at the end.
-            readAll(this);
+            readProperty(this,'all');
             closeDevice(this);
-            x_vec=this.freq_vec/1e6;
+            x_vec=this.freq_vec;
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
             %Trace object is created containing the data and its units
-            setTrace(this.Trace,'name','RsaData','x',x_vec,'y',power_spectrum,...
+            setTrace(this.Trace,'x',x_vec,'y',power_spectrum,...
                 'unit_y','$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power',...
-                'unit_x','MHz','name_x','Frequency');
+                'unit_x','Hz','name_x','Frequency');
 
             %Trigger acquired data event (inherited from MyInstrument)
             triggerNewData(this);
@@ -190,58 +192,48 @@ classdef MyRsa < MyInstrument
             set(hObject,'Value',0);
         end
         
-        function point_noCallback(this, hObject, ~)
-            value_list=get(hObject,'String');
-            this.point_no=str2double(value_list{get(hObject,'Value')});
+        function point_noCallback(this, ~, ~)
             openDevice(this);
             writeProperty(this,'point_no',this.point_no);
-            readAll(this);
+            readProperty(this,'all');
             closeDevice(this);
         end
         
-        function start_freqCallback(this, hObject, ~)
-            this.start_freq=str2double(get(hObject,'String'))*1e6;
+        function start_freqCallback(this, ~, ~)
             openDevice(this);
             writeProperty(this,'start_freq',this.start_freq);
-            readAll(this);
+            readProperty(this,'all');
             closeDevice(this);
         end
         
-        function stop_freqCallback(this, hObject, ~)
-            this.stop_freq=str2double(get(hObject,'String'))*1e6;
+        function stop_freqCallback(this, ~, ~)
             openDevice(this);
             writeProperty(this,'stop_freq',this.stop_freq);
-            readAll(this);
+            readProperty(this,'all');
             closeDevice(this);
         end
         
-        function cent_freqCallback(this, hObject, ~)
-            this.cent_freq=str2double(get(hObject,'String'))*1e6;
+        function cent_freqCallback(this, ~, ~)
             openDevice(this);
             writeProperty(this,'cent_freq',this.cent_freq);
-            readAll(this);
+            readProperty(this,'all');
             closeDevice(this);
         end
         
-        function spanCallback(this, hObject, ~)
-            this.span=str2double(get(hObject,'String'))*1e6;
+        function spanCallback(this, ~, ~)
             openDevice(this);
             writeProperty(this,'span',this.span);
-            readAll(this)
+            readProperty(this,'all');
             closeDevice(this);
         end
         
-        function rbwCallback(this, hObject, ~)
-            this.rbw=str2double(get(hObject,'String'))*1e3;
+        function rbwCallback(this, ~, ~)
             openDevice(this);
             writeProperty(this,'rbw',this.rbw);
             closeDevice(this);
         end
         
-        function average_noCallback(this, hObject, ~)
-            this.average_no=str2double(get(hObject,'String'));
-            %Writes the average_no to the device only if averaging is
-            %enabled
+        function average_noCallback(this, ~, ~)
             openDevice(this);
             writeProperty(this,'average_no',this.average_no);
             closeDevice(this);
@@ -258,104 +250,12 @@ classdef MyRsa < MyInstrument
             set(this.Gui.fetch_single,'Value',0);
         end
         
-        function enable_avgCallback(this, hObject, ~)
-            this.enable_avg=get(hObject,'Value');
+        function enable_avgCallback(this, ~, ~)
             openDevice(this)
             writeProperty(this,'enable_avg',this.enable_avg);
             closeDevice(this);
         end
     end
-    
-%     %% Set functions
-%     methods
-%         %Set function for central frequency, changes gui to show central
-%         %frequency in MHz
-%         function set.cent_freq(this, cent_freq)
-%             this.cent_freq=cent_freq;
-%             if this.enable_gui
-%                 set(this.Gui.cent_freq,'String',this.cent_freq/1e6);
-%             end
-%         end
-%         
-%         %Set function for rbw, changes gui to show rbw in kHz
-%         function set.rbw(this, rbw)
-%             assert(isnumeric(rbw) && rbw>0,'RBW must be a positive double');
-%             this.rbw=rbw;
-%             if this.enable_gui
-%                 set(this.Gui.rbw,'String',this.rbw/1e3);
-%             end
-%         end
-%         
-%         %Set function for enable_avg, changes gui
-%         function set.enable_avg(this, enable_avg)
-%             assert(isnumeric(enable_avg),...
-%                 'Flag for averaging must be a number')
-%             assert(enable_avg==1 || enable_avg==0,...
-%                 'Flag for averaging must be 0 or 1')
-%             this.enable_avg=enable_avg;
-%             if this.enable_gui
-%                 set(this.Gui.enable_avg,'Value',this.enable_avg)
-%             end
-%         end
-%         
-%         %Set function for span, changes gui to show span in MHz
-%         function set.span(this, span)
-%             assert(isnumeric(span) && span>0,...
-%                 'Span must be a positive number');
-%             this.span=span;
-%             if this.enable_gui
-%                 set(this.Gui.span,'String',this.span/1e6);
-%             end
-%         end
-%         
-%         
-%         %Set function for start frequency, changes gui to show start
-%         %frequency in MHz
-%         function set.start_freq(this, start_freq)
-%             assert(isnumeric(start_freq),'Start frequency must be a number');
-%             this.start_freq=start_freq;
-%             if this.enable_gui
-%                 set(this.Gui.start_freq,'String',this.start_freq/1e6);
-%             end
-%         end
-%         
-%         %Set function for stop frequency, changes gui to show stop
-%         %frequency in MHz
-%         function set.stop_freq(this, stop_freq)
-%             assert(isnumeric(stop_freq),...
-%                 'Stop frequency must be a number');
-%             this.stop_freq=stop_freq;
-%             if this.enable_gui
-%                 set(this.Gui.stop_freq,'String',this.stop_freq/1e6)
-%             end
-%         end
-%         
-%         %Set function for average number, also changes GUI
-%         function set.average_no(this, average_no)
-%             assert(isnumeric(average_no),'Number of averages must be a number')
-%             assert(logical(mod(average_no,1))==0 && average_no>0,...
-%                 'Number of averages must be a positive integer')
-%             this.average_no=average_no;
-%             if this.enable_gui
-%                 set(this.Gui.average_no,'String',this.average_no);
-%             end
-%         end
-%         
-%         %Set function for point number, checks it is valid and changes GUI
-%         function set.point_no(this, point_no)
-%             if ismember(point_no,this.valid_points)
-%                 this.point_no=point_no;
-%                 if this.enable_gui
-%                     ind=strcmp(get(this.Gui.point_no,'String'),...
-%                         num2str(point_no));
-%                     set(this.Gui.point_no,'Value',find(ind));
-%                 end
-%             else
-%                 error('Invalid number of points chosen for RSA')
-%             end
-%         end
-%     end
-%     
     %% Get functions
     methods
         %Generates a vector of frequencies between the start and stop

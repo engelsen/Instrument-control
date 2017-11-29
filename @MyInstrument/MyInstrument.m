@@ -14,7 +14,7 @@ classdef MyInstrument < dynamicprops
         Parser;
         %Contains a list of the commands available for the instrument as
         %well as the default values and input requirements
-        CommandList;
+        CommandList=struct();
         %Parses commands using an inputParser object
         CommandParser;
         %Trace object for storing data
@@ -264,8 +264,8 @@ classdef MyInstrument < dynamicprops
             addRequired(p,'tag',@ischar);
             addRequired(p,'command',@ischar);
             addParameter(p,'default','placeholder');
-            addParameter(p,'classes','placeholder',@iscell);
-            addParameter(p,'attributes','placeholder',@iscell);
+            addParameter(p,'classes',{},@iscell);
+            addParameter(p,'attributes',{},@iscell);
             addParameter(p,'str_spec','%d',@ischar);
             addParameter(p,'access','rw',@ischar);
             parse(p,tag,command,varargin{:});
@@ -286,15 +286,15 @@ classdef MyInstrument < dynamicprops
                     this.CommandList.(tag).str_spec=...
                         formatSpecFromAttributes(this,p.Results.classes...
                         ,p.Results.attributes);
+                elseif strcmp(p.Results.str_spec,'%b')
+                    % b is a non-system specifier to represent the
+                    % logical type
+                    this.CommandList.(tag).str_spec='%i';
                 else
-                    if strcmp(p.Results.str_spec,'%b')
-                        % b is a non-system specifier to represent the
-                        % logical type
-                        this.CommandList.(tag).str_spec='%i';
-                    else
-                        this.CommandList.(tag).str_spec=p.Results.str_spec;
-                    end
+                    this.CommandList.(tag).str_spec=p.Results.str_spec;
                 end
+
+                
                 % Adds the default value
                 this.CommandList.(tag).default=p.Results.default;
                 % Adds the attributes for the input to the command. If not
@@ -307,6 +307,12 @@ classdef MyInstrument < dynamicprops
                     this.CommandList.(tag).classes=p.Results.classes;
                     this.CommandList.(tag).attributes=p.Results.attributes;
                 end
+            end
+            
+            if (this.CommandList.(tag).read_flag &&...
+                    ~this.CommandList.(tag).write_flag)
+                this.CommandList.(tag).classes=p.Results.classes;
+                this.CommandList.(tag).attributes=p.Results.attributes;
             end
             % Adds a property to the class corresponding to the tag
             if ~isprop(this,tag)
@@ -324,12 +330,14 @@ classdef MyInstrument < dynamicprops
             %Flag for whether the command should initialize the device with
             %defaults
             addParameter(p, 'all',false,@islogical);
+            ind_w=structfun(@(x) x.write_flag, this.CommandList);
+            write_commands=this.command_names(ind_w);
             
-            for i=1:length(this.command_names)
+            for i=1:length(write_commands)
                 %Adds optional inputs for each command, with the
                 %appropriate default value from the command list and the
                 %required attributes for the command input.
-                tag=this.command_names{i};
+                tag=write_commands{i};
                 addParameter(p, tag,...
                     this.CommandList.(tag).default,...
                     @(x) validateattributes(x,...

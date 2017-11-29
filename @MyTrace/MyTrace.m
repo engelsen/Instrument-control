@@ -2,15 +2,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     properties (Access=public)
         x=[];
         y=[];
-        name='placeholder';
-        Color='b';
-        Marker='.';
-        LineStyle='-'
-        MarkerSize=6;
         name_x='x';
         name_y='y';
         unit_x='';
         unit_y='';
+        filename='placeholder';
         save_dir='';
         load_path='';
         save_pres=15;
@@ -32,13 +28,9 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         %for all optional parameters.
         function createParser(this)
             p=inputParser;
-            addParameter(p,'name','placeholder');
+            addParameter(p,'filename','placeholder');
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
-            addParameter(p,'Color','b');
-            addParameter(p,'Marker','none');
-            addParameter(p,'LineStyle','-');
-            addParameter(p,'MarkerSize',6);
             addParameter(p,'unit_x','x');
             addParameter(p,'unit_y','y');
             addParameter(p,'name_x','x');
@@ -86,6 +78,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %function, to change the name or save directory.
             parse(this.Parser,varargin{:});
             parseInputs(this,false);
+            addParameter(p,'save_dir',pwd);
+            addParameter(p,'Color','b');
+            addParameter(p,'Marker','none');
+            addParameter(p,'LineStyle','-');
+            addParameter(p,'MarkerSize',6);
+            
             
             %Adds the \ at the end if it was not added by the user.
             if ~strcmp(this.save_dir(end),'\')
@@ -99,27 +97,27 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Creates a file name out of the name of the class and the save
             %directory
-            filename=[this.save_dir,this.name,'.txt'];
-            if exist(filename,'file') && ~this.overwrite_flag
-                switch questdlg('Would you like to overwrite?')
+            fullfilename=[this.save_dir,this.filename,'.txt'];
+            if exist(fullfilename,'file') && ~this.overwrite_flag
+                switch questdlg('Would you like to overwrite?',...
+                        'File already exists', 'Yes', 'No', 'No')
                     case 'Yes'
                         this.overwrite_flag=1;
-                    case 'No'
-                        warning('No file written as %s already exists',...
-                            filename);
                     otherwise
+                        warning('No file written as %s already exists',...
+                            fullfilename);
                         return
                 end
             end
             
             %Creates the file
-            fileID=fopen(filename,'w');
+            fileID=fopen(fullfilename,'w');
             
             %MATLAB returns -1 for the fileID if the file could not be
             %opened
             if fileID==-1
-                errordlg(sprintf('File %s could not be created.',filename),...
-                    'File error');
+                errordlg(sprintf('File %s could not be created.',...
+                    fullfilename),'File error');
                 return
             end
             
@@ -193,21 +191,43 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             parse(this.Parser,varargin{:})
             parseInputs(this, false);
         end
-        
+
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
         function plotTrace(this,plot_axes,varargin)
             %Checks that there are axes to plot
             assert(exist('plot_axes','var') && ...
-                isa(plot_axes,'matlab.graphics.axis.Axes'),...
+                (isa(plot_axes,'matlab.graphics.axis.Axes')||...
+                isa(plot_axes,'matlab.ui.control.UIAxes')),...
                 'Please input axes to plot in.')
             %Checks that x and y are the same size
             assert(validatePlot(this),...
                 'The length of x and y must be identical to make a plot')
-            %Parses inputs without resetting to defaults
-            parse(this.Parser,varargin{:})
-            parseInputs(this,false);
+            %Parses inputs 
+            p=inputParser();
+            
+            validateColor=@(x) assert(iscolor(x),...
+                'Input must be a valid color. See iscolor function');
+            addParameter(p,'Color','b',validateColor);
+            
+            validateMarker=@(x) assert(ismarker(x),...
+                'Input must be a valid marker. See ismarker function');
+            addParameter(p,'Marker','none',validateMarker);
+            
+            validateLine=@(x) assert(isline(x),...
+                'Input must be a valid linestyle. See isline function');
+            addParameter(p,'LineStyle','-',validateLine);
+            
+            addParameter(p,'MarkerSize',6,...
+                @(x) validateattributes(x,{'numeric'},{'positive'}));
+            addParameter(p,'make_labels',false,@islogical);
+            
+            interpreters={'none','tex','latex'};
+            validateInterpreter=@(x) assert(contains(x,interpreters),...
+                'Interpreter must be none, tex or latex');
+            addParameter(p,'Interpreter','latex',validateInterpreter);
+            parse(p,varargin{:});
             
             ind=findLineInd(this, plot_axes);
             if ~isempty(ind) && any(ind)
@@ -218,12 +238,16 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             end
             
             %Sets the correct color and label options
-            set(this.hlines{ind},'Color',this.Color,'LineStyle',...
-                this.LineStyle,'Marker',this.Marker,...
-                'MarkerSize',this.MarkerSize);
-            xlabel(plot_axes,this.label_x,'Interpreter','LaTeX');
-            ylabel(plot_axes,this.label_y,'Interpreter','LaTeX');
-            set(plot_axes,'TickLabelInterpreter','LaTeX');
+            set(this.hlines{ind},'Color',p.Results.Color,'LineStyle',...
+                p.Results.LineStyle,'Marker',p.Results.Marker,...
+                'MarkerSize',p.Results.MarkerSize);
+            
+            if p.Results.make_labels
+                interpreter=p.Results.Interpreter;
+                xlabel(plot_axes,this.label_x,'Interpreter',interpreter);
+                ylabel(plot_axes,this.label_y,'Interpreter',interpreter);
+                set(plot_axes,'TickLabelInterpreter',interpreter);
+            end
         end
         
         %If there is a line object from the trace in the figure, this sets
@@ -336,22 +360,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     
     %Set and get methods
     methods
-        %Set function for Color. Checks if it is a valid color.
-        function set.Color(this, Color)
-            assert(iscolor(Color),...
-                '%s is not a valid MATLAB default color or RGB triplet',...
-                Color);
-            this.Color=Color;
-        end
-        
-        %Set function for Marker. Checks if it is a valid
-        %marker style.
-        function set.Marker(this, Marker)
-            assert(ismarker(Marker),...
-                '%s is not a valid MATLAB MarkerStyle',Marker);
-            this.Marker=Marker;
-        end
-        
         %Set function for x, checks if it is a vector of doubles.
         function set.x(this, x)
             assert(isnumeric(x),...
@@ -366,25 +374,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.y=y(:);
         end
         
-        %Set function for LineStyle, checks if input is a valid line style.
-        function set.LineStyle(this, LineStyle)
-            assert(isline(LineStyle),...
-                '%s is not a valid MATLAB LineStyle',LineStyle);
-            this.LineStyle=LineStyle;
-        end
-        
-        %Set function for MarkerSize, checks if input is a positive number.
-        function set.MarkerSize(this, MarkerSize)
-            assert(isnumeric(MarkerSize) && MarkerSize>0,...
-                'MarkerSize must be a numeric value greater than zero');
-            this.MarkerSize=MarkerSize;
-        end
-        
         %Set function for name, checks if input is a string.
-        function set.name(this, name)
+        function set.filename(this, name)
             assert(ischar(name),'Name must be a string, not a %s',...
                 class(name));
-            this.name=name;
+            this.filename=name;
         end
         
         %Set function for unit_x, checks if input is a string.

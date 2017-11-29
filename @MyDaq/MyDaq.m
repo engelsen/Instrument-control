@@ -27,6 +27,7 @@ classdef MyDaq < handle
         fit_color='k';
         data_color='b';
         ref_color='r';
+        bg_color='c';
         
         %Properties for saving files
         base_dir;
@@ -184,20 +185,21 @@ classdef MyDaq < handle
         %Updates fits
         function updateFits(this)            
             %Pushes data into fits in the form of MyTrace objects, so that
-            %units etc follow. 
+            %units etc follow. Also updates user supplised parameters.
             for i=1:length(this.open_fits)
                 switch this.open_fits{i}
                     case {'Linear','Quadratic','Gaussian',...
-                            'Exponential','Beta','DoubleLorentzian'}
+                            'Exponential','Beta'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
-                    case {'Lorentzian'}
+                    case {'Lorentzian','DoubleLorentzian'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
-                        ind=findCursorData(this,'Data','VertRef');
-                        x_dist=range(this.Data.x(ind));
-                        this.Fits.(this.open_fits{i}).Spacing=...
-                            x_dist/this.Fits.(this.open_fits{i}).LineNo;
+                        if isfield(this.Cursors,'VertRef')
+                            ind=findCursorData(this,'Data','VertRef');
+                            this.Fits.(this.open_fits{i}).CalVals.line_spacing=...
+                                range(this.Data.x(ind));
+                        end
                     case {'G0'}
                         this.Fits.G0.MechTrace=getFitData(this,'VertData');
                         this.Fits.G0.CalTrace=getFitData(this,'VertRef');
@@ -224,7 +226,7 @@ classdef MyDaq < handle
             %this.(trace_str) will refer to the same object, causing roblems.
             %Name input is the name of the cursor to be used to extract data.
             Trace=copy(this.(trc_str));
-            if ismember(name,fieldnames(this.Cursors))
+            if isfield(this.Cursors,name)
                 ind=findCursorData(this, trc_str, name);
                 Trace.x=this.(trc_str).x(ind);
                 Trace.y=this.(trc_str).y(ind);
@@ -423,7 +425,7 @@ classdef MyDaq < handle
                 x_pos=10^(mean(log10(this.main_plot.XLim)));
             end
             
-            if ~this.Gui.LogX.Value
+            if ~this.Gui.LogY.Value
                 y_pos=mean(this.main_plot.YLim);
             else
                 y_pos=10^(mean(log10(this.main_plot.YLim)));
@@ -499,7 +501,7 @@ classdef MyDaq < handle
                 save(this.Data,'save_dir',this.save_dir,'name',...
                     this.savefile)
             else
-                error('Data trace was empty, could not save');
+                errdlg('Data trace was empty, could not save');
             end
         end
         
@@ -509,7 +511,7 @@ classdef MyDaq < handle
                 save(this.Ref,'save_dir',this.save_dir,'name',...
                     this.savefile)
             else
-                error('Reference trace was empty, could not save')
+                errdlg('Reference trace was empty, could not save')
             end
         end
         
@@ -544,7 +546,8 @@ classdef MyDaq < handle
             if this.Data.validatePlot
                 this.Ref.x=this.Data.x;
                 this.Ref.y=this.Data.y;
-                this.Ref.plotTrace(this.main_plot,'Color',this.ref_color);
+                this.Ref.plotTrace(this.main_plot,'Color',this.ref_color,...
+                    'make_labels',true);
                 this.Ref.setVisible(this.main_plot,1);
                 updateFits(this);
                 this.Gui.ShowRef.Value=1;
@@ -559,7 +562,8 @@ classdef MyDaq < handle
             if this.Ref.validatePlot
                 this.Background.x=this.Ref.x;
                 this.Background.y=this.Ref.y;
-                this.Background.plotTrace(this.main_plot);
+                this.Background.plotTrace(this.main_plot,...
+                    'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
             else
                 warning('Reference trace was empty, could not move to background')
@@ -571,7 +575,8 @@ classdef MyDaq < handle
             if this.Data.validatePlot
                 this.Background.x=this.Data.x;
                 this.Background.y=this.Data.y;
-                this.Background.plotTrace(this.main_plot);
+                this.Background.plotTrace(this.main_plot,...
+                    'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
             else
                 warning('Data trace was empty, could not move to background')
@@ -747,7 +752,8 @@ classdef MyDaq < handle
                 dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
                 loadTrace(this.(dest_trc),load_path);
                 this.(dest_trc).plotTrace(this.main_plot,...
-                    'Color',this.(sprintf('%s_color',lower(dest_trc))));
+                    'Color',this.(sprintf('%s_color',lower(dest_trc))),...
+                    'make_labels',true);
                 updateAxis(this);
                 updateCursors(this);
             catch
@@ -772,7 +778,8 @@ classdef MyDaq < handle
             this.Data=copy(src.Trace);
             if ~isempty(hline); this.Data.hlines{1}=hline; end
             clearData(src.Trace);
-            this.Data.plotTrace(this.main_plot,'Color',this.data_color)
+            this.Data.plotTrace(this.main_plot,'Color',this.data_color,...
+                'make_labels',true)
             updateAxis(this);
             updateCursors(this);
             updateFits(this);
