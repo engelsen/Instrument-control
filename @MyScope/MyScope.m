@@ -1,12 +1,11 @@
 classdef MyScope <MyInstrument
     properties (Access=public)
         channel;
-        Trace=MyTrace();
     end
     
     methods (Access=public)
-        function this=MyScope(name, interface, address, varargin)
-            this@MyInstrument(name, interface, address, varargin{:});
+        function this=MyScope(interface, address, varargin)
+            this@MyInstrument(interface, address, varargin{:});
             if this.enable_gui; initGui(this); end
             createCommandList(this);
             createCommandParser(this);
@@ -24,27 +23,20 @@ classdef MyScope <MyInstrument
             writeProperty(this,'channel',this.channel);
             %Sets the encoding of the data
             fprintf(this.Device,'DATa:ENCdg ASCIi');
-            
-            % Reading the units of x and y
-            unit_y = readProperty('unit_y');
-            unit_x = readProperty('unit_x');
-            
-            % Reading the vertical spacing between points
-            step_y = str2num(readProperty(this,'step_y'));
-            
-            % Reading the y axis data
-            y= str2num(query(this.Device,'CURVe?'))*step_y; 
-            n_points=length(y);
-            % Reading the horizontal spacing between points
-            x_step=readProperty(this,'step_x');
-            %Reads where the zero of the x-axis is
-            x_zero=readProperty(this,'x_zero');
-            
-            % Calculating the x axis
-            x=linspace(x_zero,x_zero+x_step*(n_points-1),n_points);
+            % Reading the relevant parameters from the scope
+            results = readProperty(this,'unit_y','unit_x',...
+                'step_x','step_y','y_data','x_zero');
             closeDevice(this)
-            this.Trace=MyTrace('name','ScopeTrace','x',x,'y',y,'unit_x',unit_x(2),...
-                'unit_y',unit_y(2),'name_x','Time','name_y','Voltage');
+                        
+            % Calculating the y data
+            y= results.y_data*results.step_y; 
+            n_points=length(y);
+
+            % Calculating the x axis
+            x=linspace(results.x_zero,...
+                results.x_zero+results.x_step*(n_points-1),n_points);
+            this.Trace=MyTrace('name','ScopeTrace','x',x,'y',y,'unit_x',results.unit_x(2),...
+                'unit_y',results.unit_y(2),'name_x','Time','name_y','Voltage');
             %Triggers the event for acquired data
             triggerNewData(this);
         end
@@ -67,20 +59,21 @@ classdef MyScope <MyInstrument
     
     methods (Access=private)
         function createCommandList(this)
-            addCommand(this,'channel','DATa:SOUrce CH%d','default',1,...
-                'attributes',{{'numeric'}},'access','rw');
+            addCommand(this,'channel','DATa:SOUrce CH','default',1,...
+                'classes',{'numeric'},'attributes',{'integer'},...
+                'access','rw');
             addCommand(this,'unit_x','WFMOutpre:XUNit','access','r',...
-                'attributes',{{'char'}});
+                'classes',{'char'});
             addCommand(this,'unit_y','WFMOutpre:YUNit','access','r',...
-                'attributes',{{'char'}});
+                'classes',{'char'});
             addCommand(this,'step_y','WFMOutpre:YMUlt','access','r',...
-                'attributes',{{'numeric'}});
+                'classes',{'numeric'});
             addCommand(this,'step_x','WFMOutpre:XINcr','access','r',...
-                'attributes',{{'numeric'}});
+                'classes',{'numeric'});
             addCommand(this,'x_zero','WFMOutpre:XZEro','access','r',...
-                'attributes',{{'numeric'}});
+                'classes',{'numeric'});
             addCommand(this,'y_data','CURVe','access','r',...
-                'attributes',{{'numeric'}});
+                'classes',{'numeric'});
         end
         
         function connectTCPIP(this)
