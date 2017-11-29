@@ -131,7 +131,7 @@ classdef MyInstrument < dynamicprops
             for i=1:length(exec)
                 %Creates the write command using the right string spec
                 write_command=[this.CommandList.(exec{i}).command,...
-                    ' %',this.CommandList.(exec{i}).str_spec];
+                    ' ',this.CommandList.(exec{i}).str_spec];
                 %Gets the value to write to the device
                 this.(exec{i})=this.CommandParser.Results.(exec{i});
                 command=sprintf(write_command, this.(exec{i}));
@@ -266,7 +266,7 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'default','placeholder');
             addParameter(p,'classes',{},@iscell);
             addParameter(p,'attributes',{},@iscell);
-            addParameter(p,'str_spec','d',@ischar);
+            addParameter(p,'str_spec','%d',@ischar);
             addParameter(p,'access','rw',@ischar);
             parse(p,tag,command,varargin{:});
 
@@ -286,13 +286,14 @@ classdef MyInstrument < dynamicprops
                     this.CommandList.(tag).str_spec=...
                         formatSpecFromAttributes(this,p.Results.classes...
                         ,p.Results.attributes);
-                elseif isequal(p.Results.str_spec,'b')
+                elseif strcmp(p.Results.str_spec,'%b')
                     % b is a non-system specifier to represent the
                     % logical type
-                    this.CommandList.(tag).str_spec='i';
+                    this.CommandList.(tag).str_spec='%i';
                 else
                     this.CommandList.(tag).str_spec=p.Results.str_spec;
                 end
+
                 
                 % Adds the default value
                 this.CommandList.(tag).default=p.Results.default;
@@ -348,19 +349,21 @@ classdef MyInstrument < dynamicprops
         
         function str_spec=formatSpecFromAttributes(~,classes,attributes)
             if ismember('char',classes)
-                str_spec='s';
+                str_spec='%s';
             elseif ismember('logical',classes)||...
                     (ismember('numeric',classes)&&...
                     ismember('integer',attributes))
-                str_spec='i';
+                str_spec='%i';
             else
                 %assign default value, i.e. double
-                str_spec='d';
+                str_spec='%d';
             end
         end
         
         function [class,attribute]=AttributesFromFormatSpec(~, str_spec)
-            switch str_spec
+            ind=strfind(str_spec,'%');
+            str_spec_letter=str_spec(ind+1);
+            switch str_spec_letter
                 case 'd'
                     class={'numeric'};
                     attribute={};
