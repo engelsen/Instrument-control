@@ -383,34 +383,34 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         
         %Set function for unit_x, checks if input is a string.
         function set.unit_x(this, unit_x)
-            assert(ischar(unit_x),'Unit must be a string, not a %s',...
+            assert(ischar(unit_x),'Unit must be a char, not a %s',...
                 class(unit_x));
             this.unit_x=unit_x;
         end
         
         %Set function for unit_y, checks if input is a string
         function set.unit_y(this, unit_y)
-            assert(ischar(unit_y),'Unit must be a string, not a %s',...
+            assert(ischar(unit_y),'Unit must be a char, not a %s',...
                 class(unit_y));
             this.unit_y=unit_y;
         end
         
         %Set function for name_x, checks if input is a string
         function set.name_x(this, name_x)
-            assert(ischar(name_x),'Name must be a string, not a %s',...
+            assert(ischar(name_x),'Name must be a char, not a %s',...
                 class(name_x));
             this.name_x=name_x;
         end
         
         %Set function for name_y, checks if input is a string
         function set.name_y(this, name_y)
-            assert(ischar(name_y),'Name must be a string, not a %s',...
+            assert(ischar(name_y),'Name must be a char, not a %s',...
                 class(name_y));
             this.name_y=name_y;
         end
         
         function set.load_path(this, load_path)
-            assert(ischar(load_path),'File path must be a string, not a %s',...
+            assert(ischar(load_path),'File path must be a char, not a %s',...
                 class(load_path));
             this.load_path=load_path;
         end

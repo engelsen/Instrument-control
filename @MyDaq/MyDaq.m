@@ -12,6 +12,8 @@ classdef MyDaq < handle
         InstrList=struct();
         %Struct containing MyInstrument objects 
         Instruments=struct()
+        %Struct containing apps for interfacing with instruments
+        InstrApps=struct();
         %Struct containing Cursor objects
         Cursors=struct();
         %Struct containing Cursor labels
@@ -165,8 +167,9 @@ classdef MyDaq < handle
                     this.Instruments.(tag)=MyRsa(input_cell{:},...
                         'gui','GuiRsa','name',this.InstrList.(tag).name);
                 case 'Scope'
-                    this.Instruments.(tag)=MyScope(input_cell{:},...
-                        'gui','GuiScope','name',this.InstrList.(tag).name);
+                    this.InstrApps.(tag)=GuiScope(input_cell{:},...
+                        'name',this.InstrList.(tag).name);
+                    this.Instruments.(tag)=this.InstrApps.(tag).Instr;
                 case 'NA'
                     this.Instruments.(tag)=MyNa(input_cell{:},...
                         'gui','GuiNa','name',this.InstrList.(tag).name);
