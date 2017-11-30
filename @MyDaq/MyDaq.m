@@ -66,12 +66,19 @@ classdef MyDaq < handle
         
         function delete(this)
             %Deletes the MyFit objects and their listeners
-            cellfun(@(x) delete(this.Fits.(x)), this.open_fits);
             cellfun(@(x) deleteListeners(this,x), this.open_fits);
+            structfun(@(x) delete(x), this.Fits);
+            
+            
+            %Deletes the InstrApp objects and their listeners
+            cellfun(@(x) deleteListeners(this,x), fieldnames(this.InstrApps));
+            structfun(@(x) delete(x), this.InstrApps);
             
             %Deletes the MyInstrument objects and their listeners
-            cellfun(@(x) delete(this.Instruments.(x)), this.open_instrs);
             cellfun(@(x) deleteListeners(this,x), this.open_instrs);
+            structfun(@(x) delete(x), this.Instruments);
+            
+            
             
             if this.enable_gui
                 this.Gui.figure1.CloseRequestFcn='';
@@ -469,24 +476,41 @@ classdef MyDaq < handle
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
             val=hObject.Value;
+            names=hObject.String;
             %Finds the correct instrument tag as long as an instrument is
             %selected
             if val~=1
-                names=hObject.String;
-                tag=getTag(this,names(val));
-            else 
-                tag='';
+                try 
+                    tag=getTag(this,names(val));
+                catch 
+                    error('Invalid instrument selected: %s',names{val});
+                end
             end
+            
             %If instrument is valid and not open, opens it. If it is valid
             %and open it changes focus to the instrument control window.
-            if ismember(tag,this.instr_tags) && ...
-                    ~ismember(tag,this.open_instrs)
+            if (ismember(tag,this.instr_tags) && ...
+                    ~ismember(tag,this.open_instrs))
                 openInstrument(this,tag);
             elseif ismember(tag,this.open_instrs)
-                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
-                    this.Instruments.(tag).Gui);
-                names=fieldnames(this.Instruments.(tag).Gui);
-                figure(this.Instruments.(tag).Gui.(names{ind}));
+                if isfield(this.InstrApps,tag)
+                    prop_names=properties(this.InstrApps.(tag));
+                    figure_ind=cellfun(@(x) isa(this.InstrApps.(tag).(x),...
+                        'matlab.ui.Figure'),prop_names);
+                    fig_handle=this.InstrApps.(tag).(prop_names{figure_ind});
+                    fig_handle.Visible='off';
+                    fig_handle.Visible='on';
+                elseif isprop(this.Instruments.(tag),'Gui')
+                    InstrGui=this.Instruments.(tag).Gui;
+                    ind=structfun(@(x) isa(x,'matlab.ui.Figure'),InstrGui);
+                    names=fieldnames(InstrGui);
+                    figure(InstrGui.(names{ind}));
+                else
+                    error(['Instrument %s does not have a GUI but is',...
+                        ' registered as open'],tag)
+                end
+                
+
             end
         end
         
