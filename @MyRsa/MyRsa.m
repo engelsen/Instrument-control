@@ -129,29 +129,29 @@ classdef MyRsa < MyInstrument
         
         function createCommandList(this)
             addCommand(this,'average_no','TRAC3:DPSA:AVER:COUN',...
-                'default',1,'str_spec','i');
+                'default',1,'str_spec','%i');
             this.ConvFactors.average_no=1;
             addCommand(this, 'rbw','DPSA:BAND:RES',...
-                'default',1e3,'str_spec','d')
+                'default',1e3,'str_spec','%e')
             this.ConvFactors.rbw=1e3;
             addCommand(this, 'span', 'DPSA:FREQ:SPAN',...
-                'default',1e6,'str_spec','d'),...
+                'default',1e6,'str_spec','%e'),...
             this.ConvFactors.span=1e6;
             addCommand(this,  'start_freq','DPSA:FREQ:STAR',...
-                'default',1e6,'str_spec','d')
+                'default',1e6,'str_spec','%e')
             this.ConvFactors.start_freq=1e6;
             addCommand(this, 'stop_freq','DPSA:FREQ:STOP',...
-                'default',2e6,'str_spec','d')
+                'default',2e6,'str_spec','%e')
             this.ConvFactors.stop_freq=1e6;
             addCommand(this, 'cent_freq','DPSA:FREQ:CENT',...
-                'default',1.5e6,'str_spec','d')
+                'default',1.5e6,'str_spec','%e')
             this.ConvFactors.cent_freq=1e6;
-            addCommand(this, 'point_no','DPSA:POIN:COUN P',...
-                'default',10401,'str_spec','i','access','w');
+            addCommand(this, 'point_no','DPSA:POIN:COUN',...
+                'default',10401,'str_spec','P%i');
             addCommand(this, 'enable_avg','TRAC3:DPSA:COUN:ENABLE',...
-                'default',0,'str_spec','i');
+                'default',0,'str_spec','%i');
             addCommand(this, 'read_cont','INIT:CONT','default',1,...
-                'str_spec','i');
+                'str_spec','%i');
         end
     end
     

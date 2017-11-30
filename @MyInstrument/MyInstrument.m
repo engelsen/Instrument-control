@@ -32,6 +32,8 @@ classdef MyInstrument < dynamicprops
     properties (Dependent=true)
         command_names;
         command_no;
+        write_commands;
+        read_commands;
     end
     
     events
@@ -110,24 +112,18 @@ classdef MyInstrument < dynamicprops
         function writeProperty(this, varargin)
             %Parses the inputs using the CommandParser
             parse(this.CommandParser, varargin{:});
-            % Finds writable commands to be included in the execution list
-            ind_w=structfun(@(x) x.write_flag, this.CommandList);
+
             if this.CommandParser.Results.all
                 % If the 'all' is true, write all the commands
-                ind=ind_w;
+                exec=this.write_commands;
             else
                 % Check which commands were passed values
                 ind_val=cellfun(@(x)...
                     (~ismember(x, this.CommandParser.UsingDefaults)),...
-                    this.command_names);
-                ind=ind_w&ind_val;
-                if any((~ind_w)&ind_val)
-                    % Issue warnings for read-only commands
-                    warning('The following commands are read only:');
-                    disp(this.command_names((~ind_w)&ind_val));
-                end
+                    this.write_commands);
+                exec=this.write_commands(ind_val);
             end
-            exec=this.command_names(ind);
+
             for i=1:length(exec)
                 %Creates the write command using the right string spec
                 write_command=[this.CommandList.(exec{i}).command,...
@@ -159,24 +155,15 @@ classdef MyInstrument < dynamicprops
             
             if read_all_flag
                 % Read all the commands with read access 
-                ind=structfun(@(x) x.read_flag, this.CommandList);
-                exec=this.command_names(ind);
+                exec=this.read_commands;
             else
-                ind_val=ismember(varargin,this.command_names);
-                varargin_val=varargin(ind_val);
-                if any(~ind_val)
-                    % Issue warnings for commands not in the command_names
-                    warning('The following are not valid commands:');
-                    disp(varargin{~ind_val});
-                end
-                ind_r=cellfun(@(x) this.CommandList.(x).read_flag,...
-                    varargin_val);
+                ind_r=ismember(varargin,this.read_commands);
+                exec=varargin(ind_r);
                 if any(~ind_r)
-                    % Issue warnings for write-only commands
-                    warning('The following commands are write only:');
-                    disp(varargin_val{~ind_r});
+                    % Issue warnings for commands not in the command_names
+                    warning('The following are not valid read commands:');
+                    disp(varargin(~ind_r));
                 end
-                exec=varargin_val(ind_r);
             end
             % Iterate over the commands list
             for i=1:length(exec)
@@ -185,10 +172,14 @@ classdef MyInstrument < dynamicprops
                 %Reads the property from the device and stores it in the
                 %correct place
                 res_str = query(this.Device,read_command);
-                if ismember('char',this.CommandList.(exec{i}).classes)
-                    result.(exec{i})= res_str(1:(end-1));
+                
+                if isfield(this.CommandList.(exec{i}),'str_spec')
+                    result.(exec{i})=...
+                        sscanf(res_str,this.CommandList.(exec{i}).str_spec);
                 else
-                    result.(exec{i})= str2double(res_str);
+                    %Needs to be str2num in order to treat output from e.g.
+                    %Textronix scopes.
+                    result.(exec{i})= str2num(res_str); %#ok<ST2NM> 
                 end
                 %Assign the values to the MyInstrument properties
                 this.(exec{i})=result.(exec{i});
@@ -329,14 +320,12 @@ classdef MyInstrument < dynamicprops
             %Flag for whether the command should initialize the device with
             %defaults
             addParameter(p, 'all',false,@islogical);
-            ind_w=structfun(@(x) x.write_flag, this.CommandList);
-            write_commands=this.command_names(ind_w);
             
-            for i=1:length(write_commands)
+            for i=1:length(this.write_commands)
                 %Adds optional inputs for each command, with the
                 %appropriate default value from the command list and the
                 %required attributes for the command input.
-                tag=write_commands{i};
+                tag=this.write_commands{i};
                 addParameter(p, tag,...
                     this.CommandList.(tag).default,...
                     @(x) validateattributes(x,...
@@ -389,6 +378,16 @@ classdef MyInstrument < dynamicprops
     methods
         function command_names=get.command_names(this)
             command_names=fieldnames(this.CommandList);
+        end
+        
+        function write_commands=get.write_commands(this)
+            ind_w=structfun(@(x) x.write_flag, this.CommandList);
+            write_commands=this.command_names(ind_w);
+        end
+        
+        function write_commands=get.read_commands(this)
+            ind_r=structfun(@(x) x.read_flag, this.CommandList);
+            write_commands=this.command_names(ind_r);
         end
         
         function command_no=get.command_no(this)
