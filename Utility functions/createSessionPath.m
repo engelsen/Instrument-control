@@ -4,11 +4,11 @@ function path = createSessionPath(base_dir, session_name)
 
 %Adds the \ at the end if it was not added by the user.
 if ~strcmp(base_dir(end),'\')
-    bd = [base_dir,'\'];
+    base_dir(end+1) = '\';
 end
 if ~strcmp(session_name(end),'\')
-    sn = [session_name,'\'];
+    session_name(end+1) = '\';
 end
-path = [bd,datestr(now,'yyyy-mm-dd '), sn];
+path = [base_dir,datestr(now,'yyyy-mm-dd '), session_name];
 end
 

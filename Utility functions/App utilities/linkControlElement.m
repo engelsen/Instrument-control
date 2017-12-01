@@ -20,7 +20,7 @@ function linkControlElement(app, elem, prop_tag, varargin)
     % If the prescaler is indicated, add it to the element as a new property
     if p.Results.input_presc ~= 1
         if isprop(elem, 'InputPrescaler')
-            warning('The InputPrescaler propety already exists in the control element');
+            warning('The InputPrescaler property already exists in the control element');
         else
             addprop(elem,'InputPrescaler');
         end

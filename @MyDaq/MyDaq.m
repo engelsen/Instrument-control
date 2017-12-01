@@ -12,6 +12,8 @@ classdef MyDaq < handle
         InstrList=struct();
         %Struct containing MyInstrument objects 
         Instruments=struct()
+        %Struct containing apps for interfacing with instruments
+        InstrApps=struct();
         %Struct containing Cursor objects
         Cursors=struct();
         %Struct containing Cursor labels
@@ -66,12 +68,19 @@ classdef MyDaq < handle
         
         function delete(this)
             %Deletes the MyFit objects and their listeners
-            cellfun(@(x) delete(this.Fits.(x)), this.open_fits);
             cellfun(@(x) deleteListeners(this,x), this.open_fits);
+            structfun(@(x) delete(x), this.Fits);
+            
+            
+            %Deletes the InstrApp objects and their listeners
+            cellfun(@(x) deleteListeners(this,x), fieldnames(this.InstrApps));
+            structfun(@(x) delete(x), this.InstrApps);
             
             %Deletes the MyInstrument objects and their listeners
-            cellfun(@(x) delete(this.Instruments.(x)), this.open_instrs);
             cellfun(@(x) deleteListeners(this,x), this.open_instrs);
+            structfun(@(x) delete(x), this.Instruments);
+            
+            
             
             if this.enable_gui
                 this.Gui.figure1.CloseRequestFcn='';
@@ -165,8 +174,9 @@ classdef MyDaq < handle
                     this.Instruments.(tag)=MyRsa(input_cell{:},...
                         'gui','GuiRsa','name',this.InstrList.(tag).name);
                 case 'Scope'
-                    this.Instruments.(tag)=MyScope(input_cell{:},...
-                        'gui','GuiScope','name',this.InstrList.(tag).name);
+                    this.InstrApps.(tag)=GuiScope(input_cell{:},...
+                        'name',this.InstrList.(tag).name);
+                    this.Instruments.(tag)=this.InstrApps.(tag).Instr;
                 case 'NA'
                     this.Instruments.(tag)=MyNa(input_cell{:},...
                         'gui','GuiNa','name',this.InstrList.(tag).name);
@@ -189,16 +199,17 @@ classdef MyDaq < handle
             for i=1:length(this.open_fits)
                 switch this.open_fits{i}
                     case {'Linear','Quadratic','Gaussian',...
-                            'Exponential','Beta','DoubleLorentzian'}
+                            'Exponential','Beta'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
-                    case {'Lorentzian'}
+                    case {'Lorentzian','DoubleLorentzian'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
-                        ind=findCursorData(this,'Data','VertRef');
-                        x_dist=range(this.Data.x(ind));
-                        this.Fits.(this.open_fits{i}).Spacing=...
-                            x_dist/this.Fits.(this.open_fits{i}).LineNo;
+                        if isfield(this.Cursors,'VertRef')
+                            ind=findCursorData(this,'Data','VertRef');
+                            this.Fits.(this.open_fits{i}).CalVals.line_spacing=...
+                                range(this.Data.x(ind));
+                        end
                     case {'G0'}
                         this.Fits.G0.MechTrace=getFitData(this,'VertData');
                         this.Fits.G0.CalTrace=getFitData(this,'VertRef');
@@ -225,7 +236,7 @@ classdef MyDaq < handle
             %this.(trace_str) will refer to the same object, causing roblems.
             %Name input is the name of the cursor to be used to extract data.
             Trace=copy(this.(trc_str));
-            if ismember(name,fieldnames(this.Cursors))
+            if isfield(this.Cursors,name)
                 ind=findCursorData(this, trc_str, name);
                 Trace.x=this.(trc_str).x(ind);
                 Trace.y=this.(trc_str).y(ind);
@@ -436,7 +447,7 @@ classdef MyDaq < handle
                 x_pos=10^(mean(log10(this.main_plot.XLim)));
             end
             
-            if ~this.Gui.LogX.Value
+            if ~this.Gui.LogY.Value
                 y_pos=mean(this.main_plot.YLim);
             else
                 y_pos=10^(mean(log10(this.main_plot.YLim)));
@@ -480,24 +491,41 @@ classdef MyDaq < handle
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
             val=hObject.Value;
+            names=hObject.String;
             %Finds the correct instrument tag as long as an instrument is
             %selected
             if val~=1
-                names=hObject.String;
-                tag=getTag(this,names(val));
-            else 
-                tag='';
+                try 
+                    tag=getTag(this,names(val));
+                catch 
+                    error('Invalid instrument selected: %s',names{val});
+                end
             end
+            
             %If instrument is valid and not open, opens it. If it is valid
             %and open it changes focus to the instrument control window.
-            if ismember(tag,this.instr_tags) && ...
-                    ~ismember(tag,this.open_instrs)
+            if (ismember(tag,this.instr_tags) && ...
+                    ~ismember(tag,this.open_instrs))
                 openInstrument(this,tag);
             elseif ismember(tag,this.open_instrs)
-                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
-                    this.Instruments.(tag).Gui);
-                names=fieldnames(this.Instruments.(tag).Gui);
-                figure(this.Instruments.(tag).Gui.(names{ind}));
+                if isfield(this.InstrApps,tag)
+                    prop_names=properties(this.InstrApps.(tag));
+                    figure_ind=cellfun(@(x) isa(this.InstrApps.(tag).(x),...
+                        'matlab.ui.Figure'),prop_names);
+                    fig_handle=this.InstrApps.(tag).(prop_names{figure_ind});
+                    fig_handle.Visible='off';
+                    fig_handle.Visible='on';
+                elseif isprop(this.Instruments.(tag),'Gui')
+                    InstrGui=this.Instruments.(tag).Gui;
+                    ind=structfun(@(x) isa(x,'matlab.ui.Figure'),InstrGui);
+                    names=fieldnames(InstrGui);
+                    figure(InstrGui.(names{ind}));
+                else
+                    error(['Instrument %s does not have a GUI but is',...
+                        ' registered as open'],tag)
+                end
+                
+
             end
         end
         
@@ -512,7 +540,7 @@ classdef MyDaq < handle
                 save(this.Data,'save_dir',this.save_dir,'name',...
                     this.savefile)
             else
-                error('Data trace was empty, could not save');
+                errdlg('Data trace was empty, could not save');
             end
         end
         
@@ -522,7 +550,7 @@ classdef MyDaq < handle
                 save(this.Ref,'save_dir',this.save_dir,'name',...
                     this.savefile)
             else
-                error('Reference trace was empty, could not save')
+                errdlg('Reference trace was empty, could not save')
             end
         end
         
