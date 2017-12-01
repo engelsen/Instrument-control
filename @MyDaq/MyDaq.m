@@ -301,7 +301,13 @@ classdef MyDaq < handle
                     %To set the offset off the side of the axes
                     xlim=get(this.main_plot,'XLim');
                     %Empirically determined nice point for labels
-                    xloc=1.03*xlim(2)-0.03*xlim(1);
+                    scale=1.03;
+                    if this.Gui.LogX.Value
+                        scale_log=((10^scale)/10)^(log10(xlim(2)/xlim(1)));
+                        xloc=scale_log*xlim(2)-(scale_log-1)*xlim(1);
+                    else
+                        xloc=scale*xlim(2)-(scale-1)*xlim(1);
+                    end
                     %Sets the position of the cursor labels
                     cellfun(@(x,y) set(x, 'Position',...
                         [xloc,y.Location,0]),...
@@ -311,7 +317,13 @@ classdef MyDaq < handle
                     %To set the offset off the top of the axes
                     ylim=get(this.main_plot,'YLim');
                     %Empirically determined nice point for labels
-                    yloc=1.05*ylim(2)-0.05*ylim(1);
+                    scale=1.05;
+                    if this.Gui.LogY.Value
+                        scale_log=((10^scale)/10)^(log10(ylim(2)/ylim(1)));
+                        yloc=scale_log*ylim(2)-(scale_log-1)*ylim(1);
+                    else
+                        yloc=scale*ylim(2)-(scale-1)*ylim(1);
+                    end
                     %Sets the position of the cursor labels
                     cellfun(@(x,y) set(x, 'Position',...
                         [y.Location,yloc,0]),...
