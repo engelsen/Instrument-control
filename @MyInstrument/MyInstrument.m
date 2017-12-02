@@ -345,7 +345,7 @@ classdef MyInstrument < dynamicprops
                 str_spec='%i';
             else
                 %assign default value, i.e. double
-                str_spec='%d';
+                str_spec='%f';
             end
         end
         
@@ -353,7 +353,7 @@ classdef MyInstrument < dynamicprops
             ind=strfind(str_spec,'%');
             str_spec_letter=str_spec(ind+1);
             switch str_spec_letter
-                case 'd'
+                case {'d','f','e','g'}
                     class={'numeric'};
                     attribute={};
                 case 'i'
