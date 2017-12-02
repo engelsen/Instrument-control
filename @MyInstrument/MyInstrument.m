@@ -345,7 +345,7 @@ classdef MyInstrument < dynamicprops
                 str_spec='%i';
             else
                 %assign default value, i.e. double
-                str_spec='%f';
+                str_spec='%e';
             end
         end
         
