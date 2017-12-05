@@ -30,7 +30,7 @@ else
 end
 
 userpanel_h=min_user_h*button_h;
-fig_h=title_h+equation_h+slider_h+userpanel_h;
+fig_h=title_h+equation_h+slider_h++savebox_h+userpanel_h;
 
 %Name sets the title of the window, NumberTitle turns off the FigureN text
 %that would otherwise be before the title, MenuBar is the menu normally on
@@ -62,15 +62,15 @@ this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,...
     'BackgroundColor',rgb_white);
 
 %Creates the HBox for saving parameters
-this.Gui.SaveHBox=uix.HBox('Parent',this.Gui.MainVBox,...
+this.Gui.SaveHbox=uix.HBox('Parent',this.Gui.MainVbox,...
     'BackgroundColor',rgb_white);
 %Creates the HBox for the fitting parameters
 this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
 
-%Sets the heights and minimum heights of the four vertical boxes. -1 means
+%Sets the heights and minimum heights of the five vertical boxes. -1 means
 %it resizes with the window
-set(this.Gui.MainVbox,'Heights',[title_h,-1,-1,slider_h],...
-    'MinimumHeights',[title_h,equation_h,userpanel_h,slider_h]);
+set(this.Gui.MainVbox,'Heights',[title_h,-1,-1,-1,slider_h],...
+    'MinimumHeights',[title_h,equation_h,userpanel_h,savebox_h,slider_h]);
 
 %Here we create the fit panel in the GUI.
 this.Gui.FitPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
@@ -97,11 +97,9 @@ this.Gui.InitButton=uicontrol('Parent',this.Gui.FitVbox,...
 this.Gui.ClearButton=uicontrol('Parent',this.Gui.FitVbox,...
     'style','pushbutton','Background','w','String','Clear fits','Callback',...
     @(hObject, eventdata) clearFitCallback(this, hObject, eventdata));
-this.Gui.SaveButton=uicontrol('Parent',this.Gui.FitVbox,...
-    'style','pushbutton','Background','w','String','Save Fit',...
-    'Callback', @(hObject, eventdata) saveCallback(this, hObject, eventdata));
 
-set(this.Gui.FitVbox,'Heights',[button_h,button_h,button_h,button_h]);
+
+set(this.Gui.FitVbox,'Heights',[button_h,button_h,button_h]);
 
 this.Gui.TabPanel=uix.TabPanel('Parent',this.Gui.UserPanel,...
     'BackgroundColor',rgb_white);
@@ -119,6 +117,28 @@ if ~isempty(usertabs)
         'UniformOutput',0);
 end
 
+%Here we create the buttons and edit boxes inside the save box
+this.Gui.SaveButtonBox=uix.VBox('Parent',this.Gui.SaveHbox);
+this.Gui.SaveNameBox=uix.VBox('Parent',this.Gui.SaveHbox);
+
+%Buttons for saving the fit and parameters
+this.Gui.SaveParamButton=uicontrol('Parent',this.Gui.SaveButtonBox,...
+    'style','pushbutton','Background','w','String','Save Parameters',...
+    'Callback', @(hObject, eventdata) saveParamCallback(this, hObject, eventdata));
+this.Gui.SaveFitButton=uicontrol('Parent',this.Gui.SaveButtonBox,...
+    'style','pushbutton','Background','w','String','Save Fit',...
+    'Callback', @(hObject, eventdata) saveFitCallback(this, hObject, eventdata));
+set(this.Gui.SaveButtonBox,'Heights',[button_h,button_h])
+
+%Boxes for editing the path and filename
+this.Gui.SaveDir=uicontrol('Parent',this.Gui.SaveNameBox,...
+    'style','edit','String',this.save_dir,'HorizontalAlignment','Left');
+this.Gui.SessionName=uicontrol('Parent',this.Gui.SaveNameBox,...
+    'style','edit','String',this.session_name,'HorizontalAlignment','Left');
+this.Gui.FileName=uicontrol('Parent',this.Gui.SaveNameBox,...
+    'style','edit','String',this.save_name,'HorizontalAlignment','Left');
+
+set(this.Gui.SaveHbox,'Widths',[-1,-2]);
 %We first make the BoxPanels to speed up the process. Otherwise everything
 %in the BoxPanel must be redrawn every time we make a new one.
 panel_str=cell(1,this.n_params);

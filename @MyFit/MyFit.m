@@ -10,6 +10,7 @@ classdef MyFit < dynamicprops
         plot_handle;
         save_name;
         save_dir;
+        session_name;
         %Calibration values supplied externally
         CalVals=struct();
         init_color='c';
@@ -46,7 +47,7 @@ classdef MyFit < dynamicprops
         user_field_tags;
         user_field_names;
         user_field_vals;
-        filename;
+        fullpath;
     end
     
     events
@@ -54,6 +55,7 @@ classdef MyFit < dynamicprops
         NewInitVal;
     end
     
+    %Parser function
     methods (Access=private)
         %Creates parser for constructor
         function createParser(this)
@@ -69,10 +71,9 @@ classdef MyFit < dynamicprops
             addParameter(p,'save_dir',pwd);
             addParameter(p,'save_name','placeholder');
             this.Parser=p;
-        end
-        
+        end      
     end
-    %%Public methods
+    %Public methods
     methods (Access=public)
         %Constructor function
         function this=MyFit(varargin)
@@ -121,15 +122,7 @@ classdef MyFit < dynamicprops
         function closeFigure(this,~,~)
             delete(this);
         end
-%
-% nmb_fmt_str=repmat(sprintf('%%%i.15e\\t',n),1,length(cell_strings));
-% nmb_fmt_str=[nmb_fmt_str,'\r\n'];
-% % v1=repmat(16,1,100);
-% % v2=repmat(124,1,100);
-% % v3=repmat(12940,1,100);
-% % v4=repmat(129084,1,100);
-% fprintf(fileID,nmb_fmt_str,16,16,16,1e9);
-% fclose(fileID);
+
         %Saves the metadata
         function saveParams(this)
             assert(~isempty(this.coeffs) && ...
@@ -155,10 +148,10 @@ classdef MyFit < dynamicprops
             %Min column width of 24
             col_width(col_width<24)=24;
             
-            if exist(this.filename,'file')
-                fileID=fopen(this.filename,'a');
+            if exist(this.fullpath,'file')
+                fileID=fopen(this.fullpath,'a');
             else
-                fileID=fopen(this.filename,'w');
+                fileID=fopen(this.fullpath,'w');
                 pre_fmt_str=repmat('%%%is\\t',1,n_columns);
                 fmt_str=sprintf([pre_fmt_str,'\r\n'],col_width);
                 fprintf(fileID,fmt_str,headers{:});
@@ -339,9 +332,9 @@ classdef MyFit < dynamicprops
             this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
         end
         
-        %% Callbacks
-        %Save function callback
-        function saveCallback(this,~,~)
+        % Callbacks
+        %Save fit function callback
+        function saveFitCallback(this,~,~)
             assert(~isempty(this.save_dir),'Save directory is not specified');
             assert(ischar(this.save_dir),...
                 ['Save directory is not specified.',...
@@ -355,6 +348,10 @@ classdef MyFit < dynamicprops
                     ' with file name %s, but failed'],this.save_dir,...
                     this.save_name);
             end
+        end
+        
+        function saveParamCallback(this,~,~)
+            saveParams(this);
         end
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
@@ -482,6 +479,7 @@ classdef MyFit < dynamicprops
         end
     end
     
+    %Private methods
     methods(Access=private)
         %Creates the GUI of MyFit, in separate file.
         createGui(this);
@@ -594,9 +592,9 @@ classdef MyFit < dynamicprops
         end
     end
     
-    %% Get and set functions
+    % Get and set functions
     methods
-        %% Set functions
+        % Set functions
         
         %Set function for fit_name.
         function set.fit_name(this,fit_name)
@@ -610,7 +608,7 @@ classdef MyFit < dynamicprops
             this.fit_name=this.valid_fit_names{ind}; %#ok<MCSUP>
         end
 
-        %% Get functions for dependent variables
+        % Get functions for dependent variables
         
         %Generates the valid fit names
         function valid_fit_names=get.valid_fit_names(this)
@@ -669,8 +667,9 @@ classdef MyFit < dynamicprops
             user_field_vals=cellfun(@(x) this.(x), this.user_field_tags);
         end
         
-        function filename=get.filename(this)
-            filename=[this.save_dir,'\',this.save_name,'.txt'];
+        function fullpath=get.fullpath(this)
+            save_path=createSessionPath(this.save_dir,this.session_name);
+            fullpath=[save_path,this.save_name,'.txt'];
         end
     end
 end
