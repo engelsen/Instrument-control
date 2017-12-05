@@ -21,6 +21,15 @@ try
 catch
     proms(2)=0;
 end
+
+if proms(1)==0 && proms(2)==0
+    warning('No peaks were found in the data, giving default initial parameters to fit function')
+    p_in=[1,1,1,1];
+    lim_lower=-[Inf,0,Inf,Inf];
+    lim_upper=[Inf,Inf,Inf,Inf];
+    return
+end
+
 %If the prominence of the peak in the positive signal is greater, we adapt
 %our limits and parameters accordingly, if negative signal has a greater
 %prominence, we use this for fitting.

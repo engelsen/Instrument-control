@@ -16,6 +16,7 @@ button_h=25;
 %Minimum height of the four vboxes composing the gui.
 title_h=40;
 equation_h=80;
+savebox_h=60;
 slider_h=100;
 
 %Finds the minimum height in button heights of the user field panel. This
@@ -57,8 +58,12 @@ this.Gui.Equation=annotation(this.Gui.MainVbox,'textbox',[0.5,0.5,0.3,0.3],...
     'HorizontalAlignment','center','VerticalAlignment','middle',...
     'FontSize',20,'BackgroundColor',rgb_white);
 %Creates an HBox for extracted parameters and user interactions with GUI
-this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,'BackgroundColor',rgb_white);
+this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,...
+    'BackgroundColor',rgb_white);
 
+%Creates the HBox for saving parameters
+this.Gui.SaveHBox=uix.HBox('Parent',this.Gui.MainVBox,...
+    'BackgroundColor',rgb_white);
 %Creates the HBox for the fitting parameters
 this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
 
@@ -67,7 +72,7 @@ this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox);
 set(this.Gui.MainVbox,'Heights',[title_h,-1,-1,slider_h],...
     'MinimumHeights',[title_h,equation_h,userpanel_h,slider_h]);
 
-%Here we create the save panel in the GUI.
+%Here we create the fit panel in the GUI.
 this.Gui.FitPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
     'Padding',0,'BackgroundColor', rgb_white,...
     'Title','Fit Panel','TitleColor',rgb_blue);
