@@ -257,7 +257,7 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'default','placeholder');
             addParameter(p,'classes',{},@iscell);
             addParameter(p,'attributes',{},@iscell);
-            addParameter(p,'str_spec','%d',@ischar);
+            addParameter(p,'str_spec','%e',@ischar);
             addParameter(p,'access','rw',@ischar);
             parse(p,tag,command,varargin{:});
 
