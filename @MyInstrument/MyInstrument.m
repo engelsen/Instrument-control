@@ -171,15 +171,14 @@ classdef MyInstrument < dynamicprops
                 read_command=[this.CommandList.(exec{i}).command,'?'];
                 %Reads the property from the device and stores it in the
                 %correct place
-                res_str = query(this.Device,read_command);
-                
+                res_str = query(this.Device,read_command);    
                 if isfield(this.CommandList.(exec{i}),'str_spec')
                     result.(exec{i})=...
                         sscanf(res_str,this.CommandList.(exec{i}).str_spec);
                 else
-                    %Needs to be str2num in order to treat output from e.g.
-                    %Textronix scopes.
-                    result.(exec{i})= str2num(res_str); %#ok<ST2NM> 
+                    % If no format specifier is given (possible for a 
+                    % read-only command), then return result as it is
+                    result.(exec{i})=res_str; 
                 end
                 %Assign the values to the MyInstrument properties
                 this.(exec{i})=result.(exec{i});
@@ -219,7 +218,7 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-        %Closes the connection to the device
+        % Closes the connection to the device
         function closeDevice(this)
             if isopen(this)
                 fclose(this.Device);
@@ -231,9 +230,7 @@ classdef MyInstrument < dynamicprops
             this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
             this.Device.Timeout = this.DEFAULT_TIMEOUT;
         end
-    end
-    
-    methods (Access=public)
+        
         %Triggers event for acquired data
         function triggerNewData(this)
             notify(this,'NewData')
@@ -258,22 +255,26 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'classes',{},@iscell);
             addParameter(p,'attributes',{},@iscell);
             addParameter(p,'str_spec','%e',@ischar);
+            % list of the values the variable can take, {} means no
+            % restriction
+            addParameter(p,'val_list',{},@iscell);
             addParameter(p,'access','rw',@ischar);
             parse(p,tag,command,varargin{:});
 
             %Adds the command to be sent to the device
             this.CommandList.(tag).command=command;
             this.CommandList.(tag).access=p.Results.access;
-            
             this.CommandList.(tag).write_flag=contains(p.Results.access,'w');
             this.CommandList.(tag).read_flag=contains(p.Results.access,'r');
+            this.CommandList.(tag).default=p.Results.default;
+            this.CommandList.(tag).val_list=p.Results.val_list;
             
             %Adds a default value and the attributes the inputs must have
             %and creates a new property in the class
             if this.CommandList.(tag).write_flag
                 % Adds the string specifier to the list. if the format
                 % specifier is not given explicitly, try to infer
-                if ismember('str_spec',p.UsingDefaults)
+                if ismember('str_spec', p.UsingDefaults)
                     this.CommandList.(tag).str_spec=...
                         formatSpecFromAttributes(this,p.Results.classes...
                         ,p.Results.attributes);
@@ -284,10 +285,6 @@ classdef MyInstrument < dynamicprops
                 else
                     this.CommandList.(tag).str_spec=p.Results.str_spec;
                 end
-
-                
-                % Adds the default value
-                this.CommandList.(tag).default=p.Results.default;
                 % Adds the attributes for the input to the command. If not
                 % given explicitly, infer from the format specifier
                 if ismember('classes',p.UsingDefaults)
@@ -298,13 +295,13 @@ classdef MyInstrument < dynamicprops
                     this.CommandList.(tag).classes=p.Results.classes;
                     this.CommandList.(tag).attributes=p.Results.attributes;
                 end
-            end
-            
-            if (this.CommandList.(tag).read_flag &&...
-                    ~this.CommandList.(tag).write_flag)
+            else
+                % Read-only commands also have the classes and attributes
+                % fields for consistensy, althrough they are never used
                 this.CommandList.(tag).classes=p.Results.classes;
                 this.CommandList.(tag).attributes=p.Results.attributes;
             end
+            
             % Adds a property to the class corresponding to the tag
             if ~isprop(this,tag)
                 addprop(this,tag);
@@ -327,11 +324,21 @@ classdef MyInstrument < dynamicprops
                 %appropriate default value from the command list and the
                 %required attributes for the command input.
                 tag=this.write_commands{i};
-                addParameter(p, tag,...
-                    this.CommandList.(tag).default,...
-                    @(x) validateattributes(x,...
+                % Create validation function based on properties: 
+                % class, attributes and list of values
+                if ~isempty(this.CommandList.(tag).val_list)
+                    v_func = @(x) (validateattributes(x,...
                     this.CommandList.(tag).classes,...
-                    this.CommandList.(tag).attributes));
+                    this.CommandList.(tag).attributes) && ...
+                    any(cellfun(@(y) isequal(y, x),...
+                    this.CommandList.(tag).val_list)));
+                else
+                    v_func = @(x) validateattributes(x,...
+                    this.CommandList.(tag).classes,...
+                    this.CommandList.(tag).attributes);
+                end
+                addParameter(p, tag,...
+                    this.CommandList.(tag).default, v_func);
             end
             this.CommandParser=p;
         end
@@ -350,8 +357,10 @@ classdef MyInstrument < dynamicprops
         end
         
         function [class,attribute]=AttributesFromFormatSpec(~, str_spec)
-            ind=strfind(str_spec,'%');
-            str_spec_letter=str_spec(ind+1);
+            % find index of the first letter after the % sign
+            ind_p=strfind(str_spec,'%');
+            ind=ind_p+find(isletter(str_spec(ind_p:end)),1)-1;
+            str_spec_letter=str_spec(ind);
             switch str_spec_letter
                 case {'d','f','e','g'}
                     class={'numeric'};
@@ -388,9 +397,9 @@ classdef MyInstrument < dynamicprops
             write_commands=this.command_names(ind_w);
         end
         
-        function write_commands=get.read_commands(this)
+        function read_commands=get.read_commands(this)
             ind_r=structfun(@(x) x.read_flag, this.CommandList);
-            write_commands=this.command_names(ind_r);
+            read_commands=this.command_names(ind_r);
         end
         
         function command_no=get.command_no(this)
