@@ -9,10 +9,16 @@ classdef MyScope <MyInstrument
             createCommandList(this);
             createCommandParser(this);
             switch interface
+                case 'visa'
+                    this.Device=visa(this.Parser.Results.visa_brand,...
+                        address);
+                    configureDefaultVisa(this);
                 case 'TCPIP'
                     connectTCPIP(this);
                 case 'USB'
                     connectUSB(this);
+                otherwise
+                    error('Unknown interface');
             end
         end
         
@@ -101,14 +107,12 @@ classdef MyScope <MyInstrument
         function connectTCPIP(this)
             this.Device= visa('ni',...
                 sprintf('TCPIP0::%s::inst0::INSTR',this.address));
-            set(this.Device,'InputBufferSize',1e6);
-            set(this.Device,'Timeout',2);
+            configureDefaultVisa(this);
         end
         
         function connectUSB(this)
             this.Device=visa('ni',sprintf('USB0::%s::INSTR',this.address));
-            set(this.Device,'InputBufferSize',1e6);
-            set(this.Device,'Timeout',2);
+            configureDefaultVisa(this);
         end
     end
     %% Set functions
