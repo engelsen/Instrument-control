@@ -1,5 +1,11 @@
 classdef MyScope <MyInstrument
-      methods (Access=public)
+    properties (SetAccess=protected, GetAccess=public)
+        % List of the physical knobs, which can be rotated programmatically
+        knob_list = {'GPKNOB1','GPKNOB2','HORZPos','HORZScale',...
+            'TRIGLevel','PANKNOB1','VERTPOS','VERTSCALE','ZOOM'};
+    end
+    
+    methods (Access=public)
         function this=MyScope(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
             createCommandList(this);
@@ -46,6 +52,12 @@ classdef MyScope <MyInstrument
             openDevice(this);
             fprintf(this.Device,...
                 'ACQuire:STOPAfter SEQuence;:ACQuire:STATE ON');
+            closeDevice(this);
+        end
+        
+        function turnKnob(this,knob,nturns)
+            openDevice(this);
+            fprintf(this.Device, sprintf('FPAnel:TURN %s,%i',knob,nturns));
             closeDevice(this);
         end
     end
