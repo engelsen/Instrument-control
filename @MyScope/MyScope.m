@@ -8,21 +8,18 @@ classdef MyScope <MyInstrument
         end
         
         function readTrace(this)
-            openDevice(this);
             %Sets the channel to be read
             writeProperty(this,'channel',this.channel);
             %Sets the encoding of the data
             fprintf(this.Device,'DATa:ENCdg ASCIi');
+            y_data = str2num(query(this.Device,'CURVe?'));
             % Reading the relevant parameters from the scope
             readProperty(this,'unit_y','unit_x',...
-                'step_x','step_y','y_data','x_zero');
-            this.y_data = str2num(this.y_data);
-            closeDevice(this)
+                'step_x','step_y','x_zero');
                         
             % Calculating the y data
-            y = this.y_data*this.step_y; 
+            y = y_data*this.step_y; 
             n_points=length(y);
-
             % Calculating the x axis
             x = linspace(this.x_zero,...
                 this.x_zero+this.step_x*(n_points-1),n_points);
@@ -31,10 +28,6 @@ classdef MyScope <MyInstrument
             this.Trace.y = y;
             this.Trace.unit_x = char(this.unit_x);
             this.Trace.unit_y = char(this.unit_y);
-            %Old: this.Trace=MyTrace('filename','ScopeTrace','x',x,'y',y,...
-                %'unit_x',char(this.unit_x),...
-                %'unit_y',char(this.unit_y));
-            %Triggers the event for acquired data
             triggerNewData(this);
         end
         
@@ -42,7 +35,6 @@ classdef MyScope <MyInstrument
             openDevice(this);
             fprintf(this.Device,...
                 'ACQuire:STOPAfter RUNSTop;:ACQuire:STATE ON');
-            %fprintf(this.Device, 'ACQuire:STATE ON');
             closeDevice(this);
         end
         
@@ -50,7 +42,6 @@ classdef MyScope <MyInstrument
             openDevice(this);
             fprintf(this.Device,...
                 'ACQuire:STOPAfter SEQuence;:ACQuire:STATE ON');
-            %fprintf(this.Device, 'ACQuire:STATE ON');
             closeDevice(this);
         end
     end
@@ -68,8 +59,6 @@ classdef MyScope <MyInstrument
             addCommand(this,'step_x','WFMOutpre:XINcr','access','r',...
                 'classes',{'numeric'});
             addCommand(this,'x_zero','WFMOutpre:XZEro','access','r',...
-                'classes',{'numeric'});
-            addCommand(this,'y_data','CURVe','access','r',...
                 'classes',{'numeric'});
             
             % numbers of points
