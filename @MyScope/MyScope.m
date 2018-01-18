@@ -5,6 +5,9 @@ classdef MyScope <MyInstrument
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);
+            this.Device.InputBufferSize = 1e8; %byte
+            this.Trace.name_x='Time';
+            this.Trace.name_y='Voltage';
         end
         
         function readTrace(this)
@@ -26,8 +29,9 @@ classdef MyScope <MyInstrument
             
             this.Trace.x = x;
             this.Trace.y = y;
-            this.Trace.unit_x = char(this.unit_x);
-            this.Trace.unit_y = char(this.unit_y);
+            % Discard "" when assiging the Trace labels
+            this.Trace.unit_x = this.unit_x(2:end-1);
+            this.Trace.unit_y = this.unit_y(2:end-1);
             triggerNewData(this);
         end
         

@@ -139,15 +139,15 @@ classdef MyInstrument < dynamicprops
         
         % Wrapper for writeProperty that opens and closes the device
         function writePropertyHedged(this, varargin)
-            this.openDevice();
+            openDevice(this);
             try
-                this.writeProperty(varargin{:});
+                writeProperty(this, varargin{:});
             catch
                 warning('Error while writing the properties:');
                 disp(varargin);
             end
-            this.readProperty('all');
-            this.closeDevice();
+            readProperty(this, 'all');
+            closeDevice(this);
         end
         
         function result=readProperty(this, varargin)
@@ -173,14 +173,8 @@ classdef MyInstrument < dynamicprops
                 %Reads the property from the device and stores it in the
                 %correct place
                 res_str = query(this.Device,read_command);    
-                if isfield(this.CommandList.(exec{i}),'str_spec')
-                    result.(exec{i})=...
+                result.(exec{i})=...
                         sscanf(res_str,this.CommandList.(exec{i}).str_spec);
-                else
-                    % If no format specifier is given (possible for a 
-                    % read-only command), then return result as it is
-                    result.(exec{i})=res_str; 
-                end
                 %Assign the values to the MyInstrument properties
                 this.(exec{i})=result.(exec{i});
             end
@@ -188,14 +182,14 @@ classdef MyInstrument < dynamicprops
         
         % Wrapper for readProperty that opens and closes the device
         function result = readPropertyHedged(this, varargin)
-            this.openDevice();
+            openDevice(this);
             try
-                result = this.readProperty(varargin{:});
+                result = readProperty(this, varargin{:});
             catch
                 warning('Error while reading the properties:');
                 disp(varargin);
             end
-            this.closeDevice();
+            closeDevice(this);
         end
         
         % Connects to the device
@@ -304,35 +298,26 @@ classdef MyInstrument < dynamicprops
             this.CommandList.(tag).default=p.Results.default;
             this.CommandList.(tag).val_list=p.Results.val_list;
             
-            %Adds a default value and the attributes the inputs must have
-            %and creates a new property in the class
-            if this.CommandList.(tag).write_flag
-                % Adds the string specifier to the list. if the format
-                % specifier is not given explicitly, try to infer
-                if ismember('str_spec', p.UsingDefaults)
-                    this.CommandList.(tag).str_spec=...
-                        formatSpecFromAttributes(this,p.Results.classes...
-                        ,p.Results.attributes);
-                elseif strcmp(p.Results.str_spec,'%b')
-                    % b is a non-system specifier to represent the
-                    % logical type
-                    this.CommandList.(tag).str_spec='%i';
-                else
-                    this.CommandList.(tag).str_spec=p.Results.str_spec;
-                end
-                % Adds the attributes for the input to the command. If not
-                % given explicitly, infer from the format specifier
-                if ismember('classes',p.UsingDefaults)
-                    [this.CommandList.(tag).classes,...
-                    this.CommandList.(tag).attributes]=...
-                    AttributesFromFormatSpec(this, p.Results.str_spec);
-                else
-                    this.CommandList.(tag).classes=p.Results.classes;
-                    this.CommandList.(tag).attributes=p.Results.attributes;
-                end
+            % Adds the string specifier to the list. if the format
+            % specifier is not given explicitly, try to infer
+            if ismember('str_spec', p.UsingDefaults)
+                this.CommandList.(tag).str_spec=...
+                    formatSpecFromAttributes(this,p.Results.classes...
+                    ,p.Results.attributes);
+            elseif strcmp(p.Results.str_spec,'%b')
+                % b is a non-system specifier to represent the
+                % logical type
+                this.CommandList.(tag).str_spec='%i';
             else
-                % Read-only commands also have the classes and attributes
-                % fields for consistensy, althrough they are never used
+                this.CommandList.(tag).str_spec=p.Results.str_spec;
+            end
+            % Adds the attributes for the input to the command. If not
+            % given explicitly, infer from the format specifier
+            if ismember('classes',p.UsingDefaults)
+                [this.CommandList.(tag).classes,...
+                this.CommandList.(tag).attributes]=...
+                AttributesFromFormatSpec(this, p.Results.str_spec);
+            else
                 this.CommandList.(tag).classes=p.Results.classes;
                 this.CommandList.(tag).attributes=p.Results.attributes;
             end
