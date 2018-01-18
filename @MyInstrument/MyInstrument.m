@@ -255,13 +255,13 @@ classdef MyInstrument < dynamicprops
         end
         
         function configureDefaultVisa(this)
-            if isprop(x.Device.OutputBufferSize)
+            if isprop(this.Device,'OutputBufferSize')
                 this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
             end
-            if isprop(x.Device.InputBufferSize)
+            if isprop(this.Device,'InputBufferSize')
                 this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
             end
-            if isprop(x.Device.Timeout)
+            if isprop(this.Device,'Timeout')
                 this.Device.Timeout = this.DEFAULT_TIMEOUT;
             end
         end
@@ -362,11 +362,8 @@ classdef MyInstrument < dynamicprops
                 % Create validation function based on properties: 
                 % class, attributes and list of values
                 if ~isempty(this.CommandList.(tag).val_list)
-                    v_func = @(x) (validateattributes(x,...
-                    this.CommandList.(tag).classes,...
-                    this.CommandList.(tag).attributes) && ...
-                    any(cellfun(@(y) isequal(y, x),...
-                    this.CommandList.(tag).val_list)));
+                    v_func = @(x) any(cellfun(@(y) isequal(y, x),...
+                    this.CommandList.(tag).val_list));
                 else
                     v_func = @(x) validateattributes(x,...
                     this.CommandList.(tag).classes,...

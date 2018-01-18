@@ -124,6 +124,8 @@ classdef MyInstrument < dynamicprops
                     this.write_commands);
                 exec=this.write_commands(ind_val);
             end
+            
+            disp(exec);
 
             for i=1:length(exec)
                 %Creates the write command using the right string spec
@@ -211,7 +213,6 @@ classdef MyInstrument < dynamicprops
                         this.Device=eval(address);
                     case 'visa'
                         this.Device=visa(vb, address);
-                        configureDefaultVisa(this);
                     case 'tcpip'
                         this.Device= visa(vb, sprintf(...
                             'TCPIP0::%s::inst0::INSTR',this.address));
@@ -219,8 +220,9 @@ classdef MyInstrument < dynamicprops
                         this.Device=visa(vb, sprintf(...
                             'USB0::%s::INSTR',address));
                     otherwise
-                        warning('Unknown interface, device is not connected');
+                        warning('Device is not connected: unknown interface');
                 end
+                configureDefaultVisa(this);
             catch
                 warning('Device is not connected');
             end
@@ -255,13 +257,15 @@ classdef MyInstrument < dynamicprops
         end
         
         function configureDefaultVisa(this)
-            if isprop(x.Device.OutputBufferSize)
+            if isprop(this.Device,'OutputBufferSize')
                 this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
             end
-            if isprop(x.Device.OutputBufferSize)
+            if isprop(this.Device,'InputBufferSize')
+                this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
             end
-            this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
-            this.Device.Timeout = this.DEFAULT_TIMEOUT;
+            if isprop(this.Device,'Timeout')
+                this.Device.Timeout = this.DEFAULT_TIMEOUT;
+            end
         end
         
         %Triggers event for acquired data
