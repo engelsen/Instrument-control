@@ -8,8 +8,9 @@ classdef MyInstrument < dynamicprops
         enable_gui=false;
         %Contains the GUI handles
         Gui;
-        %Contains the device object
-        Device;
+        %Contains the device object. struct() is a dummy, as Device 
+        %needs to always support properties for consistency.
+        Device=struct();
         %Input parser for class constructor
         Parser;
         %Contains a list of the commands available for the instrument as
@@ -197,7 +198,35 @@ classdef MyInstrument < dynamicprops
             this.closeDevice();
         end
         
-        %Connects to the device if it is not connected
+        % Connects to the device
+        function connectDevice(this, interface, address)
+            try
+                % visa brand, DEFAULT_VISA_BRAND if not specified
+                vb = this.Parser.Results.visa_brand;
+                switch lower(interface)
+                    case 'constructor'
+                        % in this case the 'address' is a command 
+                        % (ObjectConstructorName) as returned by the 
+                        % instrhwinfo
+                        this.Device=eval(address);
+                    case 'visa'
+                        this.Device=visa(vb, address);
+                    case 'tcpip'
+                        this.Device= visa(vb, sprintf(...
+                            'TCPIP0::%s::inst0::INSTR',this.address));
+                    case 'usb'
+                        this.Device=visa(vb, sprintf(...
+                            'USB0::%s::INSTR',address));
+                    otherwise
+                        warning('Device is not connected: unknown interface');
+                end
+                configureDefaultVisa(this);
+            catch
+                warning('Device is not connected');
+            end
+        end
+        
+        % Opens the device if it is not open
         function openDevice(this)
             if ~isopen(this)
                 try
@@ -226,9 +255,15 @@ classdef MyInstrument < dynamicprops
         end
         
         function configureDefaultVisa(this)
-            this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
-            this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
-            this.Device.Timeout = this.DEFAULT_TIMEOUT;
+            if isprop(x.Device.OutputBufferSize)
+                this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
+            end
+            if isprop(x.Device.InputBufferSize)
+                this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
+            end
+            if isprop(x.Device.Timeout)
+                this.Device.Timeout = this.DEFAULT_TIMEOUT;
+            end
         end
         
         %Triggers event for acquired data

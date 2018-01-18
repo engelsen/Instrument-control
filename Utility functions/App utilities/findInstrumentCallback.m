@@ -4,7 +4,9 @@ function findInstrumentCallback(app)
     waitfor(FindInstrumentDlg(RefVar));
     if ~isequal(RefVar.value, '')
         % if a new address was chosen, restart the control panel
-        startupFcn(app, 'visa', RefVar.value);
+        connectDevice(app.Instr, 'constructor', RefVar.value);
+        readPropertyHedged(app.Instr,'all');
+        updateGui(app);
     end
 end
 

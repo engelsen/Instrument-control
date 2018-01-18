@@ -4,22 +4,7 @@ classdef MyScope <MyInstrument
             this@MyInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
-            try
-                switch interface
-                    case 'visa'
-                        this.Device=visa(this.Parser.Results.visa_brand,...
-                            address);
-                        configureDefaultVisa(this);
-                    case 'TCPIP'
-                        connectTCPIP(this);
-                    case 'USB'
-                        connectUSB(this);
-                    otherwise
-                        warning('Unknown interface, device is not connected');
-                end
-            catch
-                warning('Device is not connected');
-            end
+            connectDevice(this, interface, address);
         end
         
         function readTrace(this)
@@ -67,17 +52,6 @@ classdef MyScope <MyInstrument
                 'ACQuire:STOPAfter SEQuence;:ACQuire:STATE ON');
             %fprintf(this.Device, 'ACQuire:STATE ON');
             closeDevice(this);
-        end
-        
-        function connectTCPIP(this)
-            this.Device= visa('ni',...
-                sprintf('TCPIP0::%s::inst0::INSTR',this.address));
-            configureDefaultVisa(this);
-        end
-        
-        function connectUSB(this)
-            this.Device=visa('ni',sprintf('USB0::%s::INSTR',this.address));
-            configureDefaultVisa(this);
         end
     end
     
