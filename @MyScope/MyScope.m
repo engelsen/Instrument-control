@@ -20,14 +20,22 @@ classdef MyScope <MyInstrument
             %Sets the channel to be read
             writeProperty(this,'channel',this.channel);
             %Sets the encoding of the data
-            fprintf(this.Device,'DATa:ENCdg ASCIi');
-            y_data = str2num(query(this.Device,'CURVe?'));
+            
+            %set data format to be signed integer, reversed byte order
+            fprintf(this.Device,'DATA:ENCDG SRIbinary');
+            %2 bytes per measurement point
+            fprintf(this.Device,'DATA:WIDTH 2');
+            % read the entire trace
+            fprintf(this.Device,'DATA:START 1;STOP %i;',this.point_no);
+            fprintf(this.Device,'CURVE?');
+            y_data = int16(binblockread(this.Device,'int16'));
+            
             % Reading the relevant parameters from the scope
             readProperty(this,'unit_y','unit_x',...
                 'step_x','step_y','x_zero');
                         
             % Calculating the y data
-            y = y_data*this.step_y; 
+            y = double(y_data)*this.step_y; 
             n_points=length(y);
             % Calculating the x axis
             x = linspace(this.x_zero,...
