@@ -248,11 +248,12 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-        function configureDefaultVisa(this)
-            if isprop(this.Device,'OutputBufferSize')
+        function configureDeviceDefault(this)
+            dev_prop_list = properties(this.Device);
+            if ismember('OutputBufferSize',dev_prop_list)
                 this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
             end
-            if isprop(this.Device,'InputBufferSize')
+            if ismember('InputBufferSize',dev_prop_list)
                 this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
             end
             if isprop(this.Device,'Timeout')
