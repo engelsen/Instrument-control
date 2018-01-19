@@ -3,6 +3,7 @@ function linkControlElement(app, elem, prop_tag, varargin)
     addRequired(p,'elem');
     addRequired(p,'prop_tag',@ischar);
     addParameter(p,'input_presc',1,@isnumeric);
+    addParameter(p,'out_proc_fcn',@(x)0,@(f)isa(f,'function_handle'));
     addParameter(p,'create_callback_fcn',@(x)0,@(f)isa(f,'function_handle')); 
     parse(p,elem,prop_tag,varargin{:});
 
@@ -25,6 +26,16 @@ function linkControlElement(app, elem, prop_tag, varargin)
             addprop(elem,'InputPrescaler');
         end
         elem.InputPrescaler = p.Results.input_presc;
+    end
+    
+    % add an arbitrary function for output processing
+    if ~ismember('out_proc_fcn',p.UsingDefaults)
+        if isprop(elem, 'OutputProcessingFcn')
+            warning('The OutputProcessingFcn property already exists in the control element');
+        else
+            addprop(elem,'OutputProcessingFcn');
+        end
+        elem.OutputProcessingFcn = p.Results.out_proc_fcn;
     end
 end
 

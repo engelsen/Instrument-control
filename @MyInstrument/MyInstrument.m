@@ -153,7 +153,7 @@ classdef MyInstrument < dynamicprops
         end
         
         % Wrapper for readProperty that opens and closes the device
-        function result = readPropertyHedged(this, varargin)
+        function result=readPropertyHedged(this, varargin)
             openDevice(this);
             try
                 result = readProperty(this, varargin{:});
@@ -162,6 +162,47 @@ classdef MyInstrument < dynamicprops
                 disp(varargin);
             end
             closeDevice(this);
+        end
+        
+        % Extend the property value based on val_list 
+        function std_val = standardizeValue(this, cmd, varargin)
+            if ~ismember(cmd,this.command_names)
+                warning('%s is not a valid command',cmd);
+                std_val = '';
+                return
+            end
+            vlist = this.CommandList.(cmd).val_list;
+            % The value to normalize can be explicitly passed as
+            % varargin{1}, otherwise use the property value
+            if isempty(varargin)
+                val = this.(cmd);
+            else
+                val = varargin{1};
+            end
+            % find matching commands
+            ismatch = false(1,length(vlist));
+            for i=1:length(vlist)
+                n = min([length(val), length(vlist{i})]);
+                % compare first n symbols disregarding case
+                ismatch(i) = strncmpi(val, vlist{i},n);
+            end
+            % out of matching names pick the longest
+            if any(ismatch)
+                mvlist = vlist(ismatch);
+                str = mvlist{1};
+                for i=1:length(mvlist)
+                    if length(mvlist{i})>length(str)
+                        str = mvlist{i};
+                    end
+                end
+                std_val = str;
+                % set the property if value was not given explicitly 
+                if isempty(varargin)
+                    this.(cmd) = std_val;
+                end
+            else
+                std_val = val;
+            end
         end
         
         % Connects to the device

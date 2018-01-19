@@ -6,7 +6,9 @@ function updateGui(app)
         if isprop(app.Instr, tmpelem.Tag)
             tmpval = app.Instr.(tmpelem.Tag);
             % scale the value if the control element has a prescaler
-            if isprop(tmpelem, 'InputPrescaler')
+            if isprop(tmpelem, 'OutputProcessingFcn')
+                tmpval = tmpelem.OutputProcessingFcn(tmpval);
+            elseif isprop(tmpelem, 'InputPrescaler')
                 tmpval = tmpval*tmpelem.InputPrescaler;
             end
             tmpelem.Value = tmpval;
