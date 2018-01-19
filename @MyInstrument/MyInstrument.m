@@ -4,10 +4,6 @@ classdef MyInstrument < dynamicprops
         name='';
         interface='';
         address='';
-        %Logical for whether gui is enabled
-        enable_gui=false;
-        %Contains the GUI handles
-        Gui;
         %Contains the device object. struct() is a dummy, as Device 
         %needs to always support properties for consistency.
         Device=struct();
@@ -47,7 +43,6 @@ classdef MyInstrument < dynamicprops
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
             addParameter(p,'name','',@ischar);
-            addParameter(p,'gui','',@ischar);
             addParameter(p,'visa_brand',this.DEFAULT_VISA_BRAND,@ischar);
             this.Parser=p;
         end
@@ -56,44 +51,14 @@ classdef MyInstrument < dynamicprops
     methods (Access=public)
         function this=MyInstrument(interface, address, varargin)
             createParser(this);
-            parse(this.Parser,interface,address,varargin{:});
-            
+            parse(this.Parser,interface,address,varargin{:});      
             %Loads parsed variables into class properties
             this.name=this.Parser.Results.name;
             this.interface=this.Parser.Results.interface;
             this.address=this.Parser.Results.address;
-            this.enable_gui=~ismember('gui',this.Parser.UsingDefaults);
-            
-            %If a gui input is given, load the gui
-            if this.enable_gui
-                %Loads the gui from the input gui string
-                this.Gui=guihandles(eval(this.Parser.Results.gui));
-                %Sets figure close function such that class will know when
-                %figure is closed
-                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
-                    this.Gui);
-                names=fieldnames(this.Gui);
-                set(this.Gui.(names{ind}), 'CloseRequestFcn',...
-                    @(hObject,eventdata) closeFigure(this, hObject, ...
-                    eventdata));
-            end
         end
         
-        function delete(this)
-            %Removes close function from figure, prevents infinite loop
-            if this.enable_gui
-                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
-                    this.Gui);
-                names=fieldnames(this.Gui);
-                set(this.Gui.(names{ind}), 'CloseRequestFcn',...
-                    @(hObject,eventdata) closeFigure(this, hObject, ...
-                    eventdata));
-                %Deletes the figure handles
-                structfun(@(x) delete(x), this.Gui);
-                %Removes the figure handle to prevent memory leaks
-                this.Gui=[];
-            end
-            
+        function delete(this)         
             %Closes the connection to the device
             closeDevice(this);
             %Deletes the device object
@@ -185,19 +150,6 @@ classdef MyInstrument < dynamicprops
                 warning(['Not all the properties could be read, ',...
                     'no instrument class values are updated']);
             end
-%            Old solution:
-%            % Iterate over the commands list
-%             for i=1:length(exec)
-%                 %Creates the correct read command
-%                 read_command=[this.CommandList.(exec{i}).command,'?'];
-%                 %Reads the property from the device and stores it in the
-%                 %correct place
-%                 res_str = query(this.Device,read_command);    
-%                 result.(exec{i})=...
-%                         sscanf(res_str,this.CommandList.(exec{i}).str_spec);
-%                 %Assign the values to the MyInstrument properties
-%                 this.(exec{i})=result.(exec{i});
-%             end
         end
         
         % Wrapper for readProperty that opens and closes the device
