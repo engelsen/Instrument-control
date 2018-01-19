@@ -72,8 +72,13 @@ classdef MyScope <MyInstrument
     
     methods (Access=private)
         function createCommandList(this)
+            % channel from which the data is transferred
             addCommand(this,'channel','DATa:SOUrce','default',1,...
                 'str_spec','CH%i');
+            % currently selected in the scope display channel
+            addCommand(this, 'ctrl_channel', 'SELect:CONTROl',...
+                'default',1, 'str_spec','CH%i');
+            % units and scale for x and y waveform data
             addCommand(this,'unit_x','WFMOutpre:XUNit','access','r',...
                 'classes',{'char'});
             addCommand(this,'unit_y','WFMOutpre:YUNit','access','r',...
@@ -112,8 +117,8 @@ classdef MyScope <MyInstrument
                 'str_spec','%s');
             % state of the data acquisition by the scope
             addCommand(this, 'acq_state', 'ACQuire:STATE',...
-                'default',true, 'str_spec','%b')
-            
+                'default',true, 'str_spec','%b');
+           
             % Parametric commands
             for i = 1:4
                 % coupling, AC, DC or GND
@@ -135,7 +140,10 @@ classdef MyScope <MyInstrument
                 addCommand(this,...
                     ['scale',i_str],['CH',i_str,':SCAle'],'default',1,...
                     'str_spec','%e');
-                % channel visible
+                % channel enabled
+                addCommand(this,...
+                    ['enable',i_str],['SEL:CH',i_str],'default',true,...
+                    'str_spec','%b');
             end
         end
     end

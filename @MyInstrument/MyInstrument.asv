@@ -166,18 +166,23 @@ classdef MyInstrument < dynamicprops
                     disp(varargin(~ind_r));
                 end
             end
+            
+            read_command=join(exec,'?;:');
+            read_command=[read_command{1},'?;'];
+            res_str = split(query(this.Device,read_command);
+            
             % Iterate over the commands list
-            for i=1:length(exec)
-                %Creates the correct read command
-                read_command=[this.CommandList.(exec{i}).command,'?'];
-                %Reads the property from the device and stores it in the
-                %correct place
-                res_str = query(this.Device,read_command);    
-                result.(exec{i})=...
-                        sscanf(res_str,this.CommandList.(exec{i}).str_spec);
-                %Assign the values to the MyInstrument properties
-                this.(exec{i})=result.(exec{i});
-            end
+%             for i=1:length(exec)
+%                 %Creates the correct read command
+%                 read_command=[this.CommandList.(exec{i}).command,'?'];
+%                 %Reads the property from the device and stores it in the
+%                 %correct place
+%                 res_str = query(this.Device,read_command);    
+%                 result.(exec{i})=...
+%                         sscanf(res_str,this.CommandList.(exec{i}).str_spec);
+%                 %Assign the values to the MyInstrument properties
+%                 this.(exec{i})=result.(exec{i});
+%             end
         end
         
         % Wrapper for readProperty that opens and closes the device
@@ -256,7 +261,7 @@ classdef MyInstrument < dynamicprops
             if ismember('InputBufferSize',dev_prop_list)
                 this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
             end
-            if isprop(this.Device,'Timeout')ismember('InputBufferSize',dev_prop_list)
+            if ismember('Timeout',dev_prop_list)
                 this.Device.Timeout = this.DEFAULT_TIMEOUT;
             end
         end

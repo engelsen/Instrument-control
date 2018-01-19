@@ -166,18 +166,38 @@ classdef MyInstrument < dynamicprops
                     disp(varargin(~ind_r));
                 end
             end
-            % Iterate over the commands list
-            for i=1:length(exec)
-                %Creates the correct read command
-                read_command=[this.CommandList.(exec{i}).command,'?'];
-                %Reads the property from the device and stores it in the
-                %correct place
-                res_str = query(this.Device,read_command);    
-                result.(exec{i})=...
-                        sscanf(res_str,this.CommandList.(exec{i}).str_spec);
-                %Assign the values to the MyInstrument properties
-                this.(exec{i})=result.(exec{i});
+            
+            read_command=join(cellfun(...
+                @(cmd)this.CommandList.(cmd).command,exec,...
+                'UniformOutput',false),'?;:');
+            read_command=[read_command{1},'?;'];
+            res_str = query(this.Device,read_command);
+            % drop the end-of-the-string symbol and split
+            res_str = split(res_str(1:end-1),';');
+            if length(exec)==length(res_str)
+                for i=1:length(exec)
+                    result.(exec{i})=sscanf(res_str{i},...
+                        this.CommandList.(exec{i}).str_spec);
+                    %Assign the values to the MyInstrument properties
+                    this.(exec{i})=result.(exec{i});
+                end
+            else
+                warning(['Not all the properties could be read, ',...
+                    'no instrument class values are updated']);
             end
+%            Old solution:
+%            % Iterate over the commands list
+%             for i=1:length(exec)
+%                 %Creates the correct read command
+%                 read_command=[this.CommandList.(exec{i}).command,'?'];
+%                 %Reads the property from the device and stores it in the
+%                 %correct place
+%                 res_str = query(this.Device,read_command);    
+%                 result.(exec{i})=...
+%                         sscanf(res_str,this.CommandList.(exec{i}).str_spec);
+%                 %Assign the values to the MyInstrument properties
+%                 this.(exec{i})=result.(exec{i});
+%             end
         end
         
         % Wrapper for readProperty that opens and closes the device
