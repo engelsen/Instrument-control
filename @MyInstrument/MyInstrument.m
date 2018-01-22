@@ -148,7 +148,7 @@ classdef MyInstrument < dynamicprops
                 end
             else
                 warning(['Not all the properties could be read, ',...
-                    'no instrument class values are updated']);
+                    'no instrument class values are not updated']);
             end
         end
         
