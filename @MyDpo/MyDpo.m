@@ -1,4 +1,4 @@
-% Class for controlling Tektronix DPO scopes. 
+% Class for controlling 4-channel Tektronix DPO scopes. 
 % Tested with DPO4034, DPO3034
 classdef MyDpo <MyInstrument
     properties (SetAccess=protected, GetAccess=public)
@@ -119,8 +119,8 @@ classdef MyDpo <MyInstrument
            
             % Parametric commands
             for i = 1:4
-                % coupling, AC, DC or GND
                 i_str = num2str(i);
+                % coupling, AC, DC or GND
                 addCommand(this,...
                     ['cpl',i_str],['CH',i_str,':COUP'],...
                     'default','DC', 'val_list', {'AC','DC','GND'},...
