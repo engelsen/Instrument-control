@@ -1,6 +1,6 @@
 % update all the linked control elements according to their counterpart properties
 function updateGui(app)
-% Instrument is a MyInstrument object
+    % app.Instr is a MyInstrument object
     for i=1:length(app.linked_elem_list)
         tmpelem = app.linked_elem_list(i);
         if isprop(app.Instr, tmpelem.Tag)

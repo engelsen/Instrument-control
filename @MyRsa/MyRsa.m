@@ -30,6 +30,10 @@ classdef MyRsa < MyInstrument
                 'str_spec','P%i');
             addCommand(this, 'read_cont','INIT:CONT','default',true,...
                 'str_spec','%b');
+            % Reference level
+            % Display offset
+            % display scale per division DISPlay:DPX:Y[:SCALe]:PDIVision
+            % display vertical offset DISPLAY:DPX:Y[:SCALE]:OFFSET -12.5dBm
             
             % Parametric commands
             for i = 1:4
