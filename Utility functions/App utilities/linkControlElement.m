@@ -1,10 +1,19 @@
 function linkControlElement(app, elem, prop_tag, varargin)
     p=inputParser();
+    % GUI control element
     addRequired(p,'elem');
+    % Instrument command to be linked to the GUI element
     addRequired(p,'prop_tag',@ischar);
+    % If input_presc is given, the value assigned to the instrument propery  
+    % is related to the value x displayed in GUI as x/input_presc.
     addParameter(p,'input_presc',1,@isnumeric);
-    addParameter(p,'out_proc_fcn',@(x)0,@(f)isa(f,'function_handle'));
-    addParameter(p,'create_callback_fcn',@(x)0,@(f)isa(f,'function_handle')); 
+    % Add an arbitrary function for processing the value, read from the
+    % device before outputting it. 
+    addParameter(p,'out_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
+    addParameter(p,'create_callback_fcn',@(x)0,@(f)isa(f,'function_handle'));
+    % For drop-down menues initializes entries automatically based on the 
+    % list of values. Ignored for all the other control elements. 
+    addParameter(p,'init_val_list',false,@islogical);
     parse(p,elem,prop_tag,varargin{:});
 
     % The property-control link is established by assigning the tag
@@ -18,24 +27,47 @@ function linkControlElement(app, elem, prop_tag, varargin)
         elem.ValueChangedFcn = feval(p.Results.create_callback_fcn);
     end
 
-    % If the prescaler is indicated, add it to the element as a new property
+    % If prescaler is given, add it to the element as a new property
     if p.Results.input_presc ~= 1
         if isprop(elem, 'InputPrescaler')
-            warning('The InputPrescaler property already exists in the control element');
+            warning(['The InputPrescaler property already exists',...
+                ' in the control element']);
         else
             addprop(elem,'InputPrescaler');
         end
         elem.InputPrescaler = p.Results.input_presc;
     end
     
-    % add an arbitrary function for output processing
+    % Add an arbitrary function for output processing
     if ~ismember('out_proc_fcn',p.UsingDefaults)
         if isprop(elem, 'OutputProcessingFcn')
-            warning('The OutputProcessingFcn property already exists in the control element');
+            warning(['The OutputProcessingFcn property already exists',...
+                ' in the control element']);
         else
             addprop(elem,'OutputProcessingFcn');
         end
         elem.OutputProcessingFcn = p.Results.out_proc_fcn;
+    end
+    
+    % Auto initialization of entries, for dropdown menus only
+    if p.Results.init_val_list && isequal(elem.Type, 'uidropdown')
+        try
+            cmd_val_list = app.Instr.CommandList.(prop_tag).val_list;
+            % Items in a dropdown should be strings, so convert if
+            % necessary
+            str_list=cell(length(cmd_val_list), 1);
+            for i=1:length(cmd_val_list)
+                if ~ischar(cmd_val_list{i})
+                    str_list{i}=num2str(cmd_val_list{i});
+                end
+            end
+            elem.Items = str_list;
+            % Put raw values in ItemsData
+            elem.ItemsData = cmd_val_list;
+        catch
+            warning(['Could not automatically assign values',...
+                ' when linking the ',prop_tag,' property']);
+        end
     end
 end
 

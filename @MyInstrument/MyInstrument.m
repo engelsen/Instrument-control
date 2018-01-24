@@ -64,13 +64,7 @@ classdef MyInstrument < dynamicprops
             %Deletes the device object
             delete(this.Device);
             clear('this.Device');
-        end
-        
-        %Clears data from trace to save memory.
-        function clearData(this)
-            this.Trace.x=[];
-            this.Trace.y=[];
-        end      
+        end    
         
         %Writes properties to device. Can take multiple inputs. With the
         %option all, the function writes default to all the
@@ -117,8 +111,7 @@ classdef MyInstrument < dynamicprops
         
         function result=readProperty(this, varargin)
             result = struct();
-            read_all_flag = any(strcmp('all',varargin));
-            
+            read_all_flag = any(strcmp('all',varargin));          
             if read_all_flag
                 % Read all the commands with read access 
                 exec=this.read_commands;
@@ -131,7 +124,7 @@ classdef MyInstrument < dynamicprops
                     disp(varargin(~ind_r));
                 end
             end
-            
+            % concatenate all commands in one string
             read_command=join(cellfun(...
                 @(cmd)this.CommandList.(cmd).command,exec,...
                 'UniformOutput',false),'?;:');
@@ -406,14 +399,10 @@ classdef MyInstrument < dynamicprops
                     class={'logical'};
                     attribute={};
                 otherwise
-                    class={};
+                    % Any of the above classes will pass
+                    class={'numeric','char','logical'};
                     attribute={};
             end
-        end
-        
-        %Close figure callback simply calls delete function for class
-        function closeFigure(this,~,~)
-            delete(this);
         end
     end
     

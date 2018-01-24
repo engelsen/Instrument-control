@@ -6,6 +6,11 @@ classdef MyRsa < MyInstrument
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);
+            
+            this.Trace.unit_x='Hz';
+            this.Trace.unit_y='$\mathrm{V}^2/\mathrm{Hz}$';
+            this.Trace.name_y='Power';
+            this.Trace.name_x='Frequency';
         end
     end
     
@@ -13,7 +18,7 @@ classdef MyRsa < MyInstrument
     methods (Access=private)
         
         function createCommandList(this)
-            % Resolution bandwidth
+            % Resolution bandwidth (Hz)
             addCommand(this, 'rbw','DPSA:BAND:RES',...
                 'default',1e3,'str_spec','%e');
             addCommand(this, 'span', 'DPSA:FREQ:SPAN',...
@@ -24,29 +29,54 @@ classdef MyRsa < MyInstrument
                 'default',2e6,'str_spec','%e');
             addCommand(this, 'cent_freq','DPSA:FREQ:CENT',...
                 'default',1.5e6,'str_spec','%e');
-
+            % Initiate and abort data acquisition, don't take arguments
+            addCommand(this, 'abort_acq','ABORt', 'access','w',...
+                'str_spec','');
+            addCommand(this, 'init_acq','INIT', 'access','w',...
+                'str_spec','');
+            % Continuous triggering
+            addCommand(this, 'init_cont','INIT:CONT','default',true,...
+                'str_spec','%b');
+            % Number of points in trace
             addCommand(this, 'point_no','DPSA:POIN:COUN',...
                 'default',10401, 'val_list',{801,2401,4001,10401},...
                 'str_spec','P%i');
-            addCommand(this, 'read_cont','INIT:CONT','default',true,...
-                'str_spec','%b');
-            % Reference level
-            % Display offset
-            % display scale per division DISPlay:DPX:Y[:SCALe]:PDIVision
-            % display vertical offset DISPLAY:DPX:Y[:SCALE]:OFFSET -12.5dBm
+            % Reference level (dB)
+            addCommand(this, 'ref_level','INPut:RLEVel','default',0,...
+                'str_spec','%e');
+            % Display scale per division (dBm/div)
+            addCommand(this, 'disp_y_scale','DISPlay:DPX:Y:PDIVision',...
+                'default',10,'str_spec','%e');
+            % Display vertical offset (dBm)
+            addCommand(this, 'disp_y_offset','DISPLAY:DPX:Y:OFFSET',...
+                'default',0,'str_spec','%e');
             
             % Parametric commands
-            for i = 1:4
+            for i = 1:3
                 i_str = num2str(i);
                 % Display trace
-                % Enable average
-                addCommand(this, ['enable_avg',i_str],...
-                    ['TRAC',i_str,':DPSA:COUN:ENABLE'],...
+                addCommand(this, ['disp_trace',i_str],...
+                    ['TRAC',i_str,':DPX'],...
                     'default',false,'str_spec','%b');
+                % Trace Detection
+                addCommand(this, ['det_trace',i_str],...
+                    ['TRAC',i_str,':DPX:DETection'],...
+                    'val_list',{'AVER','AVERage','NEG','NEGative',...
+                    'POS','POSitive'},...
+                    'default','AVER','str_spec','%s');
+                % Trace Function
+                addCommand(this, ['func_trace',i_str],...
+                    ['TRAC',i_str,':DPX:FUNCtion'],...
+                    'val_list',{'AVER','AVERage','HOLD','NORM','NORMal'},...
+                    'default','AVER','str_spec','%s');
                 % Number of averages
                 addCommand(this, ['average_no',i_str],...
-                    ['TRAC',i_str,':DPSA:AVER:COUN'],...
+                    ['TRAC',i_str,':DPX:AVER:COUN'],...
                     'default',1,'str_spec','%i');
+                % Count completed averages
+                addCommand(this, ['cnt_trace',i_str],...
+                    ['TRACe',i_str,':DPX:COUNt:ENABle'],...
+                    'default',false,'str_spec','%b');
             end
         end
     end
@@ -54,21 +84,19 @@ classdef MyRsa < MyInstrument
     %% Public functions including callbacks
     methods (Access=public)
         
-        function readSingle(this)
-            openDevice(this);  
-            fwrite(this.Device, 'fetch:dpsa:res:trace3?');
+        function readSingle(this, n_trace)
+            fetch_cmd = sprintf('fetch:dpsa:res:trace%i?', n_trace);  
+            fwrite(this.Device, fetch_cmd);
             data = binblockread(this.Device,'float');
-            closeDevice(this);
-            
+            readProperty('start_freq','stop_freq','point_no');
             x_vec=linspace(this.start_freq,this.stop_freq,...
                 this.point_no);
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
             %Trace object is created containing the data and its units
-            setTrace(this.Trace,'x',x_vec,'y',power_spectrum,...
-                'unit_y','$\mathrm{V}^2/\mathrm{Hz}$','name_y','Power',...
-                'unit_x','Hz','name_x','Frequency');
+            this.Trace.x=x_vec;
+            this.Trace.y=power_spectrum;
 
             %Trigger acquired data event (inherited from MyInstrument)
             triggerNewData(this);
