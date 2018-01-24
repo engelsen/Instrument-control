@@ -66,6 +66,7 @@ classdef MyInstrument < dynamicprops
             clear('this.Device');
         end    
         
+        %% Read and write commands
         %Writes properties to device. Can take multiple inputs. With the
         %option all, the function writes default to all the
         %available writeable parameters.
@@ -157,6 +158,12 @@ classdef MyInstrument < dynamicprops
             closeDevice(this);
         end
         
+        %Triggers event for acquired data
+        function triggerNewData(this)
+            notify(this,'NewData')
+        end
+        
+        %% Processing of the class variable values
         % Extend the property value based on val_list 
         function std_val = standardizeValue(this, cmd, varargin)
             if ~ismember(cmd,this.command_names)
@@ -198,6 +205,35 @@ classdef MyInstrument < dynamicprops
             end
         end
         
+        % Create a string of property values
+        function par_str = getConfigString(this)
+            % Try to find out the device name
+            if ~isempty(this.name)
+                name_str = this.name;
+            else
+                try
+                    openDevice(this);
+                    name_str = query(this.Device,'*IDN?');
+                    closeDevice(this);
+                    % Remove the new line end symbol
+                    name_str=name_str(1:end-1);
+                catch
+                    warning('Could not get the device name');
+                    name_str = '';
+                end
+            end
+            par_str = sprintf('Instrument name: %s\n',name_str);
+            % Append the values of all the commands 
+            rcmds=this.read_commands;
+            for i=1:length(rcmds)
+                new_str = sprintf(['\t',rcmds{i},'\t',...
+                    this.CommandList.(rcmds{i}).str_spec,'\n'],...
+                    this.(rcmds{i}));
+                par_str = [par_str, new_str];
+            end
+        end
+        
+        %% Connect, open, configure and close the device
         % Connects to the device
         function connectDevice(this, interface, address)
             try
@@ -267,11 +303,6 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-        %Triggers event for acquired data
-        function triggerNewData(this)
-            notify(this,'NewData')
-        end
-        
         %Checks if the connection to the device is open
         function bool=isopen(this)
             try
@@ -281,7 +312,8 @@ classdef MyInstrument < dynamicprops
                 bool=false;
             end
         end
-             
+        
+        %% addCommand
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
             p=inputParser();
@@ -367,6 +399,7 @@ classdef MyInstrument < dynamicprops
             this.CommandParser=p;
         end
         
+        %% Auxiliary functions for auto format assignment to commands
         function str_spec=formatSpecFromAttributes(~,classes,attributes)
             if ismember('char',classes)
                 str_spec='%s';
@@ -406,7 +439,7 @@ classdef MyInstrument < dynamicprops
         end
     end
     
-    % Get functions
+    %% Get functions
     methods
         function command_names=get.command_names(this)
             command_names=fieldnames(this.CommandList);

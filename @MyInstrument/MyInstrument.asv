@@ -64,14 +64,9 @@ classdef MyInstrument < dynamicprops
             %Deletes the device object
             delete(this.Device);
             clear('this.Device');
-        end
+        end    
         
-        %Clears data from trace to save memory.
-        function clearData(this)
-            this.Trace.x=[];
-            this.Trace.y=[];
-        end      
-        
+        %% Read and write commands
         %Writes properties to device. Can take multiple inputs. With the
         %option all, the function writes default to all the
         %available writeable parameters.
@@ -117,8 +112,7 @@ classdef MyInstrument < dynamicprops
         
         function result=readProperty(this, varargin)
             result = struct();
-            read_all_flag = any(strcmp('all',varargin));
-            
+            read_all_flag = any(strcmp('all',varargin));          
             if read_all_flag
                 % Read all the commands with read access 
                 exec=this.read_commands;
@@ -131,7 +125,7 @@ classdef MyInstrument < dynamicprops
                     disp(varargin(~ind_r));
                 end
             end
-            % 
+            % concatenate all commands in one string
             read_command=join(cellfun(...
                 @(cmd)this.CommandList.(cmd).command,exec,...
                 'UniformOutput',false),'?;:');
@@ -164,6 +158,12 @@ classdef MyInstrument < dynamicprops
             closeDevice(this);
         end
         
+        %Triggers event for acquired data
+        function triggerNewData(this)
+            notify(this,'NewData')
+        end
+        
+        %% Processing of the class variable values
         % Extend the property value based on val_list 
         function std_val = standardizeValue(this, cmd, varargin)
             if ~ismember(cmd,this.command_names)
@@ -205,6 +205,30 @@ classdef MyInstrument < dynamicprops
             end
         end
         
+        % Create a string of property values
+        function par_str = getParametersString(this)
+            % Try to find out the device name
+            if ~isempty(this.name)
+                name_str = this.name;
+            else
+                try
+                    openDevice(this)
+                    close
+                catch
+                end
+            end
+            par_str = sprintf('Instrument name: %s',this.name);
+            
+            rcmds=this.read_commands;
+            for i=1:length(rcmds)
+                new_str = sprintf(['\t',rcmds{i},'\t',...
+                    this.CommandList.(rcmds{i}).str_spec,'\n'],...
+                    this.(rcmds{i}));
+                par_str = [par_str, new_str];
+            end
+        end
+        
+        %% Connect, open, configure and close the device
         % Connects to the device
         function connectDevice(this, interface, address)
             try
@@ -274,11 +298,6 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-        %Triggers event for acquired data
-        function triggerNewData(this)
-            notify(this,'NewData')
-        end
-        
         %Checks if the connection to the device is open
         function bool=isopen(this)
             try
@@ -288,7 +307,8 @@ classdef MyInstrument < dynamicprops
                 bool=false;
             end
         end
-             
+        
+        %% addCommand
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
             p=inputParser();
@@ -374,6 +394,7 @@ classdef MyInstrument < dynamicprops
             this.CommandParser=p;
         end
         
+        %% Auxiliary functions for auto format assignment to commands
         function str_spec=formatSpecFromAttributes(~,classes,attributes)
             if ismember('char',classes)
                 str_spec='%s';
@@ -413,7 +434,7 @@ classdef MyInstrument < dynamicprops
         end
     end
     
-    % Get functions
+    %% Get functions
     methods
         function command_names=get.command_names(this)
             command_names=fieldnames(this.CommandList);

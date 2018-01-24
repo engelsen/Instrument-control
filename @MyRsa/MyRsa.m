@@ -88,15 +88,15 @@ classdef MyRsa < MyInstrument
             fetch_cmd = sprintf('fetch:dpsa:res:trace%i?', n_trace);  
             fwrite(this.Device, fetch_cmd);
             data = binblockread(this.Device,'float');
-            readProperty('start_freq','stop_freq','point_no');
+            readProperty(this, 'start_freq','stop_freq','point_no');
             x_vec=linspace(this.start_freq,this.stop_freq,...
                 this.point_no);
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
             %Trace object is created containing the data and its units
-            this.Trace.x=x_vec;
-            this.Trace.y=power_spectrum;
+            this.Trace.x = x_vec;
+            this.Trace.y = power_spectrum;
 
             %Trigger acquired data event (inherited from MyInstrument)
             triggerNewData(this);
