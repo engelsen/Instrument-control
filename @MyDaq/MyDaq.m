@@ -71,7 +71,6 @@ classdef MyDaq < handle
             cellfun(@(x) deleteListeners(this,x), this.open_fits);
             structfun(@(x) delete(x), this.Fits);
             
-            
             %Deletes the InstrApp objects and their listeners
             cellfun(@(x) deleteListeners(this,x), fieldnames(this.InstrApps));
             structfun(@(x) delete(x), this.InstrApps);
@@ -79,8 +78,6 @@ classdef MyDaq < handle
             %Deletes the MyInstrument objects and their listeners
             cellfun(@(x) deleteListeners(this,x), this.open_instrs);
             structfun(@(x) delete(x), this.Instruments);
-            
-            
             
             if this.enable_gui
                 this.Gui.figure1.CloseRequestFcn='';
@@ -127,9 +124,9 @@ classdef MyDaq < handle
             end
             
             %Initializes empty trace objects
-            this.Ref=MyTrace;
-            this.Data=MyTrace;
-            this.Background=MyTrace;
+            this.Ref=MyTrace();
+            this.Data=MyTrace();
+            this.Background=MyTrace();
         end
 
         %Sets callback functions for the GUI
@@ -171,10 +168,10 @@ classdef MyDaq < handle
             
             switch instr_type
                 case 'RSA'
-                    this.Instruments.(tag)=MyRsa(input_cell{:},...
-                        'gui','GuiRsa','name',this.InstrList.(tag).name);
-                case 'Scope'
-                    this.InstrApps.(tag)=GuiScope(input_cell{:},...
+                    this.InstrApps.(tag)=GuiRsa(input_cell{:},'name',this.InstrList.(tag).name);
+                    this.Instruments.(tag)=this.InstrApps.(tag).Instr;
+                case 'DPO'
+                    this.InstrApps.(tag)=GuiDpo(input_cell{:},...
                         'name',this.InstrList.(tag).name);
                     this.Instruments.(tag)=this.InstrApps.(tag).Instr;
                 case 'NA'
