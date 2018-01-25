@@ -8,9 +8,7 @@ classdef MyFit < dynamicprops
         lim_upper;
         enable_plot;
         plot_handle;
-        save_name;
-        save_dir;
-        session_name;
+
         %Calibration values supplied externally
         CalVals=struct();
         init_color='c';
@@ -48,6 +46,10 @@ classdef MyFit < dynamicprops
         user_field_names;
         user_field_vals;
         fullpath;
+        save_name;
+        save_dir;
+        save_path;
+        session_name;
     end
     
     events
@@ -147,6 +149,14 @@ classdef MyFit < dynamicprops
             col_width=cellfun(@(x) length(x), headers)+2;
             %Min column width of 24
             col_width(col_width<24)=24;
+            
+            if ~exist(this.save_dir,'dir')
+                mkdir(this.save_dir)
+            end
+            
+            if ~exist(this.save_path,'dir')
+                mkdir(this.save_path)
+            end
             
             if exist(this.fullpath,'file')
                 fileID=fopen(this.fullpath,'a');
@@ -671,8 +681,47 @@ classdef MyFit < dynamicprops
         end
         
         function fullpath=get.fullpath(this)
+            fullpath=[this.save_path,this.save_name,'.txt'];
+        end
+        
+        function save_path=get.save_path(this)
             save_path=createSessionPath(this.save_dir,this.session_name);
-            fullpath=[save_path,this.save_name,'.txt'];
+        end
+        
+        function save_dir=get.save_dir(this)
+            try
+                save_dir=this.Gui.SaveDir.String;
+            catch
+                save_dir=pwd;
+            end
+        end
+        
+        function set.save_dir(this,save_dir)
+            this.Gui.SaveDir.String=save_dir;
+        end
+        
+        function session_name=get.session_name(this)
+            try
+                session_name=this.Gui.SessionName.String;
+            catch
+                session_name='';
+            end
+        end
+        
+        function set.session_name(this,session_name)
+           this.Gui.SessionName.String=session_name; 
+        end
+        
+        function save_name=get.save_name(this)
+            try
+                save_name=this.Gui.FileName.String;
+            catch
+                save_name='placeholder';
+            end
+        end
+        
+        function set.save_name(this,save_name)
+            this.Gui.SaveName=save_name;
         end
     end
 end
