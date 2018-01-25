@@ -4,12 +4,9 @@ classdef MyInstrument < dynamicprops
         name='';
         interface='';
         address='';
-        %Logical for whether gui is enabled
-        enable_gui=false;
-        %Contains the GUI handles
-        Gui;
-        %Contains the device object
-        Device;
+        %Contains the device object. struct() is a dummy, as Device 
+        %needs to always support properties for consistency.
+        Device=struct();
         %Input parser for class constructor
         Parser;
         %Contains a list of the commands available for the instrument as
@@ -46,7 +43,6 @@ classdef MyInstrument < dynamicprops
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
             addParameter(p,'name','',@ischar);
-            addParameter(p,'gui','',@ischar);
             addParameter(p,'visa_brand',this.DEFAULT_VISA_BRAND,@ischar);
             this.Parser=p;
         end
@@ -55,57 +51,22 @@ classdef MyInstrument < dynamicprops
     methods (Access=public)
         function this=MyInstrument(interface, address, varargin)
             createParser(this);
-            parse(this.Parser,interface,address,varargin{:});
-            
+            parse(this.Parser,interface,address,varargin{:});      
             %Loads parsed variables into class properties
             this.name=this.Parser.Results.name;
             this.interface=this.Parser.Results.interface;
             this.address=this.Parser.Results.address;
-            this.enable_gui=~ismember('gui',this.Parser.UsingDefaults);
-            
-            %If a gui input is given, load the gui
-            if this.enable_gui
-                %Loads the gui from the input gui string
-                this.Gui=guihandles(eval(this.Parser.Results.gui));
-                %Sets figure close function such that class will know when
-                %figure is closed
-                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
-                    this.Gui);
-                names=fieldnames(this.Gui);
-                set(this.Gui.(names{ind}), 'CloseRequestFcn',...
-                    @(hObject,eventdata) closeFigure(this, hObject, ...
-                    eventdata));
-            end
         end
         
-        function delete(this)
-            %Removes close function from figure, prevents infinite loop
-            if this.enable_gui
-                ind=structfun(@(x) isa(x,'matlab.ui.Figure'),...
-                    this.Gui);
-                names=fieldnames(this.Gui);
-                set(this.Gui.(names{ind}), 'CloseRequestFcn',...
-                    @(hObject,eventdata) closeFigure(this, hObject, ...
-                    eventdata));
-                %Deletes the figure handles
-                structfun(@(x) delete(x), this.Gui);
-                %Removes the figure handle to prevent memory leaks
-                this.Gui=[];
-            end
-            
+        function delete(this)         
             %Closes the connection to the device
             closeDevice(this);
             %Deletes the device object
             delete(this.Device);
             clear('this.Device');
-        end
+        end    
         
-        %Clears data from trace to save memory.
-        function clearData(this)
-            this.Trace.x=[];
-            this.Trace.y=[];
-        end      
-        
+        %% Read and write commands
         %Writes properties to device. Can take multiple inputs. With the
         %option all, the function writes default to all the
         %available writeable parameters.
@@ -138,21 +99,20 @@ classdef MyInstrument < dynamicprops
         
         % Wrapper for writeProperty that opens and closes the device
         function writePropertyHedged(this, varargin)
-            this.openDevice();
+            openDevice(this);
             try
-                this.writeProperty(varargin{:});
+                writeProperty(this, varargin{:});
             catch
                 warning('Error while writing the properties:');
                 disp(varargin);
             end
-            this.readProperty('all');
-            this.closeDevice();
+            readProperty(this, 'all');
+            closeDevice(this);
         end
         
         function result=readProperty(this, varargin)
             result = struct();
-            read_all_flag = any(strcmp('all',varargin));
-            
+            read_all_flag = any(strcmp('all',varargin));          
             if read_all_flag
                 % Read all the commands with read access 
                 exec=this.read_commands;
@@ -165,40 +125,144 @@ classdef MyInstrument < dynamicprops
                     disp(varargin(~ind_r));
                 end
             end
-            % Iterate over the commands list
-            for i=1:length(exec)
-                %Creates the correct read command
-                read_command=[this.CommandList.(exec{i}).command,'?'];
-                %Reads the property from the device and stores it in the
-                %correct place
-                res_str = query(this.Device,read_command);
-                
-                if isfield(this.CommandList.(exec{i}),'str_spec')
-                    result.(exec{i})=...
-                        sscanf(res_str,this.CommandList.(exec{i}).str_spec);
-                else
-                    %Needs to be str2num in order to treat output from e.g.
-                    %Textronix scopes.
-                    result.(exec{i})= str2num(res_str); %#ok<ST2NM> 
+            % concatenate all commands in one string
+            read_command=join(cellfun(...
+                @(cmd)this.CommandList.(cmd).command,exec,...
+                'UniformOutput',false),'?;:');
+            read_command=[read_command{1},'?;'];
+            res_str = query(this.Device,read_command);
+            % drop the end-of-the-string symbol and split
+            res_str = split(res_str(1:end-1),';');
+            if length(exec)==length(res_str)
+                for i=1:length(exec)
+                    result.(exec{i})=sscanf(res_str{i},...
+                        this.CommandList.(exec{i}).str_spec);
+                    %Assign the values to the MyInstrument properties
+                    this.(exec{i})=result.(exec{i});
                 end
-                %Assign the values to the MyInstrument properties
-                this.(exec{i})=result.(exec{i});
+            else
+                warning(['Not all the properties could be read, ',...
+                    'no instrument class values are not updated']);
             end
         end
         
         % Wrapper for readProperty that opens and closes the device
-        function result = readPropertyHedged(this, varargin)
-            this.openDevice();
+        function result=readPropertyHedged(this, varargin)
+            openDevice(this);
             try
-                result = this.readProperty(varargin{:});
+                result = readProperty(this, varargin{:});
             catch
                 warning('Error while reading the properties:');
                 disp(varargin);
             end
-            this.closeDevice();
+            closeDevice(this);
         end
         
-        %Connects to the device if it is not connected
+        %Triggers event for acquired data
+        function triggerNewData(this)
+            notify(this,'NewData')
+        end
+        
+        %% Processing of the class variable values
+        % Extend the property value based on val_list 
+        function std_val = standardizeValue(this, cmd, varargin)
+            if ~ismember(cmd,this.command_names)
+                warning('%s is not a valid command',cmd);
+                std_val = '';
+                return
+            end
+            vlist = this.CommandList.(cmd).val_list;
+            % The value to normalize can be explicitly passed as
+            % varargin{1}, otherwise use the property value
+            if isempty(varargin)
+                val = this.(cmd);
+            else
+                val = varargin{1};
+            end
+            % find matching commands
+            ismatch = false(1,length(vlist));
+            for i=1:length(vlist)
+                n = min([length(val), length(vlist{i})]);
+                % compare first n symbols disregarding case
+                ismatch(i) = strncmpi(val, vlist{i},n);
+            end
+            % out of matching names pick the longest
+            if any(ismatch)
+                mvlist = vlist(ismatch);
+                str = mvlist{1};
+                for i=1:length(mvlist)
+                    if length(mvlist{i})>length(str)
+                        str = mvlist{i};
+                    end
+                end
+                std_val = str;
+                % set the property if value was not given explicitly 
+                if isempty(varargin)
+                    this.(cmd) = std_val;
+                end
+            else
+                std_val = val;
+            end
+        end
+        
+        % Create a string of property values
+        function par_str = getConfigString(this)
+            % Try to find out the device name
+            if ~isempty(this.name)
+                name_str = this.name;
+            else
+                try
+                    openDevice(this);
+                    name_str = query(this.Device,'*IDN?');
+                    closeDevice(this);
+                    % Remove the new line end symbol
+                    name_str=name_str(1:end-1);
+                catch
+                    warning('Could not get the device name');
+                    name_str = '';
+                end
+            end
+            par_str = sprintf('Instrument name: %s\n',name_str);
+            % Append the values of all the commands 
+            rcmds=this.read_commands;
+            for i=1:length(rcmds)
+                new_str = sprintf(['\t',rcmds{i},'\t',...
+                    this.CommandList.(rcmds{i}).str_spec,'\n'],...
+                    this.(rcmds{i}));
+                par_str = [par_str, new_str];
+            end
+        end
+        
+        %% Connect, open, configure and close the device
+        % Connects to the device
+        function connectDevice(this, interface, address)
+            try
+                % visa brand, DEFAULT_VISA_BRAND if not specified
+                vb = this.Parser.Results.visa_brand;
+                switch lower(interface)
+                    case 'constructor'
+                        % in this case the 'address' is a command 
+                        % (ObjectConstructorName) as returned by the 
+                        % instrhwinfo
+                        this.Device=eval(address);
+                    case 'visa'
+                        this.Device=visa(vb, address);
+                    case 'tcpip'
+                        this.Device= visa(vb, sprintf(...
+                            'TCPIP0::%s::inst0::INSTR',this.address));
+                    case 'usb'
+                        this.Device=visa(vb, sprintf(...
+                            'USB0::%s::INSTR',address));
+                    otherwise
+                        warning('Device is not connected: unknown interface');
+                end
+                configureDeviceDefault(this);
+            catch
+                warning('Device is not connected');
+            end
+        end
+        
+        % Opens the device if it is not open
         function openDevice(this)
             if ~isopen(this)
                 try
@@ -219,24 +283,24 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-        %Closes the connection to the device
+        % Closes the connection to the device
         function closeDevice(this)
             if isopen(this)
                 fclose(this.Device);
             end
         end
         
-        function configureDefaultVisa(this)
-            this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
-            this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
-            this.Device.Timeout = this.DEFAULT_TIMEOUT;
-        end
-    end
-    
-    methods (Access=public)
-        %Triggers event for acquired data
-        function triggerNewData(this)
-            notify(this,'NewData')
+        function configureDeviceDefault(this)
+            dev_prop_list = properties(this.Device);
+            if ismember('OutputBufferSize',dev_prop_list)
+                this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
+            end
+            if ismember('InputBufferSize',dev_prop_list)
+                this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
+            end
+            if ismember('Timeout',dev_prop_list)
+                this.Device.Timeout = this.DEFAULT_TIMEOUT;
+            end
         end
         
         %Checks if the connection to the device is open
@@ -248,7 +312,8 @@ classdef MyInstrument < dynamicprops
                 bool=false;
             end
         end
-             
+        
+        %% addCommand
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
             p=inputParser();
@@ -257,54 +322,45 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'default','placeholder');
             addParameter(p,'classes',{},@iscell);
             addParameter(p,'attributes',{},@iscell);
-            addParameter(p,'str_spec','%d',@ischar);
+            addParameter(p,'str_spec','%e',@ischar);
+            % list of the values the variable can take, {} means no
+            % restriction
+            addParameter(p,'val_list',{},@iscell);
             addParameter(p,'access','rw',@ischar);
             parse(p,tag,command,varargin{:});
 
             %Adds the command to be sent to the device
             this.CommandList.(tag).command=command;
             this.CommandList.(tag).access=p.Results.access;
-            
             this.CommandList.(tag).write_flag=contains(p.Results.access,'w');
             this.CommandList.(tag).read_flag=contains(p.Results.access,'r');
+            this.CommandList.(tag).default=p.Results.default;
+            this.CommandList.(tag).val_list=p.Results.val_list;
             
-            %Adds a default value and the attributes the inputs must have
-            %and creates a new property in the class
-            if this.CommandList.(tag).write_flag
-                % Adds the string specifier to the list. if the format
-                % specifier is not given explicitly, try to infer
-                if ismember('str_spec',p.UsingDefaults)
-                    this.CommandList.(tag).str_spec=...
-                        formatSpecFromAttributes(this,p.Results.classes...
-                        ,p.Results.attributes);
-                elseif strcmp(p.Results.str_spec,'%b')
-                    % b is a non-system specifier to represent the
-                    % logical type
-                    this.CommandList.(tag).str_spec='%i';
-                else
-                    this.CommandList.(tag).str_spec=p.Results.str_spec;
-                end
-
-                
-                % Adds the default value
-                this.CommandList.(tag).default=p.Results.default;
-                % Adds the attributes for the input to the command. If not
-                % given explicitly, infer from the format specifier
-                if ismember('classes',p.UsingDefaults)
-                    [this.CommandList.(tag).classes,...
-                    this.CommandList.(tag).attributes]=...
-                    AttributesFromFormatSpec(this, p.Results.str_spec);
-                else
-                    this.CommandList.(tag).classes=p.Results.classes;
-                    this.CommandList.(tag).attributes=p.Results.attributes;
-                end
+            % Adds the string specifier to the list. if the format
+            % specifier is not given explicitly, try to infer
+            if ismember('str_spec', p.UsingDefaults)
+                this.CommandList.(tag).str_spec=...
+                    formatSpecFromAttributes(this,p.Results.classes...
+                    ,p.Results.attributes);
+            elseif strcmp(p.Results.str_spec,'%b')
+                % b is a non-system specifier to represent the
+                % logical type
+                this.CommandList.(tag).str_spec='%i';
+            else
+                this.CommandList.(tag).str_spec=p.Results.str_spec;
             end
-            
-            if (this.CommandList.(tag).read_flag &&...
-                    ~this.CommandList.(tag).write_flag)
+            % Adds the attributes for the input to the command. If not
+            % given explicitly, infer from the format specifier
+            if ismember('classes',p.UsingDefaults)
+                [this.CommandList.(tag).classes,...
+                this.CommandList.(tag).attributes]=...
+                AttributesFromFormatSpec(this, p.Results.str_spec);
+            else
                 this.CommandList.(tag).classes=p.Results.classes;
                 this.CommandList.(tag).attributes=p.Results.attributes;
             end
+            
             % Adds a property to the class corresponding to the tag
             if ~isprop(this,tag)
                 addprop(this,tag);
@@ -327,15 +383,23 @@ classdef MyInstrument < dynamicprops
                 %appropriate default value from the command list and the
                 %required attributes for the command input.
                 tag=this.write_commands{i};
-                addParameter(p, tag,...
-                    this.CommandList.(tag).default,...
-                    @(x) validateattributes(x,...
+                % Create validation function based on properties: 
+                % class, attributes and list of values
+                if ~isempty(this.CommandList.(tag).val_list)
+                    v_func = @(x) any(cellfun(@(y) isequal(y, x),...
+                    this.CommandList.(tag).val_list));
+                else
+                    v_func = @(x) validateattributes(x,...
                     this.CommandList.(tag).classes,...
-                    this.CommandList.(tag).attributes));
+                    this.CommandList.(tag).attributes);
+                end
+                addParameter(p, tag,...
+                    this.CommandList.(tag).default, v_func);
             end
             this.CommandParser=p;
         end
         
+        %% Auxiliary functions for auto format assignment to commands
         function str_spec=formatSpecFromAttributes(~,classes,attributes)
             if ismember('char',classes)
                 str_spec='%s';
@@ -345,15 +409,17 @@ classdef MyInstrument < dynamicprops
                 str_spec='%i';
             else
                 %assign default value, i.e. double
-                str_spec='%d';
+                str_spec='%e';
             end
         end
         
         function [class,attribute]=AttributesFromFormatSpec(~, str_spec)
-            ind=strfind(str_spec,'%');
-            str_spec_letter=str_spec(ind+1);
+            % find index of the first letter after the % sign
+            ind_p=strfind(str_spec,'%');
+            ind=ind_p+find(isletter(str_spec(ind_p:end)),1)-1;
+            str_spec_letter=str_spec(ind);
             switch str_spec_letter
-                case 'd'
+                case {'d','f','e','g'}
                     class={'numeric'};
                     attribute={};
                 case 'i'
@@ -366,18 +432,14 @@ classdef MyInstrument < dynamicprops
                     class={'logical'};
                     attribute={};
                 otherwise
-                    class={};
+                    % Any of the above classes will pass
+                    class={'numeric','char','logical'};
                     attribute={};
             end
         end
-        
-        %Close figure callback simply calls delete function for class
-        function closeFigure(this,~,~)
-            delete(this);
-        end
     end
     
-    % Get functions
+    %% Get functions
     methods
         function command_names=get.command_names(this)
             command_names=fieldnames(this.CommandList);
@@ -388,9 +450,9 @@ classdef MyInstrument < dynamicprops
             write_commands=this.command_names(ind_w);
         end
         
-        function write_commands=get.read_commands(this)
+        function read_commands=get.read_commands(this)
             ind_r=structfun(@(x) x.read_flag, this.CommandList);
-            write_commands=this.command_names(ind_r);
+            read_commands=this.command_names(ind_r);
         end
         
         function command_no=get.command_no(this)

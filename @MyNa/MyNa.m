@@ -19,15 +19,7 @@ classdef MyNa < MyInstrument
             this@MyInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
-            
-            switch interface
-                case 'visa'
-                    this.Device=visa(this.Parser.Results.visa_brand,...
-                        address);
-                    configureDefaultVisa(this);
-                case 'TCPIP'
-                    connectTCPIP(this);
-            end
+            connectDevice(this, interface, address);
             
             %Tests if device is working.
             try
@@ -169,18 +161,6 @@ classdef MyNa < MyInstrument
             this.writeProperty('trig_source', 'BUS');
             fprintf(this.Device,':ABOR');
             this.closeDevice();
-        end
-        
-        function connectTCPIP(this)
-            buffer = 1000 * 1024;
-            visa_brand = 'ni';
-            visa_address_rsa = sprintf('TCPIP0::%s::inst0::INSTR',...
-                this.address);
-            this.Device=visa(visa_brand, visa_address_rsa,...
-                'InputBufferSize', buffer,...
-                'OutputBufferSize', buffer);
-            set(this.Device,'InputBufferSize',1e6);
-            set(this.Device,'Timeout',10);
         end
     end
 end
