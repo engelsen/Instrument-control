@@ -17,8 +17,8 @@ function runGui(gui_name, instr_name)
     
     % Start the instrument Gui if not running already
     if ~prog_running
-        if ~isfield(InstrumentList, instr_name)
-            warning('%s is not a field of InstrumentList', instr_name)
+        if ~isprop(InstrumentList, instr_name)
+            warning('No such instrument %s in ', instr_name)
             return
         end
         % Replacement ' -> '' in the string
