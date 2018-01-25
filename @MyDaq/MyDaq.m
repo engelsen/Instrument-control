@@ -80,8 +80,6 @@ classdef MyDaq < handle
             cellfun(@(x) deleteListeners(this,x), this.open_instrs);
             structfun(@(x) delete(x), this.Instruments);
             
-            
-            
             if this.enable_gui
                 this.Gui.figure1.CloseRequestFcn='';
                 %Deletes the figure
@@ -195,7 +193,7 @@ classdef MyDaq < handle
         %Updates fits
         function updateFits(this)            
             %Pushes data into fits in the form of MyTrace objects, so that
-            %units etc follow. Also updates user supplised parameters.
+            %units etc follow. Also updates user supplied parameters.
             for i=1:length(this.open_fits)
                 switch this.open_fits{i}
                     case {'Linear','Quadratic','Gaussian',...
@@ -524,8 +522,6 @@ classdef MyDaq < handle
                     error(['Instrument %s does not have a GUI but is',...
                         ' registered as open'],tag)
                 end
-                
-
             end
         end
         
@@ -936,8 +932,7 @@ classdef MyDaq < handle
         
         %Get function from save directory
         function save_dir=get.save_dir(this)
-            save_dir=[this.base_dir,datestr(now,'yyyy-mm-dd '),...
-                this.session_name,'\'];
+            save_dir=createSessionPath(this.base_dir,this.session_name);
         end
         
         %Get function for the plot handles

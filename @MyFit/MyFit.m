@@ -217,7 +217,8 @@ classdef MyFit < dynamicprops
                     this.mech_freq=this.coeffs(3); %#ok<MCNPR>
                     this.Q=this.mech_freq/this.mech_lw; %#ok<MCNPR>
                     this.opt_lw=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
-                case 'DoubleLorentzian'
+                    this.Qf=this.mech_freq*this.Q;  %#ok<MCNPR>
+                case 'DoubleLorentzian' 
                     this.opt_lw1=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
                     this.opt_lw2=convOptFreq(this,this.coeffs(5)); %#ok<MCNPR>
                     splitting=abs(this.coeffs(6)-this.coeffs(3));
@@ -245,6 +246,8 @@ classdef MyFit < dynamicprops
                        'enable_flag','off','conv_factor',1e6)
                    addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
                        'conv_factor',1e6, 'enable_flag','off')
+                   addUserField(this,'Mech','Qf','Q\times f (10^{14} Hz)',1e14,...
+                       'conv_factor',1e14,'enable_flag','off');
                    
                    %Parameters for the tab relating to optics
                    this.UserGui.Tabs.Opt.tab_title='Optical';
