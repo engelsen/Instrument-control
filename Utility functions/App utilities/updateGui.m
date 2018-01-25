@@ -4,6 +4,7 @@ function updateGui(app)
     for i=1:length(app.linked_elem_list)
         tmpelem = app.linked_elem_list(i);
         if isprop(app.Instr, tmpelem.Tag)
+            % update the element value
             tmpval = app.Instr.(tmpelem.Tag);
             % scale the value if the control element has a prescaler
             if isprop(tmpelem, 'OutputProcessingFcn')
@@ -12,6 +13,9 @@ function updateGui(app)
                 tmpval = tmpval*tmpelem.InputPrescaler;
             end
             tmpelem.Value = tmpval;
+        else
+            % disable the control element otherwise
+            tmpelem.Enable = 'off';
         end
     end
 end

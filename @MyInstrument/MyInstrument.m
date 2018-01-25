@@ -355,7 +355,7 @@ classdef MyInstrument < dynamicprops
             if ismember('classes',p.UsingDefaults)
                 [this.CommandList.(tag).classes,...
                 this.CommandList.(tag).attributes]=...
-                AttributesFromFormatSpec(this, p.Results.str_spec);
+                attributesFromFormatSpec(this, p.Results.str_spec);
             else
                 this.CommandList.(tag).classes=p.Results.classes;
                 this.CommandList.(tag).attributes=p.Results.attributes;
@@ -413,7 +413,7 @@ classdef MyInstrument < dynamicprops
             end
         end
         
-        function [class,attribute]=AttributesFromFormatSpec(~, str_spec)
+        function [class,attribute]=attributesFromFormatSpec(~, str_spec)
             % find index of the first letter after the % sign
             ind_p=strfind(str_spec,'%');
             ind=ind_p+find(isletter(str_spec(ind_p:end)),1)-1;
