@@ -1,1 +1,1 @@
-runGui('DPO4034_1', 'GuiDpo')
+runGui('GuiDpo', 'DPO4034_1')

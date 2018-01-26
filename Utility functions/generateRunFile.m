@@ -26,8 +26,8 @@ function generateRunFile(inst_entry, varargin)
     
     try
         fid = fopen(file_name,'w');
-        fprintf(fid, 'runGui(''%s'', ''%s'')\n', inst_entry.default_gui,...
-            inst_entry.name);
+        fprintf(fid, 'runGui(''%s'', ''%s'', ''instr_class'',''%s'')\n', inst_entry.default_gui,...
+            inst_entry.name, inst_entry.control_class);
         fclose(fid);
     catch
         warning('Failed to create the run file')

@@ -1,37 +1,39 @@
-function runGui(gui_name, instr_name)
+function instance_name = runGui(gui_name, instr_name, varargin)
     % load the InstrumentList structure
-    load('InstrumentList.mat','InstrumentList');
+    InstrumentList = getLocalInstrList();
     
-    prog_name=[gui_name,'_',instr_name];
+    % Compose the name of the global variable for the Gui instance
+    instance_name=[gui_name,'_',instr_name];
     % Find out if the same Gui with the same device is running already
-    name_exist = ~exist(prog_name, 'var');
+    name_exist = ~exist(instance_name, 'var');
     if name_exist
         try
-            prog_running = evalin('base',sprintf('isvalid(%s)',prog_name));
+            instance_running =...
+                evalin('base',sprintf('isvalid(%s)',instance_name));
         catch
-            prog_running = false;
+            instance_running = false;
         end
     else
-        prog_running = false;
+        instance_running = false;
     end
     
     % Start the instrument Gui if not running already
-    if ~prog_running
+    if ~instance_running
         if ~isfield(InstrumentList, instr_name)
             warning('%s is not a field of InstrumentList', instr_name)
             return
         end
-        % Replacement ' -> '' in the string
+        % Replace ' -> '' in the string to make quotation marks work properly
         addr = replace(InstrumentList.(instr_name).address,'''','''''');
         interface = InstrumentList.(instr_name).interface;
         eval_str = sprintf(...
-            '%s=%s(''%s'',''%s'',''name'',''%s'');',...
-            prog_name, gui_name, interface, addr, instr_name);
-        % Evaluate in the Matlab base workspace to create a variable named
-        % instr_name
+            '%s=%s(''%s'',''%s'',''name'',''%s'',''instance_name'',''%s'');',...
+            instance_name, gui_name, interface, addr, instr_name,...
+            instance_name);
+        % Evaluate in the Matlab base workspace to create a global variable
         evalin('base', eval_str);
     else
-        warning('%s is already running', prog_name);
+        warning('%s is already running', instance_name);
     end
 end
 

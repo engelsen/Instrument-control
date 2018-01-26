@@ -4,11 +4,12 @@ classdef MyInstrument < dynamicprops
         name='';
         interface='';
         address='';
+        visa_brand='';
         %Contains the device object. struct() is a dummy, as Device 
         %needs to always support properties for consistency.
         Device=struct();
         %Input parser for class constructor
-        Parser;
+        ConstructionParser;
         %Contains a list of the commands available for the instrument as
         %well as the default values and input requirements
         CommandList=struct();
@@ -38,24 +39,27 @@ classdef MyInstrument < dynamicprops
     end
     
     methods (Access=private)
-        function createParser(this)
+        function p = createConstructionParser(this)
             p=inputParser();
+            % Ignore unmatched parameters
+            p.KeepUnmatched = true;
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
             addParameter(p,'name','',@ischar);
             addParameter(p,'visa_brand',this.DEFAULT_VISA_BRAND,@ischar);
-            this.Parser=p;
+            this.ConstructionParser=p;
         end
     end
     
     methods (Access=public)
         function this=MyInstrument(interface, address, varargin)
-            createParser(this);
-            parse(this.Parser,interface,address,varargin{:});      
+            p = createConstructionParser(this);
+            parse(p,interface,address,varargin{:});      
             %Loads parsed variables into class properties
-            this.name=this.Parser.Results.name;
-            this.interface=this.Parser.Results.interface;
-            this.address=this.Parser.Results.address;
+            this.name=p.Results.name;
+            this.interface=p.Results.interface;
+            this.address=p.Results.address;
+            this.visa_brand=p.Results.visa_brand;
         end
         
         function delete(this)         
@@ -238,7 +242,7 @@ classdef MyInstrument < dynamicprops
         function connectDevice(this, interface, address)
             try
                 % visa brand, DEFAULT_VISA_BRAND if not specified
-                vb = this.Parser.Results.visa_brand;
+                vb = this.visa_brand;
                 switch lower(interface)
                     case 'constructor'
                         % in this case the 'address' is a command 
@@ -369,7 +373,7 @@ classdef MyInstrument < dynamicprops
         end
         
         %Creates inputParser using the command list
-        function createCommandParser(this)
+        function p = createCommandParser(this)
             %Use input parser
             %Requires input of the appropriate class
             p=inputParser;

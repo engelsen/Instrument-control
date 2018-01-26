@@ -1,1 +1,1 @@
-runGui('RSA5103', 'GuiRsa')
+runGui('GuiRsa', 'RSA5103')

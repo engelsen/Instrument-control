@@ -1,7 +1,8 @@
 function runGui(gui_name, instr_name)
     % load the InstrumentList structure
-    load('InstrumentList.mat','InstrumentList');
+    InstrumentList = getLocalInstrList();
     
+    % Compose the name of the global variable for the Gui instance
     prog_name=[gui_name,'_',instr_name];
     % Find out if the same Gui with the same device is running already
     name_exist = ~exist(prog_name, 'var');
@@ -17,18 +18,18 @@ function runGui(gui_name, instr_name)
     
     % Start the instrument Gui if not running already
     if ~prog_running
-        if ~isprop(InstrumentList, instr_name)
-            warning('No such instrument %s in ', instr_name)
+        if ~isfield(InstrumentList, instr_name)
+            warning('%s is not a field of InstrumentList', instr_name)
             return
         end
-        % Replacement ' -> '' in the string
+        % Replace ' -> '' in the string to make quotation marks work properly
         addr = replace(InstrumentList.(instr_name).address,'''','''''');
         interface = InstrumentList.(instr_name).interface;
         eval_str = sprintf(...
             '%s=%s(''%s'',''%s'',''name'',''%s'');',...
             prog_name, gui_name, interface, addr, instr_name);
-        % Evaluate in the Matlab base workspace to create a variable named
-        % instr_name
+        % Evaluate in the Matlab base workspace to create a global variable
+
         evalin('base', eval_str);
     else
         warning('%s is already running', prog_name);
