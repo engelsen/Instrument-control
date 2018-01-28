@@ -244,6 +244,29 @@ classdef MyInstrument < dynamicprops
                 % visa brand, DEFAULT_VISA_BRAND if not specified
                 vb = this.visa_brand;
                 switch lower(interface)
+                    case 'instr_list'
+                        % load the InstrumentList structure
+                        InstrumentList = getLocalInstrList();
+                        % In this case 'address' is the instrument name in
+                        % the list
+                        instr_name = address;
+                        if ~isfield(InstrumentList, instr_name)
+                            error('%s is not a field of InstrumentList',...
+                                instr_name)
+                        end
+                        % A check to prevent hypothetical endless recursion
+                        if isequal(InstrumentList.(instr_name).interface,'instr_list')
+                            error('')
+                        end
+                        % Connect using the loaded parameters 
+                        connectDevice(this,...
+                            InstrumentList.(instr_name).interface,...
+                            InstrumentList.(instr_name).address);
+                        % Assign name automatically, but not overwrite if
+                        % already specified
+                        if isempty(this.name)
+                            this.name = instr_name;
+                        end
                     case 'constructor'
                         % in this case the 'address' is a command 
                         % (ObjectConstructorName) as returned by the 

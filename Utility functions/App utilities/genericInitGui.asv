@@ -21,6 +21,7 @@ function genericInitGui(app, default_instr_class, interface, address, varargin)
     % Connect to the instrument by using either instr_class or 
     % default_instr_class
     if ismember(p.UsingDefaults, 'instr_class')
+        % The default class is Gui-specific, so need to set it manually
         if isequal(interface,'instr_list')
             % load the InstrumentList structure
             InstrumentList = getLocalInstrList();
@@ -31,9 +32,8 @@ function genericInitGui(app, default_instr_class, interface, address, varargin)
                 error('%s is not a field of InstrumentList',...
                     instr_name)
             end
-            class = InstrumentList.(instr_name).control_class;
+            
         else
-            % The default class is Gui-specific, so need to set it manually
             class = default_instr_class;
         end
     else
