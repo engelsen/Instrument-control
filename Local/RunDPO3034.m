@@ -1,1 +1,1 @@
-runGui('GuiDpo', 'DPO3034')
+runGui('GuiDpo', 'DPO3034', 'instr_class','MyDpo')

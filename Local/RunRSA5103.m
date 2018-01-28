@@ -1,1 +1,1 @@
-runGui('GuiRsa', 'RSA5103')
+runGui('GuiRsa', 'RSA5103', 'instr_class','MyRsa')

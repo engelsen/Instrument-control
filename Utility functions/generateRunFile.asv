@@ -2,6 +2,7 @@
 function generateRunFile(inst_entry, varargin)
     p=inputParser();
     addParameter(p,'out_dir','',@ischar);
+    addParameter(p,'menu_title','',@ischar);
     parse(p,varargin{:});
     
     if ~isempty(p.Results.out_dir)
@@ -18,15 +19,22 @@ function generateRunFile(inst_entry, varargin)
     if isempty(inst_entry.default_gui)
         warning(['No gui specified for %s, the run file cannot ',...
             'be created'],inst_entry.name)
+        return
     end
     if exist(file_name,'file')
         warning(['The run file %s already exists, a new file has not ',...
             'been created'], file_name)
-    end  
+        return
+    end 
+    
+    % Title string
+    if ~isempty(p.Results.out_dir) 
+    
     try
         fid = fopen(file_name,'w');
-        fprintf(fid, 'runGui(%s, %s)', inst_entry.default_gui,...
-            inst_entry.name);
+        fprintf(fid, 'runGui(''%s'', ''%s'', ''instr_class'' , ''%s'')\n',...
+            inst_entry.default_gui, inst_entry.name,...
+            inst_entry.control_class);
         fclose(fid);
     catch
         warning('Failed to create the run file')

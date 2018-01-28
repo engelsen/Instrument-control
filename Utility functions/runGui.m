@@ -23,15 +23,11 @@ function instance_name = runGui(gui_name, instr_name, varargin)
             warning('%s is not a field of InstrumentList', instr_name)
             return
         end
-        % Replace ' -> '' in the string to make quotation marks work properly
-        addr = replace(InstrumentList.(instr_name).address,'''','''''');
+        addr = InstrumentList.(instr_name).address;
         interface = InstrumentList.(instr_name).interface;
-        eval_str = sprintf(...
-            '%s=%s(''%s'',''%s'',''name'',''%s'',''instance_name'',''%s'');',...
-            instance_name, gui_name, interface, addr, instr_name,...
-            instance_name);
-        % Evaluate in the Matlab base workspace to create a global variable
-        evalin('base', eval_str);
+        gui=feval(gui_name, interface,addr,'name',instr_name,...
+            'instance_name',instance_name, varargin{:});
+        assignin('base',instance_name,gui);
     else
         warning('%s is already running', instance_name);
     end
