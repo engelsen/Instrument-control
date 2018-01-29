@@ -20,24 +20,20 @@ function genericInitGui(app, default_instr_class, interface, address, varargin)
     
     % Connect to the instrument by using either instr_class or 
     % default_instr_class
-    if ismember(p.UsingDefaults, 'instr_class')
-        if isequal(interface,'instr_list')
-            % load the InstrumentList structure
-            InstrumentList = getLocalInstrList();
-            % In this case 'address' is the instrument name in
-            % the list
-            instr_name = address;
-            if ~isfield(InstrumentList, instr_name)
-                error('%s is not a field of InstrumentList',...
-                    instr_name)
-            end
-            class = InstrumentList.(instr_name).control_class;
-        else
-            % The default class is Gui-specific, so need to set it manually
-            class = default_instr_class;
-        end
-    else
+    if ~ismember(p.UsingDefaults, 'instr_class')
         class = p.Results.instr_class;
+    elseif isequal(interface,'instr_list')
+        % load the InstrumentList structure
+        InstrumentList = getLocalInstrList();
+        % In this case 'address' is the instrument name in the list
+        instr_name = address;
+        if ~isfield(InstrumentList, instr_name)
+            error('%s is not a field of InstrumentList', instr_name)
+        end
+        class = InstrumentList.(instr_name).control_class;
+    else
+        % The default class is Gui-specific, so need to set it manually
+        class = default_instr_class;
     end
     app.Instr = feval(class, interface, address, varargin{:});
     readPropertyHedged(app.Instr,'all');

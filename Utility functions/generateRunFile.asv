@@ -1,8 +1,11 @@
 % Automatically generates a run file for an entry from the InstrumentsList
 function generateRunFile(inst_entry, varargin)
     p=inputParser();
+    % Ignore unmatched parameters
+    p.KeepUnmatched = true;
     addParameter(p,'out_dir','',@ischar);
     addParameter(p,'menu_title','',@ischar);
+    addParameter(p,'show_in_daq',false,@islogical);
     parse(p,varargin{:});
     
     if ~isempty(p.Results.out_dir)
@@ -15,7 +18,7 @@ function generateRunFile(inst_entry, varargin)
     
     % Create run file if there is a default_gui indicated for the
     % instrument and no such file already exists
-    file_name = fullfile(dir, ['Run',inst_entry.name,'.m']);
+    file_name = fullfile(dir, ['run',inst_entry.name,'.m']);
     if isempty(inst_entry.default_gui)
         warning(['No gui specified for %s, the run file cannot ',...
             'be created'],inst_entry.name)
@@ -27,11 +30,35 @@ function generateRunFile(inst_entry, varargin)
         return
     end 
     
-    % Title string
-    if ~isempty(p.Results.out_dir) 
+    header_str='';
+    if ~isempty(p.Results.menu_title)
+        header_str = [header_str, sprintf('%% menu_title=%s\n',...
+            p.Results.menu_title)];
+    end
+    if p.Results.show_in_daq
+        header_str = [header_str, sprintf('%% show_in_daq=true\n')];
+    end
+    
+    % Code, defining the run function
+    code_str = [...
+        'function instance_name = run',inst_entry.name,'()\n',...
+        '   instance_name = ''GuiDpo_',inst_entry.name,''';\n',...
+        '   if ~isValidBaseVar(instance_name)',...
+        '       gui = GuiDpo(''instr_list'', ''',inst_entry.name,''', ''instance_name'', ',instance_name,');\n',...
+        '       assignin(''base'', ',instance_name,', gui);\n',...
+        '   else\n',...
+        '       warning(''%s is already running'', ',instance_name,');\n',...
+        '   end\n',...
+        'end\n'];
     
     try
         fid = fopen(file_name,'w');
+        % Write header first (comment string)
+        fprintf(fid, '%s', header_str);
+        fprintf(fid, 'function instance_name = run%s()\n', inst_entry.name);
+        fprintf(fid, '    instance_name = ''GuiDpo_%s'';\n', inst_entry.name);
+        fprintf(fid, '    instance_name = ''GuiDpo_%s'';\n', inst_entry.name);
+        % Write the run command
         fprintf(fid, 'runGui(''%s'', ''%s'', ''instr_class'' , ''%s'')\n',...
             inst_entry.default_gui, inst_entry.name,...
             inst_entry.control_class);
@@ -40,4 +67,14 @@ function generateRunFile(inst_entry, varargin)
         warning('Failed to create the run file')
     end
 end
+
+['function instance_name = runDPO3034()'...
+'   instance_name = ''GuiDpo_DPO3034'';'...
+'   if ~isValidBaseVar(instance_name)'...
+'       gui = GuiDpo(''instr_list'', ''DPO3034'', ''instance_name'', instance_name);'...
+'       assignin(''base'', instance_name, gui);'...
+'   else'...
+'       warning(''%s is already running'', instance_name);'...
+'   end'...
+'end']
 
