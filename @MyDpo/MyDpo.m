@@ -13,7 +13,7 @@ classdef MyDpo <MyInstrument
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);
-            this.Device.InputBufferSize = 1e8; %byte
+            this.Device.InputBufferSize = 2.1e7; %byte
             this.Trace.name_x='Time';
             this.Trace.name_y='Voltage';
         end

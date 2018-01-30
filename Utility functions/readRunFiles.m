@@ -48,6 +48,10 @@ function run_files = readRunFiles(varargin)
             end
             fclose(fid);
             run_files.(nm).header = header;
+            if isfield(run_files.(nm),'show_in_daq')
+                run_files.(nm).show_in_daq = eval(...
+                    lower(run_files.(nm).show_in_daq));
+            end
         catch
             warning('Could not process the run file %s', fname)
         end
