@@ -8,8 +8,7 @@ classdef MyFit < dynamicprops
         lim_upper;
         enable_plot;
         plot_handle;
-        save_name;
-        save_dir;
+
         %Calibration values supplied externally
         CalVals=struct();
         init_color='c';
@@ -42,7 +41,15 @@ classdef MyFit < dynamicprops
         scaled_params;
         init_param_fun;
         x_vec;
-        n_userfields;
+        n_user_fields;
+        user_field_tags;
+        user_field_names;
+        user_field_vals;
+        fullpath;
+        save_name;
+        save_dir;
+        save_path;
+        session_name;
     end
     
     events
@@ -50,7 +57,25 @@ classdef MyFit < dynamicprops
         NewInitVal;
     end
     
-    %%Public methods
+    %Parser function
+    methods (Access=private)
+        %Creates parser for constructor
+        function createParser(this)
+            p=inputParser;
+            addParameter(p,'fit_name','Linear',@ischar)
+            addParameter(p,'Data',MyTrace());
+            addParameter(p,'Fit',MyTrace());
+            addParameter(p,'x',[]);
+            addParameter(p,'y',[]);
+            addParameter(p,'enable_gui',1);
+            addParameter(p,'enable_plot',0);
+            addParameter(p,'plot_handle',[]);
+            addParameter(p,'save_dir',pwd);
+            addParameter(p,'save_name','placeholder');
+            this.Parser=p;
+        end      
+    end
+    %Public methods
     methods (Access=public)
         %Constructor function
         function this=MyFit(varargin)
@@ -99,17 +124,69 @@ classdef MyFit < dynamicprops
         function closeFigure(this,~,~)
             delete(this);
         end
-        
+
+        %Saves the metadata
+        function saveParams(this)
+            assert(~isempty(this.coeffs) && ...
+                length(this.coeffs)==this.n_params,...
+                ['The number of calculated coefficients (%i) is not',...
+                ' equal to the number of parameters (%i).', ...
+                ' Perform a fit before trying to save parameters.'],...
+                length(this.coeffs),this.n_params);
+                
+            %Creates combined strings of form: Linewidth (b), where
+            %Linewidth is the parameter name and b is the parameter tag
+            param_headers=cellfun(@(x,y) sprintf('%s (%s)',x,y),...
+                this.fit_param_names, this.fit_params,'UniformOutput',0);
+            user_field_headers=cellfun(@(x,y) ...
+                sprintf('%s. %s',this.UserGui.Fields.(x).parent,y),...
+                this.user_field_tags,this.user_field_names,...
+                'UniformOutput',0)';
+            headers=[param_headers user_field_headers];
+            n_columns=length(headers);
+            
+            %Sets the column width. Pads 2 for legibility.
+            col_width=cellfun(@(x) length(x), headers)+2;
+            %Min column width of 24
+            col_width(col_width<24)=24;
+            
+            if ~exist(this.save_dir,'dir')
+                mkdir(this.save_dir)
+            end
+            
+            if ~exist(this.save_path,'dir')
+                mkdir(this.save_path)
+            end
+            
+            if exist(this.fullpath,'file')
+                fileID=fopen(this.fullpath,'a');
+            else
+                fileID=fopen(this.fullpath,'w');
+                pre_fmt_str=repmat('%%%is\\t',1,n_columns);
+                fmt_str=sprintf([pre_fmt_str,'\r\n'],col_width);
+                fprintf(fileID,fmt_str,headers{:});
+            end
+            
+            pre_fmt_str_nmb=repmat('%%%i.15e\\t',1,n_columns);
+            nmb_fmt_str=sprintf([pre_fmt_str_nmb,'\r\n'],col_width);
+            fprintf(fileID,nmb_fmt_str,[this.coeffs,this.user_field_vals']);
+            
+            fclose(fileID);
+        end
+            
         %Initializes the CalVals structure. 
         function initCalVals(this)
             switch this.fit_name
                 case 'Lorentzian'
-                    %Ref spacing is the spacing between the 
+                    %Line spacing is the spacing between all the lines,
+                    %i.e. number of lines times the spacing between each
+                    %one
                     this.CalVals.line_spacing=1;
                 case 'DoubleLorentzian'
                     this.CalVals.line_spacing=1;
             end
         end
+        
         %Fits the trace using currently set parameters, depending on the
         %model.
         function fitTrace(this)
@@ -150,7 +227,8 @@ classdef MyFit < dynamicprops
                     this.mech_freq=this.coeffs(3); %#ok<MCNPR>
                     this.Q=this.mech_freq/this.mech_lw; %#ok<MCNPR>
                     this.opt_lw=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
-                case 'DoubleLorentzian'
+                    this.Qf=this.mech_freq*this.Q;  %#ok<MCNPR>
+                case 'DoubleLorentzian' 
                     this.opt_lw1=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
                     this.opt_lw2=convOptFreq(this,this.coeffs(5)); %#ok<MCNPR>
                     splitting=abs(this.coeffs(6)-this.coeffs(3));
@@ -174,10 +252,12 @@ classdef MyFit < dynamicprops
                    addUserField(this,'Mech','mech_lw','Linewidth (Hz)',1,...
                        'enable_flag','off')
                    addUserField(this,'Mech','Q',...
-                       'Qualify Factor (\times10^6)',1e6,...
+                       'Qualify Factor (x10^6)',1e6,...
                        'enable_flag','off','conv_factor',1e6)
                    addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
                        'conv_factor',1e6, 'enable_flag','off')
+                   addUserField(this,'Mech','Qf','Q\times f (10^{14} Hz)',1e14,...
+                       'conv_factor',1e14,'enable_flag','off');
                    
                    %Parameters for the tab relating to optics
                    this.UserGui.Tabs.Opt.tab_title='Optical';
@@ -207,6 +287,7 @@ classdef MyFit < dynamicprops
                        'enable_flag','off','conv_factor',1e6);
                    
                otherwise
+                   %Do nothing if there is no defined user parameters
            end
         end
         
@@ -264,9 +345,9 @@ classdef MyFit < dynamicprops
             this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
         end
         
-        %% Callbacks
-        %Save function callback
-        function saveCallback(this,~,~)
+        % Callbacks
+        %Save fit function callback
+        function saveFitCallback(this,~,~)
             assert(~isempty(this.save_dir),'Save directory is not specified');
             assert(ischar(this.save_dir),...
                 ['Save directory is not specified.',...
@@ -280,6 +361,10 @@ classdef MyFit < dynamicprops
                     ' with file name %s, but failed'],this.save_dir,...
                     this.save_name);
             end
+        end
+        
+        function saveParamCallback(this,~,~)
+            saveParams(this);
         end
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
@@ -374,7 +459,7 @@ classdef MyFit < dynamicprops
             this.lim_upper=p.Results.upper;            
             
             %Plots the fit function with the new initial parameters
-            if this.enable_gui; plotInitFun(this); end
+            if this.enable_plot; plotInitFun(this); end
         end
         
         %Plots the trace contained in the Fit MyTrace object.
@@ -407,6 +492,7 @@ classdef MyFit < dynamicprops
         end
     end
     
+    %Private methods
     methods(Access=private)
         %Creates the GUI of MyFit, in separate file.
         createGui(this);
@@ -423,22 +509,7 @@ classdef MyFit < dynamicprops
         createUnitDisp(this,varargin);
         
 
-        %Creates parser for constructor
-        function createParser(this)
-            p=inputParser;
-            addParameter(p,'fit_name','Linear',@ischar)
-            addParameter(p,'Data',MyTrace());
-            addParameter(p,'Fit',MyTrace());
-            addParameter(p,'x',[]);
-            addParameter(p,'y',[]);
-            addParameter(p,'enable_gui',1);
-            addParameter(p,'enable_plot',0);
-            addParameter(p,'plot_handle',[]);
-            addParameter(p,'save_dir',[]);
-            addParameter(p,'save_name',[]);
-            this.Parser=p;
-        end
-        
+
         %Sets the class variables to the inputs from the inputParser.
         function parseInputs(this)
             for i=1:length(this.Parser.Parameters)
@@ -534,9 +605,9 @@ classdef MyFit < dynamicprops
         end
     end
     
-    %% Get and set functions
+    % Get and set functions
     methods
-        %% Set functions
+        % Set functions
         
         %Set function for fit_name.
         function set.fit_name(this,fit_name)
@@ -550,7 +621,7 @@ classdef MyFit < dynamicprops
             this.fit_name=this.valid_fit_names{ind}; %#ok<MCSUP>
         end
 
-        %% Get functions for dependent variables
+        % Get functions for dependent variables
         
         %Generates the valid fit names
         function valid_fit_names=get.valid_fit_names(this)
@@ -592,8 +663,65 @@ classdef MyFit < dynamicprops
             x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
         end
         
-        function n_userfields=get.n_userfields(this)
-            n_userfields=length(fieldnames(this.UserGui.Fields));
+        function n_user_fields=get.n_user_fields(this)
+            n_user_fields=length(this.user_field_tags);
+        end
+        
+        function user_field_tags=get.user_field_tags(this)
+            user_field_tags=fieldnames(this.UserGui.Fields);
+        end
+        
+        function user_field_names=get.user_field_names(this)
+            user_field_names=cellfun(@(x) this.UserGui.Fields.(x).title,...
+                this.user_field_tags,'UniformOutput',0);
+        end
+        
+        function user_field_vals=get.user_field_vals(this)
+            user_field_vals=cellfun(@(x) this.(x), this.user_field_tags);
+        end
+        
+        function fullpath=get.fullpath(this)
+            fullpath=[this.save_path,this.save_name,'.txt'];
+        end
+        
+        function save_path=get.save_path(this)
+            save_path=createSessionPath(this.save_dir,this.session_name);
+        end
+        
+        function save_dir=get.save_dir(this)
+            try
+                save_dir=this.Gui.SaveDir.String;
+            catch
+                save_dir=pwd;
+            end
+        end
+        
+        function set.save_dir(this,save_dir)
+            this.Gui.SaveDir.String=save_dir;
+        end
+        
+        function session_name=get.session_name(this)
+            try
+                session_name=this.Gui.SessionName.String;
+            catch
+                session_name='';
+            end
+        end
+        
+        function set.session_name(this,session_name)
+           this.Gui.SessionName.String=session_name; 
+        end
+        
+        function save_name=get.save_name(this)
+            try
+                save_name=this.Gui.FileName.String;
+            catch
+                save_name='placeholder';
+            end
+        end
+        
+        function set.save_name(this,save_name)
+            this.Gui.SaveName=save_name;
         end
     end
 end
