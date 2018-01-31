@@ -422,6 +422,7 @@ classdef MyDaq < handle
         function instrMenuCallback(this,hObject,~)
             val=hObject.Value;
             if val==1
+                %Returns if we are on the dummy option ('Select instrument')
                 return
             else
                 tag = hObject.ItemsData{val};
@@ -432,19 +433,23 @@ classdef MyDaq < handle
             if ismember(tag, this.running_progs)
                 % Change focus to the instrument control window
                 fig_handle = findfigure(this.RunningPrograms.(tag));
-                if isempty(fig_handle)
-                    % If unable, try the same for .Gui object inside
-                    try
-                        fig_handle =...
-                            findfigure(this.RunningPrograms.(tag).Gui);
-                    catch
-                    end
+                % If unable, try the same for .Gui object inside
+                if isempty(fig_handle) && ...
+                        isprop(this.RunningPrograms.(tag),'Gui')
+                    fig_handle =...
+                        findfigure(this.RunningPrograms.(tag).Gui);
                 end
+                
                 if ~isempty(fig_handle)
                     fig_handle.Visible='off';
                     fig_handle.Visible='on';
+                    return
+                else
+                    warning('%s shows as open, but no open GUI was found',...
+                        tag);
+                    return
                 end
-                return
+                
             end
             
             try
@@ -456,21 +461,21 @@ classdef MyDaq < handle
             end
             
             % Add listeners to the NewData and ObjectBeingDestroyed events
-            try
+            if contains('NewData',events(this.RunningPrograms.(tag)))
                 this.Listeners.(tag).NewData=...
                     addlistener(this.RunningPrograms.(tag),'NewData',...
                     @(src, eventdata) acquireNewData(this, src, eventdata));
-            catch
                 % Compatibility with apps, which have .Instr property
-                try
-                    this.Listeners.(tag).NewData=...
-                        addlistener(this.RunningPrograms.(tag).Instr,'NewData',...
-                        @(src, eventdata) acquireNewData(this, src, eventdata));
-                catch
-                    warning(['No NewData event found, %s cannot transfer',...
-                        ' data to the DAQ'],tag);
-                end
+            elseif isprop('Instr',this.RunningPrograms.(tag)) && ...
+                    contains('NewData',this.RunningPrograms.Instr)
+                this.Listeners.(tag).NewData=...
+                    addlistener(this.RunningPrograms.(tag).Instr,'NewData',...
+                    @(src, eventdata) acquireNewData(this, src, eventdata));
+            else
+                warning(['No NewData event found, %s cannot transfer',...
+                    ' data to the DAQ'],tag);
             end
+            
             this.Listeners.(tag).Deletion=...
                 addlistener(this.RunningPrograms.(tag),...
                 'ObjectBeingDestroyed',...

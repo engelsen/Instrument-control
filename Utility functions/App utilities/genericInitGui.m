@@ -39,22 +39,10 @@ function genericInitGui(app, default_instr_class, interface, address, varargin)
     readPropertyHedged(app.Instr,'all');
     
     % Display instrument's name if given
-    if ~isempty(app.Instr.name)
-        % Find the main figure
-        app_props = properties(app);
-        is_figure = false(1,length(app_props));
-        for i=1:length(app_props)
-            tmp_el = app.(app_props{i});
-            try
-                if isequal(tmp_el.Type, 'figure') && isprop(tmp_el, 'Name')
-                    is_figure(i) = true;
-                end
-            catch
-            end
-        end
-        if any(is_figure)
-            prop = app_props(is_figure);
-            app.(prop{1}).Name = char(app.Instr.name);
+    if ~isempty(app.Instr.name)     
+        fig_handle=findfigure(app);
+        if ~isempty(fig_handle)
+            fig_handle.Name=char(app.Instr.name);
         else
             warning('No UIFigure found to assign the name')
         end
