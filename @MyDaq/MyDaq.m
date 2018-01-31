@@ -29,11 +29,6 @@ classdef MyDaq < handle
         ref_color='r';
         bg_color='c';
         
-        %Properties for saving files
-        base_dir;
-        session_name;
-        file_name;
-        
         %Flag for enabling the GUI
         enable_gui;
     end
@@ -43,8 +38,11 @@ classdef MyDaq < handle
         main_plot;
         open_fits;
         open_crs;
-        savefile;
         running_progs;
+        %Properties for saving files
+        base_dir;
+        session_name;
+        filename;
     end
     
     methods (Access=public)
@@ -65,7 +63,6 @@ classdef MyDaq < handle
                 end
             end
 
-            this.base_dir='M:\Measurement Campaigns\';
             this.ProgramList = readRunFiles();
             
             if this.enable_gui
@@ -91,6 +88,11 @@ classdef MyDaq < handle
             this.Ref=MyTrace();
             this.Data=MyTrace();
             this.Background=MyTrace();
+            
+            %Initializes saving locations
+            this.base_dir='M:\Measurement Campaigns\';
+            this.session_name='placeholder';
+            this.filename='placeholder';
         end
         
         function delete(this)
@@ -491,20 +493,20 @@ classdef MyDaq < handle
         %Saves the data if the save data button is pressed.
         function saveDataCallback(this, ~, ~)
             if this.Data.validatePlot
-                save(this.Data,'save_dir',this.save_dir,'name',...
-                    this.savefile)
+                save(this.Data,'save_dir',this.save_dir,'filename',...
+                    this.filename)
             else
-                errdlg('Data trace was empty, could not save');
+                errordlg('Data trace was empty, could not save');
             end
         end
         
         %Saves the reference if the save ref button is pressed.
         function saveRefCallback(this, ~, ~)
             if this.Data.validatePlot
-                save(this.Ref,'save_dir',this.save_dir,'name',...
-                    this.savefile)
+                save(this.Ref,'save_dir',this.save_dir,'filename',...
+                    this.filename)
             else
-                errdlg('Reference trace was empty, could not save')
+                errordlg('Reference trace was empty, could not save')
             end
         end
         
@@ -612,28 +614,25 @@ classdef MyDaq < handle
         
         %Base directory callback. Sets the base directory. Also
         %updates fit objects with the new save directory.
-        function baseDirCallback(this, hObject, ~)
-            this.base_dir=hObject.String;
+        function baseDirCallback(this, ~, ~)
             for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).save_dir=this.save_dir;
+                this.Fits.(this.open_fits{i}).base_dir=this.base_dir;
             end
         end
         
         %Callback for session name edit box. Sets the session name. Also
         %updates fit objects with the new save directory.
-        function sessionNameCallback(this, hObject, ~)
-            this.session_name=hObject.String;
+        function sessionNameCallback(this, ~, ~)
             for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).save_dir=this.save_dir;
+                this.Fits.(this.open_fits{i}).session_name=this.session_name;
             end
         end
         
         %Callback for filename edit box. Sets the file name. Also
         %updates fit objects with the new file name.
-        function fileNameCallback(this, hObject,~)
-            this.file_name=hObject.String;
+        function fileNameCallback(this, ~,~)
             for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).save_name=this.file_name;
+                this.Fits.(this.open_fits{i}).filename=this.filename;
             end
         end
        
@@ -675,8 +674,9 @@ classdef MyDaq < handle
                     'enable_plot',1,...
                     'plot_handle',this.main_plot,...
                     'Data',DataTrace,...
-                    'save_dir',this.save_dir,...
-                    'save_name',this.file_name);
+                    'base_dir',this.base_dir,...
+                    'session_name',this.session_name,...
+                    'filename',this.filename);
                 
                 updateFits(this);
                 %Sets up a listener for the Deletion event, which
@@ -875,13 +875,7 @@ classdef MyDaq < handle
     
     methods
            
-        %% Set functions
-        function set.base_dir(this,base_dir)
-            if ~strcmp(base_dir(end),'\')
-                base_dir(end+1)='\';
-            end
-            this.base_dir=base_dir;
-        end
+
         
         %% Get functions
         
@@ -908,20 +902,47 @@ classdef MyDaq < handle
             running_progs=fieldnames(this.RunningPrograms);
         end
         
-        %Generates appropriate file name for the save file.
-        function savefile=get.savefile(this)
-            if get(this.Gui.AutoName,'Value')
-                date_time = datestr(now,'yyyy-mm-dd_HHMMSS');
-            else
-                date_time='';
-            end
-            
-            savefile=[this.file_name,date_time];
-        end
-        
         %Get function that displays names of open cursors
         function open_crs=get.open_crs(this)
             open_crs=fieldnames(this.Cursors);
         end
+        
+        function base_dir=get.base_dir(this)
+            try 
+                base_dir=this.Gui.BaseDir.String;
+            catch
+                base_dir=pwd;
+            end
+        end
+        
+        function set.base_dir(this,base_dir)
+            this.Gui.BaseDir.String=base_dir;
+        end
+        
+        function session_name=get.session_name(this)
+            try
+                session_name=this.Gui.SessionName.String;
+            catch
+                session_name='';
+            end
+        end
+        
+        function set.session_name(this,session_name)
+            this.Gui.SessionName.String=session_name;
+        end
+        
+        function filename=get.filename(this)
+            try
+                filename=this.Gui.FileName.String;
+            catch
+                filename='placeholder';
+            end
+        end
+        
+        function set.filename(this,filename)
+            this.Gui.FileName.String=filename;
+        end
+        
+            
     end
 end

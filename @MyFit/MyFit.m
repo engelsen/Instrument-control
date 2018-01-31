@@ -46,8 +46,8 @@ classdef MyFit < dynamicprops
         user_field_names;
         user_field_vals;
         fullpath;
-        save_name;
-        save_dir;
+        filename;
+        base_dir;
         save_path;
         session_name;
     end
@@ -70,8 +70,9 @@ classdef MyFit < dynamicprops
             addParameter(p,'enable_gui',1);
             addParameter(p,'enable_plot',0);
             addParameter(p,'plot_handle',[]);
-            addParameter(p,'save_dir',pwd);
-            addParameter(p,'save_name','placeholder');
+            addParameter(p,'base_dir',pwd);
+            addParameter(p,'session_name','placeholder');
+            addParameter(p,'filename','placeholder');
             this.Parser=p;
         end      
     end
@@ -150,8 +151,8 @@ classdef MyFit < dynamicprops
             %Min column width of 24
             col_width(col_width<24)=24;
             
-            if ~exist(this.save_dir,'dir')
-                mkdir(this.save_dir)
+            if ~exist(this.base_dir,'dir')
+                mkdir(this.base_dir)
             end
             
             if ~exist(this.save_path,'dir')
@@ -348,18 +349,18 @@ classdef MyFit < dynamicprops
         % Callbacks
         %Save fit function callback
         function saveFitCallback(this,~,~)
-            assert(~isempty(this.save_dir),'Save directory is not specified');
-            assert(ischar(this.save_dir),...
+            assert(~isempty(this.base_dir),'Save directory is not specified');
+            assert(ischar(this.base_dir),...
                 ['Save directory is not specified.',...
                 ' Should be of type char but is %s.'], ...
-                class(this.save_dir))
+                class(this.base_dir))
             try
-                this.Fit.save('name',this.save_name,...
-                    'save_dir',this.save_dir)
+                this.Fit.save('name',this.filename,...
+                    'base_dir',this.base_dir)
             catch
                 error(['Attempted to save to directory %s',...
-                    ' with file name %s, but failed'],this.save_dir,...
-                    this.save_name);
+                    ' with file name %s, but failed'],this.base_dir,...
+                    this.filename);
             end
         end
         
@@ -681,23 +682,23 @@ classdef MyFit < dynamicprops
         end
         
         function fullpath=get.fullpath(this)
-            fullpath=[this.save_path,this.save_name,'.txt'];
+            fullpath=[this.save_path,this.filename,'.txt'];
         end
         
         function save_path=get.save_path(this)
-            save_path=createSessionPath(this.save_dir,this.session_name);
+            save_path=createSessionPath(this.base_dir,this.session_name);
         end
         
-        function save_dir=get.save_dir(this)
+        function base_dir=get.base_dir(this)
             try
-                save_dir=this.Gui.SaveDir.String;
+                base_dir=this.Gui.BaseDir.String;
             catch
-                save_dir=pwd;
+                base_dir=pwd;
             end
         end
         
-        function set.save_dir(this,save_dir)
-            this.Gui.SaveDir.String=save_dir;
+        function set.base_dir(this,base_dir)
+            this.Gui.BaseDir.String=base_dir;
         end
         
         function session_name=get.session_name(this)
@@ -712,16 +713,16 @@ classdef MyFit < dynamicprops
            this.Gui.SessionName.String=session_name; 
         end
         
-        function save_name=get.save_name(this)
+        function filename=get.filename(this)
             try
-                save_name=this.Gui.FileName.String;
+                filename=this.Gui.FileName.String;
             catch
-                save_name='placeholder';
+                filename='placeholder';
             end
         end
         
-        function set.save_name(this,save_name)
-            this.Gui.SaveName=save_name;
+        function set.filename(this,filename)
+            this.Gui.FileName.String=filename;
         end
     end
 end
