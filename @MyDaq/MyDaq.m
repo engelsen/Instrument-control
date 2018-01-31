@@ -3,25 +3,23 @@ classdef MyDaq < handle
         %Contains GUI handles
         Gui;
         %Contains Reference trace (MyTrace object)
-        Ref=MyTrace();
+        Ref;
         %Contains Data trace (MyTrace object)
-        Data=MyTrace();
+        Data;
         %Contains Background trace (MyTrace object)
-        Background=MyTrace();
-        %Struct containing available instruments
-        InstrList=struct();
-        %Struct containing MyInstrument objects 
-        Instruments=struct()
-        %Struct containing apps for interfacing with instruments
-        InstrApps=struct();
+        Background;
+        %List of all the programs with run files
+        ProgramList=struct();
+        % List of running programs
+        RunningPrograms=struct();
         %Struct containing Cursor objects
         Cursors=struct();
         %Struct containing Cursor labels
         CrsLabels=struct();
         %Struct containing MyFit objects
         Fits=struct();
-        %Input parser
-        Parser;
+        %Input parser for class constructor
+        ConstructionParser;
         %Struct for listeners
         Listeners=struct();
         
@@ -44,26 +42,55 @@ classdef MyDaq < handle
         save_dir;
         main_plot;
         open_fits;
-        open_instrs;
         open_crs;
-        instr_tags;
-        instr_names;
         savefile;
+        running_progs;
     end
     
     methods (Access=public)
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
-            createParser(this);
-            parse(this.Parser,varargin{:});
-            parseInputs(this);
+            p=inputParser;
+            addParameter(p,'enable_gui',1);
+            this.ConstructionParser=p;
+            parse(p, varargin{:});
+            
+            %Sets the class variables to the inputs from the inputParser.
+            for i=1:length(p.Parameters)
+                %Takes the value from the inputParser to the appropriate
+                %property.
+                if isprop(this, p.Parameters{i})
+                    this.(p.Parameters{i})= p.Results.(p.Parameters{i});
+                end
+            end
+
+            this.base_dir='M:\Measurement Campaigns\';
+            this.ProgramList = readRunFiles();
+            
             if this.enable_gui
                 this.Gui=guihandles(eval('GuiDaq'));
                 initGui(this);
+                % Initialize the menu based on the available run files
+                content = menuFromRunFiles(this.ProgramList,...
+                    'show_in_daq',true);
+                set(this.Gui.InstrMenu,'String',[{'Select the application'};...
+                    content.titles]);
+                % Add a property to the menu for storing the program file
+                % names
+                if ~isprop(this.Gui.InstrMenu, 'ItemsData')
+                    addprop(this.Gui.InstrMenu, 'ItemsData');
+                end
+                set(this.Gui.InstrMenu,'ItemsData',[{''};...
+                    content.tags]);
+                set(this.Gui.BaseDir,'String',this.base_dir);
                 hold(this.main_plot,'on');
             end
-            initDaq(this)
+            
+            %Initializes empty trace objects
+            this.Ref=MyTrace();
+            this.Data=MyTrace();
+            this.Background=MyTrace();
         end
         
         function delete(this)
@@ -71,13 +98,9 @@ classdef MyDaq < handle
             cellfun(@(x) deleteListeners(this,x), this.open_fits);
             structfun(@(x) delete(x), this.Fits);
             
-            %Deletes the InstrApp objects and their listeners
-            cellfun(@(x) deleteListeners(this,x), fieldnames(this.InstrApps));
-            structfun(@(x) delete(x), this.InstrApps);
-            
-            %Deletes the MyInstrument objects and their listeners
-            cellfun(@(x) deleteListeners(this,x), this.open_instrs);
-            structfun(@(x) delete(x), this.Instruments);
+            %Close the programs and delete their listeners
+            cellfun(@(x) deleteListeners(this, x), this.running_progs);
+            structfun(@(x) delete(x), this.RunningPrograms);
             
             if this.enable_gui
                 this.Gui.figure1.CloseRequestFcn='';
@@ -89,45 +112,7 @@ classdef MyDaq < handle
         end
     end
     
-    methods (Access=private)
-        %Creates parser for constructor function
-        function createParser(this)
-           p=inputParser;
-           addParameter(p,'enable_gui',1);
-           this.Parser=p;
-        end
-                
-        %Sets the class variables to the inputs from the inputParser.
-        function parseInputs(this)
-            for i=1:length(this.Parser.Parameters)
-                %Takes the value from the inputParser to the appropriate
-                %property.
-                if isprop(this,this.Parser.Parameters{i})
-                    this.(this.Parser.Parameters{i})=...
-                        this.Parser.Results.(this.Parser.Parameters{i});
-                end
-            end
-        end
-        
-        %Initializes the class depending on the computer name
-        function initDaq(this)
-            computer_name=getenv('computername');
-            switch computer_name
-                case 'LPQM1PCLAB2'
-                    initRt(this);
-                case 'LPQM1PC18'
-                    initUhq(this);
-                case 'LPQM1PC2'
-                    %Test case for testing on Nils' computer.
-                otherwise
-                    warning('Please create an initialization function for this computer')
-            end
-            
-            %Initializes empty trace objects
-            this.Ref=MyTrace();
-            this.Data=MyTrace();
-            this.Background=MyTrace();
-        end
+    methods (Access=private)      
 
         %Sets callback functions for the GUI
         initGui(this)
@@ -135,58 +120,6 @@ classdef MyDaq < handle
         %Executes when the GUI is closed
         function closeFigure(this,~,~)
             delete(this);
-        end
-        
-        %Adds an instrument to InstrList. Used by initialization functions.
-        function addInstr(this,tag,name,type,interface,address)
-            %Usage: addInstr(this,tag,name,type,interface,address)
-            if ~ismember(tag,this.instr_tags)
-                this.InstrList.(tag).name=name;
-                this.InstrList.(tag).type=type;
-                this.InstrList.(tag).interface=interface;
-                this.InstrList.(tag).address=address;
-            else
-                error(['%s is already defined as an instrument. ',...
-                    'Please choose a different tag'],tag);
-            end
-        end
-        
-        %Gets the tag corresponding to an instrument name
-        function tag=getTag(this,instr_name)
-            ind=cellfun(@(x) strcmp(this.InstrList.(x).name,instr_name),...
-                this.instr_tags);
-            tag=this.instr_tags{ind};
-        end
-        
-        %Opens the correct instrument
-        function openInstrument(this,tag)
-            instr_type=this.InstrList.(tag).type;
-            %Collects the correct inputs for creating the MyInstrument
-            %class
-            input_cell={this.InstrList.(tag).interface,...
-                this.InstrList.(tag).address};
-            
-            switch instr_type
-                case 'RSA'
-                    this.InstrApps.(tag)=GuiRsa(input_cell{:},'name',this.InstrList.(tag).name);
-                    this.Instruments.(tag)=this.InstrApps.(tag).Instr;
-                case 'DPO'
-                    this.InstrApps.(tag)=GuiDpo(input_cell{:},...
-                        'name',this.InstrList.(tag).name);
-                    this.Instruments.(tag)=this.InstrApps.(tag).Instr;
-                case 'NA'
-                    this.Instruments.(tag)=MyNa(input_cell{:},...
-                        'gui','GuiNa','name',this.InstrList.(tag).name);
-            end
-            
-            %Adds listeners for new data and deletion of the instrument.
-            %These call plot functions and delete functions respectively.
-            this.Listeners.(tag).NewData=...
-                addlistener(this.Instruments.(tag),'NewData',...
-                @(src, eventdata) acquireNewData(this, src, eventdata));
-            this.Listeners.(tag).Deletion=...
-                addlistener(this.Instruments.(tag),'ObjectBeingDestroyed',...
-                @(src, eventdata) deleteInstrument(this, src, eventdata));
         end
         
         %Updates fits
@@ -488,40 +421,66 @@ classdef MyDaq < handle
         %Callback for the instrument menu
         function instrMenuCallback(this,hObject,~)
             val=hObject.Value;
-            names=hObject.String;
-            %Finds the correct instrument tag as long as an instrument is
-            %selected
-            if val~=1
-                try 
-                    tag=getTag(this,names(val));
-                catch 
-                    error('Invalid instrument selected: %s',names{val});
-                end
+            if val==1
+                %Returns if we are on the dummy option ('Select instrument')
+                return
+            else
+                tag = hObject.ItemsData{val};
             end
             
-            %If instrument is valid and not open, opens it. If it is valid
-            %and open it changes focus to the instrument control window.
-            if (ismember(tag,this.instr_tags) && ...
-                    ~ismember(tag,this.open_instrs))
-                openInstrument(this,tag);
-            elseif ismember(tag,this.open_instrs)
-                if isfield(this.InstrApps,tag)
-                    prop_names=properties(this.InstrApps.(tag));
-                    figure_ind=cellfun(@(x) isa(this.InstrApps.(tag).(x),...
-                        'matlab.ui.Figure'),prop_names);
-                    fig_handle=this.InstrApps.(tag).(prop_names{figure_ind});
+            % Run-files themselves are supposed to prevent duplicated
+            % instances, but let DAQ handle it as well for safety
+            if ismember(tag, this.running_progs) && ...
+                    isvalid(this.RunningPrograms.(tag))
+                % Change focus to the instrument control window
+                fig_handle = findfigure(this.RunningPrograms.(tag));
+                % If unable, try the same for .Gui object inside
+                if isempty(fig_handle) && ...
+                        isprop(this.RunningPrograms.(tag),'Gui')
+                    fig_handle =...
+                        findfigure(this.RunningPrograms.(tag).Gui);
+                end
+                
+                if ~isempty(fig_handle)
                     fig_handle.Visible='off';
                     fig_handle.Visible='on';
-                elseif isprop(this.Instruments.(tag),'Gui')
-                    InstrGui=this.Instruments.(tag).Gui;
-                    ind=structfun(@(x) isa(x,'matlab.ui.Figure'),InstrGui);
-                    names=fieldnames(InstrGui);
-                    figure(InstrGui.(names{ind}));
+                    return
                 else
-                    error(['Instrument %s does not have a GUI but is',...
-                        ' registered as open'],tag)
+                    warning('%s shows as open, but no open GUI was found',...
+                        tag);
+                    return
                 end
+                
             end
+            
+            try
+                [~, fname, ~] = fileparts(this.ProgramList.(tag).fullname);
+                prog = feval(fname);
+                this.RunningPrograms.(tag) = evalin('base', prog);
+            catch
+                error('Cannot run %s', this.ProgramList.(tag).fullname)
+            end
+            
+            % Add listeners to the NewData and ObjectBeingDestroyed events
+            if contains('NewData',events(this.RunningPrograms.(tag)))
+                this.Listeners.(tag).NewData=...
+                    addlistener(this.RunningPrograms.(tag),'NewData',...
+                    @(src, eventdata) acquireNewData(this, src, eventdata));
+                % Compatibility with apps, which have .Instr property
+            elseif isprop(this.RunningPrograms.(tag),'Instr') && ...
+                    contains('NewData',events(this.RunningPrograms.(tag).Instr))
+                this.Listeners.(tag).NewData=...
+                    addlistener(this.RunningPrograms.(tag).Instr,'NewData',...
+                    @(src, eventdata) acquireNewData(this, src, eventdata));
+            else
+                warning(['No NewData event found, %s cannot transfer',...
+                    ' data to the DAQ'],tag);
+            end
+            
+            this.Listeners.(tag).Deletion=...
+                addlistener(this.RunningPrograms.(tag),...
+                'ObjectBeingDestroyed',...
+                @(src, eventdata) removeProgram(this, src, eventdata));
         end
         
         %Select trace callback
@@ -819,16 +778,13 @@ classdef MyDaq < handle
             updateFits(this);
         end
         
-        %Callback function for MyInstrument ObjectBeingDestroyed listener. 
-        %Removes the relevant field from the Instruments struct and deletes
-        %the listeners from the object
-        function deleteInstrument(this, src, ~)
-            %Deletes the object from the Instruments struct
-            tag=getTag(this, src.name);
-            if ismember(tag, this.open_instrs)
-                this.Instruments=rmfield(this.Instruments,tag);
-            end
-            
+        %Deletes the object from the RunningPrograms struct
+        function removeProgram(this, src, ~)
+            % Find the object that is being deleted
+            ind=cellfun(@(x) isequal(this.RunningPrograms.(x), src),...
+                this.running_progs);
+            tag=this.running_progs{ind};
+            this.RunningPrograms=rmfield(this.RunningPrograms,tag);
             %Deletes the listeners from the Listeners struct
             deleteListeners(this, tag);
         end
@@ -943,26 +899,13 @@ classdef MyDaq < handle
             end
         end
         
-        %Get function for available instrument tags
-        function instr_tags=get.instr_tags(this)
-            instr_tags=fieldnames(this.InstrList);
-        end
-        
         %Get function for open fits
         function open_fits=get.open_fits(this)
             open_fits=fieldnames(this.Fits);
         end
         
-        %Get function for open instrument tags
-        function open_instrs=get.open_instrs(this)
-            open_instrs=fieldnames(this.Instruments);
-        end
-        
-        %Get function for instrument names
-        function instr_names=get.instr_names(this)
-            %Cell of strings is output, so UniformOutput must be 0.
-            instr_names=cellfun(@(x) this.InstrList.(x).name, ...
-                this.instr_tags,'UniformOutput',0);
+        function running_progs=get.running_progs(this)
+            running_progs=fieldnames(this.RunningPrograms);
         end
         
         %Generates appropriate file name for the save file.

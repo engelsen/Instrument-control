@@ -77,13 +77,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %Allows all options of the class as inputs for the save
             %function, to change the name or save directory.
             parse(this.Parser,varargin{:});
-            parseInputs(this,false);
-            addParameter(p,'save_dir',pwd);
-            addParameter(p,'Color','b');
-            addParameter(p,'Marker','none');
-            addParameter(p,'LineStyle','-');
-            addParameter(p,'MarkerSize',6);
-            
+            parseInputs(this,false);          
             
             %Adds the \ at the end if it was not added by the user.
             if ~strcmp(this.save_dir(end),'\')
