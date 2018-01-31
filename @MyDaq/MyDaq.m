@@ -430,7 +430,8 @@ classdef MyDaq < handle
             
             % Run-files themselves are supposed to prevent duplicated
             % instances, but let DAQ handle it as well for safety
-            if ismember(tag, this.running_progs)
+            if ismember(tag, this.running_progs) && ...
+                    isvalid(this.RunningPrograms.(tag))
                 % Change focus to the instrument control window
                 fig_handle = findfigure(this.RunningPrograms.(tag));
                 % If unable, try the same for .Gui object inside
@@ -466,8 +467,8 @@ classdef MyDaq < handle
                     addlistener(this.RunningPrograms.(tag),'NewData',...
                     @(src, eventdata) acquireNewData(this, src, eventdata));
                 % Compatibility with apps, which have .Instr property
-            elseif isprop('Instr',this.RunningPrograms.(tag)) && ...
-                    contains('NewData',this.RunningPrograms.Instr)
+            elseif isprop(this.RunningPrograms.(tag),'Instr') && ...
+                    contains('NewData',events(this.RunningPrograms.(tag).Instr))
                 this.Listeners.(tag).NewData=...
                     addlistener(this.RunningPrograms.(tag).Instr,'NewData',...
                     @(src, eventdata) acquireNewData(this, src, eventdata));
