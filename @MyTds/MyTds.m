@@ -67,9 +67,34 @@ classdef MyTds <MyInstrument
             closeDevice(this);
         end
         
+        % Emulates the physical knob turning, works with nturns=+-1
         function turnKnob(this,knob,nturns)
             openDevice(this);
-            fprintf(this.Device, sprintf('FPAnel:TURN %s,%i',knob,nturns));
+            switch upper(knob)
+                case 'HORZSCALE'
+                    % timebase is changed
+                    if nturns==-1
+                        sc = this.time_scale*2;
+                    elseif nturns==1
+                        sc = this.time_scale/2;
+                    else
+                        return
+                    end
+                    fprintf(this.Device,...
+                        sprintf('HORizontal:MAIn:SCAle %i',sc));
+                case {'VERTSCALE1', 'VERTSCALE2'}
+                    % vertical scale is changed
+                    n_ch = sscanf(upper(knob), 'VERTSCALE%i');
+                    tag = sprintf('scale%i', n_ch);
+                    if nturns==-1
+                        sc = this.(tag)*2;
+                    elseif nturns==1
+                        sc = this.(tag)/2;
+                    else
+                        return
+                    end
+                    fprintf(this.Device, sprintf('CH%i:SCAle %i',n_ch,sc));
+            end
             closeDevice(this);
         end
     end
