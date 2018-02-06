@@ -7,13 +7,19 @@ classdef MyDpo <MyInstrument
             'TRIGLevel','PANKNOB1','VERTPOS','VERTSCALE','ZOOM'};
     end
     
+    properties (Constant=true)
+        N_CHANNELS = 4; % number of channels
+    end
+    
     methods (Access=public)
         function this=MyDpo(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);
-            this.Device.InputBufferSize = 2.1e7; %byte
+            % 2e7 is the maximum trace size of DPO4034-3034 
+            %(10 mln point of 2-byte integers)
+            this.Device.InputBufferSize = 2.1e7; %byte 
             this.Trace.name_x='Time';
             this.Trace.name_y='Voltage';
         end
@@ -118,7 +124,7 @@ classdef MyDpo <MyInstrument
                 'default',true, 'str_spec','%b');
            
             % Parametric commands
-            for i = 1:4
+            for i = 1:this.N_CHANNELS
                 i_str = num2str(i);
                 % coupling, AC, DC or GND
                 addCommand(this,...
