@@ -14,8 +14,6 @@ function updateGui(app)
             end
             tmpelem.Value = tmpval;
         else
-            % disable the control element otherwise
-            tmpelem.Enable = 'off';
         end
     end
 end

@@ -15,7 +15,15 @@ function linkControlElement(app, elem, prop_tag, varargin)
     % list of values. Ignored for all the other control elements. 
     addParameter(p,'init_val_list',false,@islogical);
     parse(p,elem,prop_tag,varargin{:});
-
+    
+    % If the property is not present in the instrument class, disable the
+    % control
+    if ~isprop(app.Instr, prop_tag)
+        elem.Enable='off';
+        elem.Visible='off';
+        return
+    end
+    
     % The property-control link is established by assigning the tag
     % and adding the control to the list of linked elements
     elem.Tag = prop_tag;
