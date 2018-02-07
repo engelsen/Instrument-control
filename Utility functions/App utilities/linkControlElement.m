@@ -18,9 +18,11 @@ function linkControlElement(app, elem, prop_tag, varargin)
     
     % If the property is not present in the instrument class, disable the
     % control
-    if ~isprop(app.Instr, prop_tag)
+    if ~isfield(app.Instr.CommandList, prop_tag)
         elem.Enable='off';
         elem.Visible='off';
+        fprintf('Class %s does not have a command with tag ''%s''\n',...
+            class(app.Instr),prop_tag);
         return
     end
     
