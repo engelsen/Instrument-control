@@ -177,7 +177,7 @@ classdef MyInstrument < dynamicprops
             end
             vlist = this.CommandList.(cmd).val_list;
             % The value to normalize can be explicitly passed as
-            % varargin{1}, otherwise use the property value
+            % varargin{1}, otherwise use this.cmd as value
             if isempty(varargin)
                 val = this.(cmd);
             else
@@ -205,8 +205,25 @@ classdef MyInstrument < dynamicprops
                     this.(cmd) = std_val;
                 end
             else
+                warning(['The value %s is not in the val_list ',...
+                    'of %s command'], val, cmd)
                 std_val = val;
             end
+        end
+        
+        % Return the list of long command values excluding abbreviations
+        function std_val_list = stdValueList(this, cmd)
+            if ~ismember(cmd,this.command_names)
+                warning('%s is not a valid command',cmd);
+                std_val_list = {};
+                return
+            end
+            vlist = this.CommandList.(cmd).val_list;
+            % Select the commands, which appear only once in the beginnings 
+            % of the strings in val_list
+            long_val_ind = cellfun(...
+                @(x)(sum(startsWith(vlist,x,'IgnoreCase',true))==1),vlist);
+            std_val_list = vlist(long_val_ind); 
         end
         
         % Create a string of property values
@@ -413,8 +430,15 @@ classdef MyInstrument < dynamicprops
                 % Create validation function based on properties: 
                 % class, attributes and list of values
                 if ~isempty(this.CommandList.(tag).val_list)
-                    v_func = @(x) any(cellfun(@(y) isequal(y, x),...
-                    this.CommandList.(tag).val_list));
+                    if all(cellfun(@ischar, this.CommandList.(tag).val_list))
+                        % for textual values use case insentice string comparison
+                        v_func = @(x) any(cellfun(@(y) strcmpi(y, x),...
+                            this.CommandList.(tag).val_list));
+                    else
+                        % for everything else compare as it is
+                        v_func = @(x) any(cellfun(@(y) isequal(y, x),...
+                            this.CommandList.(tag).val_list));
+                    end
                 else
                     v_func = @(x) validateattributes(x,...
                     this.CommandList.(tag).classes,...

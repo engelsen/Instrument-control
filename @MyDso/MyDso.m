@@ -1,6 +1,14 @@
 % Class for controlling 4-channel Agilent DSO scopes. 
 % Tested with DSO7034A
 classdef MyDso <MyInstrument
+    properties (SetAccess=protected, GetAccess=public)
+        % properties, read a a preamble during the trace reading
+        step_x;
+        step_y;
+        x_zero;
+        y_zero;
+        point_no;
+    end
     properties (Constant=true)
         N_CHANNELS = 4; % number of channels
     end
@@ -11,38 +19,41 @@ classdef MyDso <MyInstrument
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);
-            % 2e7 is the maximum trace size of DPO4034-3034 
-            %(10 mln point of 2-byte integers)
-            this.Device.InputBufferSize = 2.1e7; %byte 
+            % 1.6e7 is the maximum trace size of DSO7034A 
+            %(8 mln point of 2-byte integers)
+            this.Device.InputBufferSize = 2e7; %byte 
             this.Trace.name_x='Time';
             this.Trace.name_y='Voltage';
+            this.Trace.unit_x = 's';
+            this.Trace.unit_y = 'V';
         end
         
         function readTrace(this)
-            %set data format to be signed integer, reversed byte order
-            fprintf(this.Device,'WAVeform:BYTeorder LSBFirst');
-            %2 bytes per measurement point
-            fprintf(this.Device,'WAVeform:FORMat WORD');
+            % set data format to be signed integer, reversed byte order,
+            % 2 bytes per measurement point, and also read the maximun
+            % avaliable number of points
+            fprintf(this.Device,['WAVeform:BYTeorder MSBFirst;',...
+                ':WAVeform:FORMat WORD;:WAVeform:POINts:MODE MAX']);
+            % read preamble
+            pre_str = query(this.Device, 'WAVeform:PREamble?');
+            % drop the end-of-the-string symbol and split
+            pre = str2double(split(pre_str(1:end-1),','));
+            this.point_no = pre(3);
+            this.step_x = pre(5);
+            this.step_y = pre(8);
+            this.x_zero = pre(6);
+            this.y_zero = pre(9);
             % read the trace
             fprintf(this.Device,'WAVeform:DATA?');
-            y_data = int16(binblockread(this.Device,'int16'));
-            
-            % Reading the relevant parameters from the scope
-            readProperty(this,...
-                'step_x','step_y','x_zero');
-                        
+            y_data = int16(binblockread(this.Device,'int16'));            
             % Calculating the y data
-            y = double(y_data)*this.step_y; 
+            y = double(y_data)*this.step_y + this.y_zero; 
             n_points=length(y);
             % Calculating the x axis
             x = linspace(this.x_zero,...
                 this.x_zero+this.step_x*(n_points-1),n_points);
-            
             this.Trace.x = x;
             this.Trace.y = y;
-            % Discard "" when assiging the Trace labels
-            %this.Trace.unit_x = this.unit_x(2:end-1);
-            %this.Trace.unit_y = this.unit_y(2:end-1);
             triggerNewData(this);
         end
         
@@ -64,10 +75,32 @@ classdef MyDso <MyInstrument
             closeDevice(this);
         end
         
+        % Emulates the physical knob turning, works with nturns=+-1
         function turnKnob(this,knob,nturns)
-            openDevice(this);
-            %fprintf(this.Device, sprintf('FPAnel:TURN %s,%i',knob,nturns));
-            closeDevice(this);
+            switch upper(knob)
+                case 'HORZSCALE'
+                    % timebase is changed
+                    if nturns==-1
+                        sc = this.time_scale*2;
+                    elseif nturns==1
+                        sc = this.time_scale/2;
+                    else
+                        return
+                    end
+                    writePropertyHedged(this, 'time_scale', sc);
+                case {'VERTSCALE1', 'VERTSCALE2'}
+                    % vertical scale is changed
+                    n_ch = sscanf(upper(knob), 'VERTSCALE%i');
+                    tag = sprintf('scale%i', n_ch);
+                    if nturns==-1
+                        sc = this.(tag)*2;
+                    elseif nturns==1
+                        sc = this.(tag)/2;
+                    else
+                        return
+                    end
+                    writePropertyHedged(this, sprintf('scale%i',n_ch), sc);
+            end
         end
     end
     
@@ -76,23 +109,6 @@ classdef MyDso <MyInstrument
             % channel from which the data is transferred
             addCommand(this,'channel','WAVeform:SOURce','default',1,...
                 'str_spec','CHAN%i');
-            %% currently selected in the scope display channel
-            %addCommand(this, 'ctrl_channel', 'SELect:CONTROl',...
-            %    'default',1, 'str_spec','CH%i');
-            % scale for x and y waveform data
-            addCommand(this,'step_y','WAVeform:YINCrement','access','r',...
-                'classes',{'numeric'});
-            addCommand(this,'step_x','WAVeform:XINCrement','access','r',...
-                'classes',{'numeric'});
-            addCommand(this,'x_zero','WAVeform:XORigin','access','r',...
-                'classes',{'numeric'});           
-            % numbers of points
-            addCommand(this, 'point_no','WAVeform:POINts',...
-                'default', 100000,...
-                'val_list', {100, 250, 500, 1000, 2000, 5000, 10000,...
-                20000, 50000, 100000, 200000, 500000, 1000000, 2000000,...
-                4000000, 8000000},...
-                'str_spec','%i');
             % time scale in s per div
             addCommand(this, 'time_scale','TIMebase:SCALe',...
                 'default',10E-3,...
@@ -102,9 +118,10 @@ classdef MyDso <MyInstrument
                 'default',1,...
                 'str_spec','%e');
             % trigger slope - works, but incompatible with Tektronix
-            %addCommand(this, 'trig_slope', 'TRIGger:SLOpe',...
-            %    'default', 'RISe', 'val_list',{'NEG','POS'},...
-            %    'str_spec','%s');
+            addCommand(this, 'trig_slope', 'TRIGger:SLOpe',...
+                'default', 'RISe', 'val_list',{'NEG','POS','EITH','ALT',... 
+                'NEGative','POSitive','EITHer','ALTernate'},...
+                'str_spec','%s');
             % trigger source
             addCommand(this, 'trig_source', 'TRIGger:SOUrce',...
                 'default', 'AUX', 'val_list', {'CHAN1','CHAN2','CHAN3',...
@@ -114,9 +131,6 @@ classdef MyDso <MyInstrument
             addCommand(this, 'trig_mode', 'TRIGger:SWEep',...
                 'default', 'AUTO', 'val_list',{'AUTO','NORMal','NORM'},...
                 'str_spec','%s');
-            %% state of the data acquisition by the scope
-            %addCommand(this, 'acq_state', 'ACQuire:STATE',...
-            %    'default',true, 'str_spec','%b');
            
             % Parametric commands
             for i = 1:this.N_CHANNELS
@@ -127,11 +141,11 @@ classdef MyDso <MyInstrument
                     'default','DC', 'val_list', {'AC','DC','GND'},...
                     'str_spec','%s');              
                 % impedances, 1MOhm or 50 Ohm works but incompatible with DPO
-                %addCommand(this,...
-                %    ['imp',i_str],['CHANnel',i_str,':IMPedance'],...
-                %    'default','ONEMeg',...
-                %    'val_list', {'FIFty','FIF','ONEMeg','ONEM'},...
-                %    'str_spec','%s');
+                addCommand(this,...
+                    ['imp',i_str],['CHANnel',i_str,':IMPedance'],...
+                    'default','ONEMeg',...
+                    'val_list', {'FIFty','FIF','ONEMeg','ONEM'},...
+                    'str_spec','%s');
                 % offset
                 addCommand(this,...
                     ['offset',i_str],['CHANnel',i_str,':OFFSet'],'default',0,...
