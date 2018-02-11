@@ -263,7 +263,7 @@ classdef MyInstrument < dynamicprops
                 switch lower(interface)
                     case 'instr_list'
                         % load the InstrumentList structure
-                        InstrumentList = getLocalInstrList();
+                        InstrumentList = getLocalSettings('InstrumentList');
                         % In this case 'address' is the instrument name in
                         % the list
                         instr_name = address;

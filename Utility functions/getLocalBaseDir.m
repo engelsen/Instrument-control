@@ -1,11 +1,12 @@
-% Reurn the directory name, where the local instrument control files are 
-% located
+% Reurn the directory name, where the local instrument control settings 
+% file is located
 function dir = getLocalBaseDir()
-    % Dir is defined as the directory with the InstrumentList
-    [dir,~,~] = fileparts(which('InstrumentList.mat'));
+    % Dir is defined as the directory containing LocalInstrumentControlSettings
+    [dir,~,~] = fileparts(which('LocalInstrumentControlSettings.mat'));
     if isempty(dir)
-        % The default value in case the InstrumentList is not found
-        dir = 'C:\'; 
+        error(['The local settings file is not found. Add the folder, '...
+            'containing an existing file to the Matlab path or create '...
+            'a new one by runnign Setup.']);
     end
 end
 

@@ -24,7 +24,7 @@ function genericInitGui(app, default_instr_class, interface, address, varargin)
         class = p.Results.instr_class;
     elseif isequal(interface,'instr_list')
         % load the InstrumentList structure
-        InstrumentList = getLocalInstrList();
+        InstrumentList = getLocalSettings('InstrumentList');
         % In this case 'address' is the instrument name in the list
         instr_name = address;
         if ~isfield(InstrumentList, instr_name)
