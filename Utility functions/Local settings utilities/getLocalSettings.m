@@ -1,4 +1,4 @@
-% Return local settings
+% Load local settings
 function Settings = getLocalSettings(varargin)
     try 
         Settings = load('LocalInstrumentControlSettings.mat');
@@ -12,7 +12,7 @@ function Settings = getLocalSettings(varargin)
         try
             Settings = Settings.(varargin{1});
         catch
-            error('No such parameter as %s among loaded settings',...
+            error('No such parameter as %s among the loaded settings',...
                 varargin{1});
         end
     end

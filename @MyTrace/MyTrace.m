@@ -1,3 +1,5 @@
+% Class for XY data representation with labeling, plotting and
+% saving/loding functionality
 classdef MyTrace < handle & matlab.mixin.Copyable
     properties (Access=public)
         x=[];

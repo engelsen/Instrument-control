@@ -90,7 +90,7 @@ classdef MyDaq < handle
             this.Background=MyTrace();
             
             %Initializes saving locations
-            this.base_dir='M:\Measurement Campaigns\';
+            this.base_dir=getLocalSettings('measurement_base_dir');
             this.session_name='placeholder';
             this.filename='placeholder';
         end
