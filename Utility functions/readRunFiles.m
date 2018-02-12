@@ -15,46 +15,16 @@ function run_files = readRunFiles(varargin)
     for i=1:length(run_names)
         name_match = regexp(run_names{i},'run(.*)\.m','tokens');
         nm = name_match{1}{1};
-        run_files.(nm) = struct();
-        run_files.(nm).name = nm;
         fname = fullfile(dir, run_names{i});
-        run_files.(nm).fullname = fname;
-        try
-            fid = fopen(fname,'r');
-            % Read the file line by line, with a paranoid limitation on
-            % the number of cycles 
-            j = 1;
-            header =[];
-            while j<100000
-                j=j+1;
-                str = fgetl(fid);
-                trimstr = strtrim(str);
-                if isempty(trimstr)
-                    % An empty string
-                elseif trimstr(1)=='%'
-                    % A comment string
-                    match = regexp(trimstr,'[%\s]*(.*)=(.*)','tokens');
-                    try
-                        tag = lower(match{1}{1});
-                        run_files.(nm).(tag) = match{1}{2};
-                    catch
-                    end
-                else 
-                    % Stop when the code begins
-                    break
-                end
-                % Also store the header in its entirety
-                header = [header, str, newline];
-            end
-            fclose(fid);
-            run_files.(nm).header = header;
-            if isfield(run_files.(nm),'show_in_daq')
-                run_files.(nm).show_in_daq = eval(...
-                    lower(run_files.(nm).show_in_daq));
-            end
-        catch
-            warning('Could not process the run file %s', fname)
+        % Read the run file comment header
+        run_files.(nm) = readCommentHeader(fname);
+        if isfield(run_files.(nm),'show_in_daq')
+            run_files.(nm).show_in_daq = eval(...
+                lower(run_files.(nm).show_in_daq));
         end
+        % Add information about file name
+        run_files.(nm).name = nm;
+        run_files.(nm).fullname = fname;
     end
 end
 

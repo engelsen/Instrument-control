@@ -1,5 +1,5 @@
+% Class with single property 'value', which is passed by reference
 classdef MyRefVar < handle
-% A simple variable, the value of which is passed by reference
 	properties
 		value
 	end

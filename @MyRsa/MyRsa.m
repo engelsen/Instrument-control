@@ -1,3 +1,4 @@
+% Class for controlling Tektronix RSA5103 and RSA5106 spectrum analyzers 
 classdef MyRsa < MyInstrument
     %% Constructor and destructor
     methods (Access=public)

@@ -90,7 +90,7 @@ classdef MyDaq < handle
             this.Background=MyTrace();
             
             %Initializes saving locations
-            this.base_dir='M:\Measurement Campaigns\';
+            this.base_dir=getLocalSettings('measurement_base_dir');
             this.session_name='placeholder';
             this.filename='placeholder';
         end
@@ -737,7 +737,6 @@ classdef MyDaq < handle
                 warning('Please input a valid folder name for loading a trace');
                 this.base_dir=pwd;
             end
-            
             try
                 [load_name,path_name]=uigetfile('.txt','Select the trace',...
                     this.base_dir);

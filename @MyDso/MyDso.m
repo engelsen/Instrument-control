@@ -32,8 +32,9 @@ classdef MyDso <MyInstrument
             % set data format to be signed integer, reversed byte order,
             % 2 bytes per measurement point, and also read the maximun
             % avaliable number of points
-            fprintf(this.Device,['WAVeform:BYTeorder MSBFirst;',...
-                ':WAVeform:FORMat WORD;:WAVeform:POINts:MODE MAX']);
+            fprintf(this.Device,['WAVeform:BYTeorder LSBFirst;',...
+                ':WAVeform:FORMat WORD;:WAVeform:POINts:MODE MAX;',...
+                ':WAVeform:UNSigned OFF']);
             % read preamble
             pre_str = query(this.Device, 'WAVeform:PREamble?');
             % drop the end-of-the-string symbol and split
@@ -47,7 +48,7 @@ classdef MyDso <MyInstrument
             fprintf(this.Device,'WAVeform:DATA?');
             y_data = int16(binblockread(this.Device,'int16'));            
             % Calculating the y data
-            y = double(y_data)*this.step_y + this.y_zero; 
+            y = double(y_data)*this.step_y+this.y_zero; 
             n_points=length(y);
             % Calculating the x axis
             x = linspace(this.x_zero,...
