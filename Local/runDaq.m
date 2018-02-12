@@ -1,5 +1,5 @@
 % General Plot
-function name = runMyDaq()
+function name = runDaq()
     name = '';
     MyDaq();
 end

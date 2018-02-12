@@ -15,7 +15,15 @@ function linkControlElement(app, elem, prop_tag, varargin)
     % list of values. Ignored for all the other control elements. 
     addParameter(p,'init_val_list',false,@islogical);
     parse(p,elem,prop_tag,varargin{:});
-
+    
+    % If the property is not present in the instrument class, disable the
+    % control
+    if ~isfield(app.Instr.CommandList, prop_tag)
+        elem.Enable='off';
+        elem.Visible='off';
+        return
+    end
+    
     % The property-control link is established by assigning the tag
     % and adding the control to the list of linked elements
     elem.Tag = prop_tag;
@@ -53,17 +61,25 @@ function linkControlElement(app, elem, prop_tag, varargin)
     if p.Results.init_val_list && isequal(elem.Type, 'uidropdown')
         try
             cmd_val_list = app.Instr.CommandList.(prop_tag).val_list;
-            % Items in a dropdown should be strings, so convert if
-            % necessary
-            str_list=cell(length(cmd_val_list), 1);
-            for i=1:length(cmd_val_list)
-                if ~ischar(cmd_val_list{i})
-                    str_list{i}=num2str(cmd_val_list{i});
+            if all(cellfun(@ischar, cmd_val_list))
+                % If the command has only string values, get the list of
+                % values ignoring abbreviations
+                cmd_val_list = stdValueList(app.Instr, prop_tag);
+                elem.Items = lower(cmd_val_list);
+                elem.ItemsData = cmd_val_list;
+            else
+                % Items in a dropdown should be strings, so convert if
+                % necessary
+                str_list=cell(length(cmd_val_list), 1);
+                for i=1:length(cmd_val_list)
+                    if ~ischar(cmd_val_list{i})
+                        str_list{i}=num2str(cmd_val_list{i});
+                    end
                 end
+                elem.Items = str_list;
+                % Put raw values in ItemsData
+                elem.ItemsData = cmd_val_list;
             end
-            elem.Items = str_list;
-            % Put raw values in ItemsData
-            elem.ItemsData = cmd_val_list;
         catch
             warning(['Could not automatically assign values',...
                 ' when linking the ',prop_tag,' property']);
