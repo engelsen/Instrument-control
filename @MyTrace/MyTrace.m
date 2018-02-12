@@ -81,11 +81,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             parse(this.Parser,varargin{:});
             parseInputs(this,false);          
             
-            %Adds the \ at the end if it was not added by the user.
-            if ~strcmp(this.save_dir(end),'\')
-                this.save_dir(end+1)='\';
-            end
-            
             %Creates save directory if it does not exist
             if ~exist(this.save_dir,'dir')
                 mkdir(this.save_dir)
@@ -93,7 +88,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Creates a file name out of the name of the class and the save
             %directory
-            fullfilename=[this.save_dir,this.filename,'.txt'];
+            fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
             if exist(fullfilename,'file') && ~this.overwrite_flag
                 switch questdlg('Would you like to overwrite?',...
                         'File already exists', 'Yes', 'No', 'No')
