@@ -193,14 +193,12 @@ classdef MyInstrument < dynamicprops
             % out of matching names pick the longest
             if any(ismatch)
                 mvlist = vlist(ismatch);
-                str = mvlist{1};
-                for i=1:length(mvlist)
-                    if length(mvlist{i})>length(str)
-                        str = mvlist{i};
-                    end
-                end
-                std_val = str;
-                % set the property if value was not given explicitly 
+                %Finds the length of each element of mvlist
+                n_el=cellfun(@(x) length(x), mvlist);
+                %Sets std_val to the longest element
+                std_val=mvlist{n_el==max(n_el)};
+
+                % sets the property if value was not given explicitly 
                 if isempty(varargin)
                     this.(cmd) = std_val;
                 end
