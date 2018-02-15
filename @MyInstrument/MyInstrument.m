@@ -241,13 +241,16 @@ classdef MyInstrument < dynamicprops
                     name_str = '';
                 end
             end
-            par_str = sprintf('Instrument name: %s\n',name_str);
+            
             % Append the values of all the commands 
             rcmds=this.read_commands;
+            pad_length=max(cellfun(@(x) length(x), this.read_commands))+1;
+            fmt_str=sprintf('%%-%ds\\t%%s\\r\\n',pad_length);
+            par_str = sprintf(fmt_str,'Name',name_str);
             for i=1:length(rcmds)
-                new_str = sprintf(['\t',rcmds{i},'\t',...
-                    this.CommandList.(rcmds{i}).str_spec,'\n'],...
-                    this.(rcmds{i}));
+                fmt_str=sprintf('%%-%ds\\t%s\\r\\n',pad_length,...
+                    this.CommandList.(rcmds{i}).str_spec);
+                new_str = sprintf(fmt_str,rcmds{i},this.(rcmds{i}));
                 par_str = [par_str, new_str];
             end
         end
