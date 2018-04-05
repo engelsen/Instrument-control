@@ -115,16 +115,20 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 return
             end
             
+            %Writes the supplied headers
             hdrs=fieldnames(MeasHeaders);
             for i=1:length(hdrs)
                 writeMeasHeader(fileID,hdrs{i},MeasHeaders.(hdrs{i}),...
                     hdr_spec)
             end
             
-            %Inserts the metadata
-            Metadata=struct('Name1',this.name_x,'Name2',this.name_y,...
-                'Unit1',this.unit_x,'Unit2',this.unit_y);
-            Metadata.str_spec={'s','s','s','s'};
+            %Creates the metadata structure.
+            Metadata.Name1=struct('value',this.name_x,'str_spec','%s');
+            Metadata.Name2=struct('value',this.name_y,'str_spec','%s');
+            Metadata.Unit1=struct('value',this.unit_x,'str_spec','%s');
+            Metadata.Unit2=struct('value',this.unit_y,'str_spec','%s');
+            
+            %Writes the metadata header
             writeMeasHeader(fileID,'Metadata',Metadata,hdr_spec);
             
             %Puts in header title for the data

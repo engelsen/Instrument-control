@@ -167,6 +167,16 @@ classdef MyInstrument < dynamicprops
             notify(this,'NewData')
         end
         
+        function HdrStruct=readHeader(this)
+           Values=readPropertyHedged(this,'all');
+           for i=1:length(this.read_commands)
+               HdrStruct.(this.read_commands{i}).value=...
+                   Values.(this.read_commands{i});
+               HdrStruct.(this.read_commands{i}).str_spec=...
+                   this.CommandList.(this.read_commands{i}).str_spec;
+           end
+           
+        end
         %% Processing of the class variable values
         % Extend the property value based on val_list 
         function std_val = standardizeValue(this, cmd, varargin)
