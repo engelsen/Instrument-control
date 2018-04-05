@@ -234,6 +234,11 @@ classdef MyFit < dynamicprops
                     this.opt_lw2=convOptFreq(this,this.coeffs(5)); %#ok<MCNPR>
                     splitting=abs(this.coeffs(6)-this.coeffs(3));
                     this.mode_split=convOptFreq(this,splitting); %#ok<MCNPR>
+                case 'Exponential'
+                    this.tau=1/this.coeffs(2); %#ok<MCNPR>
+                    this.lw=this.coeffs(2)/pi; %#ok<MCNPR>
+                    this.Q=pi*this.freq*this.tau; %#ok<MCNPR>
+                    this.Qf=this.Q*this.freq; %#ok<MCNPR>
                 otherwise
             end
             
@@ -286,7 +291,20 @@ classdef MyFit < dynamicprops
                    addUserField(this,'Opt','mode_split',...
                        'Modal splitting (MHz)',1e6,...
                        'enable_flag','off','conv_factor',1e6);
-                   
+               case 'Exponential'
+                   this.UserGui.Tabs.Q.tab_title='Q';
+                   this.UserGui.Tabs.Q.Children={};
+                   addUserField(this,'Q','tau','\tau (s)',1,...
+                       'enable_flag','off')
+                   addUserField(this,'Q','lw','Linewidth (Hz)',1,...
+                       'enable_flag','off')
+                   addUserField(this,'Q','Q',...
+                       'Qualify Factor (x10^6)',1e6,...
+                       'enable_flag','off','conv_factor',1e6)
+                   addUserField(this,'Q','freq','Frequency (MHz)',1e6,...
+                       'conv_factor',1e6, 'enable_flag','on')
+                   addUserField(this,'Q','Qf','Q\times f (10^{14} Hz)',1e14,...
+                       'conv_factor',1e14,'enable_flag','off');
                otherwise
                    %Do nothing if there is no defined user parameters
            end

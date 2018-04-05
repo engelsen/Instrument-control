@@ -647,8 +647,12 @@ classdef MyDaq < handle
             analyze_name=erase(analyze_name,'Calibration');
             analyze_name=erase(analyze_name,' ');
             
+            %Sets the correct tooltip
+            hObject.TooltipString=sprintf(this.Gui.AnalyzeTip{analyze_ind}) ;
+            
             switch analyze_name
-                case {'Linear','Quadratic','Lorentzian','Gaussian',...
+                case {'Linear','Quadratic','Exponential',...
+                        'Lorentzian','Gaussian',...
                         'DoubleLorentzian'}
                     openMyFit(this,analyze_name);
                 case 'g0'
