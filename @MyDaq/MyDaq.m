@@ -22,6 +22,8 @@ classdef MyDaq < handle
         ConstructionParser;
         %Struct for listeners
         Listeners=struct();
+        %Struct for measurement headeres
+        MeasHeaders=struct();
         
         %Sets the colors of fits, data and reference
         fit_color='k';
@@ -51,6 +53,7 @@ classdef MyDaq < handle
         function this=MyDaq(varargin)
             p=inputParser;
             addParameter(p,'enable_gui',1);
+            addParameter(p,'daq_menu_handle',[])
             this.ConstructionParser=p;
             parse(p, varargin{:});
             
@@ -64,6 +67,13 @@ classdef MyDaq < handle
             end
 
             this.ProgramList = readRunFiles();
+            
+            if ~isempty(p.Results.daq_menu_handle)
+                h_daq_menu=p.Results.daq_menu_handle;
+                this.Listeners.Collector.NewHeaders=...
+                    addlistener(h_daq_menu.Collector,'NewMeasHeaders',...
+                    @(src,~) updateMeasHeaders(this,src));
+            end
             
             if this.enable_gui
                 this.Gui=guihandles(eval('GuiDaq'));
@@ -104,6 +114,12 @@ classdef MyDaq < handle
             cellfun(@(x) deleteListeners(this, x), this.running_progs);
             structfun(@(x) delete(x), this.RunningPrograms);
             
+            %Deletes other listeners
+            if ~isempty(fieldnames(this.Listeners))
+                cellfun(@(x) deleteListeners(this, x),...
+                    fieldnames(this.Listeners));
+            end
+            
             if this.enable_gui
                 this.Gui.figure1.CloseRequestFcn='';
                 %Deletes the figure
@@ -122,6 +138,10 @@ classdef MyDaq < handle
         %Executes when the GUI is closed
         function closeFigure(this,~,~)
             delete(this);
+        end
+        
+        function updateMeasHeaders(this, Collector)
+            this.MeasHeaders=Collector.MeasHeaders;
         end
         
         %Updates fits
@@ -858,28 +878,10 @@ classdef MyDaq < handle
                
         %Function that deletes listeners from the listeners struct,
         %corresponding to an object of name obj_name
-        function deleteListeners(this, obj_name)
-            %Finds if the object has listeners in the listeners structure
-            if ismember(obj_name, fieldnames(this.Listeners))
-                %Grabs the fieldnames of the object's listeners structure
-                names=fieldnames(this.Listeners.(obj_name));
-                for i=1:length(names)
-                    %Deletes the listeners
-                    delete(this.Listeners.(obj_name).(names{i}));
-                    %Removes the field from the structure
-                    this.Listeners.(obj_name)=...
-                        rmfield(this.Listeners.(obj_name),names{i});
-                end
-                %Removes the object's field from the structure
-                this.Listeners=rmfield(this.Listeners, obj_name);
-            end
-        end
+        deleteListeners(this, obj_name);
     end
     
-    methods
-           
-
-        
+    methods        
         %% Get functions
         
         %Get function from save directory
