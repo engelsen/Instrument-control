@@ -175,8 +175,8 @@ classdef MyInstrument < dynamicprops
                HdrStruct.(this.read_commands{i}).str_spec=...
                    this.CommandList.(this.read_commands{i}).str_spec;
            end
-           
         end
+        
         %% Processing of the class variable values
         % Extend the property value based on val_list 
         function std_val = standardizeValue(this, cmd, varargin)

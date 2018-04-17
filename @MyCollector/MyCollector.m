@@ -50,7 +50,7 @@ classdef MyCollector < handle
             if contains('NewData',events(instr_handle))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
-                    @(~,~) collectHeaders(this));
+                    @(src,~) collectHeaders(this,src));
             end
             
             %Cleans up if the instrument is closed
@@ -62,23 +62,35 @@ classdef MyCollector < handle
             this.InstrProps.(name).header_flag=true;
         end
         
-        %Collects headers for open instruments with the header flag on
-        function collectHeaders(this)
-            %First clear the structure, so closed instruments do not stay
-            this.MeasHeaders=struct();
+        function collectHeaders(this,src)
+            if isprop(src,'Trace') && isprop(src.Trace,'uid')
+                this.MeasHeaders=MyMetadata('uid',src.Trace.uid);
+            else
+                this.MeasHeaders=MyMetadata();
+            end
             
+            acquireHeaders(this);
+        end
+        
+        %Collects headers for open instruments with the header flag on
+        function acquireHeaders(this)
             for i=1:length(this.open_instruments)
                 name=this.open_instruments{i};
                 
                 if this.InstrProps.(name).header_flag
-                    this.MeasHeaders.(name)=...
-                        readHeader(this.InstrList.(name));
+                    tmp_struct=readHeader(this.InstrList.(name));
+                    addField(this.MeasHeaders,name);
+                    addStructToField(this.MeasHeaders,name,tmp_struct);
                 end
             end
+            
             %Triggers the event showing measurement headers are ready
             triggerMeasHeaders(this);
         end
         
+        function clearHeaders(this)
+            this.MeasHeaders=MyMetadata();
+        end
 
     end
     

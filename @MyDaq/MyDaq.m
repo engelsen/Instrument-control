@@ -8,6 +8,9 @@ classdef MyDaq < handle
         Data;
         %Contains Background trace (MyTrace object)
         Background;
+        %Measurement headers (MyMetadata objects)
+        RefHeader;
+        DataHeader;
         %List of all the programs with run files
         ProgramList=struct();
         % List of running programs
@@ -22,8 +25,7 @@ classdef MyDaq < handle
         ConstructionParser;
         %Struct for listeners
         Listeners=struct();
-        %Struct for measurement headeres
-        MeasHeaders=struct();
+
         
         %Sets the colors of fits, data and reference
         fit_color='k';
@@ -72,7 +74,7 @@ classdef MyDaq < handle
                 h_daq_menu=p.Results.daq_menu_handle;
                 this.Listeners.Collector.NewHeaders=...
                     addlistener(h_daq_menu.Collector,'NewMeasHeaders',...
-                    @(src,~) updateMeasHeaders(this,src));
+                    @(src,~) updateDataHeader(this,src));
             end
             
             if this.enable_gui
@@ -98,6 +100,10 @@ classdef MyDaq < handle
             this.Ref=MyTrace();
             this.Data=MyTrace();
             this.Background=MyTrace();
+            
+            %Initializes empty metadata object
+            this.DataHeader=MyMetadata();
+            this.RefHeader=MyMetadata();
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
@@ -140,8 +146,8 @@ classdef MyDaq < handle
             delete(this);
         end
         
-        function updateMeasHeaders(this, Collector)
-            this.MeasHeaders=Collector.MeasHeaders;
+        function updateDataHeader(this, Collector)
+            this.DataHeader=Collector.MeasHeaders;
         end
         
         %Updates fits
@@ -511,23 +517,59 @@ classdef MyDaq < handle
         end
         
         %Saves the data if the save data button is pressed.
-        function saveDataCallback(this, ~, ~)
-            if this.Data.validatePlot
-                save(this.Data,'save_dir',this.save_dir,'filename',...
-                    this.filename)
-            else
-                errordlg('Data trace was empty, could not save');
+        function saveCallback(this, src, ~)
+            switch src.Tag
+                case 'SaveData'
+                    saveTrace(this,'Data');
+                case 'SaveRef'
+                    saveTrace(this,'Ref');
             end
         end
         
-        %Saves the reference if the save ref button is pressed.
-        function saveRefCallback(this, ~, ~)
-            if this.Data.validatePlot
-                save(this.Ref,'save_dir',this.save_dir,'filename',...
-                    this.filename)
-            else
-                errordlg('Reference trace was empty, could not save')
+        function saveTrace(this, trace_tag)
+            header_tag=sprintf('%sHeader',trace_tag);
+            fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
+            if ~this.(trace_tag).validatePlot
+                errordlg(sprintf('%s trace was empty, could not save',trace_tag));
+                return
             end
+            
+            if strcmp(this.(trace_tag).uid,this.(header_tag).uid)
+                header_flag=true;
+            else
+                quest_str=sprintf(['UID of Header is %s, while the ',...
+                    'UID of Trace is %s'],...
+                    this.(trace_tag).uid,this.(header_tag).uid);
+                choice= questdlg(quest_str,...
+                    'UID of header does not match data',...
+                    'Yes, write headers anyway',...
+                    'No, continue without headers',...
+                    'Cancel write','Cancel write');
+                switch choice
+                    case 'Yes, write headers anyway'
+                        header_flag=true;
+                        fprintf('Writing %s with headers \n',fullfilename);
+                    case 'No, continue without headers'
+                        header_flag=false;
+                        fprintf('Writing %s without headers \n',fullfilename);
+                    case {'Cancel write',''}
+                        warning(['No file written to %s as headers did ',...
+                            'not match trace'],fullfilename)
+                        return
+                end
+            end
+            
+            %Creates the file without overwriting as a default
+            write_flag=createFile(this.save_dir,fullfilename,false);
+            
+            %Returns if the file was not created
+            if ~write_flag; return; end
+            
+            if header_flag
+                writeAllHeaders(this.(header_tag),fullfilename);
+            end
+            
+            writeData(this.(trace_tag),fullfilename)
         end
         
         %Toggle button callback for showing the data trace.
@@ -567,6 +609,7 @@ classdef MyDaq < handle
                 updateFits(this);
                 this.Gui.ShowRef.Value=1;
                 this.Gui.ShowRef.BackgroundColor=[0,1,0.2];
+                this.RefHeader=this.DataHeader;
             else
                 warning('Data trace was empty, could not move to reference')
             end
@@ -793,7 +836,6 @@ classdef MyDaq < handle
             hline=getLineHandle(this.Data,this.main_plot);
             this.Data=copy(src.Trace);
             if ~isempty(hline); this.Data.hlines{1}=hline; end
-            clearData(src.Trace);
             this.Data.plotTrace(this.main_plot,'Color',this.data_color,...
                 'make_labels',true)
             updateAxis(this);

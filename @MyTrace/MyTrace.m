@@ -11,6 +11,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         load_path='';
         %Cell that contains handles the trace is plotted in
         hlines={};
+        uid='';
     end
     
     properties (Access=private)
@@ -33,6 +34,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             addParameter(p,'name_x','x',@ischar);
             addParameter(p,'name_y','y',@ischar);
             addParameter(p,'load_path','',@ischar);
+            addParameter(p,'uid','',@ischar);
             this.Parser=p;
         end
         
@@ -63,8 +65,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             end
         end
         
-        %Defines the save function for the class. Saves the data with
-        %column MeasHeaderStruct as label_x and label_y
+        %Defines the save function for the class. Note that this is only
+        %used when we want to write only the data with its associated 
         function save(this,varargin)
             %Parse inputs for saving
             p=inputParser;
@@ -72,8 +74,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             addParameter(p,'save_dir',pwd,@ischar);
             addParameter(p,'save_prec',15);
             addParameter(p,'overwrite_flag',false);
-            addParameter(p,'hdr_spec','==',@ischar);       
-            addParameter(p,'MeasHeaders',struct(),@isstruct);
             parse(p,varargin{:});
             
             %Assign shorter names
@@ -81,63 +81,51 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             save_dir=p.Results.save_dir;
             save_prec=p.Results.save_prec;
             overwrite_flag=p.Results.overwrite_flag;
-            hdr_spec=p.Results.hdr_spec;
-            MeasHeaders=p.Results.MeasHeaders;
+            %Puts together the full file name
+            fullfilename=fullfile([save_dir,filename,'.txt']);
             
-            %Creates save directory if it does not exist
-            if ~exist(save_dir,'dir')
-                mkdir(save_dir)
-            end
+            %Creates the file in the given folder
+            write_flag=createFile(save_dir,fullfilename,overwrite_flag);
             
-            %Creates a file name out of the name of the class and the save
-            %directory
-            fullfilename=fullfile(save_dir,[filename,'.txt']);
-            if exist(fullfilename,'file') && ~overwrite_flag
-                switch questdlg('Would you like to overwrite?',...
-                        'File already exists', 'Yes', 'No', 'No')
-                    case 'Yes'
-                        fprintf('Overwriting file at %s\n',fullfilename);
-                    otherwise
-                        warning('No file written as %s already exists',...
-                            fullfilename);
-                        return
-                end
-            end
+            %Returns if the file is not created for some reason 
+            if ~write_flag; return; end
             
-            %Creates the file
-            fileID=fopen(fullfilename,'w');
+            %We now write the data to the file
+            writeData(this, fullfilename,'save_prec',save_prec);
+        end
+        
+        %Writes the data to a file. This is separated so that other
+        %programs can write to the file from the outside. We circumvent the
+        %checks for the existence of the file here, assuming it is done
+        %outside.
+        function writeData(this,fullfilename, varargin)
+            p=inputParser;
+            addRequired(p,'fullfilename',@ischar);
+            addParameter(p,'save_prec',15);
+            parse(p,fullfilename,varargin{:});
             
-            %MATLAB returns -1 for the fileID if the file could not be
-            %opened
-            if fileID==-1
-                errordlg(sprintf('File %s could not be created.',...
-                    fullfilename),'File error');
-                return
-            end
+            fullfilename=p.Results.fullfilename;
+            save_prec=p.Results.save_prec;
             
-            %Writes the supplied headers
-            hdrs=fieldnames(MeasHeaders);
-            for i=1:length(hdrs)
-                writeMeasHeader(fileID,hdrs{i},MeasHeaders.(hdrs{i}),...
-                    hdr_spec)
-            end
-            
-            %Creates the metadata structure.
-            Metadata.Name1=struct('value',this.name_x,'str_spec','%s');
-            Metadata.Name2=struct('value',this.name_y,'str_spec','%s');
-            Metadata.Unit1=struct('value',this.unit_x,'str_spec','%s');
-            Metadata.Unit2=struct('value',this.unit_y,'str_spec','%s');
+            fileID=fopen(fullfilename,'a');
+            %Creates the Metadata structure.
+            Metadata=MyMetadata('uid',this.uid);
+            addField(Metadata,'Units');
+            addParam(Metadata,'Units','Name1',this.name_x,'%s');
+            addParam(Metadata,'Units','Name2',this.name_y,'%s');
+            addParam(Metadata,'Units','Unit1',this.unit_x,'%s');
+            addParam(Metadata,'Units','Unit2',this.unit_y,'%s');
             
             %Writes the metadata header
-            writeMeasHeader(fileID,'Metadata',Metadata,hdr_spec);
+            writeHeader(Metadata,fullfilename,'Units');
             
             %Puts in header title for the data
-            fprintf(fileID,[hdr_spec,'Data',hdr_spec,'\r\n']);
+            fprintf(fileID,[Metadata.hdr_spec,'Data',Metadata.hdr_spec,'\r\n']);
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x),...
                 save_prec+7]);
-
+            
             %Pads the vectors if they are not equal length
             diff=length(this.x)-length(this.y);
             if diff<0
@@ -381,11 +369,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.x=x(:);
         end
         
-        %Set function for y, checks if it is a vector of doubles.
+        %Set function for y, checks if it is a vector of doubles and
+        %generates a new UID for the trace
         function set.y(this, y)
             assert(isnumeric(y),...
                 'Data must be of class double');
             this.y=y(:);
+            this.uid=genUid(); %#ok<MCSUP>
         end
         
         %Set function for unit_x, checks if input is a string.
@@ -422,6 +412,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.load_path=load_path;
         end
         
+        function set.uid(this, uid)
+            assert(ischar(uid),'UID must be a char, not a %s',...
+                class(uid));
+            this.uid=uid;
+        end
         %Get function for label_x, creates label from name_x and unit_x.
         function label_x=get.label_x(this)
             label_x=sprintf('%s (%s)', this.name_x, this.unit_x);
