@@ -3,6 +3,7 @@ classdef MyCollector < handle
         InstrProps=struct();
         InstrList=struct();
         MeasHeaders=struct();
+        collect_flag;
     end
     
     properties (Access=private)
@@ -23,6 +24,8 @@ classdef MyCollector < handle
             addParameter(p,'InstrHandles',{});
             parse(p,varargin{:});
             
+            this.collect_flag=true;
+            
             if ~isempty(p.Results.InstrHandles)
                 cellfun(@(x) addInstrument(this,x),p.Results.InstrHandles);
             end
@@ -40,6 +43,8 @@ classdef MyCollector < handle
             
             %We add only MyInstrument classes for now
             if contains('MyInstrument',superclasses(instr_handle))
+                %Defaults to read header
+                this.InstrProps.(name).header_flag=true;
                 this.InstrList.(name)=instr_handle;
             else
                 error(['%s is not a subclass of MyInstrument,',...
@@ -58,11 +63,13 @@ classdef MyCollector < handle
                 addlistener(this.InstrList.(name),'ObjectBeingDestroyed',...
                 @(~,~) deleteInstrument(this,name));
             
-            %Defaults to read header
-            this.InstrProps.(name).header_flag=true;
+
         end
         
         function collectHeaders(this,src)
+            %If the collect flag is not active, do nothing
+            if ~this.collect_flag; return; end
+            
             if isprop(src,'Trace') && isprop(src.Trace,'uid')
                 this.MeasHeaders=MyMetadata('uid',src.Trace.uid);
             else

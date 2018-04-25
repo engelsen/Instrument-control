@@ -110,14 +110,17 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             fileID=fopen(fullfilename,'a');
             %Creates the Metadata structure.
             Metadata=MyMetadata('uid',this.uid);
-            addField(Metadata,'Units');
-            addParam(Metadata,'Units','Name1',this.name_x,'%s');
-            addParam(Metadata,'Units','Name2',this.name_y,'%s');
-            addParam(Metadata,'Units','Unit1',this.unit_x,'%s');
-            addParam(Metadata,'Units','Unit2',this.unit_y,'%s');
+            addField(Metadata,'Info');
+            addParam(Metadata,'Info','uid',this.uid,'%s');
+            addParam(Metadata,'Info','Name1',this.name_x,'%s');
+            addParam(Metadata,'Info','Name2',this.name_y,'%s');
+            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
+            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+
             
             %Writes the metadata header
-            writeHeader(Metadata,fullfilename,'Units');
+            writeHeader(Metadata,fullfilename,'Info',...
+                'title','Trace information');
             
             %Puts in header title for the data
             fprintf(fileID,[Metadata.hdr_spec,'Data',Metadata.hdr_spec,'\r\n']);

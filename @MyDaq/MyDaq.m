@@ -26,7 +26,6 @@ classdef MyDaq < handle
         %Struct for listeners
         Listeners=struct();
 
-        
         %Sets the colors of fits, data and reference
         fit_color='k';
         data_color='b';
@@ -601,15 +600,27 @@ classdef MyDaq < handle
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
             if this.Data.validatePlot
-                this.Ref.x=this.Data.x;
-                this.Ref.y=this.Data.y;
+                setTrace(this.Ref,...
+                    'x',this.Data.x,...
+                    'y',this.Data.y,...
+                    'name_x',this.Data.name_x,...
+                    'name_y',this.Data.name_y,...
+                    'unit_x',this.Data.unit_x,...
+                    'unit_y',this.Data.unit_y)
+                
+                %Since UID is automatically reset when y is changed, we now
+                %change it back to be the same as the Data.
+                this.Ref.uid=this.Data.uid;
+                %Transfer the header with the data
+                this.RefHeader=this.DataHeader;
+                
                 this.Ref.plotTrace(this.main_plot,'Color',this.ref_color,...
                     'make_labels',true);
                 this.Ref.setVisible(this.main_plot,1);
                 updateFits(this);
                 this.Gui.ShowRef.Value=1;
                 this.Gui.ShowRef.BackgroundColor=[0,1,0.2];
-                this.RefHeader=this.DataHeader;
+                
             else
                 warning('Data trace was empty, could not move to reference')
             end
