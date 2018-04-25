@@ -157,23 +157,29 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function loadTrace(this, file_path, varargin)
             p=inputParser;
             addParameter(p,'hdr_spec','==',@ischar);
+            addParameter(p,'end_header','Data',@ischar);
             parse(p,varargin{:});
+            
             hdr_spec=p.Results.hdr_spec;
+            end_header=p.Results.end_header;
             
             if ~exist(file_path,'file')
                 error('File does not exist, please choose a different load path')
             end
             
-            %Reads the header until Data begins.
-            [MeasHeaders,end_line_no]=...
-                readAllMeasHeaders(file_path,hdr_spec,'Data');
+            %Instantiate a header object from the file you are loading. We
+            %get the line number we want to read from as an output.
+            [MeasHeaders,end_line_no]=MyMetadata(...
+                'load_path',file_path,...
+                'hdr_spec',hdr_spec,...
+                'end_header',end_header);
             
             %Tries to assign units and names
             try
-                this.unit_x=MeasHeaders.Metadata.Unit1;
-                this.unit_y=MeasHeaders.Metadata.Unit2;
-                this.name_x=MeasHeaders.Metadata.Name1;
-                this.name_y=MeasHeaders.Metadata.Name2;
+                this.unit_x=MeasHeaders.TraceInformation.Unit1.value;
+                this.unit_y=MeasHeaders.TraceInformation.Unit2.value;
+                this.name_x=MeasHeaders.TraceInformation.Name1.value;
+                this.name_y=MeasHeaders.TraceInformation.Name2.value;
             catch
                 warning(['No metadata found. No units or labels assigned',...
                     ' when loading trace from %s'],file_path)
