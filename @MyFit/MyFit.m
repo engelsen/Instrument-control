@@ -18,6 +18,8 @@ classdef MyFit < dynamicprops
         Fit;
         Gui;
         Fitdata;
+        Gof;
+        FitInfo;
         FitStruct;
         coeffs;
         fit_name='Linear'
@@ -544,7 +546,8 @@ classdef MyFit < dynamicprops
         %Does the fit with the currently set parameters
         function doFit(this)
             %Fits with the below properties. Chosen for maximum accuracy.
-            this.Fitdata=fit(this.Data.x,this.Data.y,this.fit_function,...
+            [this.Fitdata,this.Gof,this.FitInfo]=...
+                fit(this.Data.x,this.Data.y,this.fit_function,...
                 'Lower',this.lim_lower,'Upper',this.lim_upper,...
                 'StartPoint',this.init_params, ....
                 'MaxFunEvals',2000,'MaxIter',2000,'TolFun',1e-9);
