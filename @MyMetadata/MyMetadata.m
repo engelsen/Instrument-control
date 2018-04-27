@@ -151,6 +151,7 @@ classdef MyMetadata < dynamicprops
             
             %Loop initialization
             line_no=0;
+            curr_title='';
             
             %Loop continues until we reach the next header or we reach the end of
             %the file
@@ -177,7 +178,10 @@ classdef MyMetadata < dynamicprops
                     %Removes spaces
                     curr_title=curr_title(~isspace(curr_title));
                     addField(this,curr_title);
-                    
+                %This runs if there was no match for the regular
+                %expression, i.e. the current line is not a header, and the
+                %current line is not empty. We then add this line to the
+                %current field (curr_title).
                 elseif ~isempty(curr_title)
                     tmp=strsplit(curr_line,'\t','CollapseDelimiters',true);
                     %Remove spaces
@@ -188,7 +192,12 @@ classdef MyMetadata < dynamicprops
                 end
             end
             
-            n_end_header=line_no;
+            if isempty(this.field_names)
+                warning('No header found, continuing without header')
+                n_end_header=1;
+            else
+                n_end_header=line_no;
+            end
         end
         
     end

@@ -26,10 +26,17 @@ function [Headers,line_no]=readAllMeasHeaders(file_path, hdr_spec,end_header)
             break
         elseif ~isempty(res_str)
             curr_title=res_str{1};
+            %Capitalizes the letter after a space
+            ind=regexp([' ' curr_title],'(?<=\s+)\S','start')-1;
+            curr_title(ind)=upper(curr_title(ind));
+            %Removes spaces
+            curr_title=curr_title(~isspace(curr_title));
             Headers.(curr_title)=struct();
         elseif ~isempty(curr_title) 
             tmp=strsplit(curr_line,'\t','CollapseDelimiters',true);
+            %Remove spaces
             tmp=cellfun(@(x) erase(x,' '), tmp,'UniformOutput',false);
+            %Store retrieved value
             Headers.(curr_title).(tmp{1})=str2doubleHedged(tmp{2});
         end
     end

@@ -143,7 +143,7 @@ classdef MyFit < dynamicprops
                 sprintf('%s. %s',this.UserGui.Fields.(x).parent,y),...
                 this.user_field_tags,this.user_field_names,...
                 'UniformOutput',0)';
-            headers=[param_headers user_field_headers];
+            headers=[param_headers, user_field_headers];
             n_columns=length(headers);
             
             %Sets the column width. Pads 2 for legibility.
@@ -385,6 +385,7 @@ classdef MyFit < dynamicprops
         function saveParamCallback(this,~,~)
             saveParams(this);
         end
+        
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
         %speed up the callback.
