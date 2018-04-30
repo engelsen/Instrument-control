@@ -2,11 +2,15 @@ function [p_in,lim_lower,lim_upper]=initParamGaussian(x,y)
 %Assumes a*exp(-((x-c)/b)^2/2)+d - remember matlab orders the fit
 %parameters alphabetically
 
+bg=median(y);
+y=y-bg;
+
 [amp_max,ind_max]=max(y);
 [amp_min,ind_min]=min(y);
 
 lim_upper=[Inf,Inf,Inf,Inf];
 lim_lower=-lim_upper;
+y_sum=sum(y);
 
 if abs(amp_max)>abs(amp_min)
     amp=amp_max;
@@ -20,8 +24,10 @@ else
     lim_lower(1)=-Inf;
 end
 
-width=sqrt(sum(y.*(x-center).^2)/sum(y));
-bg=median(y);
+ind1=find(y>amp/2,1,'first');
+ind2=find(y>amp/2,1,'last');
+fwhm=x(ind2)-x(ind1);
+width=fwhm/2.35482;
 
 %Sets the lower limit on width to zero
 lim_lower(2)=0;

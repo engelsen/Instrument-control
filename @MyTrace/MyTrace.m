@@ -1,5 +1,5 @@
-% Class for XY data representation with labeling, plotting and
-% saving/loding functionality
+% Class for XY data representation with labelling, plotting and
+% saving/loading functionality
 classdef MyTrace < handle & matlab.mixin.Copyable
     properties (Access=public)
         x=[];
@@ -8,13 +8,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         name_y='y';
         unit_x='';
         unit_y='';
-        filename='placeholder';
-        save_dir='';
         load_path='';
-        save_pres=15;
-        overwrite_flag
         %Cell that contains handles the trace is plotted in
         hlines={};
+        uid='';
     end
     
     properties (Access=private)
@@ -26,29 +23,25 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         label_y;
     end
     methods (Access=private)
-                %Creates the input parser for the class. Includes default values
+        %Creates the input parser for the class. Includes default values
         %for all optional parameters.
         function createParser(this)
             p=inputParser;
-            addParameter(p,'filename','placeholder');
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
-            addParameter(p,'unit_x','x');
-            addParameter(p,'unit_y','y');
-            addParameter(p,'name_x','x');
-            addParameter(p,'name_y','y');
-            %Default save folder is the current directory upon
-            %instantiation
-            addParameter(p,'save_dir',pwd);
-            addParameter(p,'load_path','');
-            addParameter(p,'save_pres',15);
-            addParameter(p,'overwrite_flag',false);
+            addParameter(p,'unit_x','x',@ischar);
+            addParameter(p,'unit_y','y',@ischar);
+            addParameter(p,'name_x','x',@ischar);
+            addParameter(p,'name_y','y',@ischar);
+            addParameter(p,'load_path','',@ischar);
+            addParameter(p,'uid','',@ischar);
             this.Parser=p;
         end
         
         %Sets the class variables to the inputs from the inputParser. Can
         %be used to reset class to default values if default_flag=true.
-        function parseInputs(this, default_flag)
+        function parseInputs(this, inputs, default_flag)
+            parse(this.Parser,inputs{:});
             for i=1:length(this.Parser.Parameters)
                 %Sets the value if there was an input or if the default
                 %flag is on. The default flag is used to reset the class to
@@ -65,57 +58,77 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     methods (Access=public)
         function this=MyTrace(varargin)
             createParser(this);
-            parse(this.Parser,varargin{:});
-            parseInputs(this,true);
+            parseInputs(this,varargin,true);
             
             if ~ismember('load_path',this.Parser.UsingDefaults)
                 loadTrace(this,this.load_path);
             end
         end
         
-        %Defines the save function for the class. Saves the data with
-        %column headers as label_x and label_y
+        %Defines the save function for the class. Note that this is only
+        %used when we want to write only the data with its associated 
         function save(this,varargin)
-            %Allows all options of the class as inputs for the save
-            %function, to change the name or save directory.
-            parse(this.Parser,varargin{:});
-            parseInputs(this,false);          
+            %Parse inputs for saving
+            p=inputParser;
+            addParameter(p,'filename','placeholder',@ischar);
+            addParameter(p,'save_dir',pwd,@ischar);
+            addParameter(p,'save_prec',15);
+            addParameter(p,'overwrite_flag',false);
+            parse(p,varargin{:});
             
-            %Creates save directory if it does not exist
-            if ~exist(this.save_dir,'dir')
-                mkdir(this.save_dir)
-            end
+            %Assign shorter names
+            filename=p.Results.filename;
+            save_dir=p.Results.save_dir;
+            save_prec=p.Results.save_prec;
+            overwrite_flag=p.Results.overwrite_flag;
+            %Puts together the full file name
+            fullfilename=fullfile([save_dir,filename,'.txt']);
             
-            %Creates a file name out of the name of the class and the save
-            %directory
-            fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
-            if exist(fullfilename,'file') && ~this.overwrite_flag
-                switch questdlg('Would you like to overwrite?',...
-                        'File already exists', 'Yes', 'No', 'No')
-                    case 'Yes'
-                        this.overwrite_flag=1;
-                    otherwise
-                        warning('No file written as %s already exists',...
-                            fullfilename);
-                        return
-                end
-            end
+            %Creates the file in the given folder
+            write_flag=createFile(save_dir,fullfilename,overwrite_flag);
             
-            %Creates the file
-            fileID=fopen(fullfilename,'w');
+            %Returns if the file is not created for some reason 
+            if ~write_flag; return; end
             
-            %MATLAB returns -1 for the fileID if the file could not be
-            %opened
-            if fileID==-1
-                errordlg(sprintf('File %s could not be created.',...
-                    fullfilename),'File error');
-                return
-            end
+            %We now write the data to the file
+            writeData(this, fullfilename,'save_prec',save_prec);
+        end
+        
+        %Writes the data to a file. This is separated so that other
+        %programs can write to the file from the outside. We circumvent the
+        %checks for the existence of the file here, assuming it is done
+        %outside.
+        function writeData(this,fullfilename, varargin)
+            p=inputParser;
+            addRequired(p,'fullfilename',@ischar);
+            addParameter(p,'save_prec',15);
+            parse(p,fullfilename,varargin{:});
+            
+            fullfilename=p.Results.fullfilename;
+            save_prec=p.Results.save_prec;
+            
+            fileID=fopen(fullfilename,'a');
+            %Creates the Metadata structure.
+            Metadata=MyMetadata('uid',this.uid);
+            addField(Metadata,'Info');
+            addParam(Metadata,'Info','uid',this.uid,'%s');
+            addParam(Metadata,'Info','Name1',this.name_x,'%s');
+            addParam(Metadata,'Info','Name2',this.name_y,'%s');
+            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
+            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+
+            
+            %Writes the metadata header
+            writeHeader(Metadata,fullfilename,'Info',...
+                'title','Trace information');
+            
+            %Puts in header title for the data
+            fprintf(fileID,[Metadata.hdr_spec,'Data',Metadata.hdr_spec,'\r\n']);
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x),...
-                this.save_pres+7]);
-
+                save_prec+7]);
+            
             %Pads the vectors if they are not equal length
             diff=length(this.x)-length(this.y);
             if diff<0
@@ -127,17 +140,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 warning(['Zero padded y vector as the saved vectors are',...
                     ' not of the same length']);
             end
-
-            %Makes a format string with the correct column width. %% makes
-            %a % symbol in sprintf, thus if cw=18, below is %18s\t%18s\r\n.
-            %\r\n prints a carriage return, ensuring linebreak in NotePad.
-            title_format_str=sprintf('%%%is\t%%%is\r\n',cw,cw);
-            fprintf(fileID,title_format_str,...
-                this.label_x, this.label_y);
+            
             %Saves in scientific notation with correct column width defined
             %above. Again if cw=20, we get %14.10e\t%14.10e\r\n
             data_format_str=sprintf('%%%i.%ie\t%%%i.%ie\r\n',...
-                cw,this.save_pres,cw,this.save_pres);
+                cw,save_prec,cw,save_prec);
             fprintf(fileID,data_format_str,[this.x, this.y]');
             fclose(fileID);
         end
@@ -147,40 +154,52 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.y=[];
         end
         
-        function loadTrace(this, file_path)
+        function loadTrace(this, file_path, varargin)
+            p=inputParser;
+            addParameter(p,'hdr_spec','==',@ischar);
+            addParameter(p,'end_header','Data',@ischar);
+            parse(p,varargin{:});
+            
+            hdr_spec=p.Results.hdr_spec;
+            end_header=p.Results.end_header;
+            
             if ~exist(file_path,'file')
                 error('File does not exist, please choose a different load path')
             end
-
-            read_opts=detectImportOptions(file_path);
-            DataTable=readtable(file_path,read_opts);
             
-            data_labels=DataTable.Properties.VariableNames;
+            %Instantiate a header object from the file you are loading. We
+            %get the line number we want to read from as an output.
+            [MeasHeaders,end_line_no]=MyMetadata(...
+                'load_path',file_path,...
+                'hdr_spec',hdr_spec,...
+                'end_header',end_header);
             
-            %Finds where the unit is specified, within parantheses.
-            %Forces indices to be in cells for later.
-            ind_start=strfind(data_labels, '(','ForceCellOutput',true);
-            ind_stop=strfind(data_labels, ')','ForceCellOutput',true);
-            
-            col_name={'x','y'};
-            for i=1:length(ind_start)
-                if ~isempty(ind_start{i}) && ~isempty(ind_stop{i})
-                    %Extracts the data labels from the file
-                    this.(sprintf('unit_%s',col_name{i}))=...
-                        data_labels{i}((ind_start{i}+4):(ind_stop{i}-1));
-                    this.(sprintf('name_%s',col_name{i}))=...
-                        data_labels{i}(1:(ind_start{i}-2));
-                end
-                %Loads the data into the trace
-                this.(col_name{i})=DataTable.(data_labels{i});
+            %Tries to assign units and names
+            try
+                this.unit_x=MeasHeaders.TraceInformation.Unit1.value;
+                this.unit_y=MeasHeaders.TraceInformation.Unit2.value;
+                this.name_x=MeasHeaders.TraceInformation.Name1.value;
+                this.name_y=MeasHeaders.TraceInformation.Name2.value;
+            catch
+                warning(['No metadata found. No units or labels assigned',...
+                    ' when loading trace from %s'],file_path)
+                this.name_x='x';
+                this.name_y='y';
+                this.unit_x='x';
+                this.unit_y='y';
             end
+            
+            %Reads x and y data
+            data_array=dlmread(file_path,'\t',end_line_no,0);
+            this.x=data_array(:,1);
+            this.y=data_array(:,2);
+            
             this.load_path=file_path;
         end
         
         %Allows setting of multiple properties in one command.
         function setTrace(this, varargin)
-            parse(this.Parser,varargin{:})
-            parseInputs(this, false);
+            parseInputs(this, varargin, false);
         end
 
         %Plots the trace on the given axes, using the class variables to
@@ -255,6 +274,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 set(this.hlines{ind},'Visible',vis)
             end
         end
+        
         %Defines addition of two MyTrace objects
         function sum=plus(a,b)
             checkArithmetic(a,b);
@@ -358,18 +378,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.x=x(:);
         end
         
-        %Set function for y, checks if it is a vector of doubles.
+        %Set function for y, checks if it is a vector of doubles and
+        %generates a new UID for the trace
         function set.y(this, y)
             assert(isnumeric(y),...
                 'Data must be of class double');
             this.y=y(:);
-        end
-        
-        %Set function for name, checks if input is a string.
-        function set.filename(this, name)
-            assert(ischar(name),'Name must be a string, not a %s',...
-                class(name));
-            this.filename=name;
+            this.uid=genUid(); %#ok<MCSUP>
         end
         
         %Set function for unit_x, checks if input is a string.
@@ -406,6 +421,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.load_path=load_path;
         end
         
+        function set.uid(this, uid)
+            assert(ischar(uid),'UID must be a char, not a %s',...
+                class(uid));
+            this.uid=uid;
+        end
         %Get function for label_x, creates label from name_x and unit_x.
         function label_x=get.label_x(this)
             label_x=sprintf('%s (%s)', this.name_x, this.unit_x);

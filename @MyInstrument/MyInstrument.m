@@ -168,6 +168,16 @@ classdef MyInstrument < dynamicprops
             notify(this,'NewData')
         end
         
+        function HdrStruct=readHeader(this)
+           Values=readPropertyHedged(this,'all');
+           for i=1:length(this.read_commands)
+               HdrStruct.(this.read_commands{i}).value=...
+                   Values.(this.read_commands{i});
+               HdrStruct.(this.read_commands{i}).str_spec=...
+                   this.CommandList.(this.read_commands{i}).str_spec;
+           end
+        end
+        
         %% Processing of the class variable values
         % Extend the property value based on val_list 
         function std_val = standardizeValue(this, cmd, varargin)
@@ -194,14 +204,12 @@ classdef MyInstrument < dynamicprops
             % out of matching names pick the longest
             if any(ismatch)
                 mvlist = vlist(ismatch);
-                str = mvlist{1};
-                for i=1:length(mvlist)
-                    if length(mvlist{i})>length(str)
-                        str = mvlist{i};
-                    end
-                end
-                std_val = str;
-                % set the property if value was not given explicitly 
+                %Finds the length of each element of mvlist
+                n_el=cellfun(@(x) length(x), mvlist);
+                %Sets std_val to the longest element
+                std_val=mvlist{n_el==max(n_el)};
+
+                % sets the property if value was not given explicitly 
                 if isempty(varargin)
                     this.(cmd) = std_val;
                 end
@@ -244,13 +252,16 @@ classdef MyInstrument < dynamicprops
                     name_str = '';
                 end
             end
-            par_str = sprintf('Instrument name: %s\n',name_str);
+            
             % Append the values of all the commands 
             rcmds=this.read_commands;
+            pad_length=max(cellfun(@(x) length(x), this.read_commands))+1;
+            fmt_str=sprintf('%%-%ds\\t%%s\\r\\n',pad_length);
+            par_str = sprintf(fmt_str,'Name',name_str);
             for i=1:length(rcmds)
-                new_str = sprintf(['\t',rcmds{i},'\t',...
-                    this.CommandList.(rcmds{i}).str_spec,'\n'],...
-                    this.(rcmds{i}));
+                fmt_str=sprintf('%%-%ds\\t%s\\r\\n',pad_length,...
+                    this.CommandList.(rcmds{i}).str_spec);
+                new_str = sprintf(fmt_str,rcmds{i},this.(rcmds{i}));
                 par_str = [par_str, new_str];
             end
         end

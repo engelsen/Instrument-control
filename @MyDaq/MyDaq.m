@@ -8,6 +8,9 @@ classdef MyDaq < handle
         Data;
         %Contains Background trace (MyTrace object)
         Background;
+        %Measurement headers (MyMetadata objects)
+        RefHeader;
+        DataHeader;
         %List of all the programs with run files
         ProgramList=struct();
         % List of running programs
@@ -22,7 +25,7 @@ classdef MyDaq < handle
         ConstructionParser;
         %Struct for listeners
         Listeners=struct();
-        
+
         %Sets the colors of fits, data and reference
         fit_color='k';
         data_color='b';
@@ -51,6 +54,7 @@ classdef MyDaq < handle
         function this=MyDaq(varargin)
             p=inputParser;
             addParameter(p,'enable_gui',1);
+            addParameter(p,'daq_menu_handle',[])
             this.ConstructionParser=p;
             parse(p, varargin{:});
             
@@ -64,6 +68,13 @@ classdef MyDaq < handle
             end
 
             this.ProgramList = readRunFiles();
+            
+            if ~isempty(p.Results.daq_menu_handle)
+                h_daq_menu=p.Results.daq_menu_handle;
+                this.Listeners.Collector.NewHeaders=...
+                    addlistener(h_daq_menu.Collector,'NewMeasHeaders',...
+                    @(src,~) updateDataHeader(this,src));
+            end
             
             if this.enable_gui
                 this.Gui=guihandles(eval('GuiDaq'));
@@ -89,6 +100,10 @@ classdef MyDaq < handle
             this.Data=MyTrace();
             this.Background=MyTrace();
             
+            %Initializes empty metadata object
+            this.DataHeader=MyMetadata();
+            this.RefHeader=MyMetadata();
+            
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
             this.session_name='placeholder';
@@ -103,6 +118,12 @@ classdef MyDaq < handle
             %Close the programs and delete their listeners
             cellfun(@(x) deleteListeners(this, x), this.running_progs);
             structfun(@(x) delete(x), this.RunningPrograms);
+            
+            %Deletes other listeners
+            if ~isempty(fieldnames(this.Listeners))
+                cellfun(@(x) deleteListeners(this, x),...
+                    fieldnames(this.Listeners));
+            end
             
             if this.enable_gui
                 this.Gui.figure1.CloseRequestFcn='';
@@ -122,6 +143,10 @@ classdef MyDaq < handle
         %Executes when the GUI is closed
         function closeFigure(this,~,~)
             delete(this);
+        end
+        
+        function updateDataHeader(this, Collector)
+            this.DataHeader=Collector.MeasHeaders;
         end
         
         %Updates fits
@@ -491,23 +516,59 @@ classdef MyDaq < handle
         end
         
         %Saves the data if the save data button is pressed.
-        function saveDataCallback(this, ~, ~)
-            if this.Data.validatePlot
-                save(this.Data,'save_dir',this.save_dir,'filename',...
-                    this.filename)
-            else
-                errordlg('Data trace was empty, could not save');
+        function saveCallback(this, src, ~)
+            switch src.Tag
+                case 'SaveData'
+                    saveTrace(this,'Data');
+                case 'SaveRef'
+                    saveTrace(this,'Ref');
             end
         end
         
-        %Saves the reference if the save ref button is pressed.
-        function saveRefCallback(this, ~, ~)
-            if this.Data.validatePlot
-                save(this.Ref,'save_dir',this.save_dir,'filename',...
-                    this.filename)
-            else
-                errordlg('Reference trace was empty, could not save')
+        function saveTrace(this, trace_tag)
+            header_tag=sprintf('%sHeader',trace_tag);
+            fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
+            if ~this.(trace_tag).validatePlot
+                errordlg(sprintf('%s trace was empty, could not save',trace_tag));
+                return
             end
+            
+            if strcmp(this.(trace_tag).uid,this.(header_tag).uid)
+                header_flag=true;
+            else
+                quest_str=sprintf(['UID of Header is %s, while the ',...
+                    'UID of Trace is %s'],...
+                    this.(trace_tag).uid,this.(header_tag).uid);
+                choice= questdlg(quest_str,...
+                    'UID of header does not match data',...
+                    'Yes, write headers anyway',...
+                    'No, continue without headers',...
+                    'Cancel write','Cancel write');
+                switch choice
+                    case 'Yes, write headers anyway'
+                        header_flag=true;
+                        fprintf('Writing %s with headers \n',fullfilename);
+                    case 'No, continue without headers'
+                        header_flag=false;
+                        fprintf('Writing %s without headers \n',fullfilename);
+                    case {'Cancel write',''}
+                        warning(['No file written to %s as headers did ',...
+                            'not match trace'],fullfilename)
+                        return
+                end
+            end
+            
+            %Creates the file without overwriting as a default
+            write_flag=createFile(this.save_dir,fullfilename,false);
+            
+            %Returns if the file was not created
+            if ~write_flag; return; end
+            
+            if header_flag
+                writeAllHeaders(this.(header_tag),fullfilename);
+            end
+            
+            writeData(this.(trace_tag),fullfilename)
         end
         
         %Toggle button callback for showing the data trace.
@@ -539,14 +600,27 @@ classdef MyDaq < handle
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
             if this.Data.validatePlot
-                this.Ref.x=this.Data.x;
-                this.Ref.y=this.Data.y;
+                setTrace(this.Ref,...
+                    'x',this.Data.x,...
+                    'y',this.Data.y,...
+                    'name_x',this.Data.name_x,...
+                    'name_y',this.Data.name_y,...
+                    'unit_x',this.Data.unit_x,...
+                    'unit_y',this.Data.unit_y)
+                
+                %Since UID is automatically reset when y is changed, we now
+                %change it back to be the same as the Data.
+                this.Ref.uid=this.Data.uid;
+                %Transfer the header with the data
+                this.RefHeader=this.DataHeader;
+                
                 this.Ref.plotTrace(this.main_plot,'Color',this.ref_color,...
                     'make_labels',true);
                 this.Ref.setVisible(this.main_plot,1);
                 updateFits(this);
                 this.Gui.ShowRef.Value=1;
                 this.Gui.ShowRef.BackgroundColor=[0,1,0.2];
+                
             else
                 warning('Data trace was empty, could not move to reference')
             end
@@ -647,8 +721,12 @@ classdef MyDaq < handle
             analyze_name=erase(analyze_name,'Calibration');
             analyze_name=erase(analyze_name,' ');
             
+            %Sets the correct tooltip
+            hObject.TooltipString=sprintf(this.Gui.AnalyzeTip{analyze_ind}) ;
+            
             switch analyze_name
-                case {'Linear','Quadratic','Lorentzian','Gaussian',...
+                case {'Linear','Quadratic','Exponential',...
+                        'Lorentzian','Gaussian',...
                         'DoubleLorentzian'}
                     openMyFit(this,analyze_name);
                 case 'g0'
@@ -769,7 +847,6 @@ classdef MyDaq < handle
             hline=getLineHandle(this.Data,this.main_plot);
             this.Data=copy(src.Trace);
             if ~isempty(hline); this.Data.hlines{1}=hline; end
-            clearData(src.Trace);
             this.Data.plotTrace(this.main_plot,'Color',this.data_color,...
                 'make_labels',true)
             updateAxis(this);
@@ -854,28 +931,10 @@ classdef MyDaq < handle
                
         %Function that deletes listeners from the listeners struct,
         %corresponding to an object of name obj_name
-        function deleteListeners(this, obj_name)
-            %Finds if the object has listeners in the listeners structure
-            if ismember(obj_name, fieldnames(this.Listeners))
-                %Grabs the fieldnames of the object's listeners structure
-                names=fieldnames(this.Listeners.(obj_name));
-                for i=1:length(names)
-                    %Deletes the listeners
-                    delete(this.Listeners.(obj_name).(names{i}));
-                    %Removes the field from the structure
-                    this.Listeners.(obj_name)=...
-                        rmfield(this.Listeners.(obj_name),names{i});
-                end
-                %Removes the object's field from the structure
-                this.Listeners=rmfield(this.Listeners, obj_name);
-            end
-        end
+        deleteListeners(this, obj_name);
     end
     
-    methods
-           
-
-        
+    methods        
         %% Get functions
         
         %Get function from save directory
