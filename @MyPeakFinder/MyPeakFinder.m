@@ -153,7 +153,7 @@ classdef MyPeakFinder < handle
             validate_fit=@(x) all(ismember(x,valid_fits));
             
             p=inputParser;
-            addParameter(p,'FitNames',{'Lorentzian'},validate_fit);
+            addParameter(p,'FitNames',{'LorentzianGrad'},validate_fit);
             addParameter(p,'base_dir',pwd);
             addParameter(p,'session_name','placeholder');
             addParameter(p,'filename','placeholder');
@@ -173,11 +173,7 @@ classdef MyPeakFinder < handle
             
             %We fit the peaks 
             for i=1:length(this.Peaks)
-                w=this.Peaks(i).Width;
-                loc=this.Peaks(i).Location;
-                val=this.Peaks(i).Value;
-                prom=this.Peaks(i).Prominence;
-                
+                %First extract the data around the peak
                 [x_fit,y_fit]=extractPeak(this,i);
                 
                 for j=1:length(fit_names)
