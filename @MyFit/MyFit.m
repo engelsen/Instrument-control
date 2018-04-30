@@ -8,9 +8,10 @@ classdef MyFit < dynamicprops
         lim_upper;
         enable_plot;
         plot_handle;
-
+        
         %Calibration values supplied externally
         CalVals=struct();
+        
         init_color='c';
     end
     
@@ -35,6 +36,7 @@ classdef MyFit < dynamicprops
     
     properties (Dependent=true)
         fit_function;
+        anon_fit_fun;
         fit_tex;
         fit_params;
         fit_param_names;
@@ -129,7 +131,14 @@ classdef MyFit < dynamicprops
         end
 
         %Saves the metadata
-        function saveParams(this)
+        function saveParams(this,varargin)
+            p=inputParser;
+            addParameter(p,'save_user_params',true);
+            addParameter(p,'save_gof',true);
+            parse(p,varargin{:});
+            save_user_params=p.Results.save_user_params;
+            save_gof=p.Results.save_gof;
+            
             assert(~isempty(this.coeffs) && ...
                 length(this.coeffs)==this.n_params,...
                 ['The number of calculated coefficients (%i) is not',...
@@ -139,13 +148,24 @@ classdef MyFit < dynamicprops
                 
             %Creates combined strings of form: Linewidth (b), where
             %Linewidth is the parameter name and b is the parameter tag
-            param_headers=cellfun(@(x,y) sprintf('%s (%s)',x,y),...
+            headers=cellfun(@(x,y) sprintf('%s (%s)',x,y),...
                 this.fit_param_names, this.fit_params,'UniformOutput',0);
-            user_field_headers=cellfun(@(x,y) ...
-                sprintf('%s. %s',this.UserGui.Fields.(x).parent,y),...
-                this.user_field_tags,this.user_field_names,...
-                'UniformOutput',0)';
-            headers=[param_headers, user_field_headers];
+            save_data=this.coeffs;
+            
+            if save_user_params
+                user_field_headers=cellfun(@(x,y) ...
+                    sprintf('%s. %s',this.UserGui.Fields.(x).parent,y),...
+                    this.user_field_tags,this.user_field_names,...
+                    'UniformOutput',0)';
+                headers=[headers, user_field_headers];
+                save_data=[save_data,this.user_field_vals'];
+            end
+            
+            if save_gof
+                headers=[headers,fieldnames(this.Gof)']; 
+                save_data=[save_data,struct2array(this.Gof)];
+            end
+
             n_columns=length(headers);
             
             %Sets the column width. Pads 2 for legibility.
@@ -172,11 +192,32 @@ classdef MyFit < dynamicprops
             
             pre_fmt_str_nmb=repmat('%%%i.15e\\t',1,n_columns);
             nmb_fmt_str=sprintf([pre_fmt_str_nmb,'\r\n'],col_width);
-            fprintf(fileID,nmb_fmt_str,[this.coeffs,this.user_field_vals']);
+            fprintf(fileID,nmb_fmt_str,save_data);
             
             fclose(fileID);
         end
             
+        function loadFit(this,fullfilename,varargin)
+            p=inputParser;
+            addParameter(p,'line_no',1);
+            parse(p,varargin{:})
+            n=p.Results.line_no;
+            
+            load_table=readtable(fullfilename);
+            load_names=fieldnames(load_table);
+            for i=1:this.n_params
+                this.coeffs(i)=load_table.(load_names{i})(n);
+            end
+        end
+        
+        function setFitParams(this,coeffs)
+            assert(length(coeffs)==this.n_params,...
+                ['The length of the coefficient vector (currently %i) ',...
+                'must be equal to the number of parameters (%i)'],...
+                length(this.coeffs),this.n_params)
+            this.coeffs=coeffs;
+        end
+        
         %Initializes the CalVals structure. 
         function initCalVals(this)
             switch this.fit_name
@@ -193,23 +234,20 @@ classdef MyFit < dynamicprops
         %Fits the trace using currently set parameters, depending on the
         %model.
         function fitTrace(this)
-            this.Fit.x=this.x_vec;
             switch this.fit_name
                 case 'Linear'
                     %Fits polynomial of order 1
                     this.coeffs=polyfit(this.Data.x,this.Data.y,1);
-                    this.Fit.y=polyval(this.coeffs,this.Fit.x);
                 case 'Quadratic'
                     %Fits polynomial of order 2
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
-                    this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case {'Exponential','Gaussian'}
+                case {'Exponential','Gaussian','Lorentzian','DoubleLorentzian'}
                     doFit(this)
-                case {'Lorentzian','DoubleLorentzian'}
-                    doFit(this);
                 otherwise
                     error('Selected fit is invalid');
             end
+            
+            calcFit(this);
             calcUserParams(this);
             %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
@@ -484,8 +522,18 @@ classdef MyFit < dynamicprops
             if this.enable_plot; plotInitFun(this); end
         end
         
-        %Plots the trace contained in the Fit MyTrace object.
+        function calcFit(this)
+            this.Fit.x=this.x_vec;
+            input_coeffs=num2cell(this.coeffs);
+            this.Fit.y=this.anon_fit_fun(this.Fit.x,input_coeffs{:});
+        end
+        %Plots the trace contained in the Fit MyTrace object after
+        %calculating the new values
         function plotFit(this,varargin)
+            calcFit(this);
+            assert((isa(this.plot_handle,'matlab.graphics.axis.Axes')||...
+                isa(this.plot_handle,'matlab.ui.control.UIAxes')),...
+                'plot_handle property must be defined to valid axis in order to plot')
             this.Fit.plotTrace(this.plot_handle,varargin{:});
         end
                 
@@ -552,8 +600,6 @@ classdef MyFit < dynamicprops
                 'Lower',this.lim_lower,'Upper',this.lim_upper,...
                 'StartPoint',this.init_params, ....
                 'MaxFunEvals',2000,'MaxIter',2000,'TolFun',1e-9);
-            %Puts the y values of the fit into the struct.
-            this.Fit.y=this.Fitdata(this.Fit.x);
             %Puts the coeffs into the class variable.
             this.coeffs=coeffvalues(this.Fitdata);
         end
@@ -661,6 +707,12 @@ classdef MyFit < dynamicprops
             fit_tex=this.FitStruct.(this.fit_name).fit_tex;
         end
         
+        %Grabs the correct anon fit function from FitStruct
+        function anon_fit_fun=get.anon_fit_fun(this)
+            anon_fit_fun=this.FitStruct.(this.fit_name).anon_fit_fun;
+        end
+        
+        
         %Grabs the correct fit parameters from FitStruct
         function fit_params=get.fit_params(this)
             fit_params=this.FitStruct.(this.fit_name).fit_params;
@@ -742,7 +794,7 @@ classdef MyFit < dynamicprops
                 filename='placeholder';
             end
         end
-        
+            
         function set.filename(this,filename)
             this.Gui.FileName.String=filename;
         end
