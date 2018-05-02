@@ -1,5 +1,5 @@
 function [p_in,lim_lower,lim_upper]=initParamDblLorentzianGrad(x,y)
-%Assumes form a/pi*b/2/((x-c)^2+(b/2)^2)+d/pi*e/2/((x-f)^2+(e/2)^2))+g
+%Assumes form a/pi*b/2/((x-c)^2+(b/2)^2)+d/pi*e/2/((x-f)^2+(e/2)^2))+g*x+h
 
 lim_upper=[Inf,Inf,Inf,Inf,Inf,Inf,Inf,Inf];
 lim_lower=[-Inf,0,-Inf,-Inf,0,-Inf,-Inf,-Inf];
@@ -53,7 +53,7 @@ if abs(p_in(1))>abs(10*p_in(4))
 end
 
 %Find gradient offset
-p_in(7)=(y(end)-y())/(x(end)-x(1));
+p_in(7)=(y(end)-y(1))/(x(end)-x(1));
 
 lim_lower(2)=0.01*p_in(2);
 lim_upper(2)=100*p_in(2);

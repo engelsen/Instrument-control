@@ -11,6 +11,17 @@ classdef MyPeakFinder < handle
             parse(p,varargin{:})
             
             this.Trace=p.Results.Trace;
+            this.Peaks=struct('Location',[],'Width',[],'Prominence',[],...
+                'Value',[]);
+        end
+        
+        %Checks if a peak exists within the given limits
+        function bool=checkPeakExist(this,x_min,x_max)
+           assert(isnumeric(x_min) & isnumeric(x_max),...
+               'x_min and x_max must be numbers');
+           assert(x_max>x_min,['x_max must be greater than x_min,',...
+               ' currently x_min is %e while x_max is %e'],x_min,x_max);
+           bool=any([this.Peaks.Location]>x_min & [this.Peaks.Location]<x_max);
         end
         
         function searchPeaks(this,varargin)
@@ -153,7 +164,7 @@ classdef MyPeakFinder < handle
             validate_fit=@(x) all(ismember(x,valid_fits));
             
             p=inputParser;
-            addParameter(p,'FitNames',{'LorentzianGrad'},validate_fit);
+            addParameter(p,'FitNames',{'DoubleLorentzianGrad'},validate_fit);
             addParameter(p,'base_dir',pwd);
             addParameter(p,'session_name','placeholder');
             addParameter(p,'filename','placeholder');
@@ -184,6 +195,7 @@ classdef MyPeakFinder < handle
                     saveParams(Fits.(fit_names{j}),...
                         'save_user_params',false,...
                         'save_gof',true)
+                    Fits.(fit_names{j}).FitInfo
                 end
             end
         end
@@ -191,7 +203,7 @@ classdef MyPeakFinder < handle
         function [x_peak,y_peak]=extractPeak(this,peak_no)
             loc=this.Peaks(peak_no).Location;
             w=this.Peaks(peak_no).Width;
-            ind=(loc-10*w<this.Trace.x) & (loc+10*w>this.Trace.x);
+            ind=(loc-5*w<this.Trace.x) & (loc+5*w>this.Trace.x);
             x_peak=this.Trace.x(ind);
             y_peak=this.Trace.y(ind);
         end
@@ -263,7 +275,8 @@ classdef MyPeakFinder < handle
         end
         
         function clearPeaks(this)
-            this.Peaks=struct();
+            this.Peaks=struct('Location',[],'Width',[],'Prominence',[],...
+                'Value',[]);
         end
     end
 end
