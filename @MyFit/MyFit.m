@@ -89,9 +89,9 @@ classdef MyFit < dynamicprops
             addParameter(p,'enable_gui',1);
             addParameter(p,'enable_plot',0);
             addParameter(p,'plot_handle',[]);
-            addParameter(p,'base_dir',pwd);
-            addParameter(p,'session_name','placeholder');
-            addParameter(p,'filename','placeholder');
+            addParameter(p,'base_dir',this.SaveInfo.filename);
+            addParameter(p,'session_name',this.SaveInfo.session_name);
+            addParameter(p,'filename',this.SaveInfo.base_dir);
             this.Parser=p;
         end
     end
@@ -99,6 +99,12 @@ classdef MyFit < dynamicprops
     methods (Access=public)
         %Constructor function
         function this=MyFit(varargin)
+            %Sets the default parameters for the save directory and
+            %filename.
+            this.SaveInfo.filename='placeholder';
+            this.SaveInfo.session_name='placeholder';
+            this.SaveInfo.base_dir=getLocalSettings('measurement_base_dir');
+            
             %We first create the FitStruct, which contains all the
             %information about the available fits.
             createFitStruct(this);
@@ -127,12 +133,6 @@ classdef MyFit < dynamicprops
             %Creates the structure that contains variables for calibration
             %of fit results
             createUserGuiStruct(this);
-            
-            %Sets the default parameters for the save directory and
-            %filename. 
-            this.SaveInfo.filename='placeholder';
-            this.SaveInfo.session_name='placeholder';
-            this.SaveInfo.base_dir=pwd;
             
             %Creates the gui if the flag is enabled. This function is in a
             %separate file.

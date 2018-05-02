@@ -42,6 +42,9 @@ classdef MyDaq < handle
         open_fits;
         open_crs;
         running_progs;
+    end
+    
+    properties (Dependent=true, SetAccess=private)
         %Properties for saving files
         base_dir;
         session_name;
@@ -67,8 +70,13 @@ classdef MyDaq < handle
                 end
             end
 
+            %The list of instruments is automatically populated from the
+            %run files
             this.ProgramList = readRunFiles();
             
+            %We add a listener to the Collector object contained in the
+            %daq_menu if it is open. This will allow us to collect
+            %measurement headers
             if ~isempty(p.Results.daq_menu_handle)
                 h_daq_menu=p.Results.daq_menu_handle;
                 this.Listeners.Collector.NewHeaders=...
@@ -77,7 +85,11 @@ classdef MyDaq < handle
             end
             
             if this.enable_gui
+                %We grab the guihandles from a GUI made in Guide.
                 this.Gui=guihandles(eval('GuiDaq'));
+                %This function sets all the callbacks for the GUI. If a new
+                %button is made, the associated callback must be put in the
+                %initGui function
                 initGui(this);
                 % Initialize the menu based on the available run files
                 content = menuFromRunFiles(this.ProgramList,...
@@ -91,7 +103,6 @@ classdef MyDaq < handle
                 end
                 set(this.Gui.InstrMenu,'ItemsData',[{''};...
                     content.tags]);
-                set(this.Gui.BaseDir,'String',this.base_dir);
                 hold(this.main_plot,'on');
             end
             
@@ -145,10 +156,6 @@ classdef MyDaq < handle
             delete(this);
         end
         
-        function updateDataHeader(this, Collector)
-            this.DataHeader=Collector.MeasHeaders;
-        end
-        
         %Updates fits
         function updateFits(this)            
             %Pushes data into fits in the form of MyTrace objects, so that
@@ -162,6 +169,9 @@ classdef MyDaq < handle
                     case {'Lorentzian','DoubleLorentzian'}
                         this.Fits.(this.open_fits{i}).Data=...
                             getFitData(this,'VertData');
+                        %Here we push the information about line spacing
+                        %into the fit object if the reference cursors are
+                        %open. Only for Lorentzian fits.
                         if isfield(this.Cursors,'VertRef')
                             ind=findCursorData(this,'Data','VertRef');
                             this.Fits.(this.open_fits{i}).CalVals.line_spacing=...
@@ -174,9 +184,8 @@ classdef MyDaq < handle
             end
         end
         
-        % If vertical cursors are on, takes only data
-        %within cursors. 
-        %If the cursor is not open, it takes all the data from the selected
+        % If vertical cursors are on, takes only data within cursors. If 
+        %the cursor is not open, it takes all the data from the selected
         %trace in the analysis trace selection dropdown
         function Trace=getFitData(this,varargin)
             %Parses varargin input
@@ -193,6 +202,8 @@ classdef MyDaq < handle
             %this.(trace_str) will refer to the same object, causing roblems.
             %Name input is the name of the cursor to be used to extract data.
             Trace=copy(this.(trc_str));
+            %If the cursor is open for the trace we are analyzing, we take
+            %only the data enclosed by the cursor.
             if isfield(this.Cursors,name)
                 ind=findCursorData(this, trc_str, name);
                 Trace.x=this.(trc_str).x(ind);
@@ -231,14 +242,18 @@ classdef MyDaq < handle
                 'TargetMarkerStyle','none',...
                 'ShowText','off','CursorLineWidth',0.5,...
                 'Orientation',crs_type,'Tag',sprintf('%s1',name));
-            %Creates second cursor
+            %Creates second cursor by duplicating the first.
             this.Cursors.(name){2}=this.Cursors.(name){1}.duplicate;
             set(this.Cursors.(name){2},'Tag',sprintf('%s2',name))
             %Sets the cursor colors
             cellfun(@(x) setCursorColor(x, color),this.Cursors.(name));
             %Makes labels for the cursors
             labelCursors(this,name,type,color);
+            %We add some listeners to the cursors, which update the labels
+            %when they are moved and so on.
             addCursorListeners(this,name,type);
+            %We call the update function so that the labels are set
+            %correctly.
             cellfun(@(x) notify(x, 'UpdateCursorBar'), this.Cursors.(name));
         end
         
@@ -307,7 +322,7 @@ classdef MyDaq < handle
             switch type
                 case {'Horz','horizontal'}
                     %Sets the update function of the cursor to move the
-                    %text.
+                    %label.
                     this.Listeners.(name).Update=cellfun(@(x) ...
                         addlistener(x,'UpdateCursorBar',...
                         @(src, ~) horzCursorUpdate(this, src)),...
@@ -319,7 +334,8 @@ classdef MyDaq < handle
                         addlistener(x,'UpdateCursorBar',...
                         @(src, ~) vertCursorUpdate(this, src)),...
                         this.Cursors.(name),'UniformOutput',0);
-                    %Sets the update function for end drag to update fits
+                    %Sets the update function for end drag to update the
+                    %data in the fit objects
                     this.Listeners.(name).EndDrag=cellfun(@(x) ...
                         addlistener(x,'EndDrag',...
                         @(~,~) updateFits(this)),this.Cursors.(name),...
@@ -327,7 +343,9 @@ classdef MyDaq < handle
             end
         end
         
-        %Updates the cursors to fill the axes
+        %Updates the cursors to fill the axes. Basically if the axes are
+        %resized the cursors will only fill part/more of the axes than what
+        %you see.
         function updateCursors(this)
             for i=1:length(this.open_crs)
                 type=this.Cursors.(this.open_crs{i}){1}.Orientation;
@@ -344,6 +362,7 @@ classdef MyDaq < handle
                         cellfun(@(x) set(x.BottomHandle, 'XData',...
                             this.main_plot.XLim(1)), this.Cursors.(name));
                 end
+                %Updates the position of the cursor labels
                 positionCursorLabels(this,name,type);
             end
 
@@ -383,6 +402,7 @@ classdef MyDaq < handle
             delete(newFig);
         end
         
+        %Resets the axis to be tight around the plots.
         function updateAxis(this)
             axis(this.main_plot,'tight');
         end
@@ -425,6 +445,8 @@ classdef MyDaq < handle
                 %listener callback to reposition text
                 cellfun(@(x) notify(x,'UpdateCursorBar'),...
                     this.Cursors.(this.open_crs{i}));
+                %Triggers the EndDrag event, updating the data in the fit
+                %objects.
                 cellfun(@(x) notify(x,'EndDrag'),...
                     this.Cursors.(this.open_crs{i}));
             end
@@ -436,6 +458,8 @@ classdef MyDaq < handle
             %Gets the first four characters of the tag (Vert or Horz)
             type=name(1:4);
             
+            %Changes the color of the button and appropriately creates or
+            %deletes the cursors.
             if hObject.Value
                 hObject.BackgroundColor=[0,1,0.2];
                 createCursors(this,name,type);
@@ -468,6 +492,8 @@ classdef MyDaq < handle
                         findfigure(this.RunningPrograms.(tag).Gui);
                 end
                 
+                %If we already have the program open and a figure handle
+                %exists, we refresh the figure to change focus
                 if ~isempty(fig_handle)
                     fig_handle.Visible='off';
                     fig_handle.Visible='on';
@@ -510,7 +536,8 @@ classdef MyDaq < handle
                 @(src, eventdata) removeProgram(this, src, eventdata));
         end
         
-        %Select trace callback
+        %Select trace callback. If we change the trace being analyzed, the
+        %fit objects are updated.
         function selTraceCallback(this, ~, ~)
             updateFits(this)
         end
@@ -526,13 +553,21 @@ classdef MyDaq < handle
         end
         
         function saveTrace(this, trace_tag)
+            %Find which header object should be printed, depending on the
+            %trace tag.
             header_tag=sprintf('%sHeader',trace_tag);
             fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
+            
+            %Check if the trace is valid (i.e. x and y are equal length)
+            %before saving
             if ~this.(trace_tag).validatePlot
                 errordlg(sprintf('%s trace was empty, could not save',trace_tag));
                 return
             end
             
+            %Check if the header has the same unique identifier as the
+            %trace, i.e. that they were collected together. If not, ask the
+            %user what to do.
             if strcmp(this.(trace_tag).uid,this.(header_tag).uid)
                 header_flag=true;
             else
@@ -558,7 +593,9 @@ classdef MyDaq < handle
                 end
             end
             
-            %Creates the file without overwriting as a default
+            %Creates the file without overwriting as a default. The
+            %createFile function checks if the file exists, if it does, it
+            %asks the user. 
             write_flag=createFile(this.save_dir,fullfilename,false);
             
             %Returns if the file was not created
@@ -568,6 +605,8 @@ classdef MyDaq < handle
                 writeAllHeaders(this.(header_tag),fullfilename);
             end
             
+            %Uses the unprotected write function of MyTrace, as we are here
+            %writing the headers separately.
             writeData(this.(trace_tag),fullfilename)
         end
         
@@ -614,10 +653,13 @@ classdef MyDaq < handle
                 %Transfer the header with the data
                 this.RefHeader=this.DataHeader;
                 
+                %Plot the reference trace and make it visible
                 this.Ref.plotTrace(this.main_plot,'Color',this.ref_color,...
                     'make_labels',true);
                 this.Ref.setVisible(this.main_plot,1);
+                %Update the fit objects
                 updateFits(this);
+                %Change button color
                 this.Gui.ShowRef.Value=1;
                 this.Gui.ShowRef.BackgroundColor=[0,1,0.2];
                 
@@ -724,6 +766,7 @@ classdef MyDaq < handle
             %Sets the correct tooltip
             hObject.TooltipString=sprintf(this.Gui.AnalyzeTip{analyze_ind}) ;
             
+            %Opens the correct analysis tool
             switch analyze_name
                 case {'Linear','Quadratic','Exponential',...
                         'Lorentzian','Gaussian',...
@@ -782,6 +825,8 @@ classdef MyDaq < handle
             if ismember('G0',this.open_fits)
                 figure(this.Fits.G0.Gui.figure1);
             else
+                %Populate the MyG class with the right data. We assume the
+                %mechanics is in the Data trace.
                 MechTrace=getFitData(this,'VertData');
                 CalTrace=getFitData(this,'VertRef');
                 this.Fits.G0=MyG('MechTrace',MechTrace,'CalTrace',CalTrace,...
@@ -815,25 +860,37 @@ classdef MyDaq < handle
                 warning('Please input a valid folder name for loading a trace');
                 this.base_dir=pwd;
             end
-            try
-                [load_name,path_name]=uigetfile('.txt','Select the trace',...
-                    this.base_dir);
-                load_path=[path_name,load_name];
-                dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
-                loadTrace(this.(dest_trc),load_path);
-                this.(dest_trc).plotTrace(this.main_plot,...
-                    'Color',this.(sprintf('%s_color',lower(dest_trc))),...
-                    'make_labels',true);
-                updateAxis(this);
-                updateCursors(this);
-            catch
-                error('Please select a valid file');
-            end            
+
+            [load_name,path_name]=uigetfile('.txt','Select the trace',...
+                this.base_dir);
+            if load_name==0
+                warning('No file was selected');
+                return
+            end
+            
+            load_path=[path_name,load_name];
+            %Finds the destination trace from the GUI
+            dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
+            %Call the load trace function on the right trace
+            loadTrace(this.(dest_trc),load_path);
+            %Color and plot the right trace.
+            this.(dest_trc).plotTrace(this.main_plot,...
+                'Color',this.(sprintf('%s_color',lower(dest_trc))),...
+                'make_labels',true);
+            %Update axis and cursors
+            updateAxis(this);
+            updateCursors(this);
         end
     end
     
     methods (Access=public)
         %% Listener functions 
+        %Callback function for the NewMeasHeaders listener. 
+        %Updates the DataHeader object with new headers.
+        function updateDataHeader(this, Collector)
+            this.DataHeader=Collector.MeasHeaders;
+        end
+        
         %Callback function for NewFit listener. Plots the fit in the
         %window using the plotFit function of the MyFit object
         function plotNewFit(this, src, ~)
@@ -845,7 +902,9 @@ classdef MyDaq < handle
         %Callback function for the NewData listener
         function acquireNewData(this, src, ~)
             hline=getLineHandle(this.Data,this.main_plot);
+            %Copy the data from the instrument
             this.Data=copy(src.Trace);
+            %We give the new trace object the right line handle to plot in
             if ~isempty(hline); this.Data.hlines{1}=hline; end
             this.Data.plotTrace(this.main_plot,'Color',this.data_color,...
                 'make_labels',true)
@@ -934,9 +993,8 @@ classdef MyDaq < handle
         deleteListeners(this, obj_name);
     end
     
+    %Get functions for dependent variables without set functions
     methods        
-        %% Get functions
-        
         %Get function from save directory
         function save_dir=get.save_dir(this)
             save_dir=createSessionPath(this.base_dir,this.session_name);
@@ -956,6 +1014,7 @@ classdef MyDaq < handle
             open_fits=fieldnames(this.Fits);
         end
         
+        %Gets the running programs
         function running_progs=get.running_progs(this)
             running_progs=fieldnames(this.RunningPrograms);
         end
@@ -964,7 +1023,10 @@ classdef MyDaq < handle
         function open_crs=get.open_crs(this)
             open_crs=fieldnames(this.Cursors);
         end
-        
+    end
+    
+    %Get and set functions for dependent properties with SetAccess
+    methods
         function base_dir=get.base_dir(this)
             try 
                 base_dir=this.Gui.BaseDir.String;
