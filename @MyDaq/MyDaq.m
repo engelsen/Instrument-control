@@ -908,13 +908,16 @@ classdef MyDaq < handle
                 tag = this.Gui.InstrMenu.ItemsData{val};
             end
             
-            if src==this.RunningPrograms.(tag)
+            %We see if the source is the currently chosen running program.
+            if src==this.RunningPrograms.(tag) ||...
+                src==findMyInstrument(this.RunningPrograms.(tag))
                 hline=getLineHandle(this.Data,this.main_plot);
                 %Copy the data from the instrument
                 this.Data=copy(src.Trace);
                 %We give the new trace object the right line handle to plot in
                 if ~isempty(hline); this.Data.hlines{1}=hline; end
-                this.Data.plotTrace(this.main_plot,'Color',this.data_color,...
+                this.Data.plotTrace(this.main_plot,...
+                    'Color',this.data_color,...
                     'make_labels',true)
                 updateAxis(this);
                 updateCursors(this);
