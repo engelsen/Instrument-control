@@ -35,24 +35,24 @@ classdef MyCollector < handle
             cellfun(@(x) deleteListeners(this,x), this.open_instruments);
         end
         
-        function addInstrument(this,instr_handle)
+        function addInstrument(this,prog_handle)
             %Input check
-            assert(ischar(instr_handle.name),...
+            assert(ischar(prog_handle.name),...
                 'The instrument name must be a char')
-            name=instr_handle.name;
+            name=prog_handle.name;
             
             %We add only MyInstrument classes for now
-            if contains('MyInstrument',superclasses(instr_handle))
+            if contains('MyInstrument',superclasses(prog_handle))
                 %Defaults to read header
                 this.InstrProps.(name).header_flag=true;
-                this.InstrList.(name)=instr_handle;
+                this.InstrList.(name)=prog_handle;
             else
                 error(['%s is not a subclass of MyInstrument,',...
                     ' cannot be added to instrument list'],name)
             end
             
             %If the added instrument has a newdata event, we add a listener for it.
-            if contains('NewData',events(instr_handle))
+            if contains('NewData',events(prog_handle))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
                     @(src,~) collectHeaders(this,src));
