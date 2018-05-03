@@ -13,6 +13,6 @@ function instr_handle=findMyInstrument(obj)
     if any(ind)
         instr_handle=obj.(props{ind}); 
     else
-        warning('No MyInstrument foundw');
+        warning('No MyInstrument found');
     end
 end
