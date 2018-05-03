@@ -164,7 +164,7 @@ classdef MyPeakFinder < handle
             validate_fit=@(x) all(ismember(x,valid_fits));
             
             p=inputParser;
-            addParameter(p,'FitNames',{'DoubleLorentzianGrad'},validate_fit);
+            addParameter(p,'FitNames',{'Gorodetsky2000'},validate_fit);
             addParameter(p,'base_dir',pwd);
             addParameter(p,'session_name','placeholder');
             addParameter(p,'filename','placeholder');

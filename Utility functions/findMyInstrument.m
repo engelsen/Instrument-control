@@ -6,6 +6,7 @@ function instr_handle=findMyInstrument(obj)
         props=fieldnames(obj);
     elseif isempty(props)
         warning('Invalid data type. Could not search for MyInstrument')
+        instr_handle=[];
         return
     end
     
@@ -14,5 +15,6 @@ function instr_handle=findMyInstrument(obj)
         instr_handle=obj.(props{ind}); 
     else
         warning('No MyInstrument found');
+        instr_handle=[];
     end
 end

@@ -35,20 +35,40 @@ classdef MyCollector < handle
             cellfun(@(x) deleteListeners(this,x), this.open_instruments);
         end
         
-        function addInstrument(this,prog_handle)
-            %Input check
-            assert(ischar(prog_handle.name),...
-                'The instrument name must be a char')
-            name=prog_handle.name;
+        function addInstrument(this,prog_handle,varargin)
+            p=inputParser;
+            addParameter(p,'name','UnknownDevice',@ischar)
+            parse(p,varargin{:});
             
-            %We add only MyInstrument classes for now
-            if contains('MyInstrument',superclasses(prog_handle))
+            %Find a name for the instrument
+            if ~ismember('name',p.UsingDefaults)
+                name=erase(p.Results.name,' ');
+            elseif isprop(prog_handle,'name') && ~isempty(prog_handle.name)
+                name=prog_handle.name;
+            elseif ~isempty(findMyInstrument(prog_handle))
+                h_instr=findMyInstrument(prog_handle);
+                if isprop(h_instr,'name') && ~isempty(h_instr.name)
+                    name=h_Instr.name;
+                else
+                    name=p.Results.name;
+                end
+            else
+                name=p.Results.name;
+            end
+            
+            %We add only classes that have readHeaders functionality
+            if contains('readHeader',methods(prog_handle))
                 %Defaults to read header
                 this.InstrProps.(name).header_flag=true;
                 this.InstrList.(name)=prog_handle;
+            elseif contains('readHeader',...
+                    methods(findMyInstrument(prog_handle)))
+                %Defaults to read header
+                this.InstrProps.(name).header_flag=true;
+                this.InstrList.(name)=findMyInstrument(prog_handle);
             else
-                error(['%s is not a subclass of MyInstrument,',...
-                    ' cannot be added to instrument list'],name)
+                error(['%s does not have a readHeaders function,',...
+                    ' cannot be added to Collector'],name)
             end
             
             %If the added instrument has a newdata event, we add a listener for it.
@@ -62,8 +82,6 @@ classdef MyCollector < handle
             this.Listeners.(name).Deletion=...
                 addlistener(this.InstrList.(name),'ObjectBeingDestroyed',...
                 @(~,~) deleteInstrument(this,name));
-            
-
         end
         
         function collectHeaders(this,src)

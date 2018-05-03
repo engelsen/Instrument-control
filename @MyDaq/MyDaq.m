@@ -57,7 +57,7 @@ classdef MyDaq < handle
         function this=MyDaq(varargin)
             p=inputParser;
             addParameter(p,'enable_gui',1);
-            addParameter(p,'daq_menu_handle',[])
+            addParameter(p,'collector_handle',[])
             this.ConstructionParser=p;
             parse(p, varargin{:});
             
@@ -74,13 +74,12 @@ classdef MyDaq < handle
             %run files
             this.ProgramList = readRunFiles();
             
-            %We add a listener to the Collector object contained in the
-            %daq_menu if it is open. This will allow us to collect
-            %measurement headers
-            if ~isempty(p.Results.daq_menu_handle)
-                h_daq_menu=p.Results.daq_menu_handle;
+            %We add a listener to the Collector. 
+            %This will allow us to collect measurement headers
+            if ~isempty(p.Results.collector_handle)
+                h_collector=p.Results.collector_handle;
                 this.Listeners.Collector.NewHeaders=...
-                    addlistener(h_daq_menu.Collector,'NewMeasHeaders',...
+                    addlistener(h_collector,'NewMeasHeaders',...
                     @(src,~) updateDataHeader(this,src));
             end
             
@@ -901,16 +900,25 @@ classdef MyDaq < handle
         
         %Callback function for the NewData listener
         function acquireNewData(this, src, ~)
-            hline=getLineHandle(this.Data,this.main_plot);
-            %Copy the data from the instrument
-            this.Data=copy(src.Trace);
-            %We give the new trace object the right line handle to plot in
-            if ~isempty(hline); this.Data.hlines{1}=hline; end
-            this.Data.plotTrace(this.main_plot,'Color',this.data_color,...
-                'make_labels',true)
-            updateAxis(this);
-            updateCursors(this);
-            updateFits(this);
+            val=this.Gui.InstrMenu.Value;
+            if val==1
+                return
+            else
+                tag = this.Gui.InstrMenu.ItemsData{val};
+            end
+            
+            if src==this.RunningPrograms.(tag)
+                hline=getLineHandle(this.Data,this.main_plot);
+                %Copy the data from the instrument
+                this.Data=copy(src.Trace);
+                %We give the new trace object the right line handle to plot in
+                if ~isempty(hline); this.Data.hlines{1}=hline; end
+                this.Data.plotTrace(this.main_plot,'Color',this.data_color,...
+                    'make_labels',true)
+                updateAxis(this);
+                updateCursors(this);
+                updateFits(this);
+            end
         end
         
         %Deletes the object from the RunningPrograms struct

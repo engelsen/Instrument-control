@@ -5,7 +5,7 @@ classdef MyMetadata < dynamicprops
     end
     
     properties (Access=private)
-        DynamicProps;
+        PropHandles; %Used to store the handles of the dynamic properties
     end
     
     properties (Dependent=true)
@@ -24,7 +24,7 @@ classdef MyMetadata < dynamicprops
             
             this.uid=p.Results.uid;
             this.hdr_spec=p.Results.hdr_spec;
-            this.DynamicProps=struct();
+            this.PropHandles=struct();
             
             if ~isempty(p.Results.load_path)
                 varargout{1}=readHeaders(this,p.Results.load_path,...
@@ -37,7 +37,7 @@ classdef MyMetadata < dynamicprops
         %string specifications for later printing
         function addField(this, field_name)
             assert(ischar(field_name),'Field name must be a char');
-            this.DynamicProps.(field_name)=addprop(this,field_name);
+            this.PropHandles.(field_name)=addprop(this,field_name);
             this.(field_name)=struct();
         end
         
@@ -46,8 +46,8 @@ classdef MyMetadata < dynamicprops
             assert(ischar(field_name),'Field name must be a char')
             assert(ismember(field_name,this.field_names),...
                 'Field name must be a valid property');
-            delete(this.DynamicProps.(field_name));
-            this.DynamicProps=rmfield(this.DynamicProps,field_name);
+            delete(this.PropHandles.(field_name));
+            this.PropHandles=rmfield(this.PropHandles,field_name);
         end
         
         %Clears the object of all fields
@@ -204,7 +204,7 @@ classdef MyMetadata < dynamicprops
     
     methods
         function field_names=get.field_names(this)
-            field_names=fieldnames(this.DynamicProps);
+            field_names=fieldnames(this.PropHandles);
         end
     end
 end

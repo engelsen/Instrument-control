@@ -235,37 +235,6 @@ classdef MyInstrument < dynamicprops
             std_val_list = vlist(long_val_ind); 
         end
         
-        % Create a string of property values
-        function par_str = getConfigString(this)
-            % Try to find out the device name
-            if ~isempty(this.name)
-                name_str = this.name;
-            else
-                try
-                    openDevice(this);
-                    name_str = query(this.Device,'*IDN?');
-                    closeDevice(this);
-                    % Remove the new line end symbol
-                    name_str=name_str(1:end-1);
-                catch
-                    warning('Could not get the device name');
-                    name_str = '';
-                end
-            end
-            
-            % Append the values of all the commands 
-            rcmds=this.read_commands;
-            pad_length=max(cellfun(@(x) length(x), this.read_commands))+1;
-            fmt_str=sprintf('%%-%ds\\t%%s\\r\\n',pad_length);
-            par_str = sprintf(fmt_str,'Name',name_str);
-            for i=1:length(rcmds)
-                fmt_str=sprintf('%%-%ds\\t%s\\r\\n',pad_length,...
-                    this.CommandList.(rcmds{i}).str_spec);
-                new_str = sprintf(fmt_str,rcmds{i},this.(rcmds{i}));
-                par_str = [par_str, new_str];
-            end
-        end
-        
         %% Connect, open, configure and close the device
         % Connects to the device
         function connectDevice(this, interface, address)

@@ -522,7 +522,7 @@ classdef MyFit < dynamicprops
             this.scale_init=ones(1,this.n_params);
             %Plots the fit function with the new initial parameters
             if this.enable_plot; plotInitFun(this); end
-            updateGui(this);
+            if this.enable_gui; updateGui(this); end
         end
         
         %Calculates the trace object for the fit
