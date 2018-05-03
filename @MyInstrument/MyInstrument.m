@@ -19,6 +19,7 @@ classdef MyInstrument < dynamicprops
         Trace=MyTrace();
     end
     
+    
     properties (Constant=true)
         % Default parameters for VISA connection
         DEFAULT_INP_BUFF_SIZE = 1e7; % buffer size bytes

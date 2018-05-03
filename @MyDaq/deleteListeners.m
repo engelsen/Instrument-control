@@ -5,7 +5,11 @@ if ismember(obj_name, fieldnames(this.Listeners))
     names=fieldnames(this.Listeners.(obj_name));
     for i=1:length(names)
         %Deletes the listeners
-        delete(this.Listeners.(obj_name).(names{i}));
+        if iscell(this.Listeners.(obj_name).(names{i}))
+            cellfun(@(x) delete(x), this.Listeners.(obj_name).(names{i}));
+        else
+            delete(this.Listeners.(obj_name).(names{i}));
+        end
         %Removes the field from the structure
         this.Listeners.(obj_name)=...
             rmfield(this.Listeners.(obj_name),names{i});
