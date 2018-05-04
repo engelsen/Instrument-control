@@ -90,6 +90,7 @@ classdef MyMetadata < dynamicprops
         end
         
         function writeAllHeaders(this,fullfilename)
+            addTimeHeader(this);
             for i=1:length(this.field_names)
                 writeHeader(this, fullfilename, this.field_names{i});
             end
@@ -131,6 +132,21 @@ classdef MyMetadata < dynamicprops
             %Prints an extra line at the end
             fprintf(fileID,'\r\n');
             fclose(fileID);
+        end
+        
+        %Adds time header
+        function addTimeHeader(this)
+            if isprop(this,'Time'); deleteField(this,'Time'); end
+            dv=datevec(datetime('now'));
+            addField(this,'Time');
+            addParam(this,'Time','Year',dv(1),'%i');
+            addParam(this,'Time','Month',dv(2),'%i');
+            addParam(this,'Time','Day',dv(3),'%i');
+            addParam(this,'Time','Hour',dv(4),'%i');
+            addParam(this,'Time','Minute',dv(5),'%i');
+            addParam(this,'Time','Second',floor(dv(6)),'%i');
+            addParam(this,'Time','Millisecond',...
+                round(1000*(dv(6)-floor(dv(6)))),'%i');
         end
         
         function n_end_header=readHeaders(this, fullfilename, varargin)
