@@ -1,13 +1,14 @@
 %Testing tool for MyFit
 clear
-x_vec=linspace(0,10,100);
+x_vec=linspace(-100,100,1000);
 
 testFit=MyFit('fit_name','gaussian','enable_gui',0);
 params=cell(1,testFit.n_params);
 for i=1:testFit.n_params
-    params{i}=-5*rand;
+    params{i}=5*rand;
 end
-params{3}=5*rand;
+params{3}=10*rand;
+
 params
 y_vec=testFit.FitStruct.(testFit.fit_name).anon_fit_fun(x_vec,params{:}).*normrnd(1,0.05,size(x_vec));
 figure(1)
