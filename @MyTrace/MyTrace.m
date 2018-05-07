@@ -371,6 +371,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     
     %Set and get methods
     methods
+        %Set function for MeasHeaders
+        function set.MeasHeaders(this, MeasHeaders)
+            assert(isa(MeasHeaders,'MyMetadata'),...
+                ['MeasHeaders must be an instance of MyMetadata, ',...
+                'it is %s'],class(MeasHeaders));
+            this.MeasHeaders=MeasHeaders;
+        end
+        
         %Set function for x, checks if it is a vector of doubles.
         function set.x(this, x)
             assert(isnumeric(x),...

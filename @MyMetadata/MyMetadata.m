@@ -35,6 +35,7 @@ classdef MyMetadata < dynamicprops
         function addField(this, field_name)
             assert(ischar(field_name),'Field name must be a char');
             this.PropHandles.(field_name)=addprop(this,field_name);
+            this.PropHandles.(field_name).SetAccess='protected';
             this.(field_name)=struct();
         end
         
