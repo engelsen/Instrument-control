@@ -11,6 +11,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         load_path='';
         %Cell that contains handles the trace is plotted in
         hlines={};
+        %Information about how the trace was taken
+        MeasHeaders=MyMetadata();
         uid='';
     end
     
@@ -19,6 +21,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     end
     
     properties (Dependent=true)
+        %Contains the MeasHeaders
+        Metadata
         label_x;
         label_y;
     end
@@ -35,6 +39,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             addParameter(p,'name_y','y',@ischar);
             addParameter(p,'load_path','',@ischar);
             addParameter(p,'uid','',@ischar);
+            addParameter(p,'MeasHeaders',MyMetadata(),...
+                @(x) isa(x,'MyMetadata'));
             this.Parser=p;
         end
         
@@ -90,7 +96,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             write_flag=createFile(save_dir,fullfilename,overwrite_flag);
             
             %Returns if the file is not created for some reason 
-            if ~write_flag; 
+            if ~write_flag 
                 error('File not created, returned write_flag %i',write_flag);
             end
             
@@ -112,14 +118,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             save_prec=p.Results.save_prec;
             
             fileID=fopen(fullfilename,'a');
-            %Creates the Metadata structure.
-            Metadata=MyMetadata('uid',this.uid);
-            addField(Metadata,'Info');
-            addParam(Metadata,'Info','uid',this.uid,'%s');
-            addParam(Metadata,'Info','Name1',this.name_x,'%s');
-            addParam(Metadata,'Info','Name2',this.name_y,'%s');
-            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
-            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+
 
             
             %Writes the metadata header
@@ -305,10 +304,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function fwhm=calcFwhm(this)
             assert(validatePlot(this),['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to find the fwhm'])
-            [max_val,~]=max(this);
-            ind1=find(this.y>max_val/2,1,'first');
-            ind2=find(this.y>max_val/2,1,'last');
-            fwhm=this.x(ind2)-this.x(ind1);
+            [~,~,fwhm,~]=findPeaks(this.y,this.x,'NPeaks',1);
         end
         
         %Integrates the trace numerically
@@ -440,5 +436,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
         end
         
+        %Generates the full metadata of the trace
+        function Metadata=get.Metadata(this)
+            %First we update the trace information
+            Metadata=MyMetadata();
+            addField(Metadata,'Info');
+            addParam(Metadata,'Info','uid',this.uid,'%s');
+            addParam(Metadata,'Info','Name1',this.name_x,'%s');
+            addParam(Metadata,'Info','Name2',this.name_y,'%s');
+            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
+            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+            
+            addMetadata(Metadata,this.MeasHeaders);
+        end
     end
 end
