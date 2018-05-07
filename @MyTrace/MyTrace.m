@@ -122,11 +122,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
 
             
             %Writes the metadata header
-            writeHeader(Metadata,fullfilename,'Info',...
-                'title','Trace information');
-            
+            writeAllHeaders(this.Metadata,fullfilename);
             %Puts in header title for the data
-            fprintf(fileID,[Metadata.hdr_spec,'Data',Metadata.hdr_spec,'\r\n']);
+            fprintf(fileID,...
+                [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x),...

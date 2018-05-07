@@ -1,4 +1,4 @@
-classdef MyMetadata < dynamicprops 
+classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     properties
         hdr_spec;
     end
@@ -36,6 +36,7 @@ classdef MyMetadata < dynamicprops
             assert(ischar(field_name),'Field name must be a char');
             this.PropHandles.(field_name)=addprop(this,field_name);
             this.PropHandles.(field_name).SetAccess='protected';
+            this.PropHandles.(field_name).NonCopyable=false;
             this.(field_name)=struct();
         end
         

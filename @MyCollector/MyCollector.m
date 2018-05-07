@@ -49,7 +49,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             elseif ~isempty(findMyInstrument(prog_handle))
                 h_instr=findMyInstrument(prog_handle);
                 if isprop(h_instr,'name') && ~isempty(h_instr.name)
-                    name=h_Instr.name;
+                    name=h_instr.name;
                 else
                     name=p.Results.name;
                 end
@@ -73,7 +73,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             end
             
             %If the added instrument has a newdata event, we add a listener for it.
-            if contains('NewData',events(prog_handle))
+            if contains('NewData',events(this.InstrList.(name)))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
                     @(src,~) acquireData(this,src));
@@ -86,9 +86,6 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         end
         
         function acquireData(this,src)
-            %If the collect flag is not active, do nothing
-            if ~this.collect_flag; return; end
-            
             %Copy the data from the instrument. 
             this.Data=copy(src.Trace);
             
@@ -97,8 +94,10 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 this.MeasHeaders=MyMetadata();
                 acquireHeaders(this);
                 %We copy the MeasHeaders to the trace.
-                this.Trace.MeasHeaders=copy(this.MeasHeaders);
+                this.Data.MeasHeaders=copy(this.MeasHeaders);
             end
+            
+            triggerNewDataCollected(this);
         end
         
         %Collects headers for open instruments with the header flag on
@@ -123,6 +122,10 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     methods (Access=private)
         function triggerMeasHeaders(this)
             notify(this,'NewMeasHeaders');
+        end
+        
+        function triggerNewDataCollected(this)
+            notify(this,'NewDataCollected');
         end
 
         %deleteListeners is in a separate file

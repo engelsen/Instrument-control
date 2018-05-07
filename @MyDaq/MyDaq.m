@@ -473,7 +473,7 @@ classdef MyDaq < handle
                 prog = feval(fname);
                 evalin('base', prog);
             catch
-                error('Cannot run %s', this.ProgramList.(tag).fullname)
+                errordlg('Cannot run %s', this.ProgramList.(tag).fullname)
             end
         end
         
@@ -493,9 +493,7 @@ classdef MyDaq < handle
             end
         end
         
-        function saveTrace(this, trace_tag)
-            fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
-            
+        function saveTrace(this, trace_tag)         
             %Check if the trace is valid (i.e. x and y are equal length)
             %before saving
             if ~this.(trace_tag).validatePlot
@@ -504,7 +502,9 @@ classdef MyDaq < handle
             end
             
             %Uses the protected save function of MyTrace
-            save(this.(trace_tag),fullfilename)
+            save(this.(trace_tag),...
+                'save_dir',this.save_dir,...
+                'filename',this.filename)
         end
         
         %Toggle button callback for showing the data trace.
@@ -794,10 +794,9 @@ classdef MyDaq < handle
             %Returns if we are on dummy option
             if val==1; return; end
 
-            
             hline=getLineHandle(this.Data,this.main_plot);
-            %Copy the data from the instrument
-            this.Data=copy(src.Trace);
+            %Copy the data from the collector
+            this.Data=copy(src.Data);
             %We give the new trace object the right line handle to plot in
             if ~isempty(hline); this.Data.hlines{1}=hline; end
             this.Data.plotTrace(this.main_plot,...
