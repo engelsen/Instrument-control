@@ -1,8 +1,9 @@
-classdef MyCollector < handle
+classdef MyCollector < handle & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
         InstrProps=struct();
         InstrList=struct();
-        MeasHeaders=struct();
+        MeasHeaders=MyMetadata();
+        Data=MyTrace();
         collect_flag;
     end
     
@@ -15,7 +16,7 @@ classdef MyCollector < handle
     end
     
     events
-        NewMeasHeaders;
+        NewDataCollected;
     end
     
     methods (Access=public)
@@ -75,7 +76,7 @@ classdef MyCollector < handle
             if contains('NewData',events(prog_handle))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
-                    @(src,~) collectHeaders(this,src));
+                    @(src,~) acquireData(this,src));
             end
             
             %Cleans up if the instrument is closed
@@ -84,17 +85,20 @@ classdef MyCollector < handle
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function collectHeaders(this,src)
+        function acquireData(this,src)
             %If the collect flag is not active, do nothing
             if ~this.collect_flag; return; end
             
-            if isprop(src,'Trace') && isprop(src.Trace,'uid')
-                this.MeasHeaders=MyMetadata('uid',src.Trace.uid);
-            else
-                this.MeasHeaders=MyMetadata();
-            end
+            %Copy the data from the instrument. 
+            this.Data=copy(src.Trace);
             
-            acquireHeaders(this);
+            %Collect the headers if the flag is on
+            if this.collect_flag     
+                this.MeasHeaders=MyMetadata();
+                acquireHeaders(this);
+                %We copy the MeasHeaders to the trace.
+                this.Trace.MeasHeaders=copy(this.MeasHeaders);
+            end
         end
         
         %Collects headers for open instruments with the header flag on
@@ -108,9 +112,6 @@ classdef MyCollector < handle
                     addStructToField(this.MeasHeaders,name,tmp_struct);
                 end
             end
-            
-            %Triggers the event showing measurement headers are ready
-            triggerMeasHeaders(this);
         end
         
         function clearHeaders(this)

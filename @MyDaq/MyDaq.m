@@ -8,13 +8,9 @@ classdef MyDaq < handle
         Data;
         %Contains Background trace (MyTrace object)
         Background;
-        %Measurement headers (MyMetadata objects)
-        RefHeader;
-        DataHeader;
+
         %List of all the programs with run files
         ProgramList=struct();
-        % List of running programs
-        RunningPrograms=struct();
         %Struct containing Cursor objects
         Cursors=struct();
         %Struct containing Cursor labels
@@ -74,15 +70,6 @@ classdef MyDaq < handle
             %run files
             this.ProgramList = readRunFiles();
             
-            %We add a listener to the Collector. 
-            %This will allow us to collect measurement headers
-            if ~isempty(p.Results.collector_handle)
-                h_collector=p.Results.collector_handle;
-                this.Listeners.Collector.NewHeaders=...
-                    addlistener(h_collector,'NewMeasHeaders',...
-                    @(src,~) updateDataHeader(this,src));
-            end
-            
             if this.enable_gui
                 %We grab the guihandles from a GUI made in Guide.
                 this.Gui=guihandles(eval('GuiDaq'));
@@ -105,14 +92,21 @@ classdef MyDaq < handle
                 hold(this.main_plot,'on');
             end
             
+            %Sets a listener to the collector
+            if ~isempty(p.Results.collector_handle)
+                this.Listeners.Collector.NewDataCollected=...
+                    addlistener(p.Results.collector_handle,...
+                    'NewDataCollected',@(src,~) acquireNewData(this,src));
+            else
+                errordlg(['No collector handle was supplied. ',...
+                    'DAQ will be unable to acquire data'],...
+                    'Error: No collector');
+            end
+            
             %Initializes empty trace objects
             this.Ref=MyTrace();
             this.Data=MyTrace();
             this.Background=MyTrace();
-            
-            %Initializes empty metadata object
-            this.DataHeader=MyMetadata();
-            this.RefHeader=MyMetadata();
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
@@ -124,10 +118,6 @@ classdef MyDaq < handle
             %Deletes the MyFit objects and their listeners
             cellfun(@(x) deleteListeners(this,x), this.open_fits);
             structfun(@(x) delete(x), this.Fits);
-            
-            %Close the programs and delete their listeners
-            cellfun(@(x) deleteListeners(this, x), this.running_progs);
-            structfun(@(x) delete(x), this.RunningPrograms);
             
             %Deletes other listeners
             if ~isempty(fieldnames(this.Listeners))
@@ -478,62 +468,13 @@ classdef MyDaq < handle
                 tag = hObject.ItemsData{val};
             end
             
-            % Run-files themselves are supposed to prevent duplicated
-            % instances, but let DAQ handle it as well for safety
-            if ismember(tag, this.running_progs) && ...
-                    isvalid(this.RunningPrograms.(tag))
-                % Change focus to the instrument control window
-                fig_handle = findfigure(this.RunningPrograms.(tag));
-                % If unable, try the same for .Gui object inside
-                if isempty(fig_handle) && ...
-                        isprop(this.RunningPrograms.(tag),'Gui')
-                    fig_handle =...
-                        findfigure(this.RunningPrograms.(tag).Gui);
-                end
-                
-                %If we already have the program open and a figure handle
-                %exists, we refresh the figure to change focus
-                if ~isempty(fig_handle)
-                    fig_handle.Visible='off';
-                    fig_handle.Visible='on';
-                    return
-                else
-                    warning('%s shows as open, but no open GUI was found',...
-                        tag);
-                    return
-                end
-                
-            end
-            
             try
                 [~, fname, ~] = fileparts(this.ProgramList.(tag).fullname);
                 prog = feval(fname);
-                this.RunningPrograms.(tag) = evalin('base', prog);
+                evalin('base', prog);
             catch
                 error('Cannot run %s', this.ProgramList.(tag).fullname)
             end
-            
-            % Add listeners to the NewData and ObjectBeingDestroyed events
-            if contains('NewData',events(this.RunningPrograms.(tag)))
-                this.Listeners.(tag).NewData=...
-                    addlistener(this.RunningPrograms.(tag),'NewData',...
-                    @(src, eventdata) acquireNewData(this, src, eventdata));
-                % Compatibility with apps, which store the instrument as a property
-            elseif ~isempty(findMyInstrument(this.RunningPrograms.(tag))) && ...
-                    contains('NewData',events(findMyInstrument(this.RunningPrograms.(tag))))
-                this.Listeners.(tag).NewData=...
-                    addlistener(findMyInstrument(this.RunningPrograms.(tag)),...
-                    'NewData',...
-                    @(src, eventdata) acquireNewData(this, src, eventdata));
-            else
-                warning(['No NewData event found, %s cannot transfer',...
-                    ' data to the DAQ'],tag);
-            end
-            
-            this.Listeners.(tag).Deletion=...
-                addlistener(this.RunningPrograms.(tag),...
-                'ObjectBeingDestroyed',...
-                @(src, eventdata) removeProgram(this, src, eventdata));
         end
         
         %Select trace callback. If we change the trace being analyzed, the
@@ -553,9 +494,6 @@ classdef MyDaq < handle
         end
         
         function saveTrace(this, trace_tag)
-            %Find which header object should be printed, depending on the
-            %trace tag.
-            header_tag=sprintf('%sHeader',trace_tag);
             fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
             
             %Check if the trace is valid (i.e. x and y are equal length)
@@ -565,49 +503,8 @@ classdef MyDaq < handle
                 return
             end
             
-            %Check if the header has the same unique identifier as the
-            %trace, i.e. that they were collected together. If not, ask the
-            %user what to do.
-            if strcmp(this.(trace_tag).uid,this.(header_tag).uid)
-                header_flag=true;
-            else
-                quest_str=sprintf(['UID of Header is %s, while the ',...
-                    'UID of Trace is %s'],...
-                    this.(trace_tag).uid,this.(header_tag).uid);
-                choice= questdlg(quest_str,...
-                    'UID of header does not match data',...
-                    'Yes, write headers anyway',...
-                    'No, continue without headers',...
-                    'Cancel write','Cancel write');
-                switch choice
-                    case 'Yes, write headers anyway'
-                        header_flag=true;
-                        fprintf('Writing %s with headers \n',fullfilename);
-                    case 'No, continue without headers'
-                        header_flag=false;
-                        fprintf('Writing %s without headers \n',fullfilename);
-                    case {'Cancel write',''}
-                        warning(['No file written to %s as headers did ',...
-                            'not match trace'],fullfilename)
-                        return
-                end
-            end
-            
-            %Creates the file without overwriting as a default. The
-            %createFile function checks if the file exists, if it does, it
-            %asks the user. 
-            write_flag=createFile(this.save_dir,fullfilename,false);
-            
-            %Returns if the file was not created
-            if ~write_flag; return; end
-            
-            if header_flag
-                writeAllHeaders(this.(header_tag),fullfilename);
-            end
-            
-            %Uses the unprotected write function of MyTrace, as we are here
-            %writing the headers separately.
-            writeData(this.(trace_tag),fullfilename)
+            %Uses the protected save function of MyTrace
+            save(this.(trace_tag),fullfilename)
         end
         
         %Toggle button callback for showing the data trace.
@@ -650,8 +547,6 @@ classdef MyDaq < handle
                 %Since UID is automatically reset when y is changed, we now
                 %change it back to be the same as the Data.
                 this.Ref.uid=this.Data.uid;
-                %Transfer the header with the data
-                this.RefHeader=this.DataHeader;
                 
                 %Plot the reference trace and make it visible
                 this.Ref.plotTrace(this.main_plot,'Color',this.ref_color,...
@@ -885,12 +780,6 @@ classdef MyDaq < handle
     
     methods (Access=public)
         %% Listener functions 
-        %Callback function for the NewMeasHeaders listener. 
-        %Updates the DataHeader object with new headers.
-        function updateDataHeader(this, Collector)
-            this.DataHeader=Collector.MeasHeaders;
-        end
-        
         %Callback function for NewFit listener. Plots the fit in the
         %window using the plotFit function of the MyFit object
         function plotNewFit(this, src, ~)
@@ -902,38 +791,22 @@ classdef MyDaq < handle
         %Callback function for the NewData listener
         function acquireNewData(this, src, ~)
             val=this.Gui.InstrMenu.Value;
-            if val==1
-                return
-            else
-                tag = this.Gui.InstrMenu.ItemsData{val};
-            end
+            %Returns if we are on dummy option
+            if val==1; return; end
+
             
-            %We see if the source is the currently chosen running program.
-            if src==this.RunningPrograms.(tag) ||...
-                src==findMyInstrument(this.RunningPrograms.(tag))
-                hline=getLineHandle(this.Data,this.main_plot);
-                %Copy the data from the instrument
-                this.Data=copy(src.Trace);
-                %We give the new trace object the right line handle to plot in
-                if ~isempty(hline); this.Data.hlines{1}=hline; end
-                this.Data.plotTrace(this.main_plot,...
-                    'Color',this.data_color,...
-                    'make_labels',true)
-                updateAxis(this);
-                updateCursors(this);
-                updateFits(this);
-            end
-        end
-        
-        %Deletes the object from the RunningPrograms struct
-        function removeProgram(this, src, ~)
-            % Find the object that is being deleted
-            ind=cellfun(@(x) isequal(this.RunningPrograms.(x), src),...
-                this.running_progs);
-            tag=this.running_progs{ind};
-            this.RunningPrograms=rmfield(this.RunningPrograms,tag);
-            %Deletes the listeners from the Listeners struct
-            deleteListeners(this, tag);
+            hline=getLineHandle(this.Data,this.main_plot);
+            %Copy the data from the instrument
+            this.Data=copy(src.Trace);
+            %We give the new trace object the right line handle to plot in
+            if ~isempty(hline); this.Data.hlines{1}=hline; end
+            this.Data.plotTrace(this.main_plot,...
+                'Color',this.data_color,...
+                'make_labels',true)
+            updateAxis(this);
+            updateCursors(this);
+            updateFits(this);
+
         end
         
         %Callback function for MyFit ObjectBeingDestroyed listener. 
@@ -1024,11 +897,6 @@ classdef MyDaq < handle
         %Get function for open fits
         function open_fits=get.open_fits(this)
             open_fits=fieldnames(this.Fits);
-        end
-        
-        %Gets the running programs
-        function running_progs=get.running_progs(this)
-            running_progs=fieldnames(this.RunningPrograms);
         end
         
         %Get function that displays names of open cursors
