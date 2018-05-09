@@ -473,7 +473,7 @@ classdef MyDaq < handle
                 prog = feval(fname);
                 evalin('base', prog);
             catch
-                errordlg('Cannot run %s', this.ProgramList.(tag).fullname)
+                errordlg(sprintf('An error occured while running %s', this.ProgramList.(tag).fullname))
             end
         end
         
