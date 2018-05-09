@@ -96,7 +96,8 @@ classdef MyDaq < handle
             if ~isempty(p.Results.collector_handle)
                 this.Listeners.Collector.NewDataCollected=...
                     addlistener(p.Results.collector_handle,...
-                    'NewDataCollected',@(src,~) acquireNewData(this,src));
+                    'NewDataCollected',...
+                    @(src,event) acquireNewData(this,src,event));
             else
                 errordlg(['No collector handle was supplied. ',...
                     'DAQ will be unable to acquire data'],...
@@ -789,23 +790,26 @@ classdef MyDaq < handle
         end
         
         %Callback function for the NewData listener
-        function acquireNewData(this, src, ~)
+        function acquireNewData(this, src, event)
+            %Get the currently selected instrument
             val=this.Gui.InstrMenu.Value;
-            %Returns if we are on dummy option
-            if val==1; return; end
-
-            hline=getLineHandle(this.Data,this.main_plot);
-            %Copy the data from the collector
-            this.Data=copy(src.Data);
-            %We give the new trace object the right line handle to plot in
-            if ~isempty(hline); this.Data.hlines{1}=hline; end
-            this.Data.plotTrace(this.main_plot,...
-                'Color',this.data_color,...
-                'make_labels',true)
-            updateAxis(this);
-            updateCursors(this);
-            updateFits(this);
-
+            curr_instr_tag=this.Gui.InstrMenu.ItemsData{val};
+            
+            %Check if the data originates from the currently selected
+            %instrument
+            if strcmp(event.src_tag,curr_instr_tag)
+                hline=getLineHandle(this.Data,this.main_plot);
+                %Copy the data from the collector
+                this.Data=copy(src.Data);
+                %We give the new trace object the right line handle to plot in
+                if ~isempty(hline); this.Data.hlines{1}=hline; end
+                this.Data.plotTrace(this.main_plot,...
+                    'Color',this.data_color,...
+                    'make_labels',true)
+                updateAxis(this);
+                updateCursors(this);
+                updateFits(this);
+            end
         end
         
         %Callback function for MyFit ObjectBeingDestroyed listener. 

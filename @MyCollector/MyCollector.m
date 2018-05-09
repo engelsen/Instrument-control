@@ -97,7 +97,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 this.Data.MeasHeaders=copy(this.MeasHeaders);
             end
             
-            triggerNewDataCollected(this);
+            triggerNewDataCollected(this,'tag',src.name);
         end
         
         %Collects headers for open instruments with the header flag on
@@ -124,8 +124,13 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             notify(this,'NewMeasHeaders');
         end
         
-        function triggerNewDataCollected(this)
-            notify(this,'NewDataCollected');
+        function triggerNewDataCollected(this,varargin)
+            p=inputParser;
+            addParameter(p,'tag','',@ischar);
+            parse(p,varargin{:});
+            %Load the information into event data.
+            eventdata=MyNewDataEvent('src_tag',p.Results.tag);
+            notify(this,'NewDataCollected',eventdata);
         end
 
         %deleteListeners is in a separate file
