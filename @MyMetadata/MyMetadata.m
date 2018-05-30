@@ -1,6 +1,5 @@
-classdef MyMetadata < dynamicprops 
+classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     properties
-        uid;
         hdr_spec;
     end
     
@@ -15,14 +14,12 @@ classdef MyMetadata < dynamicprops
     methods
         function [this,varargout]=MyMetadata(varargin)
             p=inputParser;
-            addParameter(p,'uid',genUid())
             addParameter(p,'hdr_spec','==',@ischar);
             addParameter(p,'load_path','',@ischar);
             addParameter(p,'end_header','Data',@ischar);
             
             parse(p,varargin{:});
             
-            this.uid=p.Results.uid;
             this.hdr_spec=p.Results.hdr_spec;
             this.PropHandles=struct();
             
@@ -38,6 +35,8 @@ classdef MyMetadata < dynamicprops
         function addField(this, field_name)
             assert(ischar(field_name),'Field name must be a char');
             this.PropHandles.(field_name)=addprop(this,field_name);
+            this.PropHandles.(field_name).SetAccess='protected';
+            this.PropHandles.(field_name).NonCopyable=false;
             this.(field_name)=struct();
         end
         
@@ -73,6 +72,22 @@ classdef MyMetadata < dynamicprops
                 addParam(this,field_name, ...
                     param_names{i},tmp.value,tmp.str_spec);
             end
+        end
+        
+        function addMetadata(this, Metadata)
+           assert(isa(Metadata,'MyMetadata'),...
+               'Input must be of class MyMetadata, current input is %s',...
+               class(Metadata));
+           assert(~any(ismember(this.field_names,Metadata.field_names)),...
+               ['The metadata being added contain fields with the same ',...
+               'name. This conflict must be resolved before adding'])
+           for i=1:length(Metadata.field_names)
+               fn=Metadata.field_names{i};
+               addField(this,fn);
+               cellfun(@(x) addParam(this,fn,x,...
+                   Metadata.(fn).(x).value,Metadata.(fn).(x).str_spec),...
+                   fieldnames(Metadata.(fn)));
+           end
         end
         
         %Adds a parameter to a specified field. The field must be created
@@ -222,5 +237,6 @@ classdef MyMetadata < dynamicprops
         function field_names=get.field_names(this)
             field_names=fieldnames(this.PropHandles);
         end
+        
     end
 end
