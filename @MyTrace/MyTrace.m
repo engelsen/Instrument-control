@@ -13,7 +13,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         load_path='';
         %Cell that contains handles the trace is plotted in
         hlines={};
-
         uid='';
     end
     
@@ -22,6 +21,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     end
     
     properties (Dependent=true)
+        %Contains the MeasHeaders
+        Metadata
         label_x;
         label_y;
     end
@@ -38,6 +39,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             addParameter(p,'name_y','y',@ischar);
             addParameter(p,'load_path','',@ischar);
             addParameter(p,'uid','',@ischar);
+            addParameter(p,'MeasHeaders',MyMetadata(),...
+                @(x) isa(x,'MyMetadata'));
             this.Parser=p;
         end
         
@@ -93,7 +96,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             write_flag=createFile(save_dir,fullfilename,overwrite_flag);
             
             %Returns if the file is not created for some reason 
-            if ~write_flag; 
+            if ~write_flag 
                 error('File not created, returned write_flag %i',write_flag);
             end
             
@@ -115,22 +118,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             save_prec=p.Results.save_prec;
             
             fileID=fopen(fullfilename,'a');
-            %Creates the Metadata structure.
-            Metadata=MyMetadata('uid',this.uid);
-            addField(Metadata,'Info');
-            addParam(Metadata,'Info','uid',this.uid,'%s');
-            addParam(Metadata,'Info','Name1',this.name_x,'%s');
-            addParam(Metadata,'Info','Name2',this.name_y,'%s');
-            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
-            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+
 
             
             %Writes the metadata header
-            writeHeader(Metadata,fullfilename,'Info',...
-                'title','Trace information');
-            
+            writeAllHeaders(this.Metadata,fullfilename);
             %Puts in header title for the data
-            fprintf(fileID,[Metadata.hdr_spec,'Data',Metadata.hdr_spec,'\r\n']);
+            fprintf(fileID,...
+                [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
             
             %Finds appropriate column width
             cw=max([length(this.label_y),length(this.label_x),...
@@ -308,10 +303,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function fwhm=calcFwhm(this)
             assert(validatePlot(this),['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to find the fwhm'])
-            [max_val,~]=max(this);
-            ind1=find(this.y>max_val/2,1,'first');
-            ind2=find(this.y>max_val/2,1,'last');
-            fwhm=this.x(ind2)-this.x(ind1);
+            [~,~,fwhm,~]=findPeaks(this.y,this.x,'NPeaks',1);
         end
         
         %Integrates the trace numerically
@@ -378,6 +370,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     
     %Set and get methods
     methods
+        %Set function for MeasHeaders
+        function set.MeasHeaders(this, MeasHeaders)
+            assert(isa(MeasHeaders,'MyMetadata'),...
+                ['MeasHeaders must be an instance of MyMetadata, ',...
+                'it is %s'],class(MeasHeaders));
+            this.MeasHeaders=MeasHeaders;
+        end
+        
         %Set function for x, checks if it is a vector of doubles.
         function set.x(this, x)
             assert(isnumeric(x),...
@@ -443,5 +443,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
         end
         
+        %Generates the full metadata of the trace
+        function Metadata=get.Metadata(this)
+            %First we update the trace information
+            Metadata=MyMetadata();
+            addField(Metadata,'Info');
+            addParam(Metadata,'Info','uid',this.uid,'%s');
+            addParam(Metadata,'Info','Name1',this.name_x,'%s');
+            addParam(Metadata,'Info','Name2',this.name_y,'%s');
+            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
+            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+            
+            addMetadata(Metadata,this.MeasHeaders);
+        end
     end
 end

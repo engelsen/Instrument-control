@@ -1,8 +1,9 @@
-classdef MyCollector < handle
+classdef MyCollector < handle & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
         InstrProps=struct();
         InstrList=struct();
-        MeasHeaders=struct();
+        MeasHeaders=MyMetadata();
+        Data=MyTrace();
         collect_flag;
     end
     
@@ -15,7 +16,7 @@ classdef MyCollector < handle
     end
     
     events
-        NewMeasHeaders;
+        NewDataCollected;
     end
     
     methods (Access=public)
@@ -48,7 +49,7 @@ classdef MyCollector < handle
             elseif ~isempty(findMyInstrument(prog_handle))
                 h_instr=findMyInstrument(prog_handle);
                 if isprop(h_instr,'name') && ~isempty(h_instr.name)
-                    name=h_Instr.name;
+                    name=h_instr.name;
                 else
                     name=p.Results.name;
                 end
@@ -72,10 +73,10 @@ classdef MyCollector < handle
             end
             
             %If the added instrument has a newdata event, we add a listener for it.
-            if contains('NewData',events(prog_handle))
+            if contains('NewData',events(this.InstrList.(name)))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
-                    @(src,~) collectHeaders(this,src));
+                    @(src,~) acquireData(this,src));
             end
             
             %Cleans up if the instrument is closed
@@ -84,17 +85,27 @@ classdef MyCollector < handle
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function collectHeaders(this,src)
-            %If the collect flag is not active, do nothing
-            if ~this.collect_flag; return; end
+        function acquireData(this,src)
+            %Copy the data from the instrument. 
+            this.Data=copy(src.Trace);
             
-            if isprop(src,'Trace') && isprop(src.Trace,'uid')
-                this.MeasHeaders=MyMetadata('uid',src.Trace.uid);
-            else
+            %Collect the headers if the flag is on
+            if this.collect_flag     
                 this.MeasHeaders=MyMetadata();
+                addField(this.MeasHeaders,'AcquiringInstrument')
+                if isprop(src,'name')
+                    name=src.name;
+                else
+                    name='Not Accessible';
+                end
+                addParam(this.MeasHeaders,'AcquiringInstrument',...
+                    'Name',name,'%s');
+                acquireHeaders(this);
+                %We copy the MeasHeaders to the trace.
+                this.Data.MeasHeaders=copy(this.MeasHeaders);
             end
             
-            acquireHeaders(this);
+            triggerNewDataCollected(this,'tag',src.name);
         end
         
         %Collects headers for open instruments with the header flag on
@@ -108,9 +119,6 @@ classdef MyCollector < handle
                     addStructToField(this.MeasHeaders,name,tmp_struct);
                 end
             end
-            
-            %Triggers the event showing measurement headers are ready
-            triggerMeasHeaders(this);
         end
         
         function clearHeaders(this)
@@ -122,6 +130,15 @@ classdef MyCollector < handle
     methods (Access=private)
         function triggerMeasHeaders(this)
             notify(this,'NewMeasHeaders');
+        end
+        
+        function triggerNewDataCollected(this,varargin)
+            p=inputParser;
+            addParameter(p,'tag','',@ischar);
+            parse(p,varargin{:});
+            %Load the information into event data.
+            eventdata=MyNewDataEvent('src_tag',p.Results.tag);
+            notify(this,'NewDataCollected',eventdata);
         end
 
         %deleteListeners is in a separate file
