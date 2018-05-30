@@ -62,7 +62,11 @@ classdef MyPeakFinderGui < handle
         end
         
         function fitPeakCallback(this,~,~)
+            %Clean up fit names
+            fit_names=cellfun(@(x) erase(x,' '), this.Gui.SelFitList.String,...
+                'UniformOutput',false);
             fitAllPeaks(this.PeakFinder,...
+                'FitNames',fit_names,...
                 'base_dir',this.base_dir,...
                 'session_name',this.session_name,...
                 'filename',this.filename);
@@ -174,6 +178,20 @@ classdef MyPeakFinderGui < handle
         function clearPeaksCallback(this,~,~)
             clearPeaks(this.PeakFinder);
             delete(this.peak_handle);
+        end
+        
+        %Add a fit to the selected list
+        function addFitCallback(this,~,~)
+            val=this.Gui.FitList.Value;
+            this.Gui.SelFitList.String{end+1}=this.Gui.FitList.String{val};
+            this.Gui.FitList.String(val)=[];
+        end
+        
+        %Remove fits from selected fits
+        function removeFitCallback(this,~,~)
+            val=this.Gui.SelFitList.Value;
+            this.Gui.FitList.String{end+1}=this.Gui.SelFitList.String{val};
+            this.Gui.SelFitList.String(val)=[];
         end
     end
     
