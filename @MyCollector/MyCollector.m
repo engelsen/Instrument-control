@@ -92,6 +92,9 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             %Collect the headers if the flag is on
             if this.collect_flag     
                 this.MeasHeaders=MyMetadata();
+                addField(this.MeasHeaders,'AcquiringInstrument')
+                addParam(this.MeasHeaders,'AcquiringInstrument',...
+                    'Name',src.name,'%s');
                 acquireHeaders(this);
                 %We copy the MeasHeaders to the trace.
                 this.Data.MeasHeaders=copy(this.MeasHeaders);
