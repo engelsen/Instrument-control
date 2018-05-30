@@ -8,11 +8,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         name_y='y';
         unit_x='';
         unit_y='';
+        %Information about how the trace was taken
+        MeasHeaders=MyMetadata();
         load_path='';
         %Cell that contains handles the trace is plotted in
         hlines={};
-        %Information about how the trace was taken
-        MeasHeaders=MyMetadata();
         uid='';
     end
     
