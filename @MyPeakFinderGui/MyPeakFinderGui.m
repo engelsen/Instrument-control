@@ -241,5 +241,5 @@ classdef MyPeakFinderGui < handle
         function save_dir=get.save_dir(this)
             save_dir=createSessionPath(this.base_dir,this.session_name);
         end
-    end       
+    end
 end
