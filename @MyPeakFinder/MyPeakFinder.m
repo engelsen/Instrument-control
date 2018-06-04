@@ -46,6 +46,7 @@ classdef MyPeakFinder < handle
             addParameter(p,'ClearPeaks',true);
             addParameter(p,'Limits',[min(this.Trace.x),max(this.Trace.x)])
             addParameter(p,'NPeaks',0);
+            addParameter(p,'WidthReference','halfprom')
             parse(p,varargin{:});
             
             %Sets the indices to be searched
@@ -99,7 +100,9 @@ classdef MyPeakFinder < handle
                 'MaxPeakWidth',p.Results.MaxPeakWidth,...
                 'SortStr',p.Results.SortStr,...
                 'MinPeakProminence',min_peak_prominence,...
-                'Threshold',p.Results.Threshold,extra_args{:});
+                'Threshold',p.Results.Threshold,...
+                'WidthReference',p.Results.WidthReference,...
+                extra_args{:});
             
             %We invert the results back if we are looking for minima.
             if p.Results.FindMinima
@@ -134,17 +137,25 @@ classdef MyPeakFinder < handle
                     
                     %We try to find which vectors are x and y for the data,
                     %first we find the two longest vectors in the .mat file
+                    %and use these
                     vec_length=structfun(@(x) length(x), DataStruct);
-                    max_val=max(vec_length);
-                    ind=(max_val==vec_length);
-                    assert(sum(ind)==2,['There are %i vectors with length %i, ',...
-                        'cannot determine which are the data vectors'],...
-                        sum(ind),max_val);
-                    vec_names=fields(ind);
+                    [~,sort_ind]=sort(vec_length,'descend');
+                    vec_names=fields(sort_ind(1:2));
+
                     %Now we do some basic conditioning of these vectors:
                     %Make column vectors and remove NaNs.
                     vec{1}=DataStruct.(vec_names{1})(:);
                     vec{2}=DataStruct.(vec_names{2})(:);
+                    
+                    %If there is a start and stopindex, cut down the
+                    %longest vector to size.
+                    if ismember('startIndex',fields) && ...
+                            ismember('stopIndex',fields)
+                        [~,ind]=max(cellfun(@(x) length(x), vec));
+                        vec{ind}=vec{ind}(DataStruct.startIndex:...
+                            DataStruct.stopIndex);
+                    end
+                    
                     nan_ind=isnan(vec{1}) | isnan(vec{2});
                     vec{1}(nan_ind)=[];
                     vec{2}(nan_ind)=[];
@@ -152,19 +163,21 @@ classdef MyPeakFinder < handle
                     %We find what x is by looking for a sorted vector
                     ind_x=cellfun(@(x) issorted(x,'monotonic'),vec);
                     
+                    
                     this.Trace.x=vec{ind_x};
                     this.Trace.y=vec{~ind_x};
+                    
+                    if ismember('offsetFrequency',fields)
+                       this.Trace.x=this.Trace.x+DataStruct.offsetFrequency; 
+                    end
                 otherwise
                     error('File type %s is not supported',ext)
             end
         end
         
-        function fitAllPeaks(this,varargin)
-            valid_fits={'Lorentzian','DoubleLorentzian','Gaussian'};
-            validate_fit=@(x) all(ismember(x,valid_fits));
-            
+        function fitAllPeaks(this,varargin)            
             p=inputParser;
-            addParameter(p,'FitNames',{'Gorodetsky2000'},validate_fit);
+            addParameter(p,'FitNames',{'Gorodetsky2000'});
             addParameter(p,'base_dir',pwd);
             addParameter(p,'session_name','placeholder');
             addParameter(p,'filename','placeholder');
@@ -179,7 +192,8 @@ classdef MyPeakFinder < handle
                     'enable_gui',0);
                 Fits.(fit_names{i}).base_dir=p.Results.base_dir;
                 Fits.(fit_names{i}).session_name=p.Results.session_name;
-                Fits.(fit_names{i}).filename=p.Results.filename;
+                Fits.(fit_names{i}).filename=...
+                    [p.Results.filename,'_',fit_names{i}];
             end
             
             %We fit the peaks 
@@ -194,16 +208,17 @@ classdef MyPeakFinder < handle
                     fitTrace(Fits.(fit_names{j}));
                     saveParams(Fits.(fit_names{j}),...
                         'save_user_params',false,...
-                        'save_gof',true)
-                    Fits.(fit_names{j}).FitInfo
+                        'save_gof',true);
                 end
             end
+            
+            fprintf('Finished fitting peaks \n');
         end
         
         function [x_peak,y_peak]=extractPeak(this,peak_no)
             loc=this.Peaks(peak_no).Location;
             w=this.Peaks(peak_no).Width;
-            ind=(loc-5*w<this.Trace.x) & (loc+5*w>this.Trace.x);
+            ind=(loc-8*w<this.Trace.x) & (loc+8*w>this.Trace.x);
             x_peak=this.Trace.x(ind);
             y_peak=this.Trace.y(ind);
         end

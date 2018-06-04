@@ -469,12 +469,18 @@ classdef MyDaq < handle
                 tag = hObject.ItemsData{val};
             end
             
-            try
-                [~, fname, ~] = fileparts(this.ProgramList.(tag).fullname);
-                prog = feval(fname);
-                evalin('base', prog);
-            catch
-                errordlg(sprintf('An error occured while running %s', this.ProgramList.(tag).fullname))
+            if ~isopen(this.Collector,tag)
+                try 
+                    [~, fname, ~] =...
+                        fileparts(this.ProgramList.(tag).fullname);
+                    prog = feval(fname);
+                    evalin('base', prog);
+                catch
+                    errordlg(sprintf('An error occured while running %s',...
+                        this.ProgramList.(tag).fullname))
+                end
+            else
+                %Get trace and plot
             end
         end
         

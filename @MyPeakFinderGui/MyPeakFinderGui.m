@@ -45,7 +45,8 @@ classdef MyPeakFinderGui < handle
             searchPeaks(this.PeakFinder,...
                 'MinPeakProminence',str2double(this.Gui.PromEdit.String),...
                 'MinPeakDistance',str2double(this.Gui.SepEdit.String),...
-                'FindMinima',this.Gui.MinimaCheck.Value);
+                'FindMinima',this.Gui.MinimaCheck.Value,...
+                'WidthReference','halfprom');
             plotPeaks(this);
             src.BackgroundColor=[0.94,0.94,0.94];
             src.String='Analyze';
@@ -240,5 +241,5 @@ classdef MyPeakFinderGui < handle
         function save_dir=get.save_dir(this)
             save_dir=createSessionPath(this.base_dir,this.session_name);
         end
-    end
+    end       
 end
