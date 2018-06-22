@@ -163,7 +163,6 @@ classdef MyPeakFinder < handle
                     %We find what x is by looking for a sorted vector
                     ind_x=cellfun(@(x) issorted(x,'monotonic'),vec);
                     
-                    
                     this.Trace.x=vec{ind_x};
                     this.Trace.y=vec{~ind_x};
                     

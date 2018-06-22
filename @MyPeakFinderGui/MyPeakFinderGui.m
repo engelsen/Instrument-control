@@ -184,15 +184,33 @@ classdef MyPeakFinderGui < handle
         %Add a fit to the selected list
         function addFitCallback(this,~,~)
             val=this.Gui.FitList.Value;
+            if val==0; return; end
+            
             this.Gui.SelFitList.String{end+1}=this.Gui.FitList.String{val};
             this.Gui.FitList.String(val)=[];
+            if val>length(this.Gui.FitList.String)
+                this.Gui.FitList.Value=length(this.Gui.FitList.String);
+            end
+            
+            if this.Gui.SelFitList.Value==0
+                this.Gui.SelFitList.Value=1;
+            end
         end
         
         %Remove fits from selected fits
         function removeFitCallback(this,~,~)
             val=this.Gui.SelFitList.Value;
+            if val==0; return; end
+            
             this.Gui.FitList.String{end+1}=this.Gui.SelFitList.String{val};
             this.Gui.SelFitList.String(val)=[];
+            if val>length(this.Gui.SelFitList.String)
+                this.Gui.SelFitList.Value=length(this.Gui.SelFitList.String);
+            end
+            
+            if this.Gui.FitList.Value==0
+                this.Gui.FitList.Value=1;
+            end
         end
     end
     

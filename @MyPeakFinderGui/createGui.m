@@ -1,5 +1,6 @@
 function createGui(this)
-fit_list={'Lorentzian','LorentzianGrad','Double Lorentzian', 'Gorodetsky2000'};
+fit_list={'Lorentzian','LorentzianGrad','Double Lorentzian',...
+    'Gorodetsky2000','Gorodetsky2000Plus'};
 fig_width=1000;
 fig_h=800;
 
