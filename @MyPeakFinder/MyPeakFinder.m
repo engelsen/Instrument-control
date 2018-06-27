@@ -218,7 +218,7 @@ classdef MyPeakFinder < handle
             loc=this.Peaks(peak_no).Location;
             w=this.Peaks(peak_no).Width;
             ind=(loc-8*w<this.Trace.x) & (loc+8*w>this.Trace.x);
-            x_peak=this.Trace.x(ind);
+            x_peak=this.Trace.x(ind)-loc;
             y_peak=this.Trace.y(ind);
         end
         
