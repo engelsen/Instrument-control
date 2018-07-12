@@ -15,7 +15,8 @@ function file_created=createFile(fullfilename,varargin)
     end
 
     if exist(fullfilename,'file') && ~p.Results.overwrite
-        switch questdlg('Would you like to overwrite?',...
+        switch questdlg(...
+                'File already exists. Would you like to overwrite?',...
                 'File already exists', 'Yes', 'No', 'No')
             case 'Yes'
                 fprintf('Overwriting file at %s\n',fullfilename);

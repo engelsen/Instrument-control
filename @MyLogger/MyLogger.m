@@ -9,7 +9,7 @@ classdef MyLogger < handle
         MeasFcn;
         save_cont = false;
         save_file = '';
-        data_headers = []; % Cell array of column headers
+        data_headers = {}; % Cell array of column headers
     end
     
     properties (SetAccess=protected, GetAccess=public)
@@ -64,7 +64,7 @@ classdef MyLogger < handle
                     if exstat==0
                         % if the file does not exist, create it and write
                         % header names
-                        createFile(this.save_file)
+                        createFile(this.save_file);
                         fid = fopen(this.save_file,'w');
                         writeColumnHeaders(this, fid);
                     else
@@ -117,7 +117,8 @@ classdef MyLogger < handle
         end
                
         function writeColumnHeaders(this, fid)
-            fprintf(fid, '  POSIX time, s');
+            % write data headers to file if specified
+            fprintf(fid, 'POSIX time [s]');
             for i=1:length(this.data_headers)
                 fprintf(fid, ['%',this.DATA_FIELD_WIDTH,'s'],...
                     this.data_headers{i});
@@ -126,11 +127,11 @@ classdef MyLogger < handle
         end
         
         function start(this)
-            start(this.T)
+            start(this.MeasTimer);
         end
         
         function stop(this)
-            stop(this.T)
+            stop(this.MeasTimer);
         end
     end
 end
