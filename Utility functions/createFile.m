@@ -1,3 +1,5 @@
+% Function creates file, if necessary together with subdirectory, and shows
+% a dialog if the file with such name already exisits
 function file_created=createFile(fullfilename,varargin)
     p=inputParser();
     addRequired(p,'fullfilename',@ischar);

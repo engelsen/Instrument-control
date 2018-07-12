@@ -1,7 +1,9 @@
 % Generic logger that executes MeasFcn according to MeasTimer, stores the
 % results and optionally continuously saves them. MeasFcn should be a
-% function with no arguments.
-classdef MyLogger
+% function with no arguments. Saving functionality works properly if 
+% MeasFcn returns a number or array of numbers, while intrinsically the 
+% logger can store any kind of outputs.
+classdef MyLogger < handle
     properties
         MeasTimer; % Timer object
         MeasFcn;
@@ -20,6 +22,7 @@ classdef MyLogger
     
     properties (Constant=true)
         TIME_FMT = '%14.3f'; % Save time as posixtime up to ms precision
+        DATA_FIELD_WIDTH = '24';
         DATA_FMT = '%24.14e'; % Save data as reals with 14 decimal digits
     end
     
@@ -57,12 +60,16 @@ classdef MyLogger
             % last measurement was succesful
             if this.save_cont&&(this.last_meas_stat==1)
                 try
-                    exid = exist(this.save_file,'file');
-                    fid = fopen(this.save_file,'a');
-                    if exid==0
-                        % if the file was just created, write column
-                        % headers
+                    exstat = exist(this.save_file,'file');
+                    if exstat==0
+                        % if the file does not exist, create it and write
+                        % header names
+                        createFile(this.save_file)
+                        fid = fopen(this.save_file,'w');
                         writeColumnHeaders(this, fid);
+                    else
+                        % otherwise open for appending
+                        fid = fopen(this.save_file,'a');
                     end
                     fprintf(fid, this.TIME_FMT, posixtime(time));
                     fprintf(fid, this.DATA_FMT, meas_result);
@@ -71,24 +78,49 @@ classdef MyLogger
                 catch
                     warning(['Logger cannot save data at time = ',...
                         datestr(time)]);
+                    % Try closing fid in case it is still open
+                    try
+                        fclose(fid);
+                    catch
+                    end
                 end
             end
         end
         
+        % save the entire data record
         function saveLog(this)
-            exid = exist(this.save_file,'file');
-            if exid~=0
-                % if the file already exists
+            try
+            	createFile(this.save_file);
+                fid = fopen(this.save_file,'w');
                 writeColumnHeaders(this, fid);
+                for i=1:length(this.timestamps)
+                    fprintf(fid, this.TIME_FMT,...
+                        posixtime(this.timestamps(i)));
+                    fprintf(fid, this.DATA_FMT,...
+                        this.data{i});
+                    fprintf(fid,'\r\n');
+                end
+                fclose(fid);
+            catch
+                warning('Data was not saved');
+                % Try closing fid in case it is still open
+                try
+                    fclose(fid);
+                catch
+                end
             end
-            fid = fopen(this.save_file,'w');
-            fclose(fid);
+        end
+        
+        function clearLog(this)
+            this.timestamps = [];
+            this.data = [];
         end
                
         function writeColumnHeaders(this, fid)
             fprintf(fid, '  POSIX time, s');
             for i=1:length(this.data_headers)
-                fprintf(fid, '24%s', this.data_headers{i});
+                fprintf(fid, ['%',this.DATA_FIELD_WIDTH,'s'],...
+                    this.data_headers{i});
             end
             fprintf(fid,'\r\n');
         end
