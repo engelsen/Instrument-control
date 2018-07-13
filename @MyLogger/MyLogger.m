@@ -4,7 +4,7 @@
 % MeasFcn returns a number or array of numbers, while intrinsically the 
 % logger can store any kind of outputs.
 classdef MyLogger < handle
-    properties
+    properties (Access=public)
         MeasTimer; % Timer object
         MeasFcn;
         save_cont = false;
@@ -13,24 +13,27 @@ classdef MyLogger < handle
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        %Trace = MyTrace(); % Trace object for communication with Daq
+        % Trace = MyTrace(); % Trace object for communication with Daq
         timestamps = []; % Times at which data was aqcuired
         data = []; % Stored cell array of measurements
         last_meas_stat = 2; % If last measurement was succesful
-        %0-false, 1-true, 2-never measured 
-    end
-    
-    properties (Constant=true)
-        TIME_FMT = '%14.3f'; % Save time as posixtime up to ms precision
-        DATA_FIELD_WIDTH = '24';
-        DATA_FMT = '%24.14e'; % Save data as reals with 14 decimal digits
+        % 0-false, 1-true, 2-never measured
+        
+        % format specifiers for data saving
+        time_fmt = '%14.3f'; % Save time as posixtime up to ms precision
+        data_field_width = '24';
+        data_fmt = '%24.14e'; % Save data as reals with 14 decimal digits
     end
     
     methods
-        function this = MyLogger(MeasFcn,varargin)
-            this.MeasFcn = MeasFcn;            
+        function this = MyLogger(varargin)
+            p=inputParser();
+            % Ignore unmatched parameters
+            p.KeepUnmatched = true;
+            filt_varargin = parseClassInputs(p, this, varargin{:});
+                 
             % Create and confitugure timer
-            this.MeasTimer = timer(varargin{:});
+            this.MeasTimer = timer(filt_varargin{:});
             this.MeasTimer.BusyMode = 'queue';
             this.MeasTimer.ExecutionMode = 'FixedRate';
             this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event); 
@@ -38,8 +41,8 @@ classdef MyLogger < handle
         
         function delete(this)         
             %stop and delete the timer
-            stop(this.T);
-            delete(this.T);
+            stop(this.MeasTimer);
+            delete(this.MeasTimer);
         end
         
         function LoggerFcn(this, event)
@@ -72,7 +75,7 @@ classdef MyLogger < handle
                         fid = fopen(this.save_file,'a');
                     end
                     fprintf(fid, this.TIME_FMT, posixtime(time));
-                    fprintf(fid, this.DATA_FMT, meas_result);
+                    fprintf(fid, this.data_fmt, meas_result);
                     fprintf(fid,'\r\n');
                     fclose(fid);
                 catch
@@ -96,7 +99,7 @@ classdef MyLogger < handle
                 for i=1:length(this.timestamps)
                     fprintf(fid, this.TIME_FMT,...
                         posixtime(this.timestamps(i)));
-                    fprintf(fid, this.DATA_FMT,...
+                    fprintf(fid, this.data_fmt,...
                         this.data{i});
                     fprintf(fid,'\r\n');
                 end
@@ -120,7 +123,7 @@ classdef MyLogger < handle
             % write data headers to file if specified
             fprintf(fid, 'POSIX time [s]');
             for i=1:length(this.data_headers)
-                fprintf(fid, ['%',this.DATA_FIELD_WIDTH,'s'],...
+                fprintf(fid, ['%',this.data_field_width,'s'],...
                     this.data_headers{i});
             end
             fprintf(fid,'\r\n');
