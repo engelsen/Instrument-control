@@ -32,7 +32,7 @@ classdef MyTpg < MyInstrument
         end
         
         % read pressure from a single channel or both channels at a time
-        function [st_code1, p1, st_code2, p2] = readPressure(this)
+        function [p1, p2] = readPressure(this)
             fopen(this.Device);
             query(this.Device,['PRX',this.CR,this.LF]);
             str = query(this.Device,this.ENQ);

@@ -1,4 +1,5 @@
-% Parse varargin and assign results to class properties
+% Add class properties to the parsing scheme, parse varargin and 
+% assign results to class properties
 function unmatched_varargin = parseClassInputs(p, Object, varargin)
     % Add all class properties, which do not present in the parser scheme
     % yet, to the scheme

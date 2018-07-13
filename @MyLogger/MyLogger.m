@@ -5,8 +5,8 @@
 % logger can store any kind of outputs.
 classdef MyLogger < handle
     properties (Access=public)
-        MeasTimer; % Timer object
-        MeasFcn;
+        MeasTimer = []; % Timer object
+        MeasFcn = @()0;
         save_cont = false;
         save_file = '';
         data_headers = {}; % Cell array of column headers
@@ -32,11 +32,14 @@ classdef MyLogger < handle
             p.KeepUnmatched = true;
             filt_varargin = parseClassInputs(p, this, varargin{:});
                  
-            % Create and confitugure timer
-            this.MeasTimer = timer(filt_varargin{:});
-            this.MeasTimer.BusyMode = 'queue';
-            this.MeasTimer.ExecutionMode = 'FixedRate';
-            this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event); 
+            if ~isa(this.MeasTimer,'timer')
+                % Create and confitugure timer unless it was supplied
+                % externally in varargin
+                this.MeasTimer = timer(filt_varargin{:});
+                this.MeasTimer.BusyMode = 'queue';
+                this.MeasTimer.ExecutionMode = 'FixedRate';
+                this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
+            end 
         end
         
         function delete(this)         
