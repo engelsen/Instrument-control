@@ -72,12 +72,12 @@ classdef MyTpg < MyInstrument
             this.pressure_unit = pu;
         end
         
-        function readGaugeId(this)
+        function id_list = readGaugeId(this)
             openDevice(this);
             query(this.Device,['TID',this.CR,this.LF]);
             str = query(this.Device,this.ENQ);
             closeDevice(this);
-            id_list = strsplit(str,{',',' '});
+            id_list = deblank(strsplit(str,{',',' '}));
             this.gauge_id1 = id_list{1};
             this.gauge_id2 = id_list{2};
         end
@@ -86,7 +86,7 @@ classdef MyTpg < MyInstrument
         function str = gaugeStatusFromCode(~, code)
             switch int8(code)
                 case 0
-                    str = 'Measurement data okay';
+                    str = 'Measurement data ok';
                 case 1
                     str = 'Underrange';
                 case 2
