@@ -5,12 +5,12 @@ classdef MyTpg < MyInstrument
     
     properties (Constant=true)
         % Named constants for communication
-        ETX = 3; % end of text
-        CR = 13; % carriage return
-        LF = 10; % line feed
-        ENQ = 5; % enquiry
-        ACK = 6; % acknowledge
-        NAK = 21; % negative acknowledge
+        ETX = char(3); % end of text
+        CR = char(13); % carriage return
+        LF = char(10); %#ok<CHARTEN> % line feed
+        ENQ = char(5); % enquiry
+        ACK = char(6); % acknowledge
+        NAK = char(21); % negative acknowledge
     end
     
     properties (SetAccess=protected, GetAccess=public)
@@ -32,11 +32,11 @@ classdef MyTpg < MyInstrument
         end
         
         % read pressure from a single channel or both channels at a time
-        function [p1, p2] = readPressure(this)
-            fopen(this.Device);
+        function p_arr = readPressure(this)
+            openDevice(this);
             query(this.Device,['PRX',this.CR,this.LF]);
             str = query(this.Device,this.ENQ);
-            fclose(this.Device);           
+            closeDevice(this);          
             % Extract pressure and gauge status from reading.
             % Status codes:
             % 0 –> Measurement data okay
@@ -46,19 +46,20 @@ classdef MyTpg < MyInstrument
             % 4 –> Sensor off (IKR, PKR, IMR, PBR)
             % 5 –> No sensor (output: 5,2.0000E-2 [hPa])
             % 6 –> Identification error  
-            [st_code1, p1, st_code2, p2] = sscanf(str,'%i,%e,%i,%e');
-            this.pressure1 = p1;
-            this.pressure2 = p2;
-            this.stat1 = gaugeStatusFromCode(this, st_code1);
-            this.stat2 = gaugeStatusFromCode(this, st_code2);
+            arr = sscanf(str,'%i,%e,%i,%e');
+            p_arr=arr(2:2:end);
+            this.pressure1 = p_arr(1);
+            this.pressure2 = p_arr(2);
+            this.stat1 = gaugeStatusFromCode(this, arr(1));
+            this.stat2 = gaugeStatusFromCode(this, arr(3));
             triggerNewData(this);
         end
         
         function pu = readPressureUnit(this)
-            fopen(this.Device);
+            openDevice(this);
             query(this.Device,['UNI',this.CR,this.LF]);
             str = query(this.Device,this.ENQ);
-            fclose(this.Device);
+            closeDevice(this);
             % Pressure units correspondence table:
             % 0 –> mbar/bar
             % 1 –> Torr
@@ -72,10 +73,10 @@ classdef MyTpg < MyInstrument
         end
         
         function readGaugeId(this)
-            fopen(this.Device);
+            openDevice(this);
             query(this.Device,['TID',this.CR,this.LF]);
             str = query(this.Device,this.ENQ);
-            fclose(this.Device);
+            closeDevice(this);
             id_list = strsplit(str,{',',' '});
             this.gauge_id1 = id_list{1};
             this.gauge_id2 = id_list{2};
@@ -83,7 +84,7 @@ classdef MyTpg < MyInstrument
         
         % Convert numerical code for gauge status to a string
         function str = gaugeStatusFromCode(~, code)
-            switch code
+            switch int8(code)
                 case 0
                     str = 'Measurement data okay';
                 case 1
@@ -106,7 +107,7 @@ classdef MyTpg < MyInstrument
         
         % Convert numerical code for pressure unit to a string
         function str = pressureUnitFromCode(~, code)
-            switch code
+            switch int8(code)
                 case 0
                     str = 'mbar';
                 case 1
