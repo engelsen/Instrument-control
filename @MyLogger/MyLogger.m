@@ -54,7 +54,7 @@ classdef MyLogger < handle
                 meas_result = this.MeasFcn();
                 % append measurement result together with time stamp
                 this.timestamps=[this.timestamps; time];
-                this.data=[this.data, {meas_result}];
+                this.data=[this.data; {meas_result}];
                 this.last_meas_stat=1; % last measurement ok
             catch
                 warning(['Logger cannot take measurement at time = ',...

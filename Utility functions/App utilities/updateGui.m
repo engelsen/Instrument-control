@@ -6,19 +6,20 @@
 % InputPrescaler is applied to the property value first
 function updateGui(app, varargin)
     if ~isempty(varargin)
-        Obj = varargin{1};
+        SrcObj = varargin{1};
     elseif isprop(app, 'Instr')
         % app.Instr is a MyInstrument object, default choice
-        Obj = app.Instr;
+        SrcObj = app.Instr;
     else
-        error('Cannot update gui');
+        error('Source object is not provided for gui update');
     end
     
     for i=1:length(app.linked_elem_list)
         tmpelem = app.linked_elem_list(i);
-        if isprop(Obj, tmpelem.Tag)
-            % update the element value
-            tmpval = Obj.(tmpelem.Tag);
+        try
+            % update the element value based on Obj.(tag), 
+            % where tag can contain a reference to sub-objects
+            tmpval = getSubProperty(SrcObj, tmpelem.Tag);
             % scale the value if the control element has a prescaler
             if isprop(tmpelem, 'OutputProcessingFcn')
                 tmpval = tmpelem.OutputProcessingFcn(tmpval);
@@ -26,7 +27,7 @@ function updateGui(app, varargin)
                 tmpval = tmpval*tmpelem.InputPrescaler;
             end
             tmpelem.Value = tmpval;
-        else
+        catch
         end
     end
 end
