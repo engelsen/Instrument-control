@@ -32,7 +32,7 @@ classdef MyLogger < handle
             p.KeepUnmatched = true;
             filt_varargin = parseClassInputs(p, this, varargin{:});
                  
-            if ~isa(this.MeasTimer,'timer')
+            if ismember('MeasTimer', p.UsingDefaults)
                 % Create and confitugure timer unless it was supplied
                 % externally in varargin
                 this.MeasTimer = timer(filt_varargin{:});

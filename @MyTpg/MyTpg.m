@@ -14,15 +14,18 @@ classdef MyTpg < MyInstrument
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        pressure1;
-        pressure2;
+        pressure1 = 0; % numeric values of pressure
+        pressure2 = 0;
         stat1;
         stat2;
-%         gauge_on1;
-%         gauge_on2;
         gauge_id1;
         gauge_id2;
-        pressure_unit;
+        pressure_unit = '';
+    end
+    
+    properties (Dependent=true)
+        pressure_str1; % display string with measurement unit
+        pressure_str2;
     end
     
     methods (Access=public)
@@ -33,11 +36,13 @@ classdef MyTpg < MyInstrument
         
         % read pressure from a single channel or both channels at a time
         function p_arr = readPressure(this)
-            openDevice(this);
             query(this.Device,['PRX',this.CR,this.LF]);
-            str = query(this.Device,this.ENQ);
-            closeDevice(this);          
+            str = query(this.Device,this.ENQ);        
             % Extract pressure and gauge status from reading.
+            arr = sscanf(str,'%i,%e,%i,%e');
+            p_arr=arr(2:2:end);
+            this.pressure1 = p_arr(1);
+            this.pressure2 = p_arr(2);
             % Status codes:
             % 0 –> Measurement data okay
             % 1 –> Underrange
@@ -46,20 +51,14 @@ classdef MyTpg < MyInstrument
             % 4 –> Sensor off (IKR, PKR, IMR, PBR)
             % 5 –> No sensor (output: 5,2.0000E-2 [hPa])
             % 6 –> Identification error  
-            arr = sscanf(str,'%i,%e,%i,%e');
-            p_arr=arr(2:2:end);
-            this.pressure1 = p_arr(1);
-            this.pressure2 = p_arr(2);
             this.stat1 = gaugeStatusFromCode(this, arr(1));
             this.stat2 = gaugeStatusFromCode(this, arr(3));
             triggerNewData(this);
         end
         
         function pu = readPressureUnit(this)
-            openDevice(this);
             query(this.Device,['UNI',this.CR,this.LF]);
             str = query(this.Device,this.ENQ);
-            closeDevice(this);
             % Pressure units correspondence table:
             % 0 –> mbar/bar
             % 1 –> Torr
@@ -73,13 +72,29 @@ classdef MyTpg < MyInstrument
         end
         
         function id_list = readGaugeId(this)
-            openDevice(this);
             query(this.Device,['TID',this.CR,this.LF]);
             str = query(this.Device,this.ENQ);
-            closeDevice(this);
-            id_list = deblank(strsplit(str,{',',' '}));
+            id_list = deblank(strsplit(str,{','}));
             this.gauge_id1 = id_list{1};
             this.gauge_id2 = id_list{2};
+        end
+        
+        function p_arr = readAllHedged(this)
+            openDevice(this);
+            try
+                p_arr = readPressure(this);
+                readPressureUnit(this);
+                readGaugeId(this);
+            catch
+                warning('Error while communicating with gauge controller')
+            end
+            closeDevice(this)
+        end
+        
+        function code_list = turnGauge(this)
+            query(this.Device,['SEN',char(1,1),this.CR,this.LF]);
+            str = query(this.Device,this.ENQ);
+            code_list = deblank(strsplit(str,{','}));
         end
         
         % Convert numerical code for gauge status to a string
@@ -124,6 +139,17 @@ classdef MyTpg < MyInstrument
                     str = '';
                     warning('unknown pressure unit, code=%i',pu_num)
             end
+        end
+    end
+    
+    %% Get functions
+    methods
+        function p_str = get.pressure_str1(this)
+            p_str = sprintf('%.3e %s', this.pressure1, this.pressure_unit);
+        end
+        
+        function p_str = get.pressure_str2(this)
+            p_str = sprintf('%.3e %s', this.pressure1, this.pressure_unit);
         end
     end
 end
