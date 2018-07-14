@@ -1,6 +1,6 @@
 % Get value of object property named by tag, possibly supporting references
 % to sub-objects (in this case tag is 'SubObj1.SubObj2.property').
-function val = getSubProperty(Obj, tag)
+function val = getPropertyValue(Obj, tag)
     tag_parts = strsplit(tag,'.');
     val = Obj;
     for i=1:length(tag_parts)

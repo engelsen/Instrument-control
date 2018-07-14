@@ -19,7 +19,7 @@ function updateGui(app, varargin)
         try
             % update the element value based on Obj.(tag), 
             % where tag can contain a reference to sub-objects
-            tmpval = getSubProperty(SrcObj, tmpelem.Tag);
+            tmpval = getPropertyValue(SrcObj, tmpelem.Tag);
             % scale the value if the control element has a prescaler
             if isprop(tmpelem, 'OutputProcessingFcn')
                 tmpval = tmpelem.OutputProcessingFcn(tmpval);

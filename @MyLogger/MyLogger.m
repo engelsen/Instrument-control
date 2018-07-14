@@ -25,6 +25,10 @@ classdef MyLogger < handle
         data_fmt = '%24.14e'; % Save data as reals with 14 decimal digits
     end
     
+    events
+        NewData;
+    end
+    
     methods
         function this = MyLogger(varargin)
             p=inputParser();
@@ -62,6 +66,8 @@ classdef MyLogger < handle
                 this.last_meas_stat=0; % last measurement not ok
             end
             
+            triggerNewData(this);
+            
             % save the point to file if continuous saving is enabled and
             % last measurement was succesful
             if this.save_cont&&(this.last_meas_stat==1)
@@ -77,7 +83,7 @@ classdef MyLogger < handle
                         % otherwise open for appending
                         fid = fopen(this.save_file,'a');
                     end
-                    fprintf(fid, this.TIME_FMT, posixtime(time));
+                    fprintf(fid, this.time_fmt, posixtime(time));
                     fprintf(fid, this.data_fmt, meas_result);
                     fprintf(fid,'\r\n');
                     fclose(fid);
@@ -100,7 +106,7 @@ classdef MyLogger < handle
                 fid = fopen(this.save_file,'w');
                 writeColumnHeaders(this, fid);
                 for i=1:length(this.timestamps)
-                    fprintf(fid, this.TIME_FMT,...
+                    fprintf(fid, this.time_fmt,...
                         posixtime(this.timestamps(i)));
                     fprintf(fid, this.data_fmt,...
                         this.data{i});
@@ -138,6 +144,11 @@ classdef MyLogger < handle
         
         function stop(this)
             stop(this.MeasTimer);
+        end
+    
+        %Triggers event for acquired data
+        function triggerNewData(this)
+            notify(this,'NewData')
         end
     end
 end

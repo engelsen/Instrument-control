@@ -9,7 +9,8 @@ function unmatched_varargin = parseClassInputs(p, Object, varargin)
     % assign results that have associated class properties
     for i=1:length(p.Parameters)
         par = p.Parameters{i};
-        if ismember(par, properties(Object))
+        if ismember(par, properties(Object))&&...
+                (~ismember(par, p.UsingDefaults))
             Object.(par) = p.Results.(par);
         end
     end  
