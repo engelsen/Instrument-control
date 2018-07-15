@@ -36,12 +36,12 @@ classdef MyLogger < handle
             p=inputParser();
             % Ignore unmatched parameters
             p.KeepUnmatched = true;
-            filt_varargin = parseClassInputs(p, this, varargin{:});
+            parseClassInputs(p, this, varargin{:});
                  
             if ismember('MeasTimer', p.UsingDefaults)
                 % Create and confitugure timer unless it was supplied
                 % externally in varargin
-                this.MeasTimer = timer(filt_varargin{:});
+                this.MeasTimer = timer();
                 this.MeasTimer.BusyMode = 'queue';
                 this.MeasTimer.ExecutionMode = 'FixedRate';
                 this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);

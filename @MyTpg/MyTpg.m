@@ -40,7 +40,7 @@ classdef MyTpg < MyInstrument
             str = query(this.Device,this.ENQ);        
             % Extract pressure and gauge status from reading.
             arr = sscanf(str,'%i,%e,%i,%e');
-            p_arr=arr(2:2:end);
+            p_arr=transpose(arr(2:2:end));
             this.pressure1 = p_arr(1);
             this.pressure2 = p_arr(2);
             % Status codes:
