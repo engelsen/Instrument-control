@@ -10,6 +10,13 @@ classdef MyLogger < handle
         save_cont = false;
         save_file = '';
         data_headers = {}; % Cell array of column headers
+        
+        % format specifiers for data saving and display
+        time_fmt = '%14.3f'; % Save time as posixtime up to ms precision
+        data_field_width = '24';
+        data_fmt = '%24.14e'; % Save data as reals with 14 decimal digits
+        % Format for displaying last reading label: value
+        disp_fmt = '%10s: %.3e';
     end
     
     properties (SetAccess=protected, GetAccess=public)
@@ -18,11 +25,6 @@ classdef MyLogger < handle
         data = []; % Stored cell array of measurements
         last_meas_stat = 2; % If last measurement was succesful
         % 0-false, 1-true, 2-never measured
-        
-        % format specifiers for data saving
-        time_fmt = '%14.3f'; % Save time as posixtime up to ms precision
-        data_field_width = '24';
-        data_fmt = '%24.14e'; % Save data as reals with 14 decimal digits
     end
     
     events
@@ -144,6 +146,24 @@ classdef MyLogger < handle
         
         function stop(this)
             stop(this.MeasTimer);
+        end
+        
+        function str = dispLastReading(this)
+            if isempty(this.timestamps)
+                str = '';
+            else
+                str = ['Last reading ',char(this.timestamps(end)),newline];
+                last_data = this.data{end};
+                for i=1:length(last_data)
+                    if length(this.data_headers)>=i
+                        lbl = this.data_headers{i};
+                    else
+                        lbl = sprintf('data%i',i);
+                    end
+                    str = [str,...
+                        sprintf(this.disp_fmt,lbl,last_data(i)),newline];
+                end
+            end
         end
     
         %Triggers event for acquired data
