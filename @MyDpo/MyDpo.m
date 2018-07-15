@@ -1,6 +1,6 @@
 % Class for controlling 4-channel Tektronix DPO scopes. 
 % Tested with DPO4034, DPO3034
-classdef MyDpo <MyInstrument
+classdef MyDpo < MyInstrument
     properties (SetAccess=protected, GetAccess=public)
         % List of the physical knobs, which can be rotated programmatically
         knob_list = {'GPKNOB1','GPKNOB2','HORZPos','HORZScale',...

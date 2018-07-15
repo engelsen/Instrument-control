@@ -93,11 +93,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             fullfilename=fullfile([save_dir,filename,'.txt']);
             
             %Creates the file in the given folder
-            write_flag=createFile(save_dir,fullfilename,overwrite_flag);
+            stat=createFile(fullfilename,'overwrite',overwrite_flag);
             
             %Returns if the file is not created for some reason 
-            if ~write_flag 
-                error('File not created, returned write_flag %i',write_flag);
+            if ~stat 
+                error('File not created, returned write_flag %i',stat);
             end
             
             %We now write the data to the file
