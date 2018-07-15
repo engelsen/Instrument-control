@@ -145,11 +145,11 @@ classdef MyTpg < MyInstrument
     %% Get functions
     methods
         function p_str = get.pressure_str1(this)
-            p_str = sprintf('%.3e %s', this.pressure1, this.pressure_unit);
+            p_str = sprintf('%.2e %s', this.pressure1, this.pressure_unit);
         end
         
         function p_str = get.pressure_str2(this)
-            p_str = sprintf('%.3e %s', this.pressure1, this.pressure_unit);
+            p_str = sprintf('%.2e %s', this.pressure2, this.pressure_unit);
         end
     end
 end
