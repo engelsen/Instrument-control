@@ -86,6 +86,7 @@ classdef MyTpg < MyInstrument
                 readPressureUnit(this);
                 readGaugeId(this);
             catch
+                p_arr = [0,0];
                 warning('Error while communicating with gauge controller')
             end
             closeDevice(this)
