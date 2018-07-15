@@ -16,7 +16,7 @@ classdef MyLogger < handle
         data_field_width = '24';
         data_fmt = '%24.14e'; % Save data as reals with 14 decimal digits
         % Format for displaying last reading label: value
-        disp_fmt = '%10s: %.3e';
+        disp_fmt = '%15s: %.2e';
     end
     
     properties (SetAccess=protected, GetAccess=public)
