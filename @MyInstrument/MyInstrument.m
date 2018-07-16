@@ -273,11 +273,15 @@ classdef MyInstrument < dynamicprops
                     case 'visa'
                         this.Device=visa(vb, address);
                     case 'tcpip'
-                        this.Device= visa(vb, sprintf(...
-                            'TCPIP0::%s::inst0::INSTR',this.address));
+                        this.Device=visa(vb, sprintf(...
+                            'TCPIP0::%s::inst0::INSTR',address));
                     case 'usb'
                         this.Device=visa(vb, sprintf(...
                             'USB0::%s::INSTR',address));
+                    case 'serial'
+                        com_no = sscanf(address,'COM%i');
+                        this.Device = visa(vb, sprintf(...
+                            'ASRL%i::INSTR',com_no));
                     otherwise
                         warning('Device is not connected: unknown interface');
                 end
