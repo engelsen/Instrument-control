@@ -20,7 +20,7 @@ function linkControlElement(app, elem, prop_tag, varargin)
     
     % If the property is not present in the instrument class, disable the
     % control
-    if isprop(app.Instr, prop_tag)
+    if ~isprop(app.Instr, prop_tag)
         elem.Enable='off';
         elem.Visible='off';
         return
