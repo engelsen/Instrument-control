@@ -1,4 +1,4 @@
-classdef MyInstrument < dynamicprops & MyParsedInputs
+classdef MyInstrument < dynamicprops & MyInputHandler
     
     properties (Access=public)
         name='';

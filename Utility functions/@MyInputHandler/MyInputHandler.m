@@ -1,4 +1,4 @@
-classdef MyParsedInputs < handle
+classdef MyInputHandler < handle
     
     properties (SetAccess=protected, GetAccess=public)
         %Input parser for class constructor

@@ -1,6 +1,6 @@
 % Class for communication with Pfeiffer TPG single and dual pressure gauge
 % controllers. 
-% Tested with TPG 361 and TPG 362.
+% Tested with TPG 362.
 classdef MyTpg < MyInstrument
     
     properties (Constant=true)
