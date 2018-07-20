@@ -5,8 +5,9 @@ classdef MyParsedInputs < handle
         ConstructionParser;
     end
     
-    methods (Access=private)
-        % create parser 
+    methods (Access=protected)
+        % Create parser. Can contain parameter additions 
+        % if overloaded in a subclass 
         function p = createConstructionParser(this)
             p=inputParser();
             this.ConstructionParser=p;
@@ -37,20 +38,24 @@ classdef MyParsedInputs < handle
         % with the same names as parameters 
         function parseClassInputs(this, varargin)  
             parse(this.ConstructionParser, varargin{:});  
-            % assign results that have associated class properties
+            % assign results that have associated class properties with
+            % public set access
             for i=1:length(this.ConstructionParser.Parameters)
                 par = this.ConstructionParser.Parameters{i};
+                metaprop=findprop(this, par);
                 if ~ismember(par, this.ConstructionParser.UsingDefaults)&&...
-                        isproperty(this, par)
+                        isprop(this, par)&&...
+                        strcmpi(metaprop.SetAccess,'public')
                     try
                         this.(par) = this.ConstructionParser.Results.(par);
                     catch
-                        warning(['Value of the input parameter ',...
-                            par,' could not be assigned to property'])
+                        warning(['Value of the input parameter ''',...
+                            par,''' could not be assigned to property'])
                     end 
                 end
             end 
         end
+        
     end
 end
 
