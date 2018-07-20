@@ -19,6 +19,7 @@ classdef MyInstrument < dynamicprops
         Trace=MyTrace();
     end
     
+    
     properties (Constant=true)
         % Default parameters for VISA connection
         DEFAULT_INP_BUFF_SIZE = 1e7; % buffer size bytes
@@ -167,6 +168,16 @@ classdef MyInstrument < dynamicprops
             notify(this,'NewData')
         end
         
+        function HdrStruct=readHeader(this)
+           Values=readPropertyHedged(this,'all');
+           for i=1:length(this.read_commands)
+               HdrStruct.(this.read_commands{i}).value=...
+                   Values.(this.read_commands{i});
+               HdrStruct.(this.read_commands{i}).str_spec=...
+                   this.CommandList.(this.read_commands{i}).str_spec;
+           end
+        end
+        
         %% Processing of the class variable values
         % Extend the property value based on val_list 
         function std_val = standardizeValue(this, cmd, varargin)
@@ -193,14 +204,12 @@ classdef MyInstrument < dynamicprops
             % out of matching names pick the longest
             if any(ismatch)
                 mvlist = vlist(ismatch);
-                str = mvlist{1};
-                for i=1:length(mvlist)
-                    if length(mvlist{i})>length(str)
-                        str = mvlist{i};
-                    end
-                end
-                std_val = str;
-                % set the property if value was not given explicitly 
+                %Finds the length of each element of mvlist
+                n_el=cellfun(@(x) length(x), mvlist);
+                %Sets std_val to the longest element
+                std_val=mvlist{n_el==max(n_el)};
+
+                % sets the property if value was not given explicitly 
                 if isempty(varargin)
                     this.(cmd) = std_val;
                 end
@@ -224,34 +233,6 @@ classdef MyInstrument < dynamicprops
             long_val_ind = cellfun(...
                 @(x)(sum(startsWith(vlist,x,'IgnoreCase',true))==1),vlist);
             std_val_list = vlist(long_val_ind); 
-        end
-        
-        % Create a string of property values
-        function par_str = getConfigString(this)
-            % Try to find out the device name
-            if ~isempty(this.name)
-                name_str = this.name;
-            else
-                try
-                    openDevice(this);
-                    name_str = query(this.Device,'*IDN?');
-                    closeDevice(this);
-                    % Remove the new line end symbol
-                    name_str=name_str(1:end-1);
-                catch
-                    warning('Could not get the device name');
-                    name_str = '';
-                end
-            end
-            par_str = sprintf('Instrument name: %s\n',name_str);
-            % Append the values of all the commands 
-            rcmds=this.read_commands;
-            for i=1:length(rcmds)
-                new_str = sprintf(['\t',rcmds{i},'\t',...
-                    this.CommandList.(rcmds{i}).str_spec,'\n'],...
-                    this.(rcmds{i}));
-                par_str = [par_str, new_str];
-            end
         end
         
         %% Connect, open, configure and close the device
@@ -292,11 +273,15 @@ classdef MyInstrument < dynamicprops
                     case 'visa'
                         this.Device=visa(vb, address);
                     case 'tcpip'
-                        this.Device= visa(vb, sprintf(...
-                            'TCPIP0::%s::inst0::INSTR',this.address));
+                        this.Device=visa(vb, sprintf(...
+                            'TCPIP0::%s::inst0::INSTR',address));
                     case 'usb'
                         this.Device=visa(vb, sprintf(...
                             'USB0::%s::INSTR',address));
+                    case 'serial'
+                        com_no = sscanf(address,'COM%i');
+                        this.Device = visa(vb, sprintf(...
+                            'ASRL%i::INSTR',com_no));
                     otherwise
                         warning('Device is not connected: unknown interface');
                 end

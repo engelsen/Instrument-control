@@ -1,3 +1,5 @@
+% By using app.linked_elem_list, create a correspondence between a property
+% of MyInstrument class (named prop_tag) and an element of the app gui
 function linkControlElement(app, elem, prop_tag, varargin)
     p=inputParser();
     % GUI control element
@@ -18,7 +20,7 @@ function linkControlElement(app, elem, prop_tag, varargin)
     
     % If the property is not present in the instrument class, disable the
     % control
-    if ~isfield(app.Instr.CommandList, prop_tag)
+    if ~isprop(app.Instr, prop_tag)
         elem.Enable='off';
         elem.Visible='off';
         return
@@ -82,7 +84,7 @@ function linkControlElement(app, elem, prop_tag, varargin)
             end
         catch
             warning(['Could not automatically assign values',...
-                ' when linking the ',prop_tag,' property']);
+                ' when linking ',prop_tag,' property']);
         end
     end
 end

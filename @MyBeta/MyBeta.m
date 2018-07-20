@@ -53,7 +53,7 @@ classdef MyBeta < handle
         %Calculates beta, updates the gui with the value and stores it in
         %the class.
         function calcBeta(this)
-            %Number of poist next to peak we will use to find the area
+            %Number of points next to peak we will use to find the area
             %under each peak
             n=10;
             % Finding the index of the the centeral maximum and the side bands
