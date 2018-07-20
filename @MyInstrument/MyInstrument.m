@@ -273,6 +273,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                     case 'visa'
                         this.Device=visa(vb, address);
                     case 'tcpip'
+                        % Works only with default socket. Use 'visa' or
+                        % 'constructor' if socket needs to be specified
                         this.Device=visa(vb, sprintf(...
                             'TCPIP0::%s::inst0::INSTR',address));
                     case 'usb'
