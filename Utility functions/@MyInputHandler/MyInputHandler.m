@@ -23,7 +23,8 @@ classdef MyInputHandler < handle
                 % Constant, Dependent and Abstract propeties cannot be set
                 if (~Tmp.Constant)&&(~Tmp.Abstract)&&(~Tmp.Dependent)&&...
                         strcmpi(Tmp.SetAccess,'public')&&...
-                        (~ismember(Tmp.Name, p.Parameters))
+                        (~ismember(Tmp.Name,...
+                        this.ConstructionParser.Parameters))
                     if Tmp.HasDefault
                         def = Tmp.DefaultValue;
                     else
