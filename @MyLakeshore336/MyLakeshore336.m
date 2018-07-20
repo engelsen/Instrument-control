@@ -35,7 +35,8 @@ classdef MyLakeshore336 < MyInstrument
         
         function temp_arr = readTemperature(this)
             % unit = C or K;
-            cmd_str = [this.temp_unit,'RDG? A,B,C,D'];
+            tu = this.temp_unit;
+            cmd_str = [tu,'RDG? A;',tu,'RDG? B;',tu,'RDG? C;',tu,'RDG? D'];
             resp_str = query(this.Device, cmd_str);
             resp_split = strsplit(resp_str,';','CollapseDelimiters',false);
             % convert to numbers
@@ -97,10 +98,12 @@ classdef MyLakeshore336 < MyInstrument
             readSetpoint(this, out_channel);
         end
         
-        function readInputSensorName(this)
-            resp_str = query(this.Device, 'INNAME? A,B,C,D');
+        function ret = readInputSensorName(this)
+            cmd_str = 'INNAME? A;INNAME? B;INNAME? C;INNAME? D';
+            resp_str = query(this.Device, cmd_str);
             this.inp_sens_names = strtrim(strsplit(resp_str,';',...
                 'CollapseDelimiters',false));
+            ret = this.inp_sens_names;
         end
         
         function writeInputSensorName(this, in_channel, name)
