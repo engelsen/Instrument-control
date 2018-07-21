@@ -94,7 +94,7 @@ classdef MyLakeshore336 < MyInstrument
         end
         
         function writeSetpoint(this, out_channel, val)
-            cmd_str = sprintf('SETP %i,%e', out_channel, val);
+            cmd_str = sprintf('SETP %i,%.3f', out_channel, val);
             fprintf(this.Device, cmd_str);
             % verify by reading the actual value
             readSetpoint(this);
