@@ -10,11 +10,25 @@ classdef MyLakeshore336 < MyInstrument
         setpoint = {[],[],[],[]};
         inp_sens_names = {'','','',''}; % input sensor names
         heater_rng = {[],[],[],[]}; % cell array of heater range codes
+        % output modes{{mode, cntl_inp, powerup_en},...}
+        out_mode = {{[0,0,0]},{[0,0,0]},{[0,0,0]},{[0,0,0]}}; 
+    end
+    
+    properties (SetAccess=private, GetAccess=public)
+        % Correspondense lists. Indexing starts from 0
+        inp_list = {'None','A','B','C','D'};
+        out_mode_list = {'Off','Closed loop PID','Zone',...
+            'Open loop','Monitor out','Warmup supply'};
+        heater12_rng_list = {'Off','Low','Medium','High'};
+        heater34_rng_list = {'Off','On'};
     end
     
     properties (Dependent=true)
         heater_rng_str % heater range
         temp_str % temperatures with measurement unit
+        out_mode_str %
+        cntl_inp_str %
+        powerup_en_str %
     end
     
     methods (Access=public)
@@ -27,9 +41,10 @@ classdef MyLakeshore336 < MyInstrument
         function temp_arr = readAllHedged(this)
             openDevice(this);
             temp_arr = readTemperature(this);
-            readHeaterRange(this, 'all');
-            readSetpoint(this, 'all');
+            readHeaterRange(this);
+            readSetpoint(this);
             readInputSensorName(this);
+            readOutMode(this);
             closeDevice(this);
         end
         
@@ -79,8 +94,8 @@ classdef MyLakeshore336 < MyInstrument
         end
         
         function writeSetpoint(this, out_channel, val)
-            cmd = sprintf('SETP %i,%e', out_channel, val);
-            fprintf(this.Device, cmd);
+            cmd_str = sprintf('SETP %i,%e', out_channel, val);
+            fprintf(this.Device, cmd_str);
             % verify by reading the actual value
             readSetpoint(this);
         end
@@ -103,6 +118,22 @@ classdef MyLakeshore336 < MyInstrument
             end
         end
         
+        function ret = readOutMode(this)
+            cmd_str = 'OUTMODE? 1;OUTMODE? 2;OUTMODE? 3;OUTMODE? 4';
+            resp_str = query(this.Device, cmd_str);
+            resp_split = strsplit(resp_str,';','CollapseDelimiters',false);
+            this.out_mode = cellfun(@(s)sscanf(s, '%i,%i,%i'),...
+                resp_split,'UniformOutput',false);
+            ret = this.out_mode;
+        end
+        
+        function writeOutMode(this,out_channel,mode,cntl_inp,powerup_en)
+            cmd_str = sprintf('OUTMODE %i,%i,%i,%i',out_channel,...
+                mode,cntl_inp,powerup_en);
+            fprintf(this.Device, cmd_str);
+            % verify by reading the actual value
+            readOutMode(this);
+        end
     end
     
     %% auxiliary method
@@ -154,30 +185,14 @@ classdef MyLakeshore336 < MyInstrument
             % Channels 1-2 and 3-4 have different possible states
             for i=1:4
                 if ~isempty(this.heater_rng{i})
-                    code = this.heater_rng{i};
+                    ind = int32(this.heater_rng{i}+1);
                 else
-                    code=0;
+                    ind=0;
                 end
                 if i<=2
-                    switch code
-                        case 0
-                            str_cell{i} = 'Off';
-                        case 1
-                            str_cell{i} = 'Low';
-                        case 2
-                            str_cell{i} = 'Medium';
-                        case 3
-                            str_cell{i} = 'High';
-                        otherwise
-                    end
+                    str_cell{i} = this.heater12_rng_list{ind};
                 else
-                    switch code
-                        case 0
-                            str_cell{i} = 'Off';
-                        case 1
-                            str_cell{i} = 'On';
-                        otherwise
-                    end 
+                    str_cell{i} = this.heater34_rng_list{ind}; 
                 end
             end
         end
@@ -188,6 +203,43 @@ classdef MyLakeshore336 < MyInstrument
                 if ~isempty(this.temp{i})
                     str_cell{i} = sprintf('%.3f %s', this.temp{i},...
                         this.temp_unit);
+                end
+            end
+        end
+        
+        function str_cell = get.out_mode_str(this)
+            str_cell = {'','','',''};
+            try
+                for i=1:4
+                    ind = int32(this.out_mode{i}(1)+1);
+                    str_cell{i} = this.out_mode_list{ind};
+                end
+            catch
+                warning(['Output mode could not be interpreted ',...
+                        'from code. Code should be between 0 and 5.'])
+            end
+        end
+        
+        function str_cell = get.cntl_inp_str(this)
+            str_cell = {'','','',''};
+            try
+                for i=1:4
+                    ind = int32(this.out_mode{i}(2)+1);
+                    str_cell{i} = this.inp_list{ind};
+                end
+            catch
+                warning(['Input channel could not be interpreted ',...
+                        'from index. Index should be between 0 and 4.'])
+            end
+        end
+        
+        function str_cell = get.powerup_en_str(this)
+            str_cell = {'','','',''};
+            for i=1:4
+                if this.out_mode{i}(3)
+                    str_cell{i} = 'On';
+                else
+                    str_cell{i} = 'Off';
                 end
             end
         end
