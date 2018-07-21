@@ -50,21 +50,14 @@ classdef MyLakeshore336 < MyInstrument
             end
         end
         
-        % out_channel can be 1-4 or 'all' for read functions and 
-        % only 1-4 for write
-        function ret = readHeaterRange(this, out_channel)
-            [cmd_str, isall] = getOutChannelQuery(this, 'RANGE', out_channel);
+        % out_channel is 1-4, in_channel is A-D
+        function ret = readHeaterRange(this)
+            cmd_str = 'RANGE? 1;RANGE? 2;RANGE? 3;RANGE? 4';
             resp_str = query(this.Device, cmd_str);
-            if isall
-                resp_split = strsplit(resp_str,';',...
-                    'CollapseDelimiters',false);
-                this.heater_rng = cellfun(@(s)sscanf(s, '%i'),...
-                    resp_split,'UniformOutput',false);
-                ret = this.heater_rng;
-            else
-                this.heater_rng{out_channel} = sscanf(resp_str, '%i');
-                ret = this.heater_rng{out_channel};
-            end 
+            resp_split = strsplit(resp_str,';','CollapseDelimiters',false);
+            this.heater_rng = cellfun(@(s)sscanf(s, '%i'),...
+                resp_split,'UniformOutput',false);
+            ret = this.heater_rng; 
         end
         
         function writeHeaterRange(this, out_channel, val)
@@ -72,30 +65,24 @@ classdef MyLakeshore336 < MyInstrument
                 cmd = sprintf('RANGE %i,%i', out_channel, val);
                 fprintf(this.Device, cmd);
                 % verify by reading the actual value
-                readHeaterRange(this, out_channel);
+                readHeaterRange(this);
             end
         end
         
-        function ret = readSetpoint(this, out_channel)
-            [cmd_str, isall] = getOutChannelQuery(this, 'SETP', out_channel);
+        function ret = readSetpoint(this)
+            cmd_str = 'SETP? 1;SETP? 2;SETP? 3;SETP? 4';
             resp_str = query(this.Device, cmd_str);
-            if isall
-                resp_split = strsplit(resp_str,';',...
-                    'CollapseDelimiters',false);
-                this.setpoint = cellfun(@(s)sscanf(s, '%e'),...
-                    resp_split,'UniformOutput',false);
-                ret = this.setpoint;
-            else
-                this.setpoint{out_channel} = sscanf(resp_str, '%e');
-                ret = this.setpoint{out_channel};
-            end 
+            resp_split = strsplit(resp_str,';','CollapseDelimiters',false);
+            this.setpoint = cellfun(@(s)sscanf(s, '%e'),...
+                resp_split,'UniformOutput',false);
+            ret = this.setpoint;
         end
         
-        function writeSetpoint(this, out_channel)
-            cmd = sprintf('SETP? %i', out_channel);
+        function writeSetpoint(this, out_channel, val)
+            cmd = sprintf('SETP %i,%e', out_channel, val);
             fprintf(this.Device, cmd);
             % verify by reading the actual value
-            readSetpoint(this, out_channel);
+            readSetpoint(this);
         end
         
         function ret = readInputSensorName(this)
@@ -141,30 +128,6 @@ classdef MyLakeshore336 < MyInstrument
                             'channels 3 or 4 can '...
                             'take only values 1 or 2.'])
                     end
-            end
-        end
-        
-        % convert channel number and command name to the string that is
-        % sent to instrument
-        function [str, isall] = getOutChannelQuery(~, cmd, out_channel)
-            out_ch_ok = false;
-            isall = false;
-            if isnumeric(out_channel)
-                if out_channel==1 || out_channel==2 ||...
-                        out_channel==3 || out_channel==4
-                    str = sprintf('%s? %i', cmd, out_channel);
-                    out_ch_ok = true;
-                end
-            elseif ischar(out_channel)
-                if strcmpi(out_channel, 'all')
-                    str = 'RANGE? 1;:RANGE? 2;:RANGE? 3;:RANGE? 4';
-                    out_ch_ok = true;
-                    isall = true;
-                end
-            end
-            % issue error if the channel specifier is not 1-4 or 'all'
-            if ~out_ch_ok
-                error('out_channel can take values only 1-4 or ''all''');
             end
         end
         
