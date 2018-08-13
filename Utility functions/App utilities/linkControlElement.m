@@ -28,7 +28,7 @@ function linkControlElement(app, elem, prop_tag, varargin)
     
     % The property-control link is established by assigning the tag
     % and adding the control to the list of linked elements
-    elem.Tag = prop_tag;
+    elem.Tag = ['Instr.',prop_tag];
     app.linked_elem_list = [app.linked_elem_list, elem];
 
     % If the create_callback_fcn is set, assign it to the 

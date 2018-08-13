@@ -1,25 +1,16 @@
 % Set values for all the gui elements listed in app.linked_elem_list
-% according to the properties of an object (app.Instr by default)
+% according to the properties of an object 
 % Instrument property corresponds to the control element having the same
-% tag as property name.
+% tag as property name, may be a filed of structure or a property of class
 % If specified within the control element OutputProcessingFcn or 
 % InputPrescaler is applied to the property value first
-function updateGui(app, varargin)
-    if ~isempty(varargin)
-        SrcObj = varargin{1};
-    elseif isprop(app, 'Instr')
-        % app.Instr is a MyInstrument object, default choice
-        SrcObj = app.Instr;
-    else
-        error('Source object is not provided for gui update');
-    end
-    
+function updateGui(app)    
     for i=1:length(app.linked_elem_list)
         tmpelem = app.linked_elem_list(i);
         try
-            % update the element value based on Obj.(tag), 
+            % update the element value based on app.(tag), 
             % where tag can contain a reference to sub-objects
-            tmpval = getPropertyValue(SrcObj, tmpelem.Tag);
+            tmpval = eval(['app.', tmpelem.Tag]);
             % scale the value if the control element has a prescaler
             if isprop(tmpelem, 'OutputProcessingFcn')
                 tmpval = tmpelem.OutputProcessingFcn(tmpval);
