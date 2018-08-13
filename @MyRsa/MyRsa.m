@@ -1,9 +1,9 @@
 % Class for controlling Tektronix RSA5103 and RSA5106 spectrum analyzers 
-classdef MyRsa < MyInstrument
+classdef MyRsa < MyScpiInstrument
     %% Constructor and destructor
     methods (Access=public)
         function this=MyRsa(interface, address,varargin)
-            this@MyInstrument(interface, address, varargin{:});
+            this@MyScpiInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);

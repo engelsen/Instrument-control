@@ -1,5 +1,5 @@
 % The class for communication with Agilent E5061B Network Analyzer
-classdef MyNa < MyInstrument
+classdef MyNa < MyScpiInstrument
     properties (SetAccess=protected, GetAccess=public)
         active_trace = -1; % manipulating with active traces seems unavoidable 
         % for selecting the data format. -1 stands for unknown
@@ -16,7 +16,7 @@ classdef MyNa < MyInstrument
 
     methods
         function this=MyNa(interface, address, varargin)
-            this@MyInstrument(interface, address, varargin{:});
+            this@MyScpiInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);

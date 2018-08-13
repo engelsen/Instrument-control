@@ -1,5 +1,5 @@
 % Class for controlling 2-channel Tektronix TDS scopes. 
-classdef MyTds <MyInstrument
+classdef MyTds <MyScpiInstrument
     properties (Constant=true)
         N_CHANNELS = 2; % number of channels
         POINT_NO = 2500; % number of points is fixed for this device
@@ -7,7 +7,7 @@ classdef MyTds <MyInstrument
     
     methods (Access=public)
         function this=MyTds(interface, address, varargin)
-            this@MyInstrument(interface, address, varargin{:});
+            this@MyScpiInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this, interface, address);
