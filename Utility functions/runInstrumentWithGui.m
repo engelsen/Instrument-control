@@ -1,4 +1,4 @@
-% run instrument instance with its gui and add it to the collector
+% run instrument instance with gui and add it to the collector
 function runInstrumentWithGui(instr_class, interface, address, name, gui)
     if ~isValidBaseVar('Collector')
         runCollector();    
