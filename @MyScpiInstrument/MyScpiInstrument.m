@@ -17,13 +17,7 @@ classdef MyScpiInstrument < MyInstrument
         read_commands;
     end
     
-    methods (Access=public)
-        function this=MyScpiInstrument(interface, address, varargin)
-            createConstructionParser(this);      
-            %Loads parsed variables into class properties
-            parseClassInputs(this,interface,address,varargin{:})
-        end    
-        
+    methods (Access=public)       
         %% Read and write commands
         %Writes properties to device. Can take multiple inputs. With the
         %option all, the function writes default to all the

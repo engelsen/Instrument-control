@@ -1,4 +1,5 @@
-% This function typically needs to be overloaded in a particular gui
+% This function is typically overloaded in a particular gui to implement
+% additional display functionality
 function updateGui(app)    
     updateLinkedGuiElements(app)
 end

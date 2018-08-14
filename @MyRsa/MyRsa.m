@@ -2,7 +2,7 @@
 classdef MyRsa < MyScpiInstrument
     %% Constructor and destructor
     methods (Access=public)
-        function this=MyRsa(interface, address,varargin)
+        function this=MyRsa(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
