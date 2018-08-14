@@ -1,7 +1,8 @@
 classdef MyCollector < handle & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
-        InstrProps=struct();
-        InstrList=struct();
+        InstrList=struct() % Structure accomodating instruments 
+        %with their guis
+        InstrProps=struct() % Properties of instruments;
         MeasHeaders=MyMetadata();
         Data=MyTrace();
         collect_flag;
@@ -12,7 +13,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     end
     
     properties (Dependent=true)
-        open_instruments;
+        running_instruments;
     end
     
     events
@@ -33,7 +34,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         end
         
         function delete(this)
-            cellfun(@(x) deleteListeners(this,x), this.open_instruments);
+            cellfun(@(x) deleteListeners(this,x), this.running_instruments);
         end
         
         function addInstrument(this,prog_handle,varargin)
@@ -43,18 +44,16 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             
             %Find a name for the instrument
             if ~ismember('name',p.UsingDefaults)
-                name=erase(p.Results.name,' ');
+                name=genvarname(p.Results.name);
             elseif isprop(prog_handle,'name') && ~isempty(prog_handle.name)
-                name=prog_handle.name;
+                name=genvarname(prog_handle.name);
             elseif ~isempty(findMyInstrument(prog_handle))
                 h_instr=findMyInstrument(prog_handle);
                 if isprop(h_instr,'name') && ~isempty(h_instr.name)
-                    name=h_instr.name;
-                else
-                    name=p.Results.name;
+                    name=genvarname(h_instr.name);
                 end
             else
-                name=p.Results.name;
+                name=genvarname(p.Results.name);
             end
             
             %We add only classes that have readHeaders functionality
@@ -110,8 +109,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         
         %Collects headers for open instruments with the header flag on
         function acquireHeaders(this)
-            for i=1:length(this.open_instruments)
-                name=this.open_instruments{i};
+            for i=1:length(this.running_instruments)
+                name=this.running_instruments{i};
                 
                 if this.InstrProps.(name).header_flag
                     tmp_struct=readHeader(this.InstrList.(name));
@@ -133,20 +132,16 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             Trace=this.InstrList.(name).Trace;
         end
         
-        function bool=isopen(this,name)
+        function bool=isrunning(this,name)
             assert(~isempty(name),'Instrument name must be specified')
             assert(ischar(name),...
                 'Instrument name must be a character, not %s',...
             class(name));
-            bool=ismember(this.open_instruments,name);
+            bool=ismember(this.running_instruments,name);
         end
     end
     
-    methods (Access=private)
-        function triggerMeasHeaders(this)
-            notify(this,'NewMeasHeaders');
-        end
-        
+    methods (Access=private)       
         function triggerNewDataCollected(this,varargin)
             p=inputParser;
             addParameter(p,'tag','',@ischar);
@@ -168,8 +163,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     end
     
     methods
-        function open_instruments=get.open_instruments(this)
-            open_instruments=fieldnames(this.InstrList);
+        function running_instruments=get.running_instruments(this)
+            running_instruments=fieldnames(this.InstrList);
         end
     end
 end

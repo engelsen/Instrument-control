@@ -37,7 +37,6 @@ classdef MyDaq < handle
         main_plot;
         open_fits;
         open_crs;
-        running_progs;
     end
     
     properties (Dependent=true, SetAccess=private)
