@@ -1,7 +1,7 @@
 % Class for communication with Pfeiffer TPG single and dual pressure gauge
 % controllers. 
 % Tested with TPG 362.
-classdef MyTpg < MyScpiInstrument
+classdef MyTpg < MyInstrument
     
     properties (Constant=true)
         % Named constants for communication
@@ -30,7 +30,7 @@ classdef MyTpg < MyScpiInstrument
     
     methods (Access=public)
         function this = MyTpg(interface, address, varargin)
-            this@MyScpiInstrument(interface, address, varargin{:});
+            this@MyInstrument(interface, address, varargin{:});
             connectDevice(this, interface, address);
         end
         
