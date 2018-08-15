@@ -4,7 +4,6 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         %with their guis
         InstrProps=struct() % Properties of instruments;
         MeasHeaders=MyMetadata();
-        Data=MyTrace();
         collect_flag;
     end
     
@@ -65,7 +64,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             if contains('NewData',events(this.InstrList.(name)))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
-                    @(~,eventdata) acquireData(this,eventdata));
+                    @(~,InstrEventData) acquireData(this, InstrEventData));
             end
             
             %Cleans up if the instrument is closed
@@ -74,11 +73,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function acquireData(this,eventdata)
-            src=eventdata.Source;
-            %Copy the data from the instrument. 
-            this.Data=copy(src.Trace);
-            
+        function acquireData(this,InstrEventData)
+            src=InstrEventData.Source;
             %Collect the headers if the flag is on
             if this.collect_flag     
                 this.MeasHeaders=MyMetadata();
@@ -92,10 +88,10 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                     'Name',name,'%s');
                 acquireHeaders(this);
                 %We copy the MeasHeaders to the trace.
-                this.Data.MeasHeaders=copy(this.MeasHeaders);
+                src.Trace.MeasHeaders=copy(this.MeasHeaders);
             end
             
-            triggerNewDataWithHeaders(this,eventdata);
+            triggerNewDataWithHeaders(this,InstrEventData);
         end
         
         %Collects headers for open instruments with the header flag on
@@ -133,8 +129,11 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     end
     
     methods (Access=private)       
-        function triggerNewDataWithHeaders(this,eventdata)
-            notify(this,'NewDataWithHeaders',eventdata);
+        function triggerNewDataWithHeaders(this,InstrEventData)
+            % in EventData pass information about the instrument
+            EventData = MyNewDataEvent();
+            EventData.InstrEventData = InstrEventData;
+            notify(this,'NewDataWithHeaders',EventData);
         end
 
         %deleteListeners is in a separate file

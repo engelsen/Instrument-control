@@ -9,12 +9,10 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         %Contains the device object. struct() is a dummy, as Device 
         %needs to always support properties for consistency.
         Device=struct();
-    end 
-    
-    properties (SetAccess=protected, GetAccess=public)
+        
         %Trace object for storing data
         Trace=MyTrace();
-    end
+    end 
     
     properties (Constant=true)
         % Default parameters for device connection

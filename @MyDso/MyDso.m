@@ -1,6 +1,6 @@
 % Class for controlling 4-channel Agilent DSO scopes. 
 % Tested with DSO7034A
-classdef MyDso <MyInstrument
+classdef MyDso <MyScpiInstrument
     properties (SetAccess=protected, GetAccess=public)
         % properties, read a a preamble during the trace reading
         step_x;
@@ -15,7 +15,7 @@ classdef MyDso <MyInstrument
     
     methods (Access=public)
         function this=MyDso(interface, address, varargin)
-            this@MyInstrument(interface, address, varargin{:});
+            this@MyScpiInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
             connectDevice(this);

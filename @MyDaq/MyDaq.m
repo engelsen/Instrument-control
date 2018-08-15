@@ -789,18 +789,20 @@ classdef MyDaq < handle
         end
         
         %Callback function for the NewData listener
-        function acquireNewData(this, eventdata)
+        function acquireNewData(this, EventData)
             %Get the currently selected instrument
             val=this.Gui.InstrMenu.Value;
             curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
-            source_name=eventdata.Source.name;
+            %Get the name of instrument that generated new data
+            SourceInstr = EventData.InstrEventData.Source;
+            source_name = SourceInstr.name;
             
             %Check if the data originates from the currently selected
             %instrument
             if strcmp(source_name, curr_instr_name)
                 hline=getLineHandle(this.Data,this.main_plot);
-                %Copy the data from the collector
-                this.Data=copy(eventdata.Source.Data);
+                %Copy the data from the source instrument
+                this.Data=copy(SourceInstr.Trace);
                 %We give the new trace object the right line handle to plot in
                 if ~isempty(hline); this.Data.hlines{1}=hline; end
                 this.Data.plotTrace(this.main_plot,...
