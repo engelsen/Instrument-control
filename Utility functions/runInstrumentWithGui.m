@@ -1,15 +1,55 @@
 % run instrument instance with gui and add it to the collector
-function runInstrumentWithGui(instr_class, interface, address, name, gui)
+function runInstrumentWithGui(name, instr_class, interface, address, gui)
     if ~isValidBaseVar('Collector')
         runCollector();    
     end
     Collector = evalin('base','Collector');
     
     if ~ismember(name, Collector.running_instruments)
-        Instr = feval(instr_class, interface, address);
-        GuiInstr = feval(gui, 'Instr', Instr, 'name', ['Gui',name]);
+        if nargin==1
+            % load parameters from InstrumentList
+            InstrumentList = getLocalSettings('InstrumentList');
+            if ~isfield(InstrumentList, name)
+                error('%s is not a field of InstrumentList',...
+                    name);
+            end
+            if ~isfield(InstrumentList.(name), 'interface')
+                error(['InstrumentList entry ', name,...
+                    ' has no ''interface'' field']);
+            else
+                interface = InstrumentList.(name).interface;
+            end
+            if ~isfield(InstrumentList.(name), 'address')
+                error(['InstrumentList entry ', name,...
+                    ' has no ''address'' field']);
+            else
+                address = InstrumentList.(name).address;
+            end
+            if ~isfield(InstrumentList.(name), 'gui')
+                error(['InstrumentList entry ', name,...
+                    ' has no ''gui'' field']);
+            else
+                gui = InstrumentList.(name).gui;
+            end
+            if ~isfield(InstrumentList.(name), 'control_class')
+                error(['InstrumentList entry ', name,...
+                    ' has no ''control_class'' field']);
+            else
+                instr_class = InstrumentList.(name).control_class;
+            end
+            Instr = feval(instr_class, interface, address);
+        elseif nargin==5
+            Instr = feval(instr_class, interface, address);
+        else
+            error(['Wrong number of input arguments. ',...
+                'Function can be called as f(name) or ',...
+                'f(name, instr_class, interface, address, gui)'])
+        end
+        GuiInstr = feval(gui, Instr);
+        if isprop(GuiInstr,'name')
+            GuiInstr.name = ['Gui',name];
+        end
         addInstrument(Collector, GuiInstr, 'name', name); 
-       
         % Display instrument's name if given
         fig_handle=findfigure(GuiInstr);
         if ~isempty(fig_handle)

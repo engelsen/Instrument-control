@@ -4,7 +4,8 @@ function genericValueChanged(app, event)
     if isprop(event.Source, 'InputPrescaler')
         val = val/event.Source.InputPrescaler;
     end
-    writePropertyHedged(app.Instr, event.Source.Tag, val);
+    prop = sscanf(event.Source.Tag, 'Instr.%s');
+    writePropertyHedged(app.Instr, prop, val);
     updateGui(app);
 end
 
