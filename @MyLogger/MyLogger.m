@@ -3,7 +3,7 @@
 % function with no arguments. Saving functionality works properly if 
 % MeasFcn returns a number or array of numbers, while intrinsically the 
 % logger can store any kind of outputs.
-classdef MyLogger < handle
+classdef MyLogger < handle & MyInputHandler
     properties (Access=public)
         MeasTimer = []; % Timer object
         MeasFcn = @()0;
@@ -33,12 +33,12 @@ classdef MyLogger < handle
     
     methods
         function this = MyLogger(varargin)
-            p=inputParser();
-            % Ignore unmatched parameters
-            p.KeepUnmatched = true;
-            parseClassInputs(p, this, varargin{:});
+            createConstructionParser(this);
+            this.ConstructionParser.KeepUnmatched = true;
+            addClassProperties(this);
+            parseClassInputs(this, varargin{:});
                  
-            if ismember('MeasTimer', p.UsingDefaults)
+            if ismember('MeasTimer', this.ConstructionParser.UsingDefaults)
                 % Create and confitugure timer unless it was supplied
                 % externally in varargin
                 this.MeasTimer = timer();

@@ -1,15 +1,16 @@
-classdef MyInstrument < dynamicprops
+classdef MyInstrument < dynamicprops & MyInputHandler
     
-    properties (SetAccess=protected, GetAccess=public)
+    properties (Access=public)
         name='';
         interface='';
         address='';
-        visa_brand='';
+        visa_brand='ni';
+    end 
+    
+    properties (SetAccess=protected, GetAccess=public)
         %Contains the device object. struct() is a dummy, as Device 
         %needs to always support properties for consistency.
         Device=struct();
-        %Input parser for class constructor
-        ConstructionParser;
         %Contains a list of the commands available for the instrument as
         %well as the default values and input requirements
         CommandList=struct();
@@ -25,7 +26,6 @@ classdef MyInstrument < dynamicprops
         DEFAULT_INP_BUFF_SIZE = 1e7; % buffer size bytes
         DEFAULT_OUT_BUFF_SIZE = 1e7; % buffer size bytes
         DEFAULT_TIMEOUT = 10; % Timeout in s
-        DEFAULT_VISA_BRAND = 'ni';
     end
         
     properties (Dependent=true)
@@ -39,7 +39,8 @@ classdef MyInstrument < dynamicprops
         NewData;
     end
     
-    methods (Access=private)
+    methods (Access=protected)
+        % This function is overloaded to add more parameters to the parser 
         function p = createConstructionParser(this)
             p=inputParser();
             % Ignore unmatched parameters
@@ -47,28 +48,27 @@ classdef MyInstrument < dynamicprops
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
             addParameter(p,'name','',@ischar);
-            addParameter(p,'visa_brand',this.DEFAULT_VISA_BRAND,@ischar);
+            addParameter(p,'visa_brand',this.visa_brand,@ischar);
             this.ConstructionParser=p;
         end
     end
     
     methods (Access=public)
         function this=MyInstrument(interface, address, varargin)
-            p = createConstructionParser(this);
-            parse(p,interface,address,varargin{:});      
+            createConstructionParser(this);      
             %Loads parsed variables into class properties
-            this.name=p.Results.name;
-            this.interface=p.Results.interface;
-            this.address=p.Results.address;
-            this.visa_brand=p.Results.visa_brand;
+            parseClassInputs(this,interface,address,varargin{:})
         end
         
         function delete(this)         
             %Closes the connection to the device
             closeDevice(this);
             %Deletes the device object
-            delete(this.Device);
-            clear('this.Device');
+            try
+                delete(this.Device);
+            catch
+                warning('Device object cannot be deleted')
+            end
         end    
         
         %% Read and write commands
@@ -239,7 +239,7 @@ classdef MyInstrument < dynamicprops
         % Connects to the device
         function connectDevice(this, interface, address)
             try
-                % visa brand, DEFAULT_VISA_BRAND if not specified
+                % visa brand, 'ni' by default
                 vb = this.visa_brand;
                 switch lower(interface)
                     case 'instr_list'
@@ -273,6 +273,8 @@ classdef MyInstrument < dynamicprops
                     case 'visa'
                         this.Device=visa(vb, address);
                     case 'tcpip'
+                        % Works only with default socket. Use 'visa' or
+                        % 'constructor' if socket needs to be specified
                         this.Device=visa(vb, sprintf(...
                             'TCPIP0::%s::inst0::INSTR',address));
                     case 'usb'
@@ -337,7 +339,7 @@ classdef MyInstrument < dynamicprops
             try
                 bool=strcmp(this.Device.Status, 'open');
             catch
-                warning('Cannot verify device Status property');
+                warning('Cannot access device Status property');
                 bool=false;
             end
         end
