@@ -93,10 +93,10 @@ classdef MyDaq < handle
             
             %Sets a listener to the collector
             if ~isempty(p.Results.collector_handle)
-                this.Listeners.Collector.NewDataCollected=...
+                this.Listeners.Collector.NewDataWithHeaders=...
                     addlistener(p.Results.collector_handle,...
-                    'NewDataCollected',...
-                    @(src,event) acquireNewData(this,src,event));
+                    'NewDataWithHeaders',...
+                    @(~,eventdata) acquireNewData(this,eventdata));
             else
                 errordlg(['No collector handle was supplied. ',...
                     'DAQ will be unable to acquire data'],...
@@ -469,7 +469,7 @@ classdef MyDaq < handle
             end
 
             try
-                eval(ProgramList.(tag).run_expr);
+                eval(this.ProgramList.(tag).run_expr);
             catch
                 errordlg(sprintf('An error occured while running %s',...
                     this.ProgramList.(tag).name))
@@ -789,17 +789,18 @@ classdef MyDaq < handle
         end
         
         %Callback function for the NewData listener
-        function acquireNewData(this, src, event)
+        function acquireNewData(this, eventdata)
             %Get the currently selected instrument
             val=this.Gui.InstrMenu.Value;
-            curr_instr_tag=this.Gui.InstrMenu.ItemsData{val};
+            curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
+            source_name=eventdata.Source.name;
             
             %Check if the data originates from the currently selected
             %instrument
-            if strcmp(event.src_tag,curr_instr_tag)
+            if strcmp(source_name, curr_instr_name)
                 hline=getLineHandle(this.Data,this.main_plot);
                 %Copy the data from the collector
-                this.Data=copy(src.Data);
+                this.Data=copy(eventdata.Source.Data);
                 %We give the new trace object the right line handle to plot in
                 if ~isempty(hline); this.Data.hlines{1}=hline; end
                 this.Data.plotTrace(this.main_plot,...

@@ -46,12 +46,12 @@ function runInstrumentWithGui(name, instr_class, interface, address, gui)
                 'f(name, instr_class, interface, address, gui)'])
         end
         
-        Instr = feval(instr_class, interface, address);
+        Instr = feval(instr_class, interface, address, 'name', name);
+        addInstrument(Collector, Instr, 'name', name);
         GuiInstr = feval(gui, Instr);
         if isprop(GuiInstr,'name')
             GuiInstr.name = ['Gui',name];
         end
-        addInstrument(Collector, GuiInstr, 'name', name); 
         % Display instrument's name if given
         fig_handle=findfigure(GuiInstr);
         if ~isempty(fig_handle)

@@ -17,7 +17,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     end
     
     events
-        NewDataCollected;
+        NewDataWithHeaders;
     end
     
     methods (Access=public)
@@ -37,35 +37,25 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             cellfun(@(x) deleteListeners(this,x), this.running_instruments);
         end
         
-        function addInstrument(this,prog_handle,varargin)
+        function addInstrument(this,instr_handle,varargin)
             p=inputParser;
             addParameter(p,'name','UnknownDevice',@ischar)
             parse(p,varargin{:});
-            
+
             %Find a name for the instrument
             if ~ismember('name',p.UsingDefaults)
-                name=genvarname(p.Results.name);
-            elseif isprop(prog_handle,'name') && ~isempty(prog_handle.name)
-                name=genvarname(prog_handle.name);
-            elseif ~isempty(findMyInstrument(prog_handle))
-                h_instr=findMyInstrument(prog_handle);
-                if isprop(h_instr,'name') && ~isempty(h_instr.name)
-                    name=genvarname(h_instr.name);
-                end
+                name=p.Results.name;
+            elseif isprop(instr_handle,'name') && ~isempty(instr_handle.name)
+                name=genvarname(instr_handle.name);
             else
-                name=genvarname(p.Results.name);
+                name=genvarname(p.Results.name, this.running_instruments);
             end
             
             %We add only classes that have readHeaders functionality
-            if contains('readHeader',methods(prog_handle))
+            if contains('readHeader',methods(instr_handle))
                 %Defaults to read header
                 this.InstrProps.(name).header_flag=true;
-                this.InstrList.(name)=prog_handle;
-            elseif contains('readHeader',...
-                    methods(findMyInstrument(prog_handle)))
-                %Defaults to read header
-                this.InstrProps.(name).header_flag=true;
-                this.InstrList.(name)=findMyInstrument(prog_handle);
+                this.InstrList.(name)=instr_handle;
             else
                 error(['%s does not have a readHeaders function,',...
                     ' cannot be added to Collector'],name)
@@ -75,7 +65,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             if contains('NewData',events(this.InstrList.(name)))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
-                    @(src,~) acquireData(this,src));
+                    @(~,eventdata) acquireData(this,eventdata));
             end
             
             %Cleans up if the instrument is closed
@@ -84,7 +74,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function acquireData(this,src)
+        function acquireData(this,eventdata)
+            src=eventdata.Source;
             %Copy the data from the instrument. 
             this.Data=copy(src.Trace);
             
@@ -104,7 +95,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 this.Data.MeasHeaders=copy(this.MeasHeaders);
             end
             
-            triggerNewDataCollected(this,'tag',src.name);
+            triggerNewDataWithHeaders(this,eventdata);
         end
         
         %Collects headers for open instruments with the header flag on
@@ -142,8 +133,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     end
     
     methods (Access=private)       
-        function triggerNewDataCollected(this, eventdata)
-            notify(this,'NewDataCollected',eventdata);
+        function triggerNewDataWithHeaders(this,eventdata)
+            notify(this,'NewDataWithHeaders',eventdata);
         end
 
         %deleteListeners is in a separate file
