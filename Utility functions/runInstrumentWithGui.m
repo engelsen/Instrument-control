@@ -52,6 +52,8 @@ function runInstrumentWithGui(name, instr_class, interface, address, gui)
         if isprop(GuiInstr,'name')
             GuiInstr.name = ['Gui',name];
         end
+        % Store gui handle in a global variable
+        assignin('base', GuiInstr.name, GuiInstr);
         % Display instrument's name if given
         fig_handle=findfigure(GuiInstr);
         if ~isempty(fig_handle)
@@ -61,6 +63,14 @@ function runInstrumentWithGui(name, instr_class, interface, address, gui)
         end
      else
         warning('%s is already running', name);
+        try
+            % bring app figure on top of other windows
+            GuiInstr = evalin('base',['Gui',name]);
+            Fig = findfigure(GuiInstr);
+            Fig.Visible = 'off';
+            Fig.Visible = 'on';
+        catch
+        end
     end
 end
 
