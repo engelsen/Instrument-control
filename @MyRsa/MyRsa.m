@@ -6,7 +6,7 @@ classdef MyRsa < MyScpiInstrument
             this@MyScpiInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
-            connectDevice(this, interface, address);
+            connectDevice(this);
             
             this.Trace.unit_x='Hz';
             this.Trace.unit_y='$\mathrm{V}^2/\mathrm{Hz}$';

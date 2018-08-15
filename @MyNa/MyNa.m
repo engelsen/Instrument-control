@@ -19,7 +19,7 @@ classdef MyNa < MyScpiInstrument
             this@MyScpiInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
-            connectDevice(this, interface, address);
+            connectDevice(this);
             
             %Tests if device is working.
             try

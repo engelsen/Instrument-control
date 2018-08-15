@@ -45,7 +45,38 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         function this=MyInstrument(interface, address, varargin)
             createConstructionParser(this);      
             %Loads parsed variables into class properties
-            parseClassInputs(this,interface,address,varargin{:})
+            parseClassInputs(this,interface,address,varargin{:});
+            
+            % Interface and address can correspond to an entry in the list
+            % of local instruments. Read this entry in such case.
+            if strcmpi(interface, 'instr_list')
+                % load the InstrumentList structure
+                InstrumentList = getLocalSettings('InstrumentList');
+                % In this case 'address' is the instrument name in
+                % the list
+                instr_name = address;
+                if ~isfield(InstrumentList, instr_name)
+                    error('%s is not a field of InstrumentList',...
+                        instr_name);
+                end
+                if ~isfield(InstrumentList.(instr_name), 'interface')
+                    error(['InstrumentList entry ', instr_name,...
+                        ' has no ''interface'' field']);
+                else
+                    this.interface = InstrumentList.(instr_name).interface;
+                end
+                if ~isfield(InstrumentList.(instr_name), 'address')
+                    error(['InstrumentList entry ', instr_name,...
+                        ' has no ''address'' field']);
+                else
+                    this.address = InstrumentList.(instr_name).address;
+                end
+                % Assign name automatically, but not overwrite if
+                % already specified
+                if isempty(this.name)
+                    this.name = instr_name;
+                end
+            end
         end
         
         function delete(this)         
@@ -82,51 +113,28 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         %% Connect, open, configure and close the device
         % Connects to the device, explicit indication of interface and
         % address is for ability to handle instr_list as interface
-        function connectDevice(this, interface, address)
+        function connectDevice(this)
             try
                 % visa brand, 'ni' by default
                 vb = this.visa_brand;
-                switch lower(interface)
-                    case 'instr_list'
-                        % load the InstrumentList structure
-                        InstrumentList = getLocalSettings('InstrumentList');
-                        % In this case 'address' is the instrument name in
-                        % the list
-                        instr_name = address;
-                        if ~isfield(InstrumentList, instr_name)
-                            error('%s is not a field of InstrumentList',...
-                                instr_name)
-                        end
-                        % A check to prevent hypothetical endless recursion
-                        if isequal(InstrumentList.(instr_name).interface,'instr_list')
-                            error('')
-                        end
-                        % Connect using the loaded parameters 
-                        connectDevice(this,...
-                            InstrumentList.(instr_name).interface,...
-                            InstrumentList.(instr_name).address);
-                        % Assign name automatically, but not overwrite if
-                        % already specified
-                        if isempty(this.name)
-                            this.name = instr_name;
-                        end
+                switch lower(this.interface)
                     case 'constructor'
                         % in this case the 'address' is a command 
                         % (ObjectConstructorName) as returned by the 
                         % instrhwinfo
-                        this.Device=eval(address);
+                        this.Device=eval(this.address);
                     case 'visa'
-                        this.Device=visa(vb, address);
+                        this.Device=visa(vb, this.address);
                     case 'tcpip'
                         % Works only with default socket. Use 'visa' or
                         % 'constructor' if socket needs to be specified
                         this.Device=visa(vb, sprintf(...
-                            'TCPIP0::%s::inst0::INSTR',address));
+                            'TCPIP0::%s::inst0::INSTR',this.address));
                     case 'usb'
                         this.Device=visa(vb, sprintf(...
-                            'USB0::%s::INSTR',address));
+                            'USB0::%s::INSTR',this.address));
                     case 'serial'
-                        com_no = sscanf(address,'COM%i');
+                        com_no = sscanf(this.address,'COM%i');
                         this.Device = visa(vb, sprintf(...
                             'ASRL%i::INSTR',com_no));
                     otherwise

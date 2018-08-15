@@ -18,7 +18,7 @@ classdef MyDso <MyInstrument
             this@MyInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
-            connectDevice(this, interface, address);
+            connectDevice(this);
             % 1.6e7 is the maximum trace size of DSO7034A 
             %(8 mln point of 2-byte integers)
             this.Device.InputBufferSize = 2e7; %byte 

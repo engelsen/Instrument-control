@@ -16,7 +16,7 @@ classdef MyDpo < MyInstrument
             this@MyInstrument(interface, address, varargin{:});
             createCommandList(this);
             createCommandParser(this);
-            connectDevice(this, interface, address);
+            connectDevice(this);
             % 2e7 is the maximum trace size of DPO4034-3034 
             %(10 mln point of 2-byte integers)
             this.Device.InputBufferSize = 2.1e7; %byte 
