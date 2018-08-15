@@ -142,12 +142,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     end
     
     methods (Access=private)       
-        function triggerNewDataCollected(this,varargin)
-            p=inputParser;
-            addParameter(p,'tag','',@ischar);
-            parse(p,varargin{:});
-            %Load the information into event data.
-            eventdata=MyNewDataEvent('src_tag',p.Results.tag);
+        function triggerNewDataCollected(this, eventdata)
             notify(this,'NewDataCollected',eventdata);
         end
 

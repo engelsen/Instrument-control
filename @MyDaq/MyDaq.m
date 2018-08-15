@@ -467,16 +467,12 @@ classdef MyDaq < handle
             else
                 tag = hObject.ItemsData{val};
             end
-            
 
             try
-                [~, fname, ~] =...
-                    fileparts(this.ProgramList.(tag).fullname);
-                prog = feval(fname);
-                evalin('base', prog);
+                eval(ProgramList.(tag).run_expr);
             catch
                 errordlg(sprintf('An error occured while running %s',...
-                    this.ProgramList.(tag).fullname))
+                    this.ProgramList.(tag).name))
             end
 
         end

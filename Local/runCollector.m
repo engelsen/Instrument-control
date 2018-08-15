@@ -5,6 +5,5 @@ function name = runCollector()
     else
         warning('Collector is already running');
     end
-    
 end
 

@@ -37,14 +37,16 @@ function runInstrumentWithGui(name, instr_class, interface, address, gui)
             else
                 instr_class = InstrumentList.(name).control_class;
             end
-            Instr = feval(instr_class, interface, address);
         elseif nargin==5
-            Instr = feval(instr_class, interface, address);
+            % Case when all the arguments are supplied explicitly, do
+            % nothing
         else
             error(['Wrong number of input arguments. ',...
                 'Function can be called as f(name) or ',...
                 'f(name, instr_class, interface, address, gui)'])
         end
+        
+        Instr = feval(instr_class, interface, address);
         GuiInstr = feval(gui, Instr);
         if isprop(GuiInstr,'name')
             GuiInstr.name = ['Gui',name];
