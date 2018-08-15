@@ -5,12 +5,13 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         interface='';
         address='';
         visa_brand='ni';
-    end 
-    
-    properties (SetAccess=protected, GetAccess=public)
+        
         %Contains the device object. struct() is a dummy, as Device 
         %needs to always support properties for consistency.
         Device=struct();
+    end 
+    
+    properties (SetAccess=protected, GetAccess=public)
         %Trace object for storing data
         Trace=MyTrace();
     end
@@ -79,7 +80,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
        
         
         %% Connect, open, configure and close the device
-        % Connects to the device
+        % Connects to the device, explicit indication of interface and
+        % address is for ability to handle instr_list as interface
         function connectDevice(this, interface, address)
             try
                 % visa brand, 'ni' by default
