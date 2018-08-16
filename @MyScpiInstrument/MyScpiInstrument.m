@@ -184,6 +184,47 @@ classdef MyScpiInstrument < MyInstrument
             std_val_list = vlist(long_val_ind); 
         end
         
+        %% Auxiliary functions for auto format assignment to commands
+        function str_spec=formatSpecFromAttributes(~,classes,attributes)
+            if ismember('char',classes)
+                str_spec='%s';
+            elseif ismember('logical',classes)||...
+                    (ismember('numeric',classes)&&...
+                    ismember('integer',attributes))
+                str_spec='%i';
+            else
+                %assign default value, i.e. double
+                str_spec='%e';
+            end
+        end
+        
+        function [class,attribute]=attributesFromFormatSpec(~, str_spec)
+            % find index of the first letter after the % sign
+            ind_p=strfind(str_spec,'%');
+            ind=ind_p+find(isletter(str_spec(ind_p:end)),1)-1;
+            str_spec_letter=str_spec(ind);
+            switch str_spec_letter
+                case {'d','f','e','g'}
+                    class={'numeric'};
+                    attribute={};
+                case 'i'
+                    class={'numeric'};
+                    attribute={'integer'};
+                case 's'
+                    class={'char'};
+                    attribute={};
+                case 'b'
+                    class={'logical'};
+                    attribute={};
+                otherwise
+                    % Any of the above classes will pass
+                    class={'numeric','char','logical'};
+                    attribute={};
+            end
+        end
+    end
+    
+    methods (Access=protected)
         %% Command list handling
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
@@ -280,45 +321,6 @@ classdef MyScpiInstrument < MyInstrument
         %Dummy empty function that needs to be redefined in a subclass and
         %contain addCommand statements
         function createCommandList(~)
-        end
-        
-        %% Auxiliary functions for auto format assignment to commands
-        function str_spec=formatSpecFromAttributes(~,classes,attributes)
-            if ismember('char',classes)
-                str_spec='%s';
-            elseif ismember('logical',classes)||...
-                    (ismember('numeric',classes)&&...
-                    ismember('integer',attributes))
-                str_spec='%i';
-            else
-                %assign default value, i.e. double
-                str_spec='%e';
-            end
-        end
-        
-        function [class,attribute]=attributesFromFormatSpec(~, str_spec)
-            % find index of the first letter after the % sign
-            ind_p=strfind(str_spec,'%');
-            ind=ind_p+find(isletter(str_spec(ind_p:end)),1)-1;
-            str_spec_letter=str_spec(ind);
-            switch str_spec_letter
-                case {'d','f','e','g'}
-                    class={'numeric'};
-                    attribute={};
-                case 'i'
-                    class={'numeric'};
-                    attribute={'integer'};
-                case 's'
-                    class={'char'};
-                    attribute={};
-                case 'b'
-                    class={'logical'};
-                    attribute={};
-                otherwise
-                    % Any of the above classes will pass
-                    class={'numeric','char','logical'};
-                    attribute={};
-            end
         end
     end
     

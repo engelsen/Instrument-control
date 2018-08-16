@@ -35,6 +35,68 @@ classdef MyNa < MyScpiInstrument
             this.Trace2.name_x = 'Frequency';
         end
         
+        function data = readTrace(this, nTrace)
+            this.writeActiveTrace(nTrace);
+            freq_str = strsplit(query(this.Device,'SENS1:FREQ:DATA?'),',');
+            data_str = strsplit(query(this.Device,'CALC1:DATA:FDAT?'),',');
+            data = struct();
+            data.x = str2double(freq_str);
+            % In the returned string there is in general 2 values for each
+            % frequency point. In the Smith data format this can be used to
+            % transfer magnitude and phase of the signal in one trace. With
+            % MLOG, MLIN and PHAS format settings every 2-nd element should
+            % be 0
+            data.y1 = str2double(data_str(1:2:end));
+            data.y2 = str2double(data_str(2:2:end));
+            
+            % set the Trace properties
+            trace_tag = sprintf('Trace%i', nTrace);
+            this.(trace_tag).x = data.x;
+            this.(trace_tag).y = data.y1;
+        end
+        
+        function writeActiveTrace(this, nTrace)
+            fprintf(this.Device, sprintf('CALC1:PAR%i:SEL',nTrace));
+            this.active_trace = nTrace;
+        end
+        
+        function writeTraceFormat(this, nTrace, fmt)
+            this.writeActiveTrace(nTrace);
+            n_str = num2str(nTrace);
+            this.(['form',n_str]) = fmt;
+            fprintf(this.Device, sprintf('CALC1:FORM %s', fmt));
+        end
+        
+        function singleSweep(this)
+            this.openDevice(); 
+            this.writeProperty('cont_trig', true);
+            % Set the triger source to remote control
+            this.writeProperty('trig_source', 'BUS');
+            % Start a sweep cycle
+            fprintf(this.Device,':TRIG:SING');
+            % Wait for the sweep to finish (for the query to return 1)
+            query(this.Device,'*OPC?');
+            this.closeDevice();
+        end
+        
+        function startContSweep(this)
+            this.openDevice(); 
+            this.writeProperty('cont_trig', true);
+            % Set the triger source to be internal
+            this.writeProperty('trig_source', 'INT');
+            this.closeDevice();
+        end
+        
+        function abortSweep(this)
+            this.openDevice();
+            this.writeProperty('trig_source', 'BUS');
+            fprintf(this.Device,':ABOR');
+            this.closeDevice();
+        end
+    end
+    
+    %% Protected functions
+    methods (Access=protected)
         % Command attributes are {class, attributtes} accepted by
         % validateattributes()
         function createCommandList(this)
@@ -99,65 +161,6 @@ classdef MyNa < MyScpiInstrument
                     'default','S21',...
                     'str_spec','s');
             end
-        end
-        
-        function data = readTrace(this, nTrace)
-            this.writeActiveTrace(nTrace);
-            freq_str = strsplit(query(this.Device,'SENS1:FREQ:DATA?'),',');
-            data_str = strsplit(query(this.Device,'CALC1:DATA:FDAT?'),',');
-            data = struct();
-            data.x = str2double(freq_str);
-            % In the returned string there is in general 2 values for each
-            % frequency point. In the Smith data format this can be used to
-            % transfer magnitude and phase of the signal in one trace. With
-            % MLOG, MLIN and PHAS format settings every 2-nd element should
-            % be 0
-            data.y1 = str2double(data_str(1:2:end));
-            data.y2 = str2double(data_str(2:2:end));
-            
-            % set the Trace properties
-            trace_tag = sprintf('Trace%i', nTrace);
-            this.(trace_tag).x = data.x;
-            this.(trace_tag).y = data.y1;
-        end
-        
-        function writeActiveTrace(this, nTrace)
-            fprintf(this.Device, sprintf('CALC1:PAR%i:SEL',nTrace));
-            this.active_trace = nTrace;
-        end
-        
-        function writeTraceFormat(this, nTrace, fmt)
-            this.writeActiveTrace(nTrace);
-            n_str = num2str(nTrace);
-            this.(['form',n_str]) = fmt;
-            fprintf(this.Device, sprintf('CALC1:FORM %s', fmt));
-        end
-        
-        function singleSweep(this)
-            this.openDevice(); 
-            this.writeProperty('cont_trig', true);
-            % Set the triger source to remote control
-            this.writeProperty('trig_source', 'BUS');
-            % Start a sweep cycle
-            fprintf(this.Device,':TRIG:SING');
-            % Wait for the sweep to finish (for the query to return 1)
-            query(this.Device,'*OPC?');
-            this.closeDevice();
-        end
-        
-        function startContSweep(this)
-            this.openDevice(); 
-            this.writeProperty('cont_trig', true);
-            % Set the triger source to be internal
-            this.writeProperty('trig_source', 'INT');
-            this.closeDevice();
-        end
-        
-        function abortSweep(this)
-            this.openDevice();
-            this.writeProperty('trig_source', 'BUS');
-            fprintf(this.Device,':ABOR');
-            this.closeDevice();
         end
     end
 end

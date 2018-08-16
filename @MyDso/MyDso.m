@@ -102,7 +102,8 @@ classdef MyDso <MyScpiInstrument
         end
     end
     
-    methods (Access=private)
+    %% Protected functions
+    methods (Access=protected)
         function createCommandList(this)
             % channel from which the data is transferred
             addCommand(this,'channel','WAVeform:SOURce','default',1,...

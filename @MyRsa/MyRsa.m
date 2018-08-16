@@ -12,8 +12,8 @@ classdef MyRsa < MyScpiInstrument
         end
     end
     
-    %% Private functions
-    methods (Access=private)
+    %% Protected functions
+    methods (Access=protected)
         
         function createCommandList(this)
             % Resolution bandwidth (Hz)
