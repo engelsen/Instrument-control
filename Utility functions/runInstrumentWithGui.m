@@ -62,7 +62,7 @@ function runInstrumentWithGui(name, instr_class, interface, address, gui)
            warning('No UIFigure found to assign the name')
         end
      else
-        warning('%s is already running', name);
+        disp([name,' is already running']);
         try
             % bring app figure on top of other windows
             GuiInstr = evalin('base',['Gui',name]);

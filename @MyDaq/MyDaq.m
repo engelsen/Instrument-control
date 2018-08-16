@@ -1,13 +1,15 @@
 classdef MyDaq < handle
     properties
+        %Global variable with Daq name is cleared on exit.
+        global_name;
         %Contains GUI handles
         Gui;
         %Contains Reference trace (MyTrace object)
-        Ref;
+        Ref=MyTrace();
         %Contains Data trace (MyTrace object)
-        Data;
+        Data=MyTrace();
         %Contains Background trace (MyTrace object)
-        Background;
+        Background=MyTrace();
 
         %List of all the programs with run files
         ProgramList=struct();
@@ -27,9 +29,6 @@ classdef MyDaq < handle
         data_color='b';
         ref_color='r';
         bg_color='c';
-        
-        %Flag for enabling the GUI
-        enable_gui;
     end
     
     properties (Dependent=true)
@@ -39,7 +38,7 @@ classdef MyDaq < handle
         open_crs;
     end
     
-    properties (Dependent=true, SetAccess=private)
+    properties (Dependent=true, SetAccess=private, GetAccess=public)
         %Properties for saving files
         base_dir;
         session_name;
@@ -51,45 +50,12 @@ classdef MyDaq < handle
         %Constructor function
         function this=MyDaq(varargin)
             p=inputParser;
-            addParameter(p,'enable_gui',1);
-            addParameter(p,'collector_handle',[])
+            addParameter(p,'global_name','',@ischar);
+            addParameter(p,'collector_handle',[]);
             this.ConstructionParser=p;
             parse(p, varargin{:});
             
-            %Sets the class variables to the inputs from the inputParser.
-            for i=1:length(p.Parameters)
-                %Takes the value from the inputParser to the appropriate
-                %property.
-                if isprop(this, p.Parameters{i})
-                    this.(p.Parameters{i})= p.Results.(p.Parameters{i});
-                end
-            end
-
-            %The list of instruments is automatically populated from the
-            %run files
-            this.ProgramList = readRunFiles();
-            
-            if this.enable_gui
-                %We grab the guihandles from a GUI made in Guide.
-                this.Gui=guihandles(eval('GuiDaq'));
-                %This function sets all the callbacks for the GUI. If a new
-                %button is made, the associated callback must be put in the
-                %initGui function
-                initGui(this);
-                % Initialize the menu based on the available run files
-                content = menuFromRunFiles(this.ProgramList,...
-                    'show_in_daq',true);
-                set(this.Gui.InstrMenu,'String',[{'Select the application'};...
-                    content.titles]);
-                % Add a property to the menu for storing the program file
-                % names
-                if ~isprop(this.Gui.InstrMenu, 'ItemsData')
-                    addprop(this.Gui.InstrMenu, 'ItemsData');
-                end
-                set(this.Gui.InstrMenu,'ItemsData',[{''};...
-                    content.tags]);
-                hold(this.main_plot,'on');
-            end
+            this.global_name = p.Results.global_name;
             
             %Sets a listener to the collector
             if ~isempty(p.Results.collector_handle)
@@ -102,11 +68,30 @@ classdef MyDaq < handle
                     'DAQ will be unable to acquire data'],...
                     'Error: No collector');
             end
+
+            %The list of instruments is automatically populated from the
+            %run files
+            this.ProgramList = readRunFiles();
             
-            %Initializes empty trace objects
-            this.Ref=MyTrace();
-            this.Data=MyTrace();
-            this.Background=MyTrace();
+            %We grab the guihandles from a GUI made in Guide.
+            this.Gui=guihandles(eval('GuiDaq'));
+            %This function sets all the callbacks for the GUI. If a new
+            %button is made, the associated callback must be put in the
+            %initGui function
+            initGui(this);
+            % Initialize the menu based on the available run files
+            content = menuFromRunFiles(this.ProgramList,...
+                'show_in_daq',true);
+            set(this.Gui.InstrMenu,'String',[{'Select the application'};...
+                content.titles]);
+            % Add a property to the menu for storing the program file
+            % names
+            if ~isprop(this.Gui.InstrMenu, 'ItemsData')
+                addprop(this.Gui.InstrMenu, 'ItemsData');
+            end
+            set(this.Gui.InstrMenu,'ItemsData',[{''};...
+                content.tags]);
+            hold(this.main_plot,'on');
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
@@ -125,13 +110,14 @@ classdef MyDaq < handle
                     fieldnames(this.Listeners));
             end
             
-            if this.enable_gui
-                this.Gui.figure1.CloseRequestFcn='';
-                %Deletes the figure
-                delete(this.Gui.figure1);
-                %Removes the figure handle to prevent memory leaks
-                this.Gui=[];
-            end         
+            % clear global variable, to which Daq handle is assigned
+            evalin('base', sprintf('clear(''%s'')', this.global_name));
+            
+            this.Gui.figure1.CloseRequestFcn='';
+            %Deletes the figure
+            delete(this.Gui.figure1);
+            %Removes the figure handle to prevent memory leaks
+            this.Gui=[];      
         end
     end
     
@@ -892,11 +878,7 @@ classdef MyDaq < handle
         
         %Get function for the plot handles
         function main_plot=get.main_plot(this)
-            if this.enable_gui
-                main_plot=this.Gui.figure1.CurrentAxes; 
-            else
-                main_plot=[];
-            end
+            main_plot=this.Gui.figure1.CurrentAxes; 
         end
         
         %Get function for open fits
