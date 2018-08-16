@@ -13,9 +13,8 @@ classdef MyTlb6700 < MyScpiInstrument
         end
     end
     
-    %% Private functions
-    methods (Access=private)
-        
+    %% Protected functions
+    methods (Access=protected)  
         function createCommandList(this)
             % Output wavelength, nm
             addCommand(this, 'wavelength','SENSe:WAVElength',...
