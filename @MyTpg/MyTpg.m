@@ -53,7 +53,6 @@ classdef MyTpg < MyInstrument
             % 6 –> Identification error  
             this.stat1 = gaugeStatusFromCode(this, arr(1));
             this.stat2 = gaugeStatusFromCode(this, arr(3));
-            triggerNewData(this);
         end
         
         function pu = readPressureUnit(this)
@@ -82,6 +81,8 @@ classdef MyTpg < MyInstrument
         function p_arr = readAllHedged(this)
             openDevice(this);
             try
+                % Try opening device before each reading as unclarified
+                % spontaneous closing of the device was observed 
                 p_arr = readPressure(this);
                 readPressureUnit(this);
                 readGaugeId(this);
@@ -89,7 +90,34 @@ classdef MyTpg < MyInstrument
                 p_arr = [0,0];
                 warning('Error while communicating with gauge controller')
             end
-            closeDevice(this)
+            closeDevice(this);
+        end
+        
+        % Re-define readHeader function
+        function HdrStruct=readHeader(this)
+            readAllHedged(this);
+            HdrStruct = struct();
+            
+            HdrStruct.pressure1.value = this.pressure1;
+            HdrStruct.pressure1.str_spec = '%e';
+            
+            HdrStruct.pressure2.value = this.pressure2;
+            HdrStruct.pressure2.str_spec = '%e';
+            
+            HdrStruct.stat1.value = this.stat1;
+            HdrStruct.stat1.str_spec = '%s';
+            
+            HdrStruct.stat2.value = this.stat2;
+            HdrStruct.stat2.str_spec = '%s';
+            
+            HdrStruct.gauge_id1.value = this.gauge_id1;
+            HdrStruct.gauge_id1.str_spec = '%s';
+            
+            HdrStruct.gauge_id2.value = this.gauge_id2;
+            HdrStruct.gauge_id2.str_spec = '%s';
+
+            HdrStruct.pressure_unit.value = this.pressure_unit;
+            HdrStruct.pressure_unit.str_spec = '%s';
         end
         
         function code_list = turnGauge(this)

@@ -8,7 +8,7 @@ classdef MyLakeshore336 < MyInstrument
     properties (SetAccess=protected, GetAccess=public)
         temp = {[],[],[],[]}; % cell array of temperatures
         setpoint = {[],[],[],[]};
-        inp_sens_names = {'','','',''}; % input sensor names
+        inp_sens_name = {'','','',''}; % input sensor names
         heater_rng = {[],[],[],[]}; % cell array of heater range codes
         % output modes{{mode, cntl_inp, powerup_en},...}
         out_mode = {{[0,0,0]},{[0,0,0]},{[0,0,0]},{[0,0,0]}}; 
@@ -46,6 +46,38 @@ classdef MyLakeshore336 < MyInstrument
             readInputSensorName(this);
             readOutMode(this);
             closeDevice(this);
+        end
+        
+        % Re-define readHeader function
+        function HdrStruct=readHeader(this)
+            readAllHedged(this);
+            HdrStruct = struct();
+            
+            HdrStruct.temp_unit.value = this.temp_unit;
+            HdrStruct.temp_unit.str_spec = '%s';
+            
+            % Add properties which are numbers
+            num_props = {'temp', 'setpoint'};
+            for i=1:length(num_props)
+                tag = num_props{i};
+                for j = 1:4
+                    indtag = sprintf('%s%i', tag, j);
+                    HdrStruct.(indtag).value = this.(tag){j};
+                    HdrStruct.(indtag).str_spec = '%e';
+                end
+            end
+            
+            % Add properties which are strings
+            str_props = {'inp_sens_name', 'heater_rng_str',...
+                'out_mode_str', 'cntl_inp_str', 'powerup_en_str'};
+            for i=1:length(str_props)
+                tag = str_props{i};
+                for j = 1:4
+                    indtag = sprintf('%s%i', tag, j);
+                    HdrStruct.(indtag).value = this.(tag){j};
+                    HdrStruct.(indtag).str_spec = '%s';
+                end
+            end
         end
         
         function temp_arr = readTemperature(this)
@@ -103,16 +135,16 @@ classdef MyLakeshore336 < MyInstrument
         function ret = readInputSensorName(this)
             cmd_str = 'INNAME? A;INNAME? B;INNAME? C;INNAME? D';
             resp_str = query(this.Device, cmd_str);
-            this.inp_sens_names = strtrim(strsplit(resp_str,';',...
+            this.inp_sens_name = strtrim(strsplit(resp_str,';',...
                 'CollapseDelimiters',false));
-            ret = this.inp_sens_names;
+            ret = this.inp_sens_name;
         end
         
         function writeInputSensorName(this, in_channel, name)
             fprintf(this.Device, ['INNAME ',in_channel, name]);
             readInputSensorName(this)
             ch_n = inChannelToNumber(this, in_channel);
-            if ~strcmpi(this.inp_sens_names{ch_n}, name)
+            if ~strcmpi(this.inp_sens_name{ch_n}, name)
                 warning(['Name of input sensor ',in_channel,...
                     ' could not be changed'])
             end
