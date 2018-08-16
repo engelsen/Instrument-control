@@ -17,7 +17,13 @@ classdef MyScpiInstrument < MyInstrument
         read_commands;
     end
     
-    methods (Access=public)       
+    methods (Access=public)
+        %% Class constructor
+        function this=MyScpiInstrument(interface, address, varargin)
+            this@MyInstrument(interface, address, varargin{:});
+            createCommandList(this);
+            createCommandParser(this);
+        end
         %% Read and write commands
         %Writes properties to device. Can take multiple inputs. With the
         %option all, the function writes default to all the
@@ -178,7 +184,7 @@ classdef MyScpiInstrument < MyInstrument
             std_val_list = vlist(long_val_ind); 
         end
         
-        %% addCommand
+        %% Command list handling
         %Adds a command to the CommandList
         function addCommand(this, tag, command, varargin)
             p=inputParser();
@@ -269,6 +275,11 @@ classdef MyScpiInstrument < MyInstrument
                     this.CommandList.(tag).default, v_func);
             end
             this.CommandParser=p;
+        end
+        
+        %Dummy empty function that needs to be redefined in a subclass and
+        %contain addCommand statements
+        function createCommandList(~)
         end
         
         %% Auxiliary functions for auto format assignment to commands

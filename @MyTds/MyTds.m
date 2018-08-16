@@ -8,9 +8,7 @@ classdef MyTds <MyScpiInstrument
     methods (Access=public)
         function this=MyTds(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            createCommandList(this);
-            createCommandParser(this);
-            connectDevice(this);
+
             % 5e3 is the maximum trace size of TDS2022 
             %(2500 point of 2-byte integers)
             this.Device.InputBufferSize = 1e4; %byte 

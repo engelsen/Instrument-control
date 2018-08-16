@@ -31,7 +31,6 @@ classdef MyTpg < MyInstrument
     methods (Access=public)
         function this = MyTpg(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
-            connectDevice(this);
         end
         
         % read pressure from a single channel or both channels at a time

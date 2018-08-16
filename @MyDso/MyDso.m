@@ -16,9 +16,6 @@ classdef MyDso <MyScpiInstrument
     methods (Access=public)
         function this=MyDso(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            createCommandList(this);
-            createCommandParser(this);
-            connectDevice(this);
             % 1.6e7 is the maximum trace size of DSO7034A 
             %(8 mln point of 2-byte integers)
             this.Device.InputBufferSize = 2e7; %byte 

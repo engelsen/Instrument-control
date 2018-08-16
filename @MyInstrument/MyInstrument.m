@@ -75,6 +75,10 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                     this.name = instr_name;
                 end
             end
+            
+            % Connecting device creates a visa object, but does not attempt
+            % communication
+            connectDevice(this);
         end
         
         function delete(this)         

@@ -17,9 +17,6 @@ classdef MyNa < MyScpiInstrument
     methods
         function this=MyNa(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            createCommandList(this);
-            createCommandParser(this);
-            connectDevice(this);
             
             %Tests if device is working.
             try

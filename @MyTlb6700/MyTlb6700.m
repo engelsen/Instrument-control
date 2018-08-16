@@ -10,9 +10,6 @@ classdef MyTlb6700 < MyScpiInstrument
     methods (Access=public)
         function this=MyTlb6700(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            createCommandList(this);
-            createCommandParser(this);
-            connectDevice(this);
         end
     end
     

@@ -34,7 +34,6 @@ classdef MyLakeshore336 < MyInstrument
     methods (Access=public)
         function this=MyLakeshore336(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
-            connectDevice(this);
         end
         
         % read 
