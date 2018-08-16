@@ -1,3 +1,5 @@
+% Class containing ConstructionParser that can be used to automatically 
+% assign public properties during construction of subclasses
 classdef MyInputHandler < handle
     
     properties (SetAccess=protected, GetAccess=public)

@@ -1,4 +1,4 @@
-% Class for instruments supporting SCPI, features epecialized framework for
+% Class for instruments supporting SCPI, features specialized framework for
 % read/write commands
 classdef MyScpiInstrument < MyInstrument
     

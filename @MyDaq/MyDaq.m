@@ -1,3 +1,5 @@
+% Acquisition and analysis program that receives data from Collector. Can
+% also be used for analysis of previously acquired traces.
 classdef MyDaq < handle
     properties
         %Global variable with Daq name is cleared on exit.
