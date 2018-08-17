@@ -68,7 +68,7 @@ classdef MyTlb6700 < MyScpiInstrument
         % overload connectDevice, writeCommand and queryCommand methods
         function connectDevice(this)
             % In this case 'interface' property is ignored and 'address' is
-            % the device key
+            % the USB address, indicated in the controller menu
             dll_path = which('UsbDllWrap.dll');
             if isempty(dll_path)
                 error(['UsbDllWrap.dll is not found. This library ',...
@@ -87,8 +87,22 @@ classdef MyTlb6700 < MyScpiInstrument
         end
          
         function openDevice(this)
-            % '100A' is a code, corresponding to TLB6700 laser controller
             OpenDevices(this.Device, hex2num('100A'));
+        end
+        
+        % Overload isopen method of MyInstrument
+        function bool=isopen(this)
+            % Could not find a better way to check if device is open other
+            % than attempting communication with it
+            bool=false;
+            try
+                stat = Query(this.Device, this.address, '*IDN?',...
+                    this.QueryData);
+                if stat==0
+                    bool=true;
+                end
+            catch
+            end
         end
         
         function closeDevice(this)
@@ -123,6 +137,19 @@ classdef MyTlb6700 < MyScpiInstrument
             else
                 res_list={};
             end
+        end
+        
+        function stat = setMaxOutPower(this)
+            % Depending on if the laser in the constat power or current
+            % mode, set value to max
+            if this.const_power
+                Query(this.Device, this.address, ...
+                    'SOURce:CURRent:DIODe MAX;', this.QueryData);
+            else
+                Query(this.Device, this.address, ...
+                    'SOURce:POWer:DIODe MAX;', this.QueryData);
+            end
+            stat = char(ToString(this.QueryData));
         end
         
         function scanSingle(this, start_wl, stop_wl, speed)
