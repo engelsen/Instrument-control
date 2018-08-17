@@ -55,6 +55,9 @@ classdef MyTlb6700 < MyScpiInstrument
     
     %% Public functions including callbacks
     methods (Access=public)
+        % NewFocus lasers no not support visa communication
+        function connectDevice(this)
+        end
         
         function scanSingle(this, start_wl, stop_wl, speed)
             % Do not switch the laser off during the backward scan

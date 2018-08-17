@@ -24,7 +24,36 @@ classdef MyScpiInstrument < MyInstrument
             createCommandList(this);
             createCommandParser(this);
         end
+        
+        %% Low-level functions for reading and writing textual data to the device
+        % These functions can be overloaded if the instrument does not
+        % support visa communication or use non-standard command separators
+        
+        function writeCommand(this, varargin)
+            if ~isempty(varargin)
+                % concatenate commands and send to device
+                cmd_str=join(varargin,';:');
+                cmd_str=[cmd_str{1},';'];
+                fprintf(this.Device, cmd_str);
+            end
+        end
+        
+        % Query commands and return resut as cell array of strings
+        function res_list=queryCommand(this, varargin)
+            if ~isempty(varargin)
+                % concatenate commands and send to device
+                cmd_str=join(varargin,';:');
+                cmd_str=[cmd_str{1},';'];
+                res_str=query(this.Device, cmd_str);
+                % drop the end-of-the-string symbol and split
+                res_list=split(res_str(1:end-1),';');
+            else
+                res_list={};
+            end
+        end
+        
         %% Read and write commands
+        
         %Writes properties to device. Can take multiple inputs. With the
         %option all, the function writes default to all the
         %available writeable parameters.
@@ -42,16 +71,21 @@ classdef MyScpiInstrument < MyInstrument
                     this.write_commands);
                 exec=this.write_commands(ind_val);
             end
-
+            
+            % create a list of textual strings to be sent to device
+            exec_commands=cell(1,length(exec));
             for i=1:length(exec)
-                %Creates the write command using the right string spec
-                write_command=[this.CommandList.(exec{i}).command,...
+                %Create command using the right string spec
+                cmd=[this.CommandList.(exec{i}).command,...
                     ' ',this.CommandList.(exec{i}).str_spec];
-                %Gets the value to write to the device
+                val=this.CommandParser.Results.(exec{i});
+                exec_commands{i}=sprintf(cmd, val);
+            end
+            %Sends commands to device
+            writeCommand(this, exec_commands{:});
+            for i=1:length(exec)
+                %Assign written values to instrument properties
                 this.(exec{i})=this.CommandParser.Results.(exec{i});
-                command=sprintf(write_command, this.(exec{i}));
-                %Sends command to device
-                fprintf(this.Device, command);
             end
         end
         
@@ -83,17 +117,16 @@ classdef MyScpiInstrument < MyInstrument
                     disp(varargin(~ind_r));
                 end
             end
-            % concatenate all commands in one string
-            read_command=join(cellfun(...
-                @(cmd)this.CommandList.(cmd).command,exec,...
-                'UniformOutput',false),'?;:');
-            read_command=[read_command{1},'?;'];
-            res_str = query(this.Device,read_command);
-            % drop the end-of-the-string symbol and split
-            res_str = split(res_str(1:end-1),';');
-            if length(exec)==length(res_str)
+            % Create a list of textual strings to be sent to device
+            exec_commands=cellfun(...
+                @(cmd)[this.CommandList.(cmd).command,'?'],exec,...
+                'UniformOutput',false);
+            % Query device
+            res_list=queryCommand(this, exec_commands{:});
+            % Assign outputs to the class properties
+            if length(exec)==length(res_list)
                 for i=1:length(exec)
-                    result.(exec{i})=sscanf(res_str{i},...
+                    result.(exec{i})=sscanf(res_list{i},...
                         this.CommandList.(exec{i}).str_spec);
                     %Assign the values to the MyInstrument properties
                     this.(exec{i})=result.(exec{i});
