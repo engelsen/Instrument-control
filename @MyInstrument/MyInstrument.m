@@ -76,8 +76,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                 end
             end
             
-            % Connecting device creates a visa object, but does not attempt
-            % communication
+            % Connecting device creates a communication object, 
+            % but does not attempt communication
             connectDevice(this);
         end
         

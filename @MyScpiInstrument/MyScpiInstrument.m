@@ -31,7 +31,7 @@ classdef MyScpiInstrument < MyInstrument
         
         function writeCommand(this, varargin)
             if ~isempty(varargin)
-                % concatenate commands and send to device
+                % Concatenate commands and send to the device
                 cmd_str=join(varargin,';:');
                 cmd_str=[cmd_str{1},';'];
                 fprintf(this.Device, cmd_str);
@@ -41,11 +41,11 @@ classdef MyScpiInstrument < MyInstrument
         % Query commands and return resut as cell array of strings
         function res_list=queryCommand(this, varargin)
             if ~isempty(varargin)
-                % concatenate commands and send to device
+                % Concatenate commands and send to the device
                 cmd_str=join(varargin,';:');
                 cmd_str=[cmd_str{1},';'];
                 res_str=query(this.Device, cmd_str);
-                % drop the end-of-the-string symbol and split
+                % Drop the end-of-the-string symbol and split
                 res_list=split(res_str(1:end-1),';');
             else
                 res_list={};
