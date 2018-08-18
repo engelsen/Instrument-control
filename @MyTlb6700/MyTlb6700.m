@@ -29,6 +29,9 @@ classdef MyTlb6700 < MyScpiInstrument
     %% Protected functions
     methods (Access=protected)  
         function createCommandList(this)
+            % Commands for this class do not start from ':', as the
+            % protocol does not fully comply with SCPI standard
+            
             % Output wavelength, nm
             addCommand(this, 'wavelength','SENSe:WAVElength',...
                 'access','r','default',780,'str_spec','%e');
