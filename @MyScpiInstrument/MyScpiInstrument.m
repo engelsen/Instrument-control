@@ -43,7 +43,7 @@ classdef MyScpiInstrument < MyInstrument
             if ~isempty(varargin)
                 % Concatenate commands and send to the device
                 cmd_str=join(varargin,';:');
-                cmd_str=[cmd_str{1},';'];
+                cmd_str=[':',cmd_str{1},';'];
                 res_str=query(this.Device, cmd_str);
                 % Drop the end-of-the-string symbol and split
                 res_list=split(res_str(1:end-1),';');
