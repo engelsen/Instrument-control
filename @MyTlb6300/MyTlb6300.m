@@ -2,6 +2,24 @@
 
 classdef MyTlb6300 < MyScpiInstrument
     
+    methods (Access=public)  
+        % Need to overwrite the standard query function as 
+        % TLB6300 does not seem to support concatenation of commands 
+        % in queries
+        function res_list=queryCommand(this, varargin)
+            if ~isempty(varargin)
+                % Send queries to the device one by one
+                n_cmd = length(varargin);
+                res_list = cell(n_cmd,1);
+                for i=1:n_cmd
+                    cmd=varargin{i};
+                    res_list{i}=query(this.Device, cmd);
+                end
+            else
+                res_list={};
+            end
+        end
+    end
     %% Protected functions
     methods (Access=protected)  
         function createCommandList(this)
@@ -30,7 +48,7 @@ classdef MyTlb6300 < MyScpiInstrument
             
             % Control mode local/remote
             addCommand(this, 'control_mode',':SYST:MCON',...
-                'access','w','val_list',{'INT','EXT'},...
+                'access','w','val_list',{'EXT','INT'},...
                 'default','LOC','str_spec','%s');
             % Output on/off
             addCommand(this, 'enable_output',':OUTP',...
