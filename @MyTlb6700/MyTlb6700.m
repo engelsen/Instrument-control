@@ -1,5 +1,8 @@
 % Class for communication with NewFocus TLB6700 tunable laser controllers
 % Needs UsbDllWrap.dll from Newport USB driver on Matlab path
+% Address field is ignored for this class. 
+% Start instrument as MyTlb6700('','USBaddr'), where USBaddr is indicated
+% in the instrument menu. Example: MyTlb6700('','1')
 
 classdef MyTlb6700 < MyScpiInstrument
     
@@ -12,7 +15,8 @@ classdef MyTlb6700 < MyScpiInstrument
     methods (Access=public)
         function this=MyTlb6700(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            
+            % Data read from the instrument is assigned 
+            % to QueryData and can be then converted to char
             this.QueryData=System.Text.StringBuilder(64);
             % Interface field is not used in this instrument, but is
             % assigned value for the purpose of information
