@@ -8,21 +8,29 @@ classdef MyTlb6700 < MyScpiInstrument
     
     properties (SetAccess=protected, GetAccess=public)
         NetAsm; % .NET assembly
-        QueryData; % auxiliary variable for device communication
+        
+        % Auxiliary variable for device communication
+        % Data read from the instrument is assigned 
+        % to QueryData and can be then converted to char
+        QueryData=System.Text.StringBuilder(64); 
     end
     
     %% Constructor and destructor
     methods (Access=public)
         function this=MyTlb6700(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            % Data read from the instrument is assigned 
-            % to QueryData and can be then converted to char
-            this.QueryData=System.Text.StringBuilder(64);
             % Interface field is not used in this instrument, but is
             % assigned value for the purpose of information
             this.interface='usb';
             % Convert address to number
             this.address=str2double(this.address);
+        end
+        
+        function delete(this)
+            % In addition to standard delete function,
+            % remove QueryData variable
+            delete(this.QueryData);
+            delete@MyScpiInstrument(this);
         end
     end
     
@@ -151,10 +159,10 @@ classdef MyTlb6700 < MyScpiInstrument
             % mode, set value to max
             if this.const_power
                 Query(this.Device, this.address, ...
-                    'SOURce:CURRent:DIODe MAX;', this.QueryData);
+                    'SOURce:POWer:DIODe MAX;', this.QueryData);
             else
                 Query(this.Device, this.address, ...
-                    'SOURce:POWer:DIODe MAX;', this.QueryData);
+                    'SOURce:CURRent:DIODe MAX;', this.QueryData);
             end
             stat = char(ToString(this.QueryData));
         end
