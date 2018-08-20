@@ -26,6 +26,23 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
         return
     end
     
+    % If supplied command does not have read permission, issue warning.
+    if ~ismember(prop_tag, app.Instr.read_commands)
+        disp(['Property ',prop_tag,' does not have read permission, ',...
+            'corresponding gui element will not be automatically ',...
+            'syncronized']);
+        % Try switching color of the gui element to orange
+        warning_color = [0.93, 0.69, 0.13];
+        try
+            elem.BackgroundColor = warning_color;
+        catch
+            try
+                elem.FontColor = warning_color;
+            catch
+            end
+        end
+    end
+    
     % The property-control link is established by assigning the tag
     % and adding the control to the list of linked elements
     elem.Tag = ['Instr.',prop_tag];
