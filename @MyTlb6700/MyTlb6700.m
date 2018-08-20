@@ -7,18 +7,17 @@
 classdef MyTlb6700 < MyScpiInstrument
     
     properties (SetAccess=protected, GetAccess=public)
-        NetAsm; % .NET assembly
-        
-        % Auxiliary variable for device communication
-        % Data read from the instrument is assigned 
-        % to QueryData and can be then converted to char
-        QueryData=System.Text.StringBuilder(64); 
+        NetAsm % .NET assembly
+        QueryData % Auxiliary variable for device communication
     end
     
     %% Constructor and destructor
     methods (Access=public)
         function this=MyTlb6700(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
+            % Data read from the instrument is assigned 
+            % to QueryData and can be then converted to char
+            this.QueryData=System.Text.StringBuilder(64); 
             % Interface field is not used in this instrument, but is
             % assigned value for the purpose of information
             this.interface='usb';
@@ -27,10 +26,8 @@ classdef MyTlb6700 < MyScpiInstrument
         end
         
         function delete(this)
-            % In addition to standard delete function,
-            % remove QueryData variable
-            delete(this.QueryData);
-            delete@MyScpiInstrument(this);
+            delete(this.QueryData)
+            % Then the superclass delete method is called
         end
     end
     

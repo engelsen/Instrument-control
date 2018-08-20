@@ -5,10 +5,10 @@
 % logger can store any kind of outputs.
 classdef MyLogger < handle & MyInputHandler
     properties (Access=public)
-        MeasTimer = []; % Timer object
+        MeasTimer; % Timer object
         MeasFcn = @()0;
         save_cont = false;
-        save_file = '';
+        save_file;
         data_headers = {}; % Cell array of column headers
         
         % format specifiers for data saving and display
@@ -20,9 +20,8 @@ classdef MyLogger < handle & MyInputHandler
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        % Trace = MyTrace(); % Trace object for communication with Daq
-        timestamps = []; % Times at which data was aqcuired
-        data = []; % Stored cell array of measurements
+        timestamps; % Times at which data was aqcuired
+        data; % Stored cell array of measurements
         last_meas_stat = 2; % If last measurement was succesful
         % 0-false, 1-true, 2-never measured
     end
