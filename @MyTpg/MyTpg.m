@@ -124,7 +124,7 @@ classdef MyTpg < MyInstrument
             was_open=isopen(this);
             try
                 openDevice(this);
-                query(this.Device,'AYT');
+                query(this.Device,['AYT',this.CR,this.LF]);
                 [str,~,msg]=query(this.Device,this.ENQ);
             catch ErrorMessage
                 str='';
