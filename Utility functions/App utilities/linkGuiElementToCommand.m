@@ -56,7 +56,7 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
         % (but are still interruptible for timers)
         try
             elem.Interruptible = 'off';
-            elem.BusyAction = 'queue';
+            elem.BusyAction = 'cancel';
         catch
             warning('Could not make callback for %s non-interruptible',...
                 prop_tag);

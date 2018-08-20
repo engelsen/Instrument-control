@@ -180,7 +180,7 @@ classdef MyTlb6700 < MyScpiInstrument
         function stat = setMaxOutPower(this)
             % Depending on if the laser in the constat power or current
             % mode, set value to max
-            openDevice(app.Instr);
+            openDevice(this);
             if this.const_power
                 Query(this.Device, this.address, ...
                     'SOURce:POWer:DIODe MAX;', this.QueryData);
