@@ -6,12 +6,11 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         address='';
         visa_brand='ni';
         
-        %Contains the device object. struct() is a dummy, as Device 
-        %needs to always support properties for consistency.
+        %Contains the device object. struct() is a dummy for Device 
+        %to always support properties.
         Device=struct();
         
-        %Trace object for storing data
-        Trace=MyTrace();
+        Trace; %Trace object for storing data
     end 
     
     properties (Constant=true)
@@ -44,6 +43,9 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             createConstructionParser(this);      
             %Loads parsed variables into class properties
             parseClassInputs(this,interface,address,varargin{:});
+            
+            % Create an empty trace
+            this.Trace=MyTrace();
             
             % Interface and address can correspond to an entry in the list
             % of local instruments. Read this entry in such case.
