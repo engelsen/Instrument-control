@@ -3,8 +3,7 @@ classdef MyInstrument < dynamicprops & MyInputHandler
     properties (Access=public)
         name='';
         interface='';
-        address='';
-        visa_brand='ni';  
+        address=''; 
         Device; %Device communication object    
         Trace; %Trace object for storing data
     end 
@@ -33,7 +32,6 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
             addParameter(p,'name','',@ischar);
-            addParameter(p,'visa_brand',this.visa_brand,@ischar);
             this.ConstructionParser=p;
         end
     end
@@ -122,37 +120,38 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         % Connects to the device, explicit indication of interface and
         % address is for ability to handle instr_list as interface
         function connectDevice(this)
+            int_list={'constructor','visa','tcpip','serial'};
+            if ~ismember(lower(this.interface), int_list)
+                error(['Device is not connected, unknown interface ',...
+                    this.interface,'. Valid interfaces are ',...
+                    '''constructor'', ''visa'', ''tcpip'' and ''serial'''])
+            end
             try
-                % visa brand, 'ni' by default
-                vb = this.visa_brand;
                 switch lower(this.interface)
+                    % Use 'constructor' interface to connect device with
+                    % more that one parameter, specifying its address
                     case 'constructor'
                         % in this case the 'address' is a command 
-                        % (ObjectConstructorName) as returned by the 
-                        % instrhwinfo
+                        % (ObjectConstructorName), e.g. as returned by the 
+                        % instrhwinfo, that creates communication object
+                        % when executed
                         this.Device=eval(this.address);
-                        % visa brand is irrelevant in this case
-                        this.visa_brand='';
                     case 'visa'
-                        this.Device=visa(vb, this.address);
+                        % visa brand is 'ni' by default
+                        this.Device=visa('ni', this.address);
                     case 'tcpip'
-                        % Works only with default socket. Use 'visa' or
-                        % 'constructor' if socket needs to be specified
-                        this.Device=visa(vb, sprintf(...
-                            'TCPIP0::%s::inst0::INSTR',this.address));
-                    case 'usb'
-                        this.Device=visa(vb, sprintf(...
-                            'USB0::%s::INSTR',this.address));
+                        % Works only with default socket. Use 'constructor'
+                        % if socket or other options need to be specified
+                        this.Device=tcpip(this.address);
                     case 'serial'
-                        com_no = sscanf(this.address,'COM%i');
-                        this.Device = visa(vb, sprintf(...
-                            'ASRL%i::INSTR',com_no));
+                        this.Device=serial(this.address);
                     otherwise
-                        warning('Device is not connected: unknown interface');
+                        error('Unknown interface');
                 end
                 configureDeviceDefault(this);
             catch
-                warning('Device is not connected');
+                warning(['Device is not connected, ',...
+                    'error while creating communication object.']);
             end
         end
         
