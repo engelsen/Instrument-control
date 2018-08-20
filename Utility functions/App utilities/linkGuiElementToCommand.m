@@ -28,9 +28,9 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
     
     % If supplied command does not have read permission, issue warning.
     if ~ismember(prop_tag, app.Instr.read_commands)
-        disp(['Property ',prop_tag,' does not have read permission, ',...
+        fprintf(['Instrument command ''%s'' does not have read permission,\n',...
             'corresponding gui element will not be automatically ',...
-            'syncronized']);
+            'syncronized\n'],prop_tag);
         % Try switching color of the gui element to orange
         warning_color = [0.93, 0.69, 0.13];
         try
@@ -52,6 +52,15 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
     % ValueChangedFcn which passes the field input to the instument 
     if ~ismember('create_callback_fcn',p.UsingDefaults)
         elem.ValueChangedFcn = feval(p.Results.create_callback_fcn);
+        % Make callbacks non-interruptible for other callbacks
+        % (but are still interruptible for timers)
+        try
+            elem.Interruptible = 'off';
+            elem.BusyAction = 'queue';
+        catch
+            warning('Could not make callback for %s non-interruptible',...
+                prop_tag);
+        end
     end
 
     % If prescaler is given, add it to the element as a new property

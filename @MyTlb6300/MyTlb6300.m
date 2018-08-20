@@ -44,10 +44,10 @@ classdef MyTlb6300 < MyScpiInstrument
                 'access','w','default',true,'str_spec','%b');
             % Power setpoint, mW
             addCommand(this, 'power_sp',':POW',...
-                'access','w','default',1,'str_spec','%e');
+                'access','w','default',10,'str_spec','%e');
             % Current setpoint, mW
             addCommand(this, 'current_sp',':CURR',...
-                'default',1,'str_spec','%e');
+                'default',100,'str_spec','%e');
             
             % Control mode local/remote
             addCommand(this, 'control_mode',':SYST:MCON',...
@@ -71,9 +71,11 @@ classdef MyTlb6300 < MyScpiInstrument
             % mode, set value to max
             openDevice(this);
             if this.const_power
-                writeCommand(this, ':POW MAX');
+                % Actual power is clipped to max practical value 
+                writeCommand(this, ':POW 99');
             else
-                writeCommand(this, ':CURR MAX');
+                % Maximum current according to specs is 152 mA
+                writeCommand(this, ':CURR 150');
             end
             closeDevice(this);
         end

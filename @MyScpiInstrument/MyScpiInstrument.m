@@ -91,6 +91,7 @@ classdef MyScpiInstrument < MyInstrument
         
         % Wrapper for writeProperty that opens and closes the device
         function writePropertyHedged(this, varargin)
+            was_open = isopen(this);
             openDevice(this);
             try
                 writeProperty(this, varargin{:});
@@ -99,7 +100,10 @@ classdef MyScpiInstrument < MyInstrument
                 disp(varargin);
             end
             readProperty(this, 'all');
-            closeDevice(this);
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                closeDevice(this);
+            end
         end
         
         function result=readProperty(this, varargin)
@@ -139,6 +143,7 @@ classdef MyScpiInstrument < MyInstrument
         
         % Wrapper for readProperty that opens and closes the device
         function result=readPropertyHedged(this, varargin)
+            was_open = isopen(this);
             openDevice(this);
             try
                 result = readProperty(this, varargin{:});
@@ -146,7 +151,10 @@ classdef MyScpiInstrument < MyInstrument
                 warning('Error while reading the properties:');
                 disp(varargin);
             end
-            closeDevice(this);
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                closeDevice(this);
+            end
         end
         
         % Re-define readHeader function

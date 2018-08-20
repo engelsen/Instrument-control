@@ -58,7 +58,7 @@ classdef MyTlb6700 < MyScpiInstrument
                 'default',true,'str_spec','%b');
             % Power setpoint, mW
             addCommand(this, 'power_sp','SOURce:POWer:DIODe',...
-                'default',1,'str_spec','%e');
+                'default',10,'str_spec','%e');
             % Current setpoint, mA
             addCommand(this, 'current_sp','SOURce:CURRent:DIODe',...
                 'default',100,'str_spec','%e');
@@ -154,7 +154,19 @@ classdef MyTlb6700 < MyScpiInstrument
             end
         end
         
-        % readPropertyHedged is overloaded to not close the device
+        % readPropertyHedged and writePropertyHedged
+        % are overloaded to not close the device
+        function writePropertyHedged(this, varargin)
+            openDevice(this);
+            try
+                writeProperty(this, varargin{:});
+            catch
+                warning('Error while writing the properties:');
+                disp(varargin);
+            end
+            readProperty(this, 'all');
+        end
+        
         function result=readPropertyHedged(this, varargin)
             openDevice(this);
             try
