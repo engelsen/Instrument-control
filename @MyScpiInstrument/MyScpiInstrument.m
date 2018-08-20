@@ -157,7 +157,7 @@ classdef MyScpiInstrument < MyInstrument
             end
         end
         
-        % Re-define readHeader function
+        % readHeader function
         function HdrStruct=readHeader(this)
            Values=readPropertyHedged(this,'all');
            for i=1:length(this.read_commands)

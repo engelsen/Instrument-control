@@ -119,6 +119,27 @@ classdef MyTpg < MyInstrument
             HdrStruct.pressure_unit.str_spec = '%s';
         end
         
+        % Attempt communication and identification of the device
+        function [str, msg]=idn(this)
+            was_open=isopen(this);
+            try
+                openDevice(this);
+                query(this.Device,'AYT');
+                [str,~,msg]=query(this.Device,this.ENQ);
+            catch ErrorMessage
+                str='';
+                msg=ErrorMessage.message;
+            end
+            this.idn_str=str;
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                try
+                    closeDevice(this);
+                catch
+                end
+            end
+        end
+        
         function code_list = turnGauge(this)
             query(this.Device,['SEN',char(1,1),this.CR,this.LF]);
             str = query(this.Device,this.ENQ);

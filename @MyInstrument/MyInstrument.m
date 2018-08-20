@@ -4,14 +4,14 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         name='';
         interface='';
         address='';
-        visa_brand='ni';
-        
-        %Contains the device object. struct() is a dummy for Device 
-        %to always support properties.
-        Device=struct();
-        
+        visa_brand='ni';  
+        Device; %Device communication object    
         Trace; %Trace object for storing data
     end 
+    
+    properties (GetAccess=public, SetAccess=protected)
+        idn_str=''; % identification string
+    end
     
     properties (Constant=true)
         % Default parameters for device connection
@@ -46,6 +46,10 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             
             % Create an empty trace
             this.Trace=MyTrace();
+            
+            % Create dummy device object that supports properties
+            this.Device=struct();
+            this.Device.Status='not connected';
             
             % Interface and address can correspond to an entry in the list
             % of local instruments. Read this entry in such case.
@@ -103,8 +107,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         % file header structure.
         % Dummy method that needs to be re-defined by a parent class
         function HdrStruct=readHeader(this)
-            HdrStruct.name.value = this.name;
-            HdrStruct.name.str_spec = '%s';
+            HdrStruct.idn.value = this.idn_str;
+            HdrStruct.idn.str_spec = '%s';
             
             HdrStruct.interface.value = this.interface;
             HdrStruct.interface.str_spec = '%s';
@@ -114,7 +118,7 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         end
        
         
-        %% Connect, open, configure and close the device
+        %% Connect, open, configure, identificate and close the device
         % Connects to the device, explicit indication of interface and
         % address is for ability to handle instr_list as interface
         function connectDevice(this)
@@ -127,6 +131,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                         % (ObjectConstructorName) as returned by the 
                         % instrhwinfo
                         this.Device=eval(this.address);
+                        % visa brand is irrelevant in this case
+                        this.visa_brand='';
                     case 'visa'
                         this.Device=visa(vb, this.address);
                     case 'tcpip'
@@ -193,7 +199,7 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             end
         end
         
-        %Checks if the connection to the device is open
+        % Checks if the connection to the device is open
         function bool=isopen(this)
             try
                 bool=strcmp(this.Device.Status, 'open');
@@ -201,6 +207,27 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                 warning('Cannot access device Status property');
                 bool=false;
             end
-        end   
+        end
+        
+        %% Identification
+        % Attempt communication and identification of the device
+        function [str, msg]=idn(this)
+            was_open=isopen(this);
+            try
+                openDevice(this);
+                [str,~,msg]=query(this.Device,'*IDN?');
+            catch ErrorMessage
+                str='';
+                msg=ErrorMessage.message;
+            end
+            this.idn_str=str;
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                try
+                    closeDevice(this);
+                catch
+                end
+            end
+        end
     end
 end

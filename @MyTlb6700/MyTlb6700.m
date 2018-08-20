@@ -176,6 +176,25 @@ classdef MyTlb6700 < MyScpiInstrument
             end
         end
         
+        % Attempt communication and identification of the device
+        function [str, msg]=idn(this)
+            try
+                openDevice(this);
+                code=Query(this.Device, this.address,...
+                    '*IDN?', this.QueryData);
+                str=char(ToString(this.QueryData));
+                if code~=0
+                    msg='Communication with controller failed';
+                else
+                    msg='';
+                end
+            catch ErrorMessage
+                str='';
+                msg=ErrorMessage.message;
+            end
+            this.idn_str=str;
+        end
+        
         function stat = setMaxOutPower(this)
             % Depending on if the laser in the constat power or current
             % mode, set value to max
