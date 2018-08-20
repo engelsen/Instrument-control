@@ -47,7 +47,7 @@ classdef MyTlb6300 < MyScpiInstrument
                 'access','w','default',1,'str_spec','%e');
             % Current setpoint, mW
             addCommand(this, 'current_sp',':CURR',...
-                'access','w','default',1,'str_spec','%e');
+                'default',1,'str_spec','%e');
             
             % Control mode local/remote
             addCommand(this, 'control_mode',':SYST:MCON',...
@@ -66,17 +66,16 @@ classdef MyTlb6300 < MyScpiInstrument
     %% Public functions including callbacks
     methods (Access=public)
         
-        function stat = setMaxOutPower(this)
+        function setMaxOutPower(this)
             % Depending on if the laser in the constat power or current
             % mode, set value to max
+            openDevice(this);
             if this.const_power
-                Query(this.Device, this.address, ...
-                    'SOURce:CURRent:DIODe MAX;', this.QueryData);
+                writeCommand(this, ':POW MAX');
             else
-                Query(this.Device, this.address, ...
-                    'SOURce:POWer:DIODe MAX;', this.QueryData);
+                writeCommand(this, ':CURR MAX');
             end
-            stat = char(ToString(this.QueryData));
+            closeDevice(this);
         end
         
         function scanSingle(this, start_wl, stop_wl, speed)
