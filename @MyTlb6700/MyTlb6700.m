@@ -3,6 +3,10 @@
 % Address field is ignored for this class. 
 % Start instrument as MyTlb6700('','USBaddr'), where USBaddr is indicated
 % in the instrument menu. Example: MyTlb6700('','1')
+%
+% Operation of opening device is time-consuming with Newport USB driver,
+% on the other hand multiple open devices do not interfere. So keep 
+% the device open for the whole session
 
 classdef MyTlb6700 < MyScpiInstrument
     
@@ -94,11 +98,6 @@ classdef MyTlb6700 < MyScpiInstrument
             % Create an instance of Newport.USBComm.USB class
             Type=GetType(this.NetAsm.AssemblyHandle,'Newport.USBComm.USB');
             this.Device=System.Activator.CreateInstance(Type);
-            
-            % Operation of opening device is time-consuming in this case,
-            % on the other hand multiple open devices do not interfere. So
-            % keep the device open for the whole session;
-            openDevice(this);
         end
          
         function openDevice(this)
