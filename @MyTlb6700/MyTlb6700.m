@@ -59,6 +59,9 @@ classdef MyTlb6700 < MyScpiInstrument
             % Power setpoint, mW
             addCommand(this, 'power_sp','SOURce:POWer:DIODe',...
                 'default',1,'str_spec','%e');
+            % Current setpoint, mA
+            addCommand(this, 'current_sp','SOURce:CURRent:DIODe',...
+                'default',100,'str_spec','%e');
             
             % Control mode local/remote
             addCommand(this, 'control_mode','SYSTem:MCONtrol',...
