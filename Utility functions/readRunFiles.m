@@ -54,7 +54,7 @@ function RunFiles = readRunFiles(varargin)
         if add_entry 
             RunFiles.(nm) = InstrumentList.(nm);
             RunFiles.(nm).run_expr = ...
-                sprintf('runInstrumentWithGui(''%s'')',nm);
+                sprintf('runInstrumentWithGui(''%s'');',nm);
             RunFiles.(nm).header = ['% This entry is automatically ',...
                 'generated from InstrumentList'];
         end

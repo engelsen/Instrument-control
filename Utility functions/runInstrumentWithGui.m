@@ -51,8 +51,8 @@ function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, interface, 
     else
         % If instrument is already present in the Collector, do not create
         % a new object, but try taking the existing one.
-        disp([name,' is already running. ',...
-            'Assign existing instead of running a new one.']);
+        disp([name,' is already running. Assign existing instrument ',...
+            'instead of running a new one.']);
         try
             Instr = Collector.InstrList.(name);
         catch

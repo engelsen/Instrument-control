@@ -223,6 +223,24 @@ classdef MyTlb6700 < MyScpiInstrument
             stat = char(ToString(this.QueryData));
         end
         
+        % Returns minimum and maximum wavelengths of the laser. There does 
+        % not seem to be a more direct way of doing this with TLB6700 
+        % other than setting and then reading the min/max values.
+        function [wl_min, wl_max] = readMinMaxWavelength(this)
+            tmp=this.scan_start_wl;
+            openDevice(this);
+            % Read min wavelength of the laser
+            writeCommand(this, 'SOURce:WAVE:START MIN');
+            resp=queryCommand(this, 'SOURce:WAVE:START?');
+            wl_min=str2double(resp{1});
+            % Read max wavelength of the laser
+            writeCommand(this, 'SOURce:WAVE:START MAX');
+            resp=queryCommand(this, 'SOURce:WAVE:START?');
+            wl_max=str2double(resp{1});
+            % Return scan start to its original value
+            writeProperty(this, 'scan_start_wl', tmp);
+        end
+        
         %% Wavelength scan-related functions
         function configSingleScan(this)
             openDevice(this);
@@ -243,11 +261,6 @@ classdef MyTlb6700 < MyScpiInstrument
         function stopScan(this)
             openDevice(this);
             writeCommand(this,'OUTPut:SCAN:STOP');
-        end
-        
-        function resetScan(this)
-            openDevice(this);
-            writeCommand(this,'OUTPut:SCAN:RESET');
         end
     end
 end
