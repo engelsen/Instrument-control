@@ -27,7 +27,7 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
     end
     
     % If supplied command does not have read permission, issue warning.
-    if ~ismember(prop_tag, app.Instr.read_commands)
+    if ~contains(app.Instr.CommandList.(prop_tag).access,'r')
         fprintf(['Instrument command ''%s'' does not have read permission,\n',...
             'corresponding gui element will not be automatically ',...
             'syncronized\n'],prop_tag);

@@ -77,6 +77,20 @@ classdef MyTlb6700 < MyScpiInstrument
             % Wavelength track on/off
             addCommand(this, 'wavelength_track','OUTPut:TRACk',...
                 'default',true,'str_spec','%b');
+            
+            % Wavelength scan related commands
+            % Scan start wavelength (nm)
+            addCommand(this, 'scan_start_wl','SOURce:WAVE:START',...
+                'default',0,'str_spec','%e');
+            % Scan stop wavelength (nm)
+            addCommand(this, 'scan_stop_wl','SOURce:WAVE:STOP',...
+                'default',0,'str_spec','%e');
+            % Scan speed (nm/s)
+            addCommand(this, 'scan_speed','SOURce:WAVE:SLEW:FORWard',...
+                'default',0,'str_spec','%e');
+            % Maximum scan speed (nm/s)
+            addCommand(this, 'scan_speed_max','SOURce:WAVE:MAXVEL',...
+                'access','r','default',0,'str_spec','%e');
         end
         
     end
@@ -176,7 +190,7 @@ classdef MyTlb6700 < MyScpiInstrument
             end
         end
         
-        % Attempt communication and identification of the device
+        % Attempt communication and identification
         function [str, msg]=idn(this)
             try
                 openDevice(this);
@@ -209,20 +223,31 @@ classdef MyTlb6700 < MyScpiInstrument
             stat = char(ToString(this.QueryData));
         end
         
-        function scanSingle(this, start_wl, stop_wl, speed)
-            % Do not switch the laser off during the backward scan
-            fprintf(this.Device,'SOURce:WAVE:SCANCFG 1;');
-            % single scan
-            fprintf(this.Device,'SOURce:WAVE:DESSCANS 1;');
-            % Set start and stop wavelengths
-            fprintf(this.Device,'SOURce:WAVE:START %e',start_wl);
-            fprintf(this.Device,'SOURce:WAVE:STOP %e',stop_wl);
-            fprintf(this.Device,'SOURce:WAVE:SLEW:FORWard %e',speed);
-            % Return at maximum speed 
-            fprintf(this.Device,'SOURce:WAVE:SLEW:RETurn MAX');
-            
-            % Start scan
-            fprintf(this.Device,'OUTPut:SCAN:START');
+        %% Wavelength scan-related functions
+        function configSingleScan(this)
+            openDevice(this);
+            % Configure:
+            % Do not switch the laser off during the backward scan,
+            % Perform a signle scan,
+            % Return at maximum speed
+            writeCommand(this,'SOURce:WAVE:SCANCFG 0',...
+                'SOURce:WAVE:DESSCANS 1',...
+                'SOURce:WAVE:SLEW:RETurn MAX');
+        end
+        
+        function startScan(this)
+            openDevice(this);
+            writeCommand(this,'OUTPut:SCAN:START');
+        end
+        
+        function stopScan(this)
+            openDevice(this);
+            writeCommand(this,'OUTPut:SCAN:STOP');
+        end
+        
+        function resetScan(this)
+            openDevice(this);
+            writeCommand(this,'OUTPut:SCAN:RESET');
         end
     end
 end
