@@ -1,7 +1,6 @@
 classdef MyCollector < handle & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
         InstrList=struct() % Structure accomodating instruments 
-        %with their guis
         InstrProps=struct() % Properties of instruments;
         MeasHeaders=MyMetadata();
         collect_flag;

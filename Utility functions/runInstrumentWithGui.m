@@ -48,9 +48,29 @@ function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, interface, 
         
         Instr = feval(instr_class, interface, address, 'name', name);
         addInstrument(Collector, Instr, 'name', name);
+    else
+        % If instrument is already present in the Collector, do not create
+        % a new object, but try taking the existing one.
+        disp([name,' is already running. ',...
+            'Assign existing instead of running a new one.']);
+        try
+            Instr = Collector.InstrList.(name);
+        catch
+            % Return with empty results in the case of falure
+            warning('Could not assign instrument %s from Collector',name);
+            Instr = [];
+            GuiInstr =[];
+            return
+        end
+    end
+    
+    % Next turn to gui
+    gui_name = ['Gui',name];
+    if ~isValidBaseVar(gui_name)
+        % If gui does not present in the base workspace, create it
         GuiInstr = feval(gui, Instr);
         if isprop(GuiInstr,'name')
-            GuiInstr.name = ['Gui',name];
+            GuiInstr.name = gui_name;
         end
         % Store gui handle in a global variable
         assignin('base', GuiInstr.name, GuiInstr);
@@ -61,11 +81,11 @@ function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, interface, 
         else
            warning('No UIFigure found to assign the name')
         end
-     else
-        disp([name,' is already running']);
+    else
+        % Otherwise return gui from base workspace
+        GuiInstr = evalin('base',['Gui',name]);
         try
             % bring app figure on top of other windows
-            GuiInstr = evalin('base',['Gui',name]);
             Fig = findfigure(GuiInstr);
             Fig.Visible = 'off';
             Fig.Visible = 'on';
