@@ -80,21 +80,6 @@ classdef MyTlb6300 < MyScpiInstrument
             closeDevice(this);
         end
         
-        function scanSingle(this, start_wl, stop_wl, speed)
-            % Do not switch the laser off during the backward scan
-            fprintf(this.Device,'SOURce:WAVE:SCANCFG 1;');
-            % single scan
-            fprintf(this.Device,'SOURce:WAVE:DESSCANS 1;');
-            % Set start and stop wavelengths
-            fprintf(this.Device,'SOURce:WAVE:START %e',start_wl);
-            fprintf(this.Device,'SOURce:WAVE:STOP %e',stop_wl);
-            fprintf(this.Device,'SOURce:WAVE:SLEW:FORWard %e',speed);
-            % Return at maximum speed 
-            fprintf(this.Device,'SOURce:WAVE:SLEW:RETurn MAX');
-            
-            % Start scan
-            fprintf(this.Device,'OUTPut:SCAN:START');
-        end
     end
 end
 

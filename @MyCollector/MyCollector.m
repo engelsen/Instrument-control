@@ -55,7 +55,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 this.InstrProps.(name).header_flag=true;
                 this.InstrList.(name)=instr_handle;
             else
-                error(['%s does not have a readHeaders function,',...
+                error(['%s does not have a readHeader function,',...
                     ' cannot be added to Collector'],name)
             end
             
