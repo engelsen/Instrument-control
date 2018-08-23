@@ -122,9 +122,10 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         function connectDevice(this)
             int_list={'constructor','visa','tcpip','serial'};
             if ~ismember(lower(this.interface), int_list)
-                error(['Device is not connected, unknown interface ',...
+                warning(['Device is not connected, unknown interface ',...
                     this.interface,'. Valid interfaces are ',...
                     '''constructor'', ''visa'', ''tcpip'' and ''serial'''])
+                return
             end
             try
                 switch lower(this.interface)
@@ -228,5 +229,6 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                 end
             end
         end
+        
     end
 end

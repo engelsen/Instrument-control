@@ -280,6 +280,8 @@ classdef MyScpiInstrument < MyInstrument
             % restriction
             addParameter(p,'val_list',{},@iscell);
             addParameter(p,'access','rw',@ischar);
+            % information about the command
+            addParameter(p,'info','',@ischar);
             parse(p,tag,command,varargin{:});
 
             %Adds the command to be sent to the device
@@ -289,6 +291,7 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandList.(tag).read_flag=contains(p.Results.access,'r');
             this.CommandList.(tag).default=p.Results.default;
             this.CommandList.(tag).val_list=p.Results.val_list;
+            this.CommandList.(tag).info=p.Results.info;
             
             % Adds the string specifier to the list. if the format
             % specifier is not given explicitly, try to infer
@@ -316,7 +319,9 @@ classdef MyScpiInstrument < MyInstrument
             
             % Adds a property to the class corresponding to the tag
             if ~isprop(this,tag)
-                addprop(this,tag);
+                h = addprop(this,tag);
+                % Restrict SetAccess. GetAccess is default, 'public'.
+                h.SetAccess='protected';
             end
             this.(tag)=p.Results.default;
         end

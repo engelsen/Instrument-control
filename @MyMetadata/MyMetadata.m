@@ -33,7 +33,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         %the class, populated by the parameters with their values and
         %string specifications for later printing
         function addField(this, field_name)
-            assert(ischar(field_name),'Field name must be a char');
+            assert(isvarname(field_name),...
+                'Field name must be a valid MATLAB variable name.');
             this.PropHandles.(field_name)=addprop(this,field_name);
             this.PropHandles.(field_name).SetAccess='protected';
             this.PropHandles.(field_name).NonCopyable=false;
@@ -42,9 +43,11 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         
         %Deletes a named field
         function deleteField(this, field_name)
-            assert(ischar(field_name),'Field name must be a char')
+            assert(isvarname(field_name),...
+                'Field name must be a valid MATLAB variable name.');
             assert(ismember(field_name,this.field_names),...
-                'Field name must be a valid property');
+                ['Attemped to delete field ''',field_name ...
+                ,''' that does not exist.']);
             delete(this.PropHandles.(field_name));
             this.PropHandles=rmfield(this.PropHandles,field_name);
         end
@@ -74,6 +77,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             end
         end
         
+        % Copy all the fields of another Metadata object to this object
         function addMetadata(this, Metadata)
            assert(isa(Metadata,'MyMetadata'),...
                'Input must be of class MyMetadata, current input is %s',...
@@ -84,24 +88,33 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
            for i=1:length(Metadata.field_names)
                fn=Metadata.field_names{i};
                addField(this,fn);
+               param_names=fieldnames(Metadata.(fn));
                cellfun(@(x) addParam(this,fn,x,...
                    Metadata.(fn).(x).value,Metadata.(fn).(x).str_spec),...
-                   fieldnames(Metadata.(fn)));
+                   param_names);
            end
         end
         
         %Adds a parameter to a specified field. The field must be created
         %first.
-        function addParam(this, field_name, name, value, str_spec)
+        function addParam(this, field_name, name, value, varargin)
             assert(ischar(field_name),'Field name must be a char');
             assert(isprop(this,field_name),...
                 '%s is not a field, use addField to add it',name);
             assert(ischar(name),'Parameter name must be a char');
             assert(ischar(str_spec),'String spec must be a char');
             
+            p=inputParser();
+            % Format specifier for printing the value
+            addParameter(p,'str_spec','',@ischar);
+            % Comment to be added to the line
+            addParameter(p,'comment','',@ischar);
+            parse(p,varargin{:});
+            
             %Adds the field
             this.(field_name).(name).value=value;
-            this.(field_name).(name).str_spec=str_spec;
+            this.(field_name).(name).str_spec=p.Results.str_spec;
+            this.(field_name).(name).comment=p.Results.comment;
         end
         
         function writeAllHeaders(this,fullfilename)
