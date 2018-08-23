@@ -234,9 +234,10 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 end
                 
                 res_str=regexp(curr_line,title_exp,'once','tokens');
-                %If we find a title, first check if it is the specified end header.
-                %Then change the title if a title was found, then if no title was
-                %found, put the data under the current title.
+                %If we find a title, first check if it is the specified
+                %end header. Then change the title if a title was found, 
+                %then if no title was found, put the data under the current 
+                %title.
                 if ~ismember(res_str,end_header)
                     break
                 elseif ~isempty(res_str)
@@ -252,14 +253,23 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 %current line is not empty. We then add this line to the
                 %current field (curr_title).
                 elseif ~isempty(curr_title)
-                    tmp=strsplit(curr_line, this.column_sep,...
+                    % First separate the comment if present
+                    tmp=strsplit(curr_line, this.comment_sep);
+                    if length(tmp)>1
+                        % if comments present
+                        comment_str=[tmp{2:end}];
+                    else
+                        comment_str='';
+                    end
+                    % Then process name-value pair
+                    tmp=strsplit(tmp{1}, this.column_sep,...
                         'CollapseDelimiters',true);
-                    %Remove leading and trailing spaces
+                    % Remove leading and trailing spaces
                     tmp=strtrim(tmp);
+                    name=tmp{1};
                     val=str2doubleHedged(tmp{2});
-                    comment_str=sscanf(tmp{3},[this.comment_sep,'%s']);
                     %Store retrieved value
-                    addParam(this,curr_title,lower(tmp{1}),val,...
+                    addParam(this, curr_title, name, val,...
                         'comment',comment_str);
                 end
             end
