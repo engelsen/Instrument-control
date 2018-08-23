@@ -1,14 +1,16 @@
 classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     properties
-        hdr_spec;
+        hdr_spec
+        column_sep
+        comment_sep % comments start from this symbol
     end
     
     properties (Access=private)
-        PropHandles; %Used to store the handles of the dynamic properties
+        PropHandles %Used to store the handles of the dynamic properties
     end
     
     properties (Dependent=true)
-        field_names;
+        field_names
     end
     
     methods
@@ -17,10 +19,13 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             addParameter(p,'hdr_spec','==',@ischar);
             addParameter(p,'load_path','',@ischar);
             addParameter(p,'end_header','Data',@ischar);
-            
+            addParameter(p,'column_sep',' \t',@ischar);
+            appParameter(p,'comment_sep','%',@ischar);
             parse(p,varargin{:});
             
             this.hdr_spec=p.Results.hdr_spec;
+            this.column_sep=p.Results.column_sep;
+            this.comment_sep=p.Results.comment_sep;
             this.PropHandles=struct();
             
             if ~isempty(p.Results.load_path)
@@ -48,7 +53,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             assert(ismember(field_name,this.field_names),...
                 ['Attemped to delete field ''',field_name ...
                 ,''' that does not exist.']);
+            % Delete dynamic property from the class
             delete(this.PropHandles.(field_name));
+            % Erase entry in PropHandles
             this.PropHandles=rmfield(this.PropHandles,field_name);
         end
         
@@ -57,25 +64,25 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             cellfun(@(x) deleteField(this, x), this.field_names)
         end
         
-        %This function adds a structure to a field of a given name. The
-        %field must be created before this can be used
-        function addStructToField(this, field_name, input_struct)
-            %Input checks
-            assert(ischar(field_name),'Field name must be a char');
-            assert(isprop(this,field_name),...
-                '%s is not a field, use addField to add it',field_name);
-            assert(isa(input_struct,'struct'),...
-                ['The input_struct input must be a struct.',...
-                'Currently it is a %s'],class(input_struct))
-            
-            %Adds the parameters specified in the input struct.
-            param_names=fieldnames(input_struct);
-            for i=1:length(param_names)
-                tmp=input_struct.(param_names{i});
-                addParam(this,field_name, ...
-                    param_names{i},tmp.value,tmp.str_spec);
-            end
-        end
+%         %This function adds a structure to a field of a given name. The
+%         %field must be created before this can be used
+%         function addStructToField(this, field_name, input_struct)
+%             %Input checks
+%             assert(ischar(field_name),'Field name must be a char');
+%             assert(isprop(this,field_name),...
+%                 '%s is not a field, use addField to add it',field_name);
+%             assert(isa(input_struct,'struct'),...
+%                 ['The input_struct input must be a struct.',...
+%                 'Currently it is a %s'],class(input_struct))
+%             
+%             %Adds the parameters specified in the input struct.
+%             param_names=fieldnames(input_struct);
+%             for i=1:length(param_names)
+%                 tmp=input_struct.(param_names{i});
+%                 addParam(this,field_name, ...
+%                     param_names{i},tmp.value,tmp.fmt_spec);
+%             end
+%         end
         
         % Copy all the fields of another Metadata object to this object
         function addMetadata(this, Metadata)
@@ -89,8 +96,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                fn=Metadata.field_names{i};
                addField(this,fn);
                param_names=fieldnames(Metadata.(fn));
-               cellfun(@(x) addParam(this,fn,x,...
-                   Metadata.(fn).(x).value,Metadata.(fn).(x).str_spec),...
+               cellfun(@(x) addParam(this,fn,x,Metadata.(fn).(x).value,...
+                   'fmt_spec', Metadata.(fn).(x).fmt_spec,...
+                   'comment', Metadata.(fn).(x).comment),...
                    param_names);
            end
         end
@@ -102,18 +110,18 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             assert(isprop(this,field_name),...
                 '%s is not a field, use addField to add it',name);
             assert(ischar(name),'Parameter name must be a char');
-            assert(ischar(str_spec),'String spec must be a char');
+            assert(ischar(fmt_spec),'String spec must be a char');
             
             p=inputParser();
             % Format specifier for printing the value
-            addParameter(p,'str_spec','',@ischar);
+            addParameter(p,'fmt_spec','',@ischar);
             % Comment to be added to the line
             addParameter(p,'comment','',@ischar);
             parse(p,varargin{:});
             
             %Adds the field
             this.(field_name).(name).value=value;
-            this.(field_name).(name).str_spec=p.Results.str_spec;
+            this.(field_name).(name).fmt_spec=p.Results.fmt_spec;
             this.(field_name).(name).comment=p.Results.comment;
         end
         
@@ -131,30 +139,49 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             parse(p,varargin{:});
             title_str=p.Results.title;
             
-            fileID=fopen(fullfilename,'a');
-            %Prints the header
-            fprintf(fileID,'%s%s%s\r\n',this.hdr_spec,title_str,this.hdr_spec);
-            
             ParamStruct=this.(field_name);
             param_names=fieldnames(ParamStruct);
-            %plus one to padding for beauty
-            pad_length=max(cellfun(@(x) length(x), param_names))+1;
+            %width of the name column
+            name_pad_length=max(cellfun(@(x) length(x), param_names));
+            
+            % Make list of parameter values converted to strings
+            par_strs=cell(1,length(param_names));
+            for i=1:length(param_names)
+                TmpParam=ParamStruct.(param_names{i});
+                if isempty(TmpParam.fmt_spec)
+                    % Convert to string with format specifier
+                    % extracted from the varaible calss
+                    par_strs{i}=var2str(TmpParam.value);
+                else
+                    par_strs{i}=sprintf(TmpParam.fmt_spec, TmpParam.value);
+                end
+            end
+            %width of the values column
+            val_pad_length=max(cellfun(@(x) length(x), par_strs));
+            
+            fileID=fopen(fullfilename,'a');
+            %Prints the header
+            fprintf(fileID,'%s%s%s\r\n', this.hdr_spec, title_str,...
+                this.hdr_spec);
             
             for i=1:length(param_names)
-                %Capitalize first letter of parameter name
+                %Capitalize first letter of parameter name and comment
                 fmt_name=[upper(param_names{i}(1)),param_names{i}(2:end)];
-                
-                %Sets the string specifier for the parameter
-                if isfield(ParamStruct.(param_names{i}),'str_spec')
-                    str_spec=ParamStruct.(param_names{i}).str_spec;
+                if ~isempty(ParamStruct.(param_names{i}).comment)
+                    fmt_comment=[this.comment_sep,...
+                        Upper(ParamStruct.(param_names{i}).comment(1)),...
+                        ParamStruct.(param_names{i}).comment(2:end)];
                 else
-                    warning('No str_spec provided for %s, using char',param_names{i})
-                    str_spec='%s';
+                    fmt_comment='';
                 end
                 
-                print_spec=sprintf('%%-%ds\t%s\r\n',pad_length,str_spec);
-                fprintf(fileID,print_spec,fmt_name,...
-                    ParamStruct.(param_names{i}).value);
+                print_spec=[sprintf('%%-%is',name_pad_length),...
+                    this.column_sep,...
+                    sprintf('%%-%is',val_pad_length),...
+                    this.column_sep,'%s\r\n'];
+
+                fprintf(fileID, print_spec, fmt_name, par_strs{i},...
+                    fmt_comment);
             end
             
             %Prints an extra line at the end
@@ -164,29 +191,23 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         
         %Adds time header
         function addTimeHeader(this)
-            if isprop(this,'Time'); deleteField(this,'Time'); end
+            if isprop(this,'Time')
+                deleteField(this,'Time')
+            end
             dv=datevec(datetime('now'));
             addField(this,'Time');
-            addParam(this,'Time','Year',dv(1),'%i');
-            addParam(this,'Time','Month',dv(2),'%i');
-            addParam(this,'Time','Day',dv(3),'%i');
-            addParam(this,'Time','Hour',dv(4),'%i');
-            addParam(this,'Time','Minute',dv(5),'%i');
-            addParam(this,'Time','Second',floor(dv(6)),'%i');
+            addParam(this,'Time','Year',dv(1),'fmt_spec','%i');
+            addParam(this,'Time','Month',dv(2),'fmt_spec','%i');
+            addParam(this,'Time','Day',dv(3),'fmt_spec','%i');
+            addParam(this,'Time','Hour',dv(4),'fmt_spec','%i');
+            addParam(this,'Time','Minute',dv(5),'fmt_spec','%i');
+            addParam(this,'Time','Second',floor(dv(6)),'fmt_spec','%i');
             addParam(this,'Time','Millisecond',...
-                round(1000*(dv(6)-floor(dv(6)))),'%i');
+                round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
         end
         
         function n_end_header=readHeaders(this, fullfilename, varargin)
-            p=inputParser;
-            addParameter(p,'end_header','Data')
-            addParameter(p,'hdr_spec',this.hdr_spec);
-            parse(p,varargin{:});
-            
-            end_header=p.Results.end_header;
-            this.hdr_spec=p.Results.hdr_spec;
-            
-            %Before we load, we clear all fields
+            %Before we load, we clear all existing fields
             clearFields(this);
             
             fileID=fopen(fullfilename);
@@ -204,15 +225,19 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 %Grabs the current line
                 curr_line=fgetl(fileID);
                 %Gives an error if the file is empty, i.e. fgetl returns -1
-                if curr_line==-1; error('Tried to read empty file. Aborting.'); end
+                if curr_line==-1 
+                    error('Tried to read empty file. Aborting.')
+                end
                 %Skips if current line is empty
-                if isempty(curr_line); continue; end
+                if isempty(curr_line)
+                    continue
+                end
                 
                 res_str=regexp(curr_line,title_exp,'once','tokens');
                 %If we find a title, first check if it is the specified end header.
                 %Then change the title if a title was found, then if no title was
                 %found, put the data under the current title.
-                if ~isempty(res_str) && contains(res_str,end_header)
+                if ~ismember(res_str,end_header)
                     break
                 elseif ~isempty(res_str)
                     curr_title=res_str{1};
@@ -227,12 +252,15 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 %current line is not empty. We then add this line to the
                 %current field (curr_title).
                 elseif ~isempty(curr_title)
-                    tmp=strsplit(curr_line,'\t','CollapseDelimiters',true);
-                    %Remove spaces
-                    tmp=cellfun(@(x) erase(x,' '), tmp,'UniformOutput',false);
-                    [val,str_spec]=str2doubleHedged(tmp{2});
+                    tmp=strsplit(curr_line, this.column_sep,...
+                        'CollapseDelimiters',true);
+                    %Remove leading and trailing spaces
+                    tmp=strtrim(tmp);
+                    val=str2doubleHedged(tmp{2});
+                    comment_str=sscanf(tmp{3},[this.comment_sep,'%s']);
                     %Store retrieved value
-                    addParam(this,curr_title,tmp{1},val,str_spec);
+                    addParam(this,curr_title,lower(tmp{1}),val,...
+                        'comment',comment_str);
                 end
             end
             

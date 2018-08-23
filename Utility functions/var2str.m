@@ -15,8 +15,6 @@ function str_out = var2str(var)
                 '''%s'' to string is not specified explicitly. ',...
                 'Using disp() by default.'], class(var));
             str_out=evalc('disp(var)');
-            % return with the last 2 new line characters removed
-            str_out=str_out(1:end-2);
     end
 end
 
