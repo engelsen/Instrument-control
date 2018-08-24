@@ -41,8 +41,8 @@ classdef MyLogger < handle & MyInputHandler
                 % Create and confitugure timer unless it was supplied
                 % externally in varargin
                 this.MeasTimer = timer();
-                this.MeasTimer.BusyMode = 'queue';
-                this.MeasTimer.ExecutionMode = 'FixedRate';
+                this.MeasTimer.BusyMode = 'drop';
+                this.MeasTimer.ExecutionMode = 'fixedDelay';
                 this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
             end 
         end
