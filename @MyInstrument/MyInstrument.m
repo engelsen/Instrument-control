@@ -4,8 +4,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         name='';
         interface='';
         address=''; 
-        Device; %Device communication object    
-        Trace; %Trace object for storing data
+        Device %Device communication object    
+        Trace %Trace object for storing data
     end 
     
     properties (GetAccess=public, SetAccess=protected)
@@ -102,17 +102,20 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         end
         
         % Read all the relevant instrument properties and return as a
-        % file header structure.
+        % MyMetadata object.
         % Dummy method that needs to be re-defined by a parent class
-        function HdrStruct=readHeader(this)
-            HdrStruct.idn.value = this.idn_str;
-            HdrStruct.idn.str_spec = '%s';
-            
-            HdrStruct.interface.value = this.interface;
-            HdrStruct.interface.str_spec = '%s';
-            
-            HdrStruct.address.value = this.address;
-            HdrStruct.address.str_spec = '%s';
+        function Hdr=readHeader(this)
+            Hdr=MyMetadata();
+            % Generate valid field name from instrument name if present and
+            % class name otherwise
+            if ~isempty(this.name)
+                field_name=genvarname(this.name);
+            else
+                field_name=class(this);
+            end
+            addField(Hdr, field_name);
+            % Add identification string as parameter
+            addParam(Hdr, field_name, 'idn', this.idn_str);
         end
        
         
@@ -122,9 +125,10 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         function connectDevice(this)
             int_list={'constructor','visa','tcpip','serial'};
             if ~ismember(lower(this.interface), int_list)
-                error(['Device is not connected, unknown interface ',...
+                warning(['Device is not connected, unknown interface ',...
                     this.interface,'. Valid interfaces are ',...
                     '''constructor'', ''visa'', ''tcpip'' and ''serial'''])
+                return
             end
             try
                 switch lower(this.interface)
@@ -228,5 +232,6 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                 end
             end
         end
+        
     end
 end

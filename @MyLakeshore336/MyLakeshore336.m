@@ -48,33 +48,22 @@ classdef MyLakeshore336 < MyInstrument
         end
         
         % Re-define readHeader function
-        function HdrStruct=readHeader(this)
+        function Hdr=readHeader(this)
+            Hdr=readHeader@MyInstrument(this);
+            % Hdr should contain single field
+            fn=Hdr.field_names{1};
             readAllHedged(this);
-            HdrStruct = struct();
             
-            HdrStruct.temp_unit.value = this.temp_unit;
-            HdrStruct.temp_unit.str_spec = '%s';
+            addParam(Hdr, fn, 'temp_unit', this.temp_unit);
             
-            % Add properties which are numbers
-            num_props = {'temp', 'setpoint'};
-            for i=1:length(num_props)
-                tag = num_props{i};
-                for j = 1:4
-                    indtag = sprintf('%s%i', tag, j);
-                    HdrStruct.(indtag).value = this.(tag){j};
-                    HdrStruct.(indtag).str_spec = '%e';
-                end
-            end
-            
-            % Add properties which are strings
-            str_props = {'inp_sens_name', 'heater_rng_str',...
+            % Add properties without comments
+            props = {'temp','setpoint','inp_sens_name','heater_rng_str',...
                 'out_mode_str', 'cntl_inp_str', 'powerup_en_str'};
-            for i=1:length(str_props)
-                tag = str_props{i};
+            for i=1:length(props)
+                tag = props{i};
                 for j = 1:4
                     indtag = sprintf('%s%i', tag, j);
-                    HdrStruct.(indtag).value = this.(tag){j};
-                    HdrStruct.(indtag).str_spec = '%s';
+                    addParam(Hdr, fn, indtag, this.(tag){j});
                 end
             end
         end

@@ -5,22 +5,23 @@ classdef MyScpiInstrument < MyInstrument
     properties (SetAccess=protected, GetAccess=public)
         %Contains a list of the commands available for the instrument as
         %well as the default values and input requirements
-        CommandList=struct();
+        CommandList
         %Parses commands using an inputParser object
-        CommandParser;
+        CommandParser
     end
         
     properties (Dependent=true)
-        command_names;
-        command_no;
-        write_commands;
-        read_commands;
+        command_names
+        command_no
+        write_commands
+        read_commands
     end
     
     methods (Access=public)
         %% Class constructor
         function this=MyScpiInstrument(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
+            this.CommandList=struct();
             createCommandList(this);
             createCommandParser(this);
         end
@@ -77,7 +78,7 @@ classdef MyScpiInstrument < MyInstrument
             for i=1:length(exec)
                 %Create command using the right string spec
                 cmd=[this.CommandList.(exec{i}).command,...
-                    ' ',this.CommandList.(exec{i}).str_spec];
+                    ' ',this.CommandList.(exec{i}).fmt_spec];
                 val=this.CommandParser.Results.(exec{i});
                 exec_commands{i}=sprintf(cmd, val);
             end
@@ -131,7 +132,7 @@ classdef MyScpiInstrument < MyInstrument
             if length(exec)==length(res_list)
                 for i=1:length(exec)
                     result.(exec{i})=sscanf(res_list{i},...
-                        this.CommandList.(exec{i}).str_spec);
+                        this.CommandList.(exec{i}).fmt_spec);
                     %Assign the values to the MyInstrument properties
                     this.(exec{i})=result.(exec{i});
                 end
@@ -158,14 +159,16 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         % readHeader function
-        function HdrStruct=readHeader(this)
-           Values=readPropertyHedged(this,'all');
-           for i=1:length(this.read_commands)
-               HdrStruct.(this.read_commands{i}).value=...
-                   Values.(this.read_commands{i});
-               HdrStruct.(this.read_commands{i}).str_spec=...
-                   this.CommandList.(this.read_commands{i}).str_spec;
-           end
+        function Hdr=readHeader(this)
+            %Call parent class method and then append parameters
+            Hdr=readHeader@MyInstrument(this);
+            %Hdr should contain single field
+            readPropertyHedged(this,'all');
+            for i=1:length(this.read_commands)
+                cmd = this.read_commands{i};
+                addParam(Hdr, Hdr.field_names{1}, cmd, this.(cmd), ...
+                    'comment', this.CommandList.(cmd).info);
+            end
         end
         
         %% Processing of the class variable values
@@ -226,25 +229,25 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         %% Auxiliary functions for auto format assignment to commands
-        function str_spec=formatSpecFromAttributes(~,classes,attributes)
+        function fmt_spec=formatSpecFromAttributes(~,classes,attributes)
             if ismember('char',classes)
-                str_spec='%s';
+                fmt_spec='%s';
             elseif ismember('logical',classes)||...
                     (ismember('numeric',classes)&&...
                     ismember('integer',attributes))
-                str_spec='%i';
+                fmt_spec='%i';
             else
                 %assign default value, i.e. double
-                str_spec='%e';
+                fmt_spec='%e';
             end
         end
         
-        function [class,attribute]=attributesFromFormatSpec(~, str_spec)
+        function [class,attribute]=attributesFromFormatSpec(~, fmt_spec)
             % find index of the first letter after the % sign
-            ind_p=strfind(str_spec,'%');
-            ind=ind_p+find(isletter(str_spec(ind_p:end)),1)-1;
-            str_spec_letter=str_spec(ind);
-            switch str_spec_letter
+            ind_p=strfind(fmt_spec,'%');
+            ind=ind_p+find(isletter(fmt_spec(ind_p:end)),1)-1;
+            fmt_spec_letter=fmt_spec(ind);
+            switch fmt_spec_letter
                 case {'d','f','e','g'}
                     class={'numeric'};
                     attribute={};
@@ -275,11 +278,13 @@ classdef MyScpiInstrument < MyInstrument
             addParameter(p,'default','placeholder');
             addParameter(p,'classes',{},@iscell);
             addParameter(p,'attributes',{},@iscell);
-            addParameter(p,'str_spec','%e',@ischar);
+            addParameter(p,'fmt_spec','%e',@ischar);
             % list of the values the variable can take, {} means no
             % restriction
             addParameter(p,'val_list',{},@iscell);
             addParameter(p,'access','rw',@ischar);
+            % information about the command
+            addParameter(p,'info','',@ischar);
             parse(p,tag,command,varargin{:});
 
             %Adds the command to be sent to the device
@@ -289,26 +294,27 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandList.(tag).read_flag=contains(p.Results.access,'r');
             this.CommandList.(tag).default=p.Results.default;
             this.CommandList.(tag).val_list=p.Results.val_list;
+            this.CommandList.(tag).info=p.Results.info;
             
             % Adds the string specifier to the list. if the format
             % specifier is not given explicitly, try to infer
-            if ismember('str_spec', p.UsingDefaults)
-                this.CommandList.(tag).str_spec=...
+            if ismember('fmt_spec', p.UsingDefaults)
+                this.CommandList.(tag).fmt_spec=...
                     formatSpecFromAttributes(this,p.Results.classes...
                     ,p.Results.attributes);
-            elseif strcmp(p.Results.str_spec,'%b')
+            elseif strcmp(p.Results.fmt_spec,'%b')
                 % b is a non-system specifier to represent the
                 % logical type
-                this.CommandList.(tag).str_spec='%i';
+                this.CommandList.(tag).fmt_spec='%i';
             else
-                this.CommandList.(tag).str_spec=p.Results.str_spec;
+                this.CommandList.(tag).fmt_spec=p.Results.fmt_spec;
             end
             % Adds the attributes for the input to the command. If not
             % given explicitly, infer from the format specifier
             if ismember('classes',p.UsingDefaults)
                 [this.CommandList.(tag).classes,...
                 this.CommandList.(tag).attributes]=...
-                attributesFromFormatSpec(this, p.Results.str_spec);
+                attributesFromFormatSpec(this, p.Results.fmt_spec);
             else
                 this.CommandList.(tag).classes=p.Results.classes;
                 this.CommandList.(tag).attributes=p.Results.attributes;
@@ -316,7 +322,7 @@ classdef MyScpiInstrument < MyInstrument
             
             % Adds a property to the class corresponding to the tag
             if ~isprop(this,tag)
-                addprop(this,tag);
+                h = addprop(this,tag);
             end
             this.(tag)=p.Results.default;
         end

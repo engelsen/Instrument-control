@@ -8,8 +8,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         name_y='y';
         unit_x='';
         unit_y='';
-        %Information about how the trace was taken
-        MeasHeaders=MyMetadata();
+        % MyMetadata storing information about how the trace was taken
+        MeasHeaders
         load_path='';
         %Cell that contains handles the trace is plotted in
         hlines={};
@@ -17,15 +17,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     end
     
     properties (Access=private)
-        Parser;
+        Parser
     end
     
     properties (Dependent=true)
-        %Contains the MeasHeaders
+        %MyMetadata containing the MeasHeaders and 
+        %information about the trace
         Metadata
-        label_x;
-        label_y;
+        
+        label_x
+        label_y
     end
+    
     methods (Access=private)
         %Creates the input parser for the class. Includes default values
         %for all optional parameters.
@@ -119,17 +122,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             fileID=fopen(fullfilename,'a');
 
-
-            
             %Writes the metadata header
-            writeAllHeaders(this.Metadata,fullfilename);
+            printAllHeaders(this.Metadata,fullfilename);
             %Puts in header title for the data
             fprintf(fileID,...
                 [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
-            
-            %Finds appropriate column width
-            cw=max([length(this.label_y),length(this.label_x),...
-                save_prec+7]);
             
             %Pads the vectors if they are not equal length
             diff=length(this.x)-length(this.y);
@@ -143,10 +140,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                     ' not of the same length']);
             end
             
-            %Saves in scientific notation with correct column width defined
-            %above. Again if cw=20, we get %14.10e\t%14.10e\r\n
-            data_format_str=sprintf('%%%i.%ie\t%%%i.%ie\r\n',...
-                cw,save_prec,cw,save_prec);
+            %Save in the more compact of fixed point and scientific 
+            %notation with trailing zeros removed
+            %If save_prec=15, we get %.15g\t%.15g\r\n
+            %Formatting without column padding may look ugly, but it makes
+            %files quite a bit smaller
+            data_format_str=sprintf('%%.%ig\t%%.%ig\r\n',...
+                save_prec,save_prec);
             fprintf(fileID,data_format_str,[this.x, this.y]');
             fclose(fileID);
         end
@@ -158,8 +158,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         
         function loadTrace(this, file_path, varargin)
             p=inputParser;
-            addParameter(p,'hdr_spec','==',@ischar);
-            addParameter(p,'end_header','Data',@ischar);
+            addParameter(p,'hdr_spec',...
+                this.MeasHeaders.hdr_spec,@ischar);
+            addParameter(p,'end_header',...
+                this.MeasHeaders.end_header,@ischar);
             parse(p,varargin{:});
             
             hdr_spec=p.Results.hdr_spec;
@@ -171,17 +173,19 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Instantiate a header object from the file you are loading. We
             %get the line number we want to read from as an output.
-            [MeasHeaders,end_line_no]=MyMetadata(...
+            [this.MeasHeaders,end_line_no]=MyMetadata(...
                 'load_path',file_path,...
                 'hdr_spec',hdr_spec,...
                 'end_header',end_header);
             
-            %Tries to assign units and names
+            %Tries to assign units and names and then delete the Info field
+            %from MeasHeaders
             try
-                this.unit_x=MeasHeaders.TraceInformation.Unit1.value;
-                this.unit_y=MeasHeaders.TraceInformation.Unit2.value;
-                this.name_x=MeasHeaders.TraceInformation.Name1.value;
-                this.name_y=MeasHeaders.TraceInformation.Name2.value;
+                this.unit_x=this.MeasHeaders.Info.Unit1.value;
+                this.unit_y=this.MeasHeaders.Info.Unit2.value;
+                this.name_x=this.MeasHeaders.Info.Name1.value;
+                this.name_y=this.MeasHeaders.Info.Name2.value;
+                deleteField(this.MeasHeaders,'Info');
             catch
                 warning(['No metadata found. No units or labels assigned',...
                     ' when loading trace from %s'],file_path)
@@ -448,11 +452,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %First we update the trace information
             Metadata=MyMetadata();
             addField(Metadata,'Info');
-            addParam(Metadata,'Info','uid',this.uid,'%s');
-            addParam(Metadata,'Info','Name1',this.name_x,'%s');
-            addParam(Metadata,'Info','Name2',this.name_y,'%s');
-            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
-            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+            addParam(Metadata,'Info','uid',this.uid);
+            addParam(Metadata,'Info','Name1',this.name_x);
+            addParam(Metadata,'Info','Name2',this.name_y);
+            addParam(Metadata,'Info','Unit1',this.unit_x);
+            addParam(Metadata,'Info','Unit2',this.unit_y);
             
             addMetadata(Metadata,this.MeasHeaders);
         end

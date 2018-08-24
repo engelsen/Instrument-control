@@ -3,28 +3,28 @@
 classdef MyDaq < handle
     properties
         %Global variable with Daq name is cleared on exit.
-        global_name;
+        global_name
         %Contains GUI handles
-        Gui;
+        Gui
         %Contains Reference trace (MyTrace object)
-        Ref=MyTrace();
+        Ref
         %Contains Data trace (MyTrace object)
-        Data=MyTrace();
+        Data
         %Contains Background trace (MyTrace object)
-        Background=MyTrace();
+        Background
 
         %List of all the programs with run files
-        ProgramList=struct();
+        ProgramList
         %Struct containing Cursor objects
-        Cursors=struct();
+        Cursors
         %Struct containing Cursor labels
-        CrsLabels=struct();
+        CrsLabels
         %Struct containing MyFit objects
-        Fits=struct();
+        Fits
         %Input parser for class constructor
-        ConstructionParser;
+        ConstructionParser
         %Struct for listeners
-        Listeners=struct();
+        Listeners
 
         %Sets the colors of fits, data and reference
         fit_color='k';
@@ -34,23 +34,37 @@ classdef MyDaq < handle
     end
     
     properties (Dependent=true)
-        save_dir;
-        main_plot;
-        open_fits;
-        open_crs;
+        save_dir
+        main_plot
+        open_fits
+        open_crs
     end
     
     properties (Dependent=true, SetAccess=private, GetAccess=public)
         %Properties for saving files
-        base_dir;
-        session_name;
-        filename;
+        base_dir
+        session_name
+        filename
     end
     
     methods (Access=public)
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
+            % Initialize variables
+            % Traces
+            this.Ref=MyTrace();
+            this.Data=MyTrace();
+            this.Background=MyTrace();
+            % Lists
+            this.ProgramList=struct();
+            this.Cursors=struct();
+            this.CrsLabels=struct();
+            this.Fits=struct();
+            this.ConstructionParser;
+            this.Listeners=struct();
+            
+            % Parse inputs
             p=inputParser;
             addParameter(p,'global_name','',@ischar);
             addParameter(p,'collector_handle',[]);

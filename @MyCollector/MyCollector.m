@@ -1,21 +1,21 @@
 classdef MyCollector < handle & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
-        InstrList=struct() % Structure accomodating instruments 
-        InstrProps=struct() % Properties of instruments;
-        MeasHeaders=MyMetadata();
-        collect_flag;
+        InstrList % Structure accomodating instruments 
+        InstrProps % Properties of instruments
+        MeasHeaders
+        collect_flag
     end
     
     properties (Access=private)
-        Listeners=struct();
+        Listeners
     end
     
     properties (Dependent=true)
-        running_instruments;
+        running_instruments
     end
     
     events
-        NewDataWithHeaders;
+        NewDataWithHeaders
     end
     
     methods (Access=public)
@@ -29,6 +29,11 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             if ~isempty(p.Results.InstrHandles)
                 cellfun(@(x) addInstrument(this,x),p.Results.InstrHandles);
             end
+            
+            this.MeasHeaders=MyMetadata();
+            this.InstrList=struct();  
+            this.InstrProps=struct(); 
+            this.Listeners=struct();
         end
         
         function delete(this)
@@ -44,7 +49,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             if ~ismember('name',p.UsingDefaults)
                 name=p.Results.name;
             elseif isprop(instr_handle,'name') && ~isempty(instr_handle.name)
-                name=genvarname(instr_handle.name);
+                name=genvarname(instr_handle.name, this.running_instruments);
             else
                 name=genvarname(p.Results.name, this.running_instruments);
             end
@@ -84,7 +89,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                     name='Not Accessible';
                 end
                 addParam(this.MeasHeaders,'AcquiringInstrument',...
-                    'Name',name,'%s');
+                    'Name',name);
                 acquireHeaders(this);
                 %We copy the MeasHeaders to the trace.
                 src.Trace.MeasHeaders=copy(this.MeasHeaders);
@@ -99,9 +104,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 name=this.running_instruments{i};
                 
                 if this.InstrProps.(name).header_flag
-                    tmp_struct=readHeader(this.InstrList.(name));
-                    addField(this.MeasHeaders,name);
-                    addStructToField(this.MeasHeaders,name,tmp_struct);
+                    TmpMetadata=readHeader(this.InstrList.(name));
+                    addMetadata(this.MeasHeaders, TmpMetadata);
                 end
             end
         end

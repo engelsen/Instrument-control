@@ -20,7 +20,7 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
     
     % If the property is not present in the instrument class, disable the
     % control
-    if ~isprop(app.Instr, prop_tag)
+    if ~ismember(prop_tag, app.Instr.command_names)
         elem.Enable='off';
         elem.Visible='off';
         return
