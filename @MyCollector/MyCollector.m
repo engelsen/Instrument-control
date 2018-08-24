@@ -114,14 +114,6 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             this.MeasHeaders=MyMetadata();
         end
         
-        function Trace=getTrace(this,name)
-            assert(isopen(this,name),'%s is not an open instrument');
-            assert(isprop(this.InstrList.(name),'Trace'),...
-                'Cannot get trace, %s does not have a Trace property',...
-                name);
-            Trace=this.InstrList.(name).Trace;
-        end
-        
         function bool=isrunning(this,name)
             assert(~isempty(name),'Instrument name must be specified')
             assert(ischar(name),...
