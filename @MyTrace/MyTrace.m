@@ -128,10 +128,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             fprintf(fileID,...
                 [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
             
-            %Finds appropriate column width
-            cw=max([length(this.label_y),length(this.label_x),...
-                save_prec+7]);
-            
             %Pads the vectors if they are not equal length
             diff=length(this.x)-length(this.y);
             if diff<0
@@ -144,10 +140,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                     ' not of the same length']);
             end
             
-            %Saves in scientific notation with correct column width defined
-            %above. Again if cw=20, we get %14.10e\t%14.10e\r\n
-            data_format_str=sprintf('%%%i.%ie\t%%%i.%ie\r\n',...
-                cw,save_prec,cw,save_prec);
+            %Save in the more compact of fixed point and scientific 
+            %notation with trailing zeros removed
+            %If save_prec=15, we get %.15g\t%.15g\r\n
+            %Formatting without column padding may look ugly, but it makes
+            %files quite a bit smaller
+            data_format_str=sprintf('%%.%ig\t%%.%ig\r\n',...
+                save_prec,save_prec);
             fprintf(fileID,data_format_str,[this.x, this.y]');
             fclose(fileID);
         end
