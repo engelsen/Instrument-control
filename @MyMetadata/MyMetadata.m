@@ -29,7 +29,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             this.PropHandles=struct();
             
             if ~isempty(p.Results.load_path)
-                varargout{1}=readHeaders(this,p.Results.load_path,...
+                varargout{1}=scanHeaders(this,p.Results.load_path,...
                     'end_header',p.Results.end_header);
             end
         end
@@ -64,25 +64,6 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             cellfun(@(x) deleteField(this, x), this.field_names)
         end
         
-%         %This function adds a structure to a field of a given name. The
-%         %field must be created before this can be used
-%         function addStructToField(this, field_name, input_struct)
-%             %Input checks
-%             assert(ischar(field_name),'Field name must be a char');
-%             assert(isprop(this,field_name),...
-%                 '%s is not a field, use addField to add it',field_name);
-%             assert(isa(input_struct,'struct'),...
-%                 ['The input_struct input must be a struct.',...
-%                 'Currently it is a %s'],class(input_struct))
-%             
-%             %Adds the parameters specified in the input struct.
-%             param_names=fieldnames(input_struct);
-%             for i=1:length(param_names)
-%                 tmp=input_struct.(param_names{i});
-%                 addParam(this,field_name, ...
-%                     param_names{i},tmp.value,tmp.fmt_spec);
-%             end
-%         end
         
         % Copy all the fields of another Metadata object to this object
         function addMetadata(this, Metadata)
@@ -105,12 +86,12 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         
         %Adds a parameter to a specified field. The field must be created
         %first.
-        function addParam(this, field_name, name, value, varargin)
+        function addParam(this, field_name, param_name, value, varargin)
             assert(ischar(field_name),'Field name must be a char');
             assert(isprop(this,field_name),...
-                '%s is not a field, use addField to add it',name);
-            assert(ischar(name),'Parameter name must be a char');
-            assert(ischar(fmt_spec),'String spec must be a char');
+                '%s is not a field, use addField to add it',param_name);
+            assert(ischar(param_name),'Parameter name must be a char');
+            assert(ischar(fmt_spec),'Format specifier must be a char');
             
             p=inputParser();
             % Format specifier for printing the value
@@ -119,20 +100,44 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             addParameter(p,'comment','',@ischar);
             parse(p,varargin{:});
             
-            %Adds the field
-            this.(field_name).(name).value=value;
-            this.(field_name).(name).fmt_spec=p.Results.fmt_spec;
-            this.(field_name).(name).comment=p.Results.comment;
+            %Adds the field, making sure that neither value nor comment
+            %contain new line or carriage return characters, which would
+            %mess up formating when saving the header
+            
+            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
+            
+            if (ischar(value)||isstring(value)) && ...
+                    contains(value, newline_smb)
+                warning(['Value of ''%s'' must not contain ',...
+                    '''\\n'' and ''\\r'' symbols, replacing them ',...
+                    'with '' '''], param_name);
+                this.(field_name).(param_name).value=...
+                    replace(value, newline_smb,' ');
+            else
+                this.(field_name).(param_name).value=value;
+            end
+            
+            if contains(p.Results.comment, newline_smb)
+                warning(['Comment string for ''%s'' must not contain ',...
+                    '''\\n'' and ''\\r'' symbols, replacing them ',...
+                    'with '' '''], param_name);
+                this.(field_name).(param_name).comment= ...
+                    replace(p.Results.comment, newline_smb,' ');
+            else
+                this.(field_name).(param_name).comment=p.Results.comment;
+            end
+
+            this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
         end
         
-        function writeAllHeaders(this,fullfilename)
+        function printAllHeaders(this,fullfilename)
             addTimeHeader(this);
             for i=1:length(this.field_names)
-                writeHeader(this, fullfilename, this.field_names{i});
+                printHeader(this, fullfilename, this.field_names{i});
             end
         end
         
-        function writeHeader(this, fullfilename, field_name, varargin)
+        function printHeader(this, fullfilename, field_name, varargin)
             %Takes optional inputs
             p=inputParser;
             addParameter(p,'title',field_name);
@@ -206,7 +211,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
         end
         
-        function n_end_header=readHeaders(this, fullfilename, varargin)
+        function n_end_header=scanHeaders(this, fullfilename, varargin)
             %Before we load, we clear all existing fields
             clearFields(this);
             
@@ -256,7 +261,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     % First separate the comment if present
                     tmp=strsplit(curr_line, this.comment_sep);
                     if length(tmp)>1
-                        % if comments present
+                        % the line has comment
                         comment_str=[tmp{2:end}];
                     else
                         comment_str='';
@@ -264,10 +269,11 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     % Then process name-value pair
                     tmp=strsplit(tmp{1}, this.column_sep,...
                         'CollapseDelimiters',true);
-                    % Remove leading and trailing spaces
-                    tmp=strtrim(tmp);
-                    name=tmp{1};
-                    val=str2doubleHedged(tmp{2});
+                    name=strtrim(tmp{1});
+                    % Assume everything after the first column separator 
+                    % to be the value and attempt convertion to number
+                    val=strtrim(tmp{2:end});
+                    val=str2doubleHedged(val);
                     %Store retrieved value
                     addParam(this, curr_title, name, val,...
                         'comment',comment_str);

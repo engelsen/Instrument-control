@@ -7,8 +7,8 @@ classdef MyTpg < MyInstrument
     properties (Constant=true)
         % Named constants for communication
         ETX = char(3); % end of text
-        CR = char(13); % carriage return
-        LF = char(10); %#ok<CHARTEN> % line feed
+        CR = char(13); % carriage return \r
+        LF = char(10); %#ok<CHARTEN> % line feed \n
         ENQ = char(5); % enquiry
         ACK = char(6); % acknowledge
         NAK = char(21); % negative acknowledge

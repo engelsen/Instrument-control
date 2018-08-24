@@ -159,14 +159,18 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         % readHeader function
-        function HdrStruct=readHeader(this)
-           Values=readPropertyHedged(this,'all');
-           for i=1:length(this.read_commands)
-               HdrStruct.(this.read_commands{i}).value=...
-                   Values.(this.read_commands{i});
-               HdrStruct.(this.read_commands{i}).fmt_spec=...
-                   this.CommandList.(this.read_commands{i}).fmt_spec;
-           end
+        function Hdr=readHeader(this)
+            %Call parent class method and then append parameters
+            Hdr=readHeader@MyInstrument(this);
+            %Hdr should contain single field
+            field_names=fieldnames(Hdr);
+            
+            readPropertyHedged(this,'all');
+            for i=1:length(this.read_commands)
+                cmd = this.read_commands{i};
+                addProp(Hdr, field_names{1}, cmd, this.(cmd), ...
+                    'comment', this.CommandList.(cmd).info);
+            end
         end
         
         %% Processing of the class variable values
