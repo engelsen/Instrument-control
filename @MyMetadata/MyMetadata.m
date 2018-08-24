@@ -6,6 +6,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         end_header
         column_sep % Columns are separated by this symbol
         comment_sep % Comments start from this symbol
+        % Limit for column padding. Variables which take more space than
+        % this limit are ignored when calculating the padding length.
+        pad_lim 
     end
     
     properties (Access=private)
@@ -24,12 +27,14 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             addParameter(p,'end_header','Data',@ischar);
             addParameter(p,'column_sep',' \t',@ischar);
             addParameter(p,'comment_sep','%',@ischar);
+            addParameter(p,'pad_lim',12,@isreal);
             parse(p,varargin{:});
             
             this.hdr_spec=p.Results.hdr_spec;
             this.column_sep=p.Results.column_sep;
             this.comment_sep=p.Results.comment_sep;
             this.end_header=p.Results.end_header;
+            this.pad_lim=p.Results.pad_lim;
             this.PropHandles=struct();
             
             if ~isempty(p.Results.load_path)
@@ -111,9 +116,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             
             if (ischar(value)||isstring(value)) && ...
                     contains(value, newline_smb)
-                warning(['Value of ''%s'' must not contain ',...
+                fprintf(['Value of ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
-                    'with '' '''], param_name);
+                    'with '' ''\n'], param_name);
                 this.(field_name).(param_name).value=...
                     replace(value, newline_smb,' ');
             else
@@ -121,9 +126,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             end
             
             if contains(p.Results.comment, newline_smb)
-                warning(['Comment string for ''%s'' must not contain ',...
+                fprintf(['Comment string for ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
-                    'with '' '''], param_name);
+                    'with '' ''\n'], param_name);
                 this.(field_name).(param_name).comment= ...
                     replace(p.Results.comment, newline_smb,' ');
             else
@@ -154,6 +159,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             
             % Make list of parameter values converted to strings
             par_strs=cell(1,length(param_names));
+            par_lengths=zeros(1,length(param_names));
             for i=1:length(param_names)
                 TmpParam=ParamStruct.(param_names{i});
                 if isempty(TmpParam.fmt_spec)
@@ -163,9 +169,14 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 else
                     par_strs{i}=sprintf(TmpParam.fmt_spec, TmpParam.value);
                 end
+                % For beauty, do not account for variables with excessively
+                % long value strings when calculating the padding
+                if length(par_strs{i})<=this.pad_lim
+                    par_lengths(i)=length(par_strs{i});
+                end
             end
             %width of the values column
-            val_pad_length=max(cellfun(@(x) length(x), par_strs));
+            val_pad_length=max(par_lengths);
             
             fileID=fopen(fullfilename,'a');
             %Prints the header

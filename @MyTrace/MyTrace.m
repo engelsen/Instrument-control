@@ -21,11 +21,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     end
     
     properties (Dependent=true)
-        %Contains the MeasHeaders
+        %MyMetadata containing the MeasHeaders and 
+        %information about the trace
         Metadata
+        
         label_x
         label_y
     end
+    
     methods (Access=private)
         %Creates the input parser for the class. Includes default values
         %for all optional parameters.
@@ -69,8 +72,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             if ~ismember('load_path',this.Parser.UsingDefaults)
                 loadTrace(this,this.load_path);
             end
-            
-            this.MeasHeaders=MyMetadata();
         end
         
         %Defines the save function for the class. Note that this is only
@@ -158,8 +159,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         
         function loadTrace(this, file_path, varargin)
             p=inputParser;
-            addParameter(p,'hdr_spec','==',@ischar);
-            addParameter(p,'end_header','Data',@ischar);
+            addParameter(p,'hdr_spec',...
+                this.MeasHeaders.hdr_spec,@ischar);
+            addParameter(p,'end_header',...
+                this.MeasHeaders.end_header,@ischar);
             parse(p,varargin{:});
             
             hdr_spec=p.Results.hdr_spec;
@@ -171,17 +174,19 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Instantiate a header object from the file you are loading. We
             %get the line number we want to read from as an output.
-            [MeasHeaders,end_line_no]=MyMetadata(...
+            [this.MeasHeaders,end_line_no]=MyMetadata(...
                 'load_path',file_path,...
                 'hdr_spec',hdr_spec,...
                 'end_header',end_header);
             
-            %Tries to assign units and names
+            %Tries to assign units and names and then delete the Info field
+            %from MeasHeaders
             try
-                this.unit_x=MeasHeaders.TraceInformation.Unit1.value;
-                this.unit_y=MeasHeaders.TraceInformation.Unit2.value;
-                this.name_x=MeasHeaders.TraceInformation.Name1.value;
-                this.name_y=MeasHeaders.TraceInformation.Name2.value;
+                this.unit_x=this.MeasHeaders.Info.Unit1.value;
+                this.unit_y=this.MeasHeaders.Info.Unit2.value;
+                this.name_x=this.MeasHeaders.Info.Name1.value;
+                this.name_y=this.MeasHeaders.Info.Name2.value;
+                deleteField(this.MeasHeaders,'Info');
             catch
                 warning(['No metadata found. No units or labels assigned',...
                     ' when loading trace from %s'],file_path)
