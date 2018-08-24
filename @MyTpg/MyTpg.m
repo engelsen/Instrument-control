@@ -93,31 +93,19 @@ classdef MyTpg < MyInstrument
             closeDevice(this);
         end
         
-        % Re-define readHeader function
-        function HdrStruct=readHeader(this)
+        % Implement instrument-specific readHeader function
+        function Hdr=readHeader(this)
+            Hdr=readHeader@MyInstrument(this);
+            % Hdr should contain single field
+            fn=Hdr.field_names{1};           
             readAllHedged(this);
-            HdrStruct = struct();
-            
-            HdrStruct.pressure1.value = this.pressure1;
-            HdrStruct.pressure1.str_spec = '%e';
-            
-            HdrStruct.pressure2.value = this.pressure2;
-            HdrStruct.pressure2.str_spec = '%e';
-            
-            HdrStruct.stat1.value = this.stat1;
-            HdrStruct.stat1.str_spec = '%s';
-            
-            HdrStruct.stat2.value = this.stat2;
-            HdrStruct.stat2.str_spec = '%s';
-            
-            HdrStruct.gauge_id1.value = this.gauge_id1;
-            HdrStruct.gauge_id1.str_spec = '%s';
-            
-            HdrStruct.gauge_id2.value = this.gauge_id2;
-            HdrStruct.gauge_id2.str_spec = '%s';
-
-            HdrStruct.pressure_unit.value = this.pressure_unit;
-            HdrStruct.pressure_unit.str_spec = '%s';
+            addParam(Hdr, fn, 'pressure_unit', this.pressure_unit);
+            addParam(Hdr, fn, 'pressure1', this.pressure1);
+            addParam(Hdr, fn, 'pressure2', this.pressure2);
+            addParam(Hdr, fn, 'stat1', this.stat1);
+            addParam(Hdr, fn, 'stat2', this.stat2);
+            addParam(Hdr, fn, 'gauge_id1', this.gauge_id1);
+            addParam(Hdr, fn, 'gauge_id2', this.gauge_id2);
         end
         
         % Attempt communication and identification of the device
