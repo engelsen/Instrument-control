@@ -6,6 +6,5 @@ function genericValueChanged(app, event)
     end
     prop = sscanf(event.Source.Tag, 'Instr.%s');
     writePropertyHedged(app.Instr, prop, val);
-    updateGui(app);
 end
 

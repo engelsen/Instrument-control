@@ -1,18 +1,14 @@
-%   
-function initInstrGui(app,Instrument)
-    app.Instr=Instrument;
-    % Send identification request to instrument
+% Send identification request to instrument and create listeners for 
+% instrument events   
+function initInstrGui(app)
+    % Send identification request to the instrument
     idn(app.Instr);
-    
+    % Initiate gui update via listeners
     app.Listeners.NewParameter=...
-        addlistener(app.Instr,'NewParameter',@(~,~)updateGui(app));
-    
+        addlistener(app.Instr,'PropertyRead',@(~,~)updateGui(app));
     if ismethod(app,'updatePlot')
         app.Listeners.NewData=...
             addlistener(app.Instr,'NewData',@(~,~)updatePlot(app));
     end
-    
-    createControlLinks(app);
-    readPropertyHedged(app.Instr,'all');
 end
 

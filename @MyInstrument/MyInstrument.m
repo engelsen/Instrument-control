@@ -21,7 +21,7 @@ classdef MyInstrument < dynamicprops & MyInputHandler
     
     events
         NewData
-        NewParameter
+        PropertyRead
     end
     
     methods (Access=protected)
@@ -103,8 +103,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         end
         
         %Triggers event for property read from device
-        function triggerNewParameter(this)
-            notify(this,'NewParameter')
+        function triggerPropertyRead(this)
+            notify(this,'PropertyRead')
         end
         
         % Read all the relevant instrument properties and return as a
