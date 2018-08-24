@@ -8,8 +8,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         name_y='y';
         unit_x='';
         unit_y='';
-        %Information about how the trace was taken
-        MeasHeaders=MyMetadata();
+        % MyMetadata storing information about how the trace was taken
+        MeasHeaders
         load_path='';
         %Cell that contains handles the trace is plotted in
         hlines={};
@@ -17,14 +17,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     end
     
     properties (Access=private)
-        Parser;
+        Parser
     end
     
     properties (Dependent=true)
         %Contains the MeasHeaders
         Metadata
-        label_x;
-        label_y;
+        label_x
+        label_y
     end
     methods (Access=private)
         %Creates the input parser for the class. Includes default values
@@ -69,6 +69,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             if ~ismember('load_path',this.Parser.UsingDefaults)
                 loadTrace(this,this.load_path);
             end
+            
+            this.MeasHeaders=MyMetadata();
         end
         
         %Defines the save function for the class. Note that this is only
@@ -119,10 +121,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             fileID=fopen(fullfilename,'a');
 
-
-            
             %Writes the metadata header
-            writeAllHeaders(this.Metadata,fullfilename);
+            printAllHeaders(this.Metadata,fullfilename);
             %Puts in header title for the data
             fprintf(fileID,...
                 [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
@@ -448,11 +448,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %First we update the trace information
             Metadata=MyMetadata();
             addField(Metadata,'Info');
-            addParam(Metadata,'Info','uid',this.uid,'%s');
-            addParam(Metadata,'Info','Name1',this.name_x,'%s');
-            addParam(Metadata,'Info','Name2',this.name_y,'%s');
-            addParam(Metadata,'Info','Unit1',this.unit_x,'%s');
-            addParam(Metadata,'Info','Unit2',this.unit_y,'%s');
+            addParam(Metadata,'Info','uid',this.uid);
+            addParam(Metadata,'Info','Name1',this.name_x);
+            addParam(Metadata,'Info','Name2',this.name_y);
+            addParam(Metadata,'Info','Unit1',this.unit_x);
+            addParam(Metadata,'Info','Unit2',this.unit_y);
             
             addMetadata(Metadata,this.MeasHeaders);
         end

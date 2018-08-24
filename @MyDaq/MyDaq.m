@@ -42,9 +42,9 @@ classdef MyDaq < handle
     
     properties (Dependent=true, SetAccess=private, GetAccess=public)
         %Properties for saving files
-        base_dir;
-        session_name;
-        filename;
+        base_dir
+        session_name
+        filename
     end
     
     methods (Access=public)

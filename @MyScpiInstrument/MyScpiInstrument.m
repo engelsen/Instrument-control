@@ -163,12 +163,10 @@ classdef MyScpiInstrument < MyInstrument
             %Call parent class method and then append parameters
             Hdr=readHeader@MyInstrument(this);
             %Hdr should contain single field
-            field_names=fieldnames(Hdr);
-            
             readPropertyHedged(this,'all');
             for i=1:length(this.read_commands)
                 cmd = this.read_commands{i};
-                addProp(Hdr, field_names{1}, cmd, this.(cmd), ...
+                addParam(Hdr, Hdr.field_names{1}, cmd, this.(cmd), ...
                     'comment', this.CommandList.(cmd).info);
             end
         end
@@ -325,8 +323,6 @@ classdef MyScpiInstrument < MyInstrument
             % Adds a property to the class corresponding to the tag
             if ~isprop(this,tag)
                 h = addprop(this,tag);
-                % Restrict SetAccess. GetAccess is default, 'public'.
-                h.SetAccess='protected';
             end
             this.(tag)=p.Results.default;
         end

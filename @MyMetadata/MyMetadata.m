@@ -1,8 +1,11 @@
 classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     properties
+        % Header sections are separated by [hdr_spec,hdr_spec,hdr_spec]
         hdr_spec
-        column_sep
-        comment_sep % comments start from this symbol
+        % Data starts from the line next to [hdr_spec,end_header,hdr_spec]
+        end_header
+        column_sep % Columns are separated by this symbol
+        comment_sep % Comments start from this symbol
     end
     
     properties (Access=private)
@@ -20,12 +23,13 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             addParameter(p,'load_path','',@ischar);
             addParameter(p,'end_header','Data',@ischar);
             addParameter(p,'column_sep',' \t',@ischar);
-            appParameter(p,'comment_sep','%',@ischar);
+            addParameter(p,'comment_sep','%',@ischar);
             parse(p,varargin{:});
             
             this.hdr_spec=p.Results.hdr_spec;
             this.column_sep=p.Results.column_sep;
             this.comment_sep=p.Results.comment_sep;
+            this.end_header=p.Results.end_header;
             this.PropHandles=struct();
             
             if ~isempty(p.Results.load_path)
@@ -91,7 +95,6 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             assert(isprop(this,field_name),...
                 '%s is not a field, use addField to add it',param_name);
             assert(ischar(param_name),'Parameter name must be a char');
-            assert(ischar(fmt_spec),'Format specifier must be a char');
             
             p=inputParser();
             % Format specifier for printing the value
@@ -170,11 +173,10 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 this.hdr_spec);
             
             for i=1:length(param_names)
-                %Capitalize first letter of parameter name and comment
-                fmt_name=[upper(param_names{i}(1)),param_names{i}(2:end)];
+                %Capitalize first letter of comment
                 if ~isempty(ParamStruct.(param_names{i}).comment)
-                    fmt_comment=[this.comment_sep,...
-                        Upper(ParamStruct.(param_names{i}).comment(1)),...
+                    fmt_comment=[this.comment_sep,' '...
+                        upper(ParamStruct.(param_names{i}).comment(1)),...
                         ParamStruct.(param_names{i}).comment(2:end)];
                 else
                     fmt_comment='';
@@ -185,7 +187,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     sprintf('%%-%is',val_pad_length),...
                     this.column_sep,'%s\r\n'];
 
-                fprintf(fileID, print_spec, fmt_name, par_strs{i},...
+                fprintf(fileID, print_spec, param_names{i}, par_strs{i},...
                     fmt_comment);
             end
             
@@ -243,15 +245,12 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 %end header. Then change the title if a title was found, 
                 %then if no title was found, put the data under the current 
                 %title.
-                if ~ismember(res_str,end_header)
+                if ismember(res_str, this.end_header)
                     break
                 elseif ~isempty(res_str)
-                    curr_title=res_str{1};
-                    %Capitalizes the letter after a space
-                    ind=regexp([' ' curr_title],'(?<=\s+)\S','start')-1;
-                    curr_title(ind)=upper(curr_title(ind));
-                    %Removes spaces
-                    curr_title=curr_title(~isspace(curr_title));
+                    % Apply genvarname for sefety in case the title string 
+                    % is not a proper variable name 
+                    curr_title=genvarname(res_str{1});
                     addField(this,curr_title);
                 %This runs if there was no match for the regular
                 %expression, i.e. the current line is not a header, and the
@@ -269,14 +268,19 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     % Then process name-value pair
                     tmp=strsplit(tmp{1}, this.column_sep,...
                         'CollapseDelimiters',true);
-                    name=strtrim(tmp{1});
-                    % Assume everything after the first column separator 
-                    % to be the value and attempt convertion to number
-                    val=strtrim(tmp{2:end});
-                    val=str2doubleHedged(val);
-                    %Store retrieved value
-                    addParam(this, curr_title, name, val,...
-                        'comment',comment_str);
+                    
+                    if length(tmp)>=2
+                        % If present line does not contain name-value pair,
+                        % ignore it
+                        name=strtrim(tmp{1});
+                        % Assume everything after the 1-st column separator 
+                        % to be the value and attempt convertion to number
+                        val=strtrim([tmp{2:end}]);
+                        val=str2doubleHedged(val);
+                        %Store retrieved value
+                        addParam(this, curr_title, name, val,...
+                            'comment',comment_str);
+                    end
                 end
             end
             
