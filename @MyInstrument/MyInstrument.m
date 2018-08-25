@@ -228,7 +228,10 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             catch ErrorMessage
                 str='';
                 msg=ErrorMessage.message;
-            end
+            end   
+            % Remove carriage return and new line symbols from the string
+            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
+            str=replace(str, newline_smb,' ');
             this.idn_str=str;
             % Leave device in the state it was in the beginning
             if ~was_open
