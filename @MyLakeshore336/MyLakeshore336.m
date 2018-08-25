@@ -6,12 +6,12 @@ classdef MyLakeshore336 < MyInstrument
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        temp = {[],[],[],[]}; % cell array of temperatures
-        setpoint = {[],[],[],[]};
+        temp = {0,0,0,0}; % cell array of temperatures
+        setpoint = {0,0,0,0};
         inp_sens_name = {'','','',''}; % input sensor names
-        heater_rng = {[],[],[],[]}; % cell array of heater range codes
+        heater_rng = {0,0,0,0}; % cell array of heater range codes
         % output modes{{mode, cntl_inp, powerup_en},...}
-        out_mode = {{[0,0,0]},{[0,0,0]},{[0,0,0]},{[0,0,0]}}; 
+        out_mode = {[0,0,0],[0,0,0],[0,0,0],[0,0,0]}; 
     end
     
     properties (SetAccess=private, GetAccess=public)

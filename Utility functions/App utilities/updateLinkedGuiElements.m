@@ -25,7 +25,7 @@ function updateLinkedGuiElements(app)
             tmpelem.Value = tmpval;
         catch
             warning(['Could not update the value of element ',...
-                'with tag ''%s'''],tmpelem.Tag);
+                'with tag ''%s'' and value:'],tmpelem.Tag);
             disp(tmpval)
         end
     end
