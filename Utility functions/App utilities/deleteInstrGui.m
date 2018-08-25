@@ -2,9 +2,13 @@
 % gui name and then delete gui itself   
 function deleteInstrGui(app)
     %Deletes listeners
-    lnames=fieldnames(this.Listeners);
-    for i=1:length(lnames)
-        delete(this.Listeners.(lnames{i}));
+    try
+        lnames=fieldnames(app.Listeners);
+        for i=1:length(lnames)
+            delete(app.Listeners.(lnames{i}));
+        end
+    catch
+        warning('Unable to delete listeners')
     end
     try
         delete(app.Instr);
