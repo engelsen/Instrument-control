@@ -83,6 +83,8 @@ classdef MyLakeshore336 < MyInstrument
                     temp_arr(i) = this.temp{i};
                 end
             end
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         % out_channel is 1-4, in_channel is A-D
@@ -93,6 +95,8 @@ classdef MyLakeshore336 < MyInstrument
             this.heater_rng = cellfun(@(s)sscanf(s, '%i'),...
                 resp_split,'UniformOutput',false);
             ret = this.heater_rng; 
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeHeaterRange(this, out_channel, val)
@@ -111,6 +115,8 @@ classdef MyLakeshore336 < MyInstrument
             this.setpoint = cellfun(@(s)sscanf(s, '%e'),...
                 resp_split,'UniformOutput',false);
             ret = this.setpoint;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeSetpoint(this, out_channel, val)
@@ -126,6 +132,8 @@ classdef MyLakeshore336 < MyInstrument
             this.inp_sens_name = strtrim(strsplit(resp_str,';',...
                 'CollapseDelimiters',false));
             ret = this.inp_sens_name;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeInputSensorName(this, in_channel, name)
@@ -145,6 +153,8 @@ classdef MyLakeshore336 < MyInstrument
             this.out_mode = cellfun(@(s)sscanf(s, '%i,%i,%i'),...
                 resp_split,'UniformOutput',false);
             ret = this.out_mode;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeOutMode(this,out_channel,mode,cntl_inp,powerup_en)

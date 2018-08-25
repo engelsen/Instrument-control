@@ -5,7 +5,7 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         interface='';
         address=''; 
         Device %Device communication object    
-        Trace %Trace object for storing data
+        Trace %MyTrace object for storing data
     end 
     
     properties (GetAccess=public, SetAccess=protected)

@@ -53,6 +53,8 @@ classdef MyTpg < MyInstrument
             % 6 –> Identification error  
             this.stat1 = gaugeStatusFromCode(this, arr(1));
             this.stat2 = gaugeStatusFromCode(this, arr(3));
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function pu = readPressureUnit(this)
@@ -68,6 +70,8 @@ classdef MyTpg < MyInstrument
             pu_code = sscanf(str,'%i');
             pu = pressureUnitFromCode(this, pu_code);
             this.pressure_unit = pu;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function id_list = readGaugeId(this)
@@ -76,6 +80,8 @@ classdef MyTpg < MyInstrument
             id_list = deblank(strsplit(str,{','}));
             this.gauge_id1 = id_list{1};
             this.gauge_id2 = id_list{2};
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function p_arr = readAllHedged(this)
