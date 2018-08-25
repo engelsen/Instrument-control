@@ -1,9 +1,6 @@
 % run instrument instance with gui and add it to the collector
 function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, interface, address, gui)
-    if ~isValidBaseVar('Collector')
-        runCollector();    
-    end
-    Collector = evalin('base','Collector');
+    Collector=getCollector();
     
     if ~ismember(name, Collector.running_instruments)
         if nargin==1

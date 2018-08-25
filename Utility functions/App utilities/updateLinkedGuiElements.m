@@ -10,7 +10,12 @@ function updateLinkedGuiElements(app)
         try
             % update the element value based on app.(tag), 
             % where tag can contain a reference to sub-objects
-            tmpval = eval(['app.', tmpelem.Tag]);
+            tmpval = app;
+            % regexp is faster at splitting than strsplit
+            prop_list=regexp(tmpelem.Tag,'\.','split');
+            for j=1:length(prop_list)
+                tmpval=tmpval.(prop_list{j});
+            end
             % scale the value if the control element has a prescaler
             if isprop(tmpelem, 'OutputProcessingFcn')
                 tmpval = tmpelem.OutputProcessingFcn(tmpval);
@@ -19,6 +24,9 @@ function updateLinkedGuiElements(app)
             end
             tmpelem.Value = tmpval;
         catch
+            warning(['Could not update the value of element ',...
+                'with tag ''%s'' and value:'],tmpelem.Tag);
+            disp(tmpval)
         end
     end
 end

@@ -53,6 +53,8 @@ classdef MyTpg < MyInstrument
             % 6 –> Identification error  
             this.stat1 = gaugeStatusFromCode(this, arr(1));
             this.stat2 = gaugeStatusFromCode(this, arr(3));
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function pu = readPressureUnit(this)
@@ -68,6 +70,8 @@ classdef MyTpg < MyInstrument
             pu_code = sscanf(str,'%i');
             pu = pressureUnitFromCode(this, pu_code);
             this.pressure_unit = pu;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function id_list = readGaugeId(this)
@@ -76,13 +80,13 @@ classdef MyTpg < MyInstrument
             id_list = deblank(strsplit(str,{','}));
             this.gauge_id1 = id_list{1};
             this.gauge_id2 = id_list{2};
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function p_arr = readAllHedged(this)
             openDevice(this);
             try
-                % Try opening device before each reading as unclarified
-                % spontaneous closing of the device was observed 
                 p_arr = readPressure(this);
                 readPressureUnit(this);
                 readGaugeId(this);
@@ -119,6 +123,10 @@ classdef MyTpg < MyInstrument
                 str='';
                 msg=ErrorMessage.message;
             end
+            % Remove carriage return and new line symbols from the string
+            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
+            str=replace(str, newline_smb,' ');
+            
             this.idn_str=str;
             % Leave device in the state it was in the beginning
             if ~was_open

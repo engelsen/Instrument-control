@@ -22,7 +22,6 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
     % control
     if ~ismember(prop_tag, app.Instr.command_names)
         elem.Enable='off';
-        elem.Visible='off';
         return
     end
     

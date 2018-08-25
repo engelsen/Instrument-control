@@ -5,7 +5,7 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         interface='';
         address=''; 
         Device %Device communication object    
-        Trace %Trace object for storing data
+        Trace %MyTrace object for storing data
     end 
     
     properties (GetAccess=public, SetAccess=protected)
@@ -20,7 +20,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
     end
     
     events
-        NewData;
+        NewData
+        PropertyRead
     end
     
     methods (Access=protected)
@@ -99,6 +100,11 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         %Triggers event for acquired data
         function triggerNewData(this)
             notify(this,'NewData')
+        end
+        
+        %Triggers event for property read from device
+        function triggerPropertyRead(this)
+            notify(this,'PropertyRead')
         end
         
         % Read all the relevant instrument properties and return as a
@@ -222,7 +228,10 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             catch ErrorMessage
                 str='';
                 msg=ErrorMessage.message;
-            end
+            end   
+            % Remove carriage return and new line symbols from the string
+            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
+            str=replace(str, newline_smb,' ');
             this.idn_str=str;
             % Leave device in the state it was in the beginning
             if ~was_open

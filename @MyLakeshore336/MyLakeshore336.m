@@ -6,12 +6,12 @@ classdef MyLakeshore336 < MyInstrument
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        temp = {[],[],[],[]}; % cell array of temperatures
-        setpoint = {[],[],[],[]};
+        temp = {0,0,0,0}; % cell array of temperatures
+        setpoint = {0,0,0,0};
         inp_sens_name = {'','','',''}; % input sensor names
-        heater_rng = {[],[],[],[]}; % cell array of heater range codes
+        heater_rng = {0,0,0,0}; % cell array of heater range codes
         % output modes{{mode, cntl_inp, powerup_en},...}
-        out_mode = {{[0,0,0]},{[0,0,0]},{[0,0,0]},{[0,0,0]}}; 
+        out_mode = {[0,0,0],[0,0,0],[0,0,0],[0,0,0]}; 
     end
     
     properties (SetAccess=private, GetAccess=public)
@@ -83,6 +83,8 @@ classdef MyLakeshore336 < MyInstrument
                     temp_arr(i) = this.temp{i};
                 end
             end
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         % out_channel is 1-4, in_channel is A-D
@@ -93,14 +95,14 @@ classdef MyLakeshore336 < MyInstrument
             this.heater_rng = cellfun(@(s)sscanf(s, '%i'),...
                 resp_split,'UniformOutput',false);
             ret = this.heater_rng; 
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeHeaterRange(this, out_channel, val)
             if isHeaterRangeOk(this, out_channel, val)
                 cmd = sprintf('RANGE %i,%i', out_channel, val);
                 fprintf(this.Device, cmd);
-                % verify by reading the actual value
-                readHeaterRange(this);
             end
         end
         
@@ -111,13 +113,13 @@ classdef MyLakeshore336 < MyInstrument
             this.setpoint = cellfun(@(s)sscanf(s, '%e'),...
                 resp_split,'UniformOutput',false);
             ret = this.setpoint;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeSetpoint(this, out_channel, val)
             cmd_str = sprintf('SETP %i,%.3f', out_channel, val);
             fprintf(this.Device, cmd_str);
-            % verify by reading the actual value
-            readSetpoint(this);
         end
         
         function ret = readInputSensorName(this)
@@ -126,11 +128,12 @@ classdef MyLakeshore336 < MyInstrument
             this.inp_sens_name = strtrim(strsplit(resp_str,';',...
                 'CollapseDelimiters',false));
             ret = this.inp_sens_name;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeInputSensorName(this, in_channel, name)
             fprintf(this.Device, ['INNAME ',in_channel, name]);
-            readInputSensorName(this)
             ch_n = inChannelToNumber(this, in_channel);
             if ~strcmpi(this.inp_sens_name{ch_n}, name)
                 warning(['Name of input sensor ',in_channel,...
@@ -145,14 +148,14 @@ classdef MyLakeshore336 < MyInstrument
             this.out_mode = cellfun(@(s)sscanf(s, '%i,%i,%i'),...
                 resp_split,'UniformOutput',false);
             ret = this.out_mode;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function writeOutMode(this,out_channel,mode,cntl_inp,powerup_en)
             cmd_str = sprintf('OUTMODE %i,%i,%i,%i',out_channel,...
                 mode,cntl_inp,powerup_en);
             fprintf(this.Device, cmd_str);
-            % verify by reading the actual value
-            readOutMode(this);
         end
     end
     

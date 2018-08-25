@@ -136,6 +136,8 @@ classdef MyScpiInstrument < MyInstrument
                     %Assign the values to the MyInstrument properties
                     this.(exec{i})=result.(exec{i});
                 end
+                % Trigger notification abour new properties read
+                triggerPropertyRead(this);
             else
                 warning(['Not all the properties could be read, ',...
                     'no instrument class values are not updated']);
