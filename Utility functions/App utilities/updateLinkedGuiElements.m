@@ -12,8 +12,8 @@ function updateLinkedGuiElements(app)
             % where tag can contain a reference to sub-objects
             tmpval = app;
             % regexp is faster at splitting than strsplit
-            prop_list=regexp(str,'\.','split');
-            for j=1:length(proplist)
+            prop_list=regexp(tmpelem.Tag,'\.','split');
+            for j=1:length(prop_list)
                 tmpval=tmpval.(prop_list{j});
             end
             % scale the value if the control element has a prescaler
@@ -24,6 +24,9 @@ function updateLinkedGuiElements(app)
             end
             tmpelem.Value = tmpval;
         catch
+            warning(['Could not update the value of element ',...
+                'with tag ''%s'''],tmpelem.Tag);
+            disp(tmpval)
         end
     end
 end
