@@ -87,8 +87,6 @@ classdef MyTpg < MyInstrument
         function p_arr = readAllHedged(this)
             openDevice(this);
             try
-                % Try opening device before each reading as unclarified
-                % spontaneous closing of the device was observed 
                 p_arr = readPressure(this);
                 readPressureUnit(this);
                 readGaugeId(this);

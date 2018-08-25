@@ -103,8 +103,6 @@ classdef MyLakeshore336 < MyInstrument
             if isHeaterRangeOk(this, out_channel, val)
                 cmd = sprintf('RANGE %i,%i', out_channel, val);
                 fprintf(this.Device, cmd);
-                % verify by reading the actual value
-                readHeaterRange(this);
             end
         end
         
@@ -122,8 +120,6 @@ classdef MyLakeshore336 < MyInstrument
         function writeSetpoint(this, out_channel, val)
             cmd_str = sprintf('SETP %i,%.3f', out_channel, val);
             fprintf(this.Device, cmd_str);
-            % verify by reading the actual value
-            readSetpoint(this);
         end
         
         function ret = readInputSensorName(this)
@@ -138,7 +134,6 @@ classdef MyLakeshore336 < MyInstrument
         
         function writeInputSensorName(this, in_channel, name)
             fprintf(this.Device, ['INNAME ',in_channel, name]);
-            readInputSensorName(this)
             ch_n = inChannelToNumber(this, in_channel);
             if ~strcmpi(this.inp_sens_name{ch_n}, name)
                 warning(['Name of input sensor ',in_channel,...
@@ -161,8 +156,6 @@ classdef MyLakeshore336 < MyInstrument
             cmd_str = sprintf('OUTMODE %i,%i,%i,%i',out_channel,...
                 mode,cntl_inp,powerup_en);
             fprintf(this.Device, cmd_str);
-            % verify by reading the actual value
-            readOutMode(this);
         end
     end
     
