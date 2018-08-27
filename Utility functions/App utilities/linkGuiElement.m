@@ -18,33 +18,22 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     addParameter(p,'init_val_list',false,@islogical);
     parse(p,elem,prop_tag,varargin{:});
     
-    % If the property is not present in the instrument class, disable the
-    % control
-    if ~ismember(prop_tag, app.Instr.command_names)
-        elem.Enable='off';
-        return
-    end
-    
-    % If supplied command does not have read permission, issue warning.
-    if ~contains(app.Instr.CommandList.(prop_tag).access,'r')
-        fprintf(['Instrument command ''%s'' does not have read permission,\n',...
-            'corresponding gui element will not be automatically ',...
-            'syncronized\n'],prop_tag);
-        % Try switching color of the gui element to orange
-        warning_color = [0.93, 0.69, 0.13];
-        try
-            elem.BackgroundColor = warning_color;
+    % Check if the property is present in the app, otherwise disable the
+    % gui element
+    tmpval = app;
+    tag_split=regexp(prop_tag,'\.','split');
+    for j=1:length(tag_split)
+        try 
+            tmpval=tmpval.(tag_split{j});
         catch
-            try
-                elem.FontColor = warning_color;
-            catch
-            end
+            elem.Enable='off';
+            return
         end
     end
     
     % The property-control link is established by assigning the tag
     % and adding the control to the list of linked elements
-    elem.Tag = ['Instr.',prop_tag];
+    elem.Tag = prop_tag;
     app.linked_elem_list = [app.linked_elem_list, elem];
 
     % If the create_callback is true, assign genericValueChanged as
@@ -89,32 +78,54 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         elem.OutputProcessingFcn = p.Results.out_proc_fcn;
     end
     
-    % Auto initialization of entries, for dropdown menus only
-    if p.Results.init_val_list && isequal(elem.Type, 'uidropdown')
-        try
-            cmd_val_list = app.Instr.CommandList.(prop_tag).val_list;
-            if all(cellfun(@ischar, cmd_val_list))
-                % If the command has only string values, get the list of
-                % values ignoring abbreviations
-                cmd_val_list = stdValueList(app.Instr, prop_tag);
-                elem.Items = lower(cmd_val_list);
-                elem.ItemsData = cmd_val_list;
-            else
-                % Items in a dropdown should be strings, so convert if
-                % necessary
-                str_list=cell(length(cmd_val_list), 1);
-                for i=1:length(cmd_val_list)
-                    if ~ischar(cmd_val_list{i})
-                        str_list{i}=num2str(cmd_val_list{i});
-                    end
+    %% Code below is applicable when linking to commands of MyScpiInstrument
+    
+    if strcmp(tag_split{1},'Instr')
+        cmd=tag_split{2};
+        % If supplied command does not have read permission, issue warning.
+        if ~contains(app.Instr.CommandList.(cmd).access,'r')
+            fprintf(['Instrument command ''%s'' does not have read permission,\n',...
+                'corresponding gui element will not be automatically ',...
+                'syncronized\n'],cmd);
+            % Try switching color of the gui element to orange
+            warning_color = [0.93, 0.69, 0.13];
+            try
+                elem.BackgroundColor = warning_color;
+            catch
+                try
+                    elem.FontColor = warning_color;
+                catch
                 end
-                elem.Items = str_list;
-                % Put raw values in ItemsData
-                elem.ItemsData = cmd_val_list;
             end
-        catch
-            warning(['Could not automatically assign values',...
-                ' when linking ',prop_tag,' property']);
+        end
+
+        % Auto initialization of entries, for dropdown menus only
+        if p.Results.init_val_list && isequal(elem.Type, 'uidropdown')
+            try
+                cmd_val_list = app.Instr.CommandList.(cmd).val_list;
+                if all(cellfun(@ischar, cmd_val_list))
+                    % If the command has only string values, get the list of
+                    % values ignoring abbreviations
+                    cmd_val_list = stdValueList(app.Instr, cmd);
+                    elem.Items = lower(cmd_val_list);
+                    elem.ItemsData = cmd_val_list;
+                else
+                    % Items in a dropdown should be strings, so convert if
+                    % necessary
+                    str_list=cell(length(cmd_val_list), 1);
+                    for i=1:length(cmd_val_list)
+                        if ~ischar(cmd_val_list{i})
+                            str_list{i}=num2str(cmd_val_list{i});
+                        end
+                    end
+                    elem.Items = str_list;
+                    % Put raw values in ItemsData
+                    elem.ItemsData = cmd_val_list;
+                end
+            catch
+                warning(['Could not automatically assign values',...
+                    ' when linking ',cmd,' property']);
+            end
         end
     end
 end
