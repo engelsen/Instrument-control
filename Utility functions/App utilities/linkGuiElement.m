@@ -1,6 +1,6 @@
 % By using app.linked_elem_list, create a correspondence between a property
 % of MyInstrument class (named prop_tag) and an element of the app gui
-function linkGuiElementToCommand(app, elem, prop_tag, varargin)
+function linkGuiElement(app, elem, prop_tag, varargin)
     p=inputParser();
     % GUI control element
     addRequired(p,'elem');
@@ -12,7 +12,7 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
     % Add an arbitrary function for processing the value, read from the
     % device before outputting it. 
     addParameter(p,'out_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
-    addParameter(p,'create_callback_fcn',@(x)0,@(f)isa(f,'function_handle'));
+    addParameter(p,'create_callback',true,@islogical);
     % For drop-down menues initializes entries automatically based on the 
     % list of values. Ignored for all the other control elements. 
     addParameter(p,'init_val_list',false,@islogical);
@@ -47,10 +47,15 @@ function linkGuiElementToCommand(app, elem, prop_tag, varargin)
     elem.Tag = ['Instr.',prop_tag];
     app.linked_elem_list = [app.linked_elem_list, elem];
 
-    % If the create_callback_fcn is set, assign it to the 
-    % ValueChangedFcn which passes the field input to the instument 
-    if ~ismember('create_callback_fcn',p.UsingDefaults)
-        elem.ValueChangedFcn = feval(p.Results.create_callback_fcn);
+    % If the create_callback is true, assign genericValueChanged as
+    % callback
+    if p.Results.create_callback
+        assert(ismethod(app,'createGenericCallback'), ['App needs to ',...
+            'contain public createGenericCallback method to automatically'...
+            'assign callbacks. Use ''create_callback'',false in order to '...
+            'disable automatic callback']);
+        
+        elem.ValueChangedFcn = createGenericCallback(app);
         % Make callbacks non-interruptible for other callbacks
         % (but are still interruptible for timers)
         try
