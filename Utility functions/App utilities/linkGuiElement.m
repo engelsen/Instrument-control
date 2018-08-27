@@ -26,15 +26,12 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         try 
             tmpval=tmpval.(tag_split{j});
         catch
+            disp(['Property corresponding to tag ',prop_tag,...
+                ' is not accesible, element is not linked.'])
             elem.Enable='off';
             return
         end
     end
-    
-    % The property-control link is established by assigning the tag
-    % and adding the control to the list of linked elements
-    elem.Tag = prop_tag;
-    app.linked_elem_list = [app.linked_elem_list, elem];
 
     % If the create_callback is true, assign genericValueChanged as
     % callback
@@ -80,7 +77,8 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     
     %% Code below is applicable when linking to commands of MyScpiInstrument
     
-    if strcmp(tag_split{1},'Instr')
+    if strcmp(tag_split{1},'Instr')&&...
+            ismember(tag_split{2},app.Instr.command_names)
         cmd=tag_split{2};
         % If supplied command does not have read permission, issue warning.
         if ~contains(app.Instr.CommandList.(cmd).access,'r')
@@ -128,5 +126,10 @@ function linkGuiElement(app, elem, prop_tag, varargin)
             end
         end
     end
+    
+    % The property-control link is established by assigning the tag
+    % and adding the control to the list of linked elements
+    elem.Tag = prop_tag;
+    app.linked_elem_list = [app.linked_elem_list, elem];
 end
 
