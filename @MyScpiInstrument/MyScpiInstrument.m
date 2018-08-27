@@ -61,6 +61,7 @@ classdef MyScpiInstrument < MyInstrument
         %option all, the function writes default to all the
         %available writeable parameters.
         function writeProperty(this, varargin)
+            set_cb_was_enabled = this.en_set_cb;
             %Switch PostSet callbacks off to prevent infinite recursion
             this.en_set_cb=false;
             
@@ -78,7 +79,7 @@ classdef MyScpiInstrument < MyInstrument
                 exec=this.write_commands(ind_val);
             end
             
-            % create a list of textual strings to be sent to device
+            % Create a list of textual strings to be sent to device
             exec_commands=cell(1,length(exec));
             for i=1:length(exec)
                 %Create command using the right string spec
@@ -87,15 +88,15 @@ classdef MyScpiInstrument < MyInstrument
                 val=this.CommandParser.Results.(exec{i});
                 exec_commands{i}=sprintf(cmd, val);
             end
-            %Sends commands to device
+            % Sends commands to device
             writeCommand(this, exec_commands{:});
             for i=1:length(exec)
                 %Assign written values to instrument properties
                 this.(exec{i})=this.CommandParser.Results.(exec{i});
             end
             
-            %Switch PostSet callbacks on
-            this.en_set_cb=true;
+            % Leave en_set_cb in the same state it was found
+            this.en_set_cb=set_cb_was_enabled;
         end
         
         % Wrapper for writeProperty that opens and closes the device
@@ -116,6 +117,7 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         function result=readProperty(this, varargin)
+            set_cb_was_enabled = this.en_set_cb;
             %Switch PostSet callbacks off to prevent infinite recursion
             this.en_set_cb=false;
             
@@ -152,8 +154,8 @@ classdef MyScpiInstrument < MyInstrument
                     'no instrument class values are not updated']);
             end
             
-            %Switch PostSet callbacks on
-            this.en_set_cb=true;
+            % Leave en_set_cb in the same state it was found
+            this.en_set_cb=set_cb_was_enabled;
             % Trigger notification abour new properties read
             triggerPropertyRead(this);
         end
