@@ -8,6 +8,8 @@ classdef MyScpiInstrument < MyInstrument
         CommandList
         %Parses commands using an inputParser object
         CommandParser
+        
+        en_set_cb=true; %enable set callback
     end
         
     properties (Dependent=true)
@@ -59,6 +61,9 @@ classdef MyScpiInstrument < MyInstrument
         %option all, the function writes default to all the
         %available writeable parameters.
         function writeProperty(this, varargin)
+            %Switch PostSet callbacks off to prevent infinite recursion
+            this.en_set_cb=false;
+            
             %Parses the inputs using the CommandParser
             parse(this.CommandParser, varargin{:});
 
@@ -88,6 +93,9 @@ classdef MyScpiInstrument < MyInstrument
                 %Assign written values to instrument properties
                 this.(exec{i})=this.CommandParser.Results.(exec{i});
             end
+            
+            %Switch PostSet callbacks on
+            this.en_set_cb=true;
         end
         
         % Wrapper for writeProperty that opens and closes the device
@@ -108,6 +116,9 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         function result=readProperty(this, varargin)
+            %Switch PostSet callbacks off to prevent infinite recursion
+            this.en_set_cb=false;
+            
             result = struct();
             read_all_flag = any(strcmp('all',varargin));          
             if read_all_flag
@@ -136,12 +147,15 @@ classdef MyScpiInstrument < MyInstrument
                     %Assign the values to the MyInstrument properties
                     this.(exec{i})=result.(exec{i});
                 end
-                % Trigger notification abour new properties read
-                triggerPropertyRead(this);
             else
                 warning(['Not all the properties could be read, ',...
                     'no instrument class values are not updated']);
             end
+            
+            %Switch PostSet callbacks on
+            this.en_set_cb=true;
+            % Trigger notification abour new properties read
+            triggerPropertyRead(this);
         end
         
         % Wrapper for readProperty that opens and closes the device
@@ -324,9 +338,20 @@ classdef MyScpiInstrument < MyInstrument
             
             % Adds a property to the class corresponding to the tag
             if ~isprop(this,tag)
-                h = addprop(this,tag);
+                h=addprop(this,tag);
+                % Enable PreSet and PostSet events
+                h.SetObservable=true;
+                % Store property handle
+                this.CommandList.(tag).prop_handle=h;
             end
             this.(tag)=p.Results.default;
+            % Add callback to PostSet event that writes the value, assigned
+            % to the instrument class property, to the prysical devices and
+            % reads it back. There is no point in storing listeners to 
+            % clean them up as here the generating and receiving objects
+            % are the same and listeners are destroyed with the generating 
+            % object. 
+            addlistener(this,tag,'PostSet',@(src,~)propPostSetCb(this,src));
         end
         
         %Creates inputParser using the command list
@@ -367,10 +392,18 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandParser=p;
         end
         
-        %Dummy empty function that needs to be redefined in a subclass and
-        %contain addCommand statements
+        %Dummy empty function that needs to be redefined in a subclass to
+        %incorporate addCommand statements
         function createCommandList(~)
         end
+        
+        %% Property PostSet callback
+        function propPostSetCb(this,src)
+            if this.en_set_cb
+                writePropertyHedged(this,src.Name,this.(src.Name));
+            end
+        end
+        
     end
     
     %% Get functions
