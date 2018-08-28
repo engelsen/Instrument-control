@@ -85,6 +85,7 @@ classdef MyTpg < MyInstrument
         end
         
         function p_arr = readAllHedged(this)
+            was_open = isopen(this);
             openDevice(this);
             try
                 p_arr = readPressure(this);
@@ -94,7 +95,10 @@ classdef MyTpg < MyInstrument
                 p_arr = [0,0];
                 warning('Error while communicating with gauge controller')
             end
-            closeDevice(this);
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                closeDevice(this);
+            end
         end
         
         % Implement instrument-specific readHeader function

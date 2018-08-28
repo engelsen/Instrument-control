@@ -38,13 +38,19 @@ classdef MyLakeshore336 < MyInstrument
         
         % read 
         function temp_arr = readAllHedged(this)
+            was_open = isopen(this);
             openDevice(this);
+
             temp_arr = readTemperature(this);
             readHeaterRange(this);
             readSetpoint(this);
             readInputSensorName(this);
             readOutMode(this);
-            closeDevice(this);
+            
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                closeDevice(this);
+            end
         end
         
         % Re-define readHeader function
