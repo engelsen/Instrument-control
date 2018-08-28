@@ -4,7 +4,9 @@
 % tag as property name, may be a filed of structure or a property of class
 % If specified within the control element OutputProcessingFcn or 
 % InputPrescaler is applied to the property value first
-function updateLinkedGuiElements(app)    
+function updateLinkedGuiElements(app)
+    % Record indices at which errors occurred
+    broken_ind=[];
     for i=1:length(app.linked_elem_list)
         tmpelem = app.linked_elem_list(i);
         try
@@ -24,10 +26,14 @@ function updateLinkedGuiElements(app)
             end
             tmpelem.Value = tmpval;
         catch
-            warning(['Could not update the value of element ',...
-                'with tag ''%s'' and value:'],tmpelem.Tag);
-            disp(tmpval)
+            warning(['Could not update the value of element with tag ''%s'' ',...
+                'and value ''%s''. The element will be disabled.'],...
+                tmpelem.Tag,var2str(tmpval));
+            tmpelem.Enable='off';
+            broken_ind=[broken_ind,i];
         end
     end
+    % Delete the element from list
+    app.linked_elem_list(broken_ind)=[];
 end
 
