@@ -45,16 +45,16 @@ function linkGuiElement(app, elem, prop_tag, varargin)
             if i==(nlev-1)
                 try
                     is_cmd=ismember(tag_split{end},tmpval.command_names);
-                    if is_cmd
-                        Instr=tmpval;
-                        cmd=tag_split{end};
-                        % Never create callbacks for read-only properties
-                        if ~contains(Instr.CommandList.(cmd).access,'w')
-                            create_callback=false;
-                        end
-                    end
                 catch
                     is_cmd=false;
+                end
+                if is_cmd
+                    Instr=tmpval;
+                    cmd=tag_split{end};
+                    % Never create callbacks for read-only properties
+                    if ~contains(Instr.CommandList.(cmd).access,'w')
+                        create_callback=false;
+                    end
                 end
             end
         catch

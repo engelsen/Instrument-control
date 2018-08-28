@@ -1,5 +1,13 @@
 % The class for communication with Agilent E5061B Network Analyzer
 classdef MyNa < MyScpiInstrument
+    
+    properties(Access=public)
+        Trace1
+        Trace2
+        
+        transf_n=1; % trace that triggers NewData event
+    end
+    
     properties (SetAccess=protected, GetAccess=public)
         active_trace = -1; % manipulating with active traces seems unavoidable 
         % for selecting the data format. -1 stands for unknown
@@ -9,26 +17,13 @@ classdef MyNa < MyScpiInstrument
         %'PLIN', 'PLOG', 'POL'
         form1 = 'MLOG';
         form2 = 'PHAS';
-        
-        Trace1 = MyTrace();
-        Trace2 = MyTrace();
     end
 
     methods
         function this=MyNa(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            
-            %Tests if device is working.
-            try
-                openDevice(this);
-                closeDevice(this);
-            catch
-                error(['Failed to open communications with device.',...
-                    ' Check that the address and interface is correct.',...
-                    ' Currently the address is %s and the interface is ',...
-                    '%s.'],this.address,this.interface)
-            end
-            
+            this.Trace1 = MyTrace();
+            this.Trace2 = MyTrace();
             this.Trace1.unit_x = 'Hz';
             this.Trace1.name_x = 'Frequency';
             this.Trace2.unit_x = 'Hz';
@@ -36,7 +31,7 @@ classdef MyNa < MyScpiInstrument
         end
         
         function data = readTrace(this, nTrace)
-            this.writeActiveTrace(nTrace);
+            writeActiveTrace(this, nTrace);
             freq_str = strsplit(query(this.Device,':SENS1:FREQ:DATA?'),',');
             data_str = strsplit(query(this.Device,':CALC1:DATA:FDAT?'),',');
             data = struct();
@@ -53,6 +48,11 @@ classdef MyNa < MyScpiInstrument
             trace_tag = sprintf('Trace%i', nTrace);
             this.(trace_tag).x = data.x;
             this.(trace_tag).y = data.y1;
+            
+            if this.transf_n==nTrace
+                this.Trace=copy(this.(trace_tag));
+                triggerNewData(this);
+            end
         end
         
         function writeActiveTrace(this, nTrace)
@@ -68,10 +68,10 @@ classdef MyNa < MyScpiInstrument
         end
         
         function singleSweep(this)
-            this.openDevice(); 
-            this.writeProperty('cont_trig', true);
+            openDevice(this); 
+            writeProperty(this,'cont_trig', true);
             % Set the triger source to remote control
-            this.writeProperty('trig_source', 'BUS');
+            writeProperty(this,'trig_source', 'BUS');
             % Start a sweep cycle
             fprintf(this.Device,':TRIG:SING');
             % Wait for the sweep to finish (for the query to return 1)
@@ -80,18 +80,18 @@ classdef MyNa < MyScpiInstrument
         end
         
         function startContSweep(this)
-            this.openDevice(); 
-            this.writeProperty('cont_trig', true);
+            openDevice(this); 
+            writeProperty(this,'cont_trig', true);
             % Set the triger source to be internal
-            this.writeProperty('trig_source', 'INT');
-            this.closeDevice();
+            writeProperty(this,'trig_source', 'INT');
+            closeDevice(this);
         end
         
         function abortSweep(this)
-            this.openDevice();
-            this.writeProperty('trig_source', 'BUS');
+            openDevice(this);
+            writeProperty(this, 'trig_source', 'BUS');
             fprintf(this.Device,':ABOR');
-            this.closeDevice();
+            closeDevice(this);
         end
     end
     
