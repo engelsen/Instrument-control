@@ -1,5 +1,13 @@
-% By using app.linked_elem_list, create a correspondence between a property
-% of MyInstrument class (named prop_tag) and an element of the app gui
+% Using app.linked_elem_list, create correspondence between app 
+% properties or sub-properties and Value fields of control elements.
+% The elements added to linked_elem_list are updated when updateGui is
+% called.
+% This function is applicable to any app sub-properties, but also contains 
+% extended functionality in case the tag corresponds to a command of
+% MyScpiInstrument.
+% By default a callback to the ValueChanged event of the gui element is
+% assigned, for which the app needs to have createGenericCallback method
+
 function linkGuiElement(app, elem, prop_tag, varargin)
     p=inputParser();
     % GUI control element
@@ -18,13 +26,37 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     addParameter(p,'init_val_list',false,@islogical);
     parse(p,elem,prop_tag,varargin{:});
     
-    % Check if the property is present in the app, otherwise disable the
-    % gui element
+    create_callback = p.Results.create_callback;
+    
+    % Check if the property is present in the app and if it corresponds to
+    % an instrument command
     tmpval = app;
     tag_split=regexp(prop_tag,'\.','split');
-    for j=1:length(tag_split)
+    nlev=length(tag_split);
+    for i=1:nlev
         try 
-            tmpval=tmpval.(tag_split{j});
+            % If value is inaccesible for any reason, an error will be
+            % thrown
+            tmpval=tmpval.(tag_split{i});
+            
+            % Check if prop_tag corresponds to a command of 
+            % MyScpiInstrument. Instrument object would be at the one
+            % before last level in this case.
+            if i==(nlev-1)
+                try
+                    is_cmd=ismember(tag_split{end},tmpval.command_names);
+                    if is_cmd
+                        Instr=tmpval;
+                        cmd=tag_split{end};
+                        % Never create callbacks for read-only properties
+                        if ~contains(Instr.CommandList.(cmd).access,'w')
+                            create_callback=false;
+                        end
+                    end
+                catch
+                    is_cmd=false;
+                end
+            end
         catch
             disp(['Property corresponding to tag ',prop_tag,...
                 ' is not accesible, element is not linked.'])
@@ -35,12 +67,11 @@ function linkGuiElement(app, elem, prop_tag, varargin)
 
     % If the create_callback is true, assign genericValueChanged as
     % callback
-    if p.Results.create_callback
+    if create_callback
         assert(ismethod(app,'createGenericCallback'), ['App needs to ',...
             'contain public createGenericCallback method to automatically'...
             'assign callbacks. Use ''create_callback'',false in order to '...
             'disable automatic callback']);
-        
         elem.ValueChangedFcn = createGenericCallback(app);
         % Make callbacks non-interruptible for other callbacks
         % (but are still interruptible for timers)
@@ -77,11 +108,9 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     
     %% Code below is applicable when linking to commands of MyScpiInstrument
     
-    if strcmp(tag_split{1},'Instr')&&...
-            ismember(tag_split{2},app.Instr.command_names)
-        cmd=tag_split{2};
+    if is_cmd
         % If supplied command does not have read permission, issue warning.
-        if ~contains(app.Instr.CommandList.(cmd).access,'r')
+        if ~contains(Instr.CommandList.(cmd).access,'r')
             fprintf(['Instrument command ''%s'' does not have read permission,\n',...
                 'corresponding gui element will not be automatically ',...
                 'syncronized\n'],cmd);
@@ -100,11 +129,11 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         % Auto initialization of entries, for dropdown menus only
         if p.Results.init_val_list && isequal(elem.Type, 'uidropdown')
             try
-                cmd_val_list = app.Instr.CommandList.(cmd).val_list;
+                cmd_val_list = Instr.CommandList.(cmd).val_list;
                 if all(cellfun(@ischar, cmd_val_list))
                     % If the command has only string values, get the list of
                     % values ignoring abbreviations
-                    cmd_val_list = stdValueList(app.Instr, cmd);
+                    cmd_val_list = stdValueList(Instr, cmd);
                     elem.Items = lower(cmd_val_list);
                     elem.ItemsData = cmd_val_list;
                 else
