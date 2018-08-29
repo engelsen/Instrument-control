@@ -343,6 +343,8 @@ classdef MyScpiInstrument < MyInstrument
                 h=addprop(this,tag);
                 % Enable PreSet and PostSet events
                 h.SetObservable=true;
+                % No AbortSet is the lesser of evils
+                h.AbortSet=false;
                 % Store property handle
                 this.CommandList.(tag).prop_handle=h;
             end
