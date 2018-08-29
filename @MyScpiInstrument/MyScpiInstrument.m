@@ -141,8 +141,10 @@ classdef MyScpiInstrument < MyInstrument
                 'UniformOutput',false);
             % Query device
             res_list=queryCommand(this, exec_commands{:});
-            % Assign outputs to the class properties
-            if length(exec)==length(res_list)
+            
+            query_successful=(length(exec)==length(res_list));
+            if query_successful
+                % Assign outputs to the class properties
                 for i=1:length(exec)
                     result.(exec{i})=sscanf(res_list{i},...
                         this.CommandList.(exec{i}).fmt_spec);
@@ -151,13 +153,16 @@ classdef MyScpiInstrument < MyInstrument
                 end
             else
                 warning(['Not all the properties could be read, ',...
-                    'no instrument class values are not updated']);
+                    'instrument class values are not updated.']);
             end
             
             % Leave en_set_cb in the same state it was found
             this.en_set_cb=set_cb_was_enabled;
-            % Trigger notification abour new properties read
-            triggerPropertyRead(this);
+            if query_successful
+                % Trigger notification abour new properties read
+                % need to do it after resetting en_set_cb
+                triggerPropertyRead(this);
+            end
         end
         
         % Wrapper for readProperty that opens and closes the device
@@ -293,7 +298,7 @@ classdef MyScpiInstrument < MyInstrument
             p=inputParser();
             addRequired(p,'tag',@ischar);
             addRequired(p,'command',@ischar);
-            addParameter(p,'default','placeholder');
+            addParameter(p,'default',[]);
             addParameter(p,'classes',{},@iscell);
             addParameter(p,'attributes',{},@iscell);
             addParameter(p,'fmt_spec','%e',@ischar);
