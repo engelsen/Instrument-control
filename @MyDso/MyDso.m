@@ -3,11 +3,10 @@
 classdef MyDso <MyScpiInstrument
     properties (SetAccess=protected, GetAccess=public)
         % properties, read a a preamble during the trace reading
-        step_x;
-        step_y;
-        x_zero;
-        y_zero;
-        point_no;
+        step_x
+        step_y
+        x_zero
+        y_zero
     end
     properties (Constant=true)
         N_CHANNELS = 4; % number of channels
@@ -36,7 +35,6 @@ classdef MyDso <MyScpiInstrument
             pre_str = query(this.Device, ':WAVeform:PREamble?');
             % drop the end-of-the-string symbol and split
             pre = str2double(split(pre_str(1:end-1),','));
-            this.point_no = pre(3);
             this.step_x = pre(5);
             this.step_y = pre(8);
             this.x_zero = pre(6);

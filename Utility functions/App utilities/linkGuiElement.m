@@ -55,6 +55,17 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                     if ~contains(Instr.CommandList.(cmd).access,'w')
                         create_callback=false;
                     end
+                % Then check if the tag corresponds to a simple bject
+                % property
+                elseif isprop(tmpval, tag_split{end})
+                    mp = findprop(tmpval, tag_split{end});
+                    % Newer create callbacks for the properties with
+                    % attributes listed below, as those cannot be set
+                    if mp.Dependent || mp.Constant || mp.Abstract ||...
+                        ~strcmpi(mp.SetAccess,'public')
+                        create_callback=false;
+                    end
+                    disp(create_callback)
                 end
             end
         catch
