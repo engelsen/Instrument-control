@@ -1,9 +1,14 @@
 classdef MyInstrument < dynamicprops & MyInputHandler
     
-    properties (Access=public)
+    properties (GetAccess=public, SetAccess=?MyInputHandler)
+        % Access for these variables is 'protected' and in addition
+        % granted to MyInputHandler in order to use ConstructionParser 
         name='';
         interface='';
         address=''; 
+    end
+    
+    properties (Access=public)
         Device %Device communication object    
         Trace %MyTrace object for storing data
     end 

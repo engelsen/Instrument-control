@@ -1,6 +1,6 @@
 %Class for NewData/NewDataWithHeaders events
 classdef MyNewDataEvent < event.EventData
     properties
-        InstrEventData;
+        InstrEventData
     end
 end
