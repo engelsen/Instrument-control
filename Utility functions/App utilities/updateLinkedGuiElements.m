@@ -24,13 +24,17 @@ function updateLinkedGuiElements(app)
             elseif isprop(tmpelem, 'InputPrescaler')
                 tmpval = tmpval*tmpelem.InputPrescaler;
             end
-            tmpelem.Value = tmpval;
+            % Setting value of a matlab app elemen is time consuming, so do
+            % this only if the value has actually changed
+             if ~isequal(tmpelem.Value,tmpval)
+                tmpelem.Value = tmpval;
+             end
         catch
             warning(['Could not update the value of element with tag ''%s'' ',...
                 'and value ''%s''. The element will be disabled.'],...
                 tmpelem.Tag,var2str(tmpval));
             tmpelem.Enable='off';
-            broken_ind=[broken_ind,i];
+            broken_ind=[broken_ind,i]; %#ok<AGROW>
         end
     end
     % Delete the element from list
