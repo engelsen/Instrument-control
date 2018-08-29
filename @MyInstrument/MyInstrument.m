@@ -1,9 +1,16 @@
 classdef MyInstrument < dynamicprops & MyInputHandler
     
-    properties (Access=public)
+    % Access for these variables is 'protected' and in addition
+    % granted to MyInputHandler in order to use ConstructionParser 
+    properties (GetAccess=public, SetAccess=?MyInputHandler)     
+        % name is sometimes used as identifier in listeners callbacks, so
+        % it should not be changed after instrument object is initiated
         name='';
         interface='';
         address=''; 
+    end
+    
+    properties (Access=public)
         Device %Device communication object    
         Trace %MyTrace object for storing data
     end 
@@ -98,8 +105,18 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         end    
         
         %Triggers event for acquired data
-        function triggerNewData(this)
-            notify(this,'NewData')
+        function triggerNewData(this,varargin)
+            EventData = MyNewDataEvent();
+            EventData.Instr=this;
+            % An option to suppress collection of new header so that
+            % NewData can be used to transfer previously acquired trace 
+            % to Daq 
+            if length(varargin)>=1 && strcmpi(varargin{1},'no_new_header')
+                EventData.no_new_header=true;
+            else
+                EventData.no_new_header=false;
+            end
+            notify(this,'NewData',EventData);
         end
         
         %Triggers event for property read from device

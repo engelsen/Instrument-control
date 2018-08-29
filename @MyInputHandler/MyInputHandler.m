@@ -45,10 +45,8 @@ classdef MyInputHandler < handle
             % public set access
             for i=1:length(this.ConstructionParser.Parameters)
                 par = this.ConstructionParser.Parameters{i};
-                metaprop=findprop(this, par);
                 if ~ismember(par, this.ConstructionParser.UsingDefaults)&&...
-                        isprop(this, par)&&...
-                        strcmpi(metaprop.SetAccess,'public')
+                        isprop(this, par)
                     try
                         this.(par) = this.ConstructionParser.Results.(par);
                     catch

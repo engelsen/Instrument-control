@@ -796,7 +796,7 @@ classdef MyDaq < handle
             val=this.Gui.InstrMenu.Value;
             curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
             %Get the name of instrument that generated new data
-            SourceInstr = EventData.InstrEventData.Source;
+            SourceInstr = EventData.Instr;
             source_name = SourceInstr.name;
             
             %Check if the data originates from the currently selected

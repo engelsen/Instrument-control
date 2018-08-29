@@ -30,8 +30,18 @@ classdef MyNa < MyScpiInstrument
             this.Trace2.name_x = 'Frequency';
         end
         
-        function data = readTrace(this, nTrace)
-            writeActiveTrace(this, nTrace);
+        % Generate a new data event with header collection suppressed
+        function transferTrace(this, n_trace)
+            trace_tag = sprintf('Trace%i', n_trace);
+            % Assign either Trace1 or 2 to Trace with keeping the metadata 
+            this.(trace_tag).MeasHeaders=copy(this.Trace.MeasHeaders);
+            this.Trace=copy(this.(trace_tag));
+            
+            triggerNewData(this,'no_new_header');
+        end
+        
+        function data = readTrace(this, n_trace)
+            writeActiveTrace(this, n_trace);
             freq_str = strsplit(query(this.Device,':SENS1:FREQ:DATA?'),',');
             data_str = strsplit(query(this.Device,':CALC1:DATA:FDAT?'),',');
             data = struct();
@@ -45,24 +55,24 @@ classdef MyNa < MyScpiInstrument
             data.y2 = str2double(data_str(2:2:end));
             
             % set the Trace properties
-            trace_tag = sprintf('Trace%i', nTrace);
+            trace_tag = sprintf('Trace%i', n_trace);
             this.(trace_tag).x = data.x;
             this.(trace_tag).y = data.y1;
             
-            if this.transf_n==nTrace
+            if this.transf_n==n_trace
                 this.Trace=copy(this.(trace_tag));
                 triggerNewData(this);
             end
         end
         
-        function writeActiveTrace(this, nTrace)
-            fprintf(this.Device, sprintf(':CALC1:PAR%i:SEL',nTrace));
-            this.active_trace = nTrace;
+        function writeActiveTrace(this, n_trace)
+            fprintf(this.Device, sprintf(':CALC1:PAR%i:SEL',n_trace));
+            this.active_trace = n_trace;
         end
         
-        function writeTraceFormat(this, nTrace, fmt)
-            this.writeActiveTrace(nTrace);
-            n_str = num2str(nTrace);
+        function writeTraceFormat(this, n_trace, fmt)
+            this.writeActiveTrace(n_trace);
+            n_str = num2str(n_trace);
             this.(['form',n_str]) = fmt;
             fprintf(this.Device, sprintf(':CALC1:FORM %s', fmt));
         end

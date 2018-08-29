@@ -54,15 +54,18 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 name=genvarname(p.Results.name, this.running_instruments);
             end
             
-            %We add only classes that have readHeaders functionality
-            if contains('readHeader',methods(instr_handle))
+            if ismethod(instr_handle, 'readHeader')
                 %Defaults to read header
                 this.InstrProps.(name).header_flag=true;
-                this.InstrList.(name)=instr_handle;
             else
-                error(['%s does not have a readHeader function,',...
-                    ' cannot be added to Collector'],name)
+                % If class does not have readHeader function, it can still
+                % be added to the collector to transfer trace to Daq
+                this.InstrProps.(name).header_flag=false;
+                warning(['%s does not have a readHeader function, ',...
+                    'measurement headers will not be collected from ',...
+                    'this instrument.'],name)
             end
+            this.InstrList.(name)=instr_handle;
             
             %If the added instrument has a newdata event, we add a listener for it.
             if contains('NewData',events(this.InstrList.(name)))
@@ -79,8 +82,9 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         
         function acquireData(this,InstrEventData)
             src=InstrEventData.Source;
-            %Collect the headers if the flag is on
-            if this.collect_flag     
+            % Collect the headers if the flag is on and if the triggering 
+            % instrument does not request suppression of header collection
+            if this.collect_flag && ~InstrEventData.no_new_header
                 this.MeasHeaders=MyMetadata();
                 addField(this.MeasHeaders,'AcquiringInstrument')
                 if isprop(src,'name')
@@ -104,8 +108,16 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 name=this.running_instruments{i};
                 
                 if this.InstrProps.(name).header_flag
-                    TmpMetadata=readHeader(this.InstrList.(name));
-                    addMetadata(this.MeasHeaders, TmpMetadata);
+                    try
+                        TmpMetadata=readHeader(this.InstrList.(name));
+                        addMetadata(this.MeasHeaders, TmpMetadata);
+                    catch
+                        warning(['Error while reading metadata from %s.',...
+                            'Measurement header collection is switched ',...
+                            'off for this instrument.'],name)
+                        this.InstrProps.(name).header_flag=false;
+                    end
+                    
                 end
             end
         end
@@ -125,10 +137,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     
     methods (Access=private)       
         function triggerNewDataWithHeaders(this,InstrEventData)
-            % in EventData pass information about the instrument
-            EventData = MyNewDataEvent();
-            EventData.InstrEventData = InstrEventData;
-            notify(this,'NewDataWithHeaders',EventData);
+            notify(this,'NewDataWithHeaders',InstrEventData);
         end
 
         %deleteListeners is in a separate file
