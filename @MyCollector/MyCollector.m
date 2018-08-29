@@ -79,8 +79,9 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         
         function acquireData(this,InstrEventData)
             src=InstrEventData.Source;
-            %Collect the headers if the flag is on
-            if this.collect_flag     
+            % Collect the headers if the flag is on and if the triggering 
+            % instrument does not request suppression of header collection
+            if this.collect_flag && ~InstrEventData.no_new_header
                 this.MeasHeaders=MyMetadata();
                 addField(this.MeasHeaders,'AcquiringInstrument')
                 if isprop(src,'name')
@@ -125,10 +126,7 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     
     methods (Access=private)       
         function triggerNewDataWithHeaders(this,InstrEventData)
-            % in EventData pass information about the instrument
-            EventData = MyNewDataEvent();
-            EventData.InstrEventData = InstrEventData;
-            notify(this,'NewDataWithHeaders',EventData);
+            notify(this,'NewDataWithHeaders',InstrEventData);
         end
 
         %deleteListeners is in a separate file
