@@ -54,15 +54,18 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 name=genvarname(p.Results.name, this.running_instruments);
             end
             
-            %We add only classes that have readHeaders functionality
-            if contains('readHeader',methods(instr_handle))
+            if ismethod(instr_handle, 'readHeader')
                 %Defaults to read header
                 this.InstrProps.(name).header_flag=true;
-                this.InstrList.(name)=instr_handle;
             else
-                error(['%s does not have a readHeader function,',...
-                    ' cannot be added to Collector'],name)
+                % If class does not have readHeader function, it can still
+                % be added to the collector to transfer trace to Daq
+                this.InstrProps.(name).header_flag=false;
+                warning(['%s does not have a readHeader function, ',...
+                    'measurement headers will not be collected from ',...
+                    'this instrument.'],name)
             end
+            this.InstrList.(name)=instr_handle;
             
             %If the added instrument has a newdata event, we add a listener for it.
             if contains('NewData',events(this.InstrList.(name)))
@@ -105,8 +108,16 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 name=this.running_instruments{i};
                 
                 if this.InstrProps.(name).header_flag
-                    TmpMetadata=readHeader(this.InstrList.(name));
-                    addMetadata(this.MeasHeaders, TmpMetadata);
+                    try
+                        TmpMetadata=readHeader(this.InstrList.(name));
+                        addMetadata(this.MeasHeaders, TmpMetadata);
+                    catch
+                        warning(['Error while reading metadata from %s.',...
+                            'Measurement header collection is switched ',...
+                            'off for this instrument.'],name)
+                        this.InstrProps.(name).header_flag=false;
+                    end
+                    
                 end
             end
         end
