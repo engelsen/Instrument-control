@@ -65,7 +65,6 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                         ~strcmpi(mp.SetAccess,'public')
                         create_callback=false;
                     end
-                    disp(create_callback)
                 end
             end
         catch
