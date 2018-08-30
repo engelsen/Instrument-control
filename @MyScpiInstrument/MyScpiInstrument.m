@@ -230,8 +230,8 @@ classdef MyScpiInstrument < MyInstrument
                     this.(cmd) = std_val;
                 end
             else
-                warning(['The value %s is not in the val_list ',...
-                    'of %s command'], val, cmd)
+                warning(['The value %s is not present in the val_list ',...
+                    'of command %s.'], val, cmd)
                 std_val = val;
             end
         end
@@ -284,7 +284,8 @@ classdef MyScpiInstrument < MyInstrument
                     class={'logical'};
                     attribute={};
                 otherwise
-                    % Any of the above classes will pass
+                    % Class not specified, any of the below classes 
+                    % will pass the check
                     class={'numeric','char','logical'};
                     attribute={};
             end

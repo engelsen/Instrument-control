@@ -144,8 +144,9 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                     % If the command has only string values, get the list of
                     % values ignoring abbreviations
                     cmd_val_list = stdValueList(Instr, cmd);
-                    elem.Items = lower(cmd_val_list);
-                    elem.ItemsData = cmd_val_list;
+                    % Capitalized the displayed values
+                    elem.Items = cellfun(@(x)[upper(x(1)),lower(x(2:end))],...
+                        cmd_val_list,'UniformOutput',false);
                 else
                     % Items in a dropdown should be strings, so convert if
                     % necessary
@@ -156,9 +157,9 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                         end
                     end
                     elem.Items = str_list;
-                    % Put raw values in ItemsData
-                    elem.ItemsData = cmd_val_list;
                 end
+                % Assign raw values list as ItemsData
+                elem.ItemsData = cmd_val_list;
             catch
                 warning(['Could not automatically assign values',...
                     ' when linking ',cmd,' property']);

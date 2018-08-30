@@ -35,8 +35,6 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         % This function is overloaded to add more parameters to the parser 
         function p = createConstructionParser(this)
             p=inputParser();
-            % Ignore unmatched parameters
-            p.KeepUnmatched = true;
             addRequired(p,'interface',@ischar);
             addRequired(p,'address',@ischar);
             addParameter(p,'name','',@ischar);
@@ -111,8 +109,14 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             % An option to suppress collection of new header so that
             % NewData can be used to transfer previously acquired trace 
             % to Daq 
-            if length(varargin)>=1 && strcmpi(varargin{1},'no_new_header')
-                EventData.no_new_header=true;
+            if length(varargin)>=1
+                if strcmpi(varargin{1},'no_new_header')
+                    EventData.no_new_header=true;
+                else
+                    warning(['Keyword %s is unrecognized. Use ',...
+                        '''no_new_header'' to suppress header ',...
+                        'collection.'],varargin{1})
+                end
             else
                 EventData.no_new_header=false;
             end
