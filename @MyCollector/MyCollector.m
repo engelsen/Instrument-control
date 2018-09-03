@@ -82,6 +82,15 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         
         function acquireData(this,InstrEventData)
             src=InstrEventData.Source;
+            
+            % Check that event data object is MyNewDataEvent,
+            % and fix otherwise
+            if ~isa(InstrEventData,'MyNewDataEvent')
+                InstrEventData=MyNewDataEvent();
+                InstrEventData.no_new_header=false;
+                InstrEventData.Instr=src;
+            end
+            
             % Collect the headers if the flag is on and if the triggering 
             % instrument does not request suppression of header collection
             if this.collect_flag && ~InstrEventData.no_new_header
