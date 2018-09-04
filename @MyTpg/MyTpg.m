@@ -41,7 +41,7 @@ classdef MyTpg < MyInstrument
             initLogger(this);
             
             % Configure trace to store pressure vs time recorded by Logger
-            this.Trace.name_x='POSIX time';
+            this.Trace.name_x='Time';
             this.Trace.unit_x='s';
         end
         
@@ -182,7 +182,9 @@ classdef MyTpg < MyInstrument
             end
             
             if isa(this.Lg, 'MyLogger')&&isvalid(this.Lg)
-                this.Trace.x=posixtime(this.Lg.timestamps);
+                time_arr=posixtime(this.Lg.timestamps);
+                % Shift time origin to 0
+                this.Trace.x=time_arr-time_arr(1);
                 this.Trace.y=cellfun(@(x)(x(n_ch)),this.Lg.data);
                 this.Trace.name_y=sprintf('P Ch%i',n_ch);
                 this.Trace.unit_y=this.pressure_unit;
