@@ -4,6 +4,10 @@
 % Tested with TPG 262 and 362.
 classdef MyTpg < MyInstrument
     
+    properties 
+        Lg % MyLogger object
+    end
+    
     properties (Constant=true)
         % Named constants for communication
         ETX = char(3); % end of text
@@ -32,6 +36,13 @@ classdef MyTpg < MyInstrument
     methods (Access=public)
         function this = MyTpg(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
+            
+            % Create MyLogger object and configure it to measure pressure
+            initLogger(this);
+            
+            % Configure trace to store pressure vs time recorded by Logger
+            this.Trace.name_x='POSIX time';
+            this.Trace.unit_x='s';
         end
         
         % read pressure from a single channel or both channels at a time
@@ -101,6 +112,15 @@ classdef MyTpg < MyInstrument
             end
         end
         
+                
+        function code_list = turnGauge(this)
+            query(this.Device,['SEN',char(1,1),this.CR,this.LF]);
+            str = query(this.Device,this.ENQ);
+            code_list = deblank(strsplit(str,{','}));
+        end
+        
+        %% Overloading MyInstrument functions
+        
         % Implement instrument-specific readHeader function
         function Hdr=readHeader(this)
             Hdr=readHeader@MyInstrument(this);
@@ -141,11 +161,39 @@ classdef MyTpg < MyInstrument
             end
         end
         
-        function code_list = turnGauge(this)
-            query(this.Device,['SEN',char(1,1),this.CR,this.LF]);
-            str = query(this.Device,this.ENQ);
-            code_list = deblank(strsplit(str,{','}));
+        %% Logging functionality
+        
+        function initLogger(this)
+            if ~(isa(this.Lg, 'MyLogger')&&isvalid(this.Lg))
+                this.Lg = MyLogger('MeasFcn', @()readAllHedged(this));
+            end
+            if isempty(this.Lg.data_headers)&& (~isempty(this.pressure_unit))
+                pu = this.pressure_unit;
+                this.Lg.data_headers=...
+                    {['P ch1 (',pu,')'],['P ch2 (',pu,')']};
+            end
         end
+        
+        % Trigger NewData event that sends trace to Daq
+        function transferTrace(this, n_ch)
+            if nargin==1
+                % Channel number is 1 if not specified explicitly
+                n_ch=1;
+            end
+            
+            if isa(this.Lg, 'MyLogger')&&isvalid(this.Lg)
+                this.Trace.x=posixtime(this.Lg.timestamps);
+                this.Trace.y=cellfun(@(x)(x(n_ch)),this.Lg.data);
+                this.Trace.name_y=sprintf('P Ch%i',n_ch);
+                this.Trace.unit_y=this.pressure_unit;
+                triggerNewData(this);
+            else
+                warning(['Cannot transfer trace from the logger, ',...
+                    'missing or invalid MyLogger object.'])
+            end
+        end
+        
+        %% Functions for convertion between numerical codes and strings
         
         % Convert numerical code for gauge status to a string
         function str = gaugeStatusFromCode(~, code)
