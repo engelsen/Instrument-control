@@ -12,16 +12,12 @@ classdef MyTlb6700 < MyScpiInstrument
     
     properties (SetAccess=protected, GetAccess=public)
         NetAsm % .NET assembly
-        QueryData % Auxiliary variable for device communication
     end
     
     %% Constructor and destructor
     methods (Access=public)
         function this=MyTlb6700(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
-            % Data read from the instrument is assigned 
-            % to QueryData and can be then converted to char
-            this.QueryData=System.Text.StringBuilder(64); 
             % Interface field is not used in this instrument, but is
             % assigned value for the purpose of information
             this.interface='usb';
@@ -29,10 +25,6 @@ classdef MyTlb6700 < MyScpiInstrument
             this.address=str2double(this.address);
         end
         
-        function delete(this)
-            delete(this.QueryData)
-            % Then the superclass delete method is called
-        end
     end
     
     %% Protected functions
@@ -138,9 +130,9 @@ classdef MyTlb6700 < MyScpiInstrument
             % Could not find a better way to check if device is open other
             % than attempting communication with it
             bool=false;
+            QueryData=System.Text.StringBuilder(64); 
             try
-                stat = Query(this.Device, this.address, '*IDN?',...
-                    this.QueryData);
+                stat = Query(this.Device,this.address,'*IDN?',QueryData);
                 if stat==0
                     bool=true;
                 end
@@ -153,6 +145,8 @@ classdef MyTlb6700 < MyScpiInstrument
         end
         
         function stat_list=writeCommand(this, varargin)
+            % Create auxiliary variable for device communication
+            QueryData=System.Text.StringBuilder(64);  
             if ~isempty(varargin)
                 n_cmd=length(varargin);
                 stat_list=cell(n_cmd,1);
@@ -160,13 +154,15 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.Device, this.address, cmd, this.QueryData);
-                    stat_list{i} = char(ToString(this.QueryData));
+                    Query(this.Device, this.address, cmd, QueryData);
+                    stat_list{i} = char(ToString(QueryData));
                 end
             end
         end
         
         function res_list=queryCommand(this, varargin)
+            % Create auxiliary variable for device communication
+            QueryData=System.Text.StringBuilder(64);  
             if ~isempty(varargin)
                 n_cmd=length(varargin);
                 res_list=cell(n_cmd,1);
@@ -174,8 +170,8 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.Device, this.address, cmd, this.QueryData);
-                    res_list{i} = char(ToString(this.QueryData));
+                    Query(this.Device, this.address, cmd, QueryData);
+                    res_list{i} = char(ToString(QueryData));
                 end
             else
                 res_list={};
@@ -207,11 +203,11 @@ classdef MyTlb6700 < MyScpiInstrument
         
         % Attempt communication and identification
         function [str, msg]=idn(this)
+            QueryData=System.Text.StringBuilder(64); 
             try
                 openDevice(this);
-                code=Query(this.Device, this.address,...
-                    '*IDN?', this.QueryData);
-                str=char(ToString(this.QueryData));
+                code=Query(this.Device, this.address, '*IDN?', QueryData);
+                str=char(ToString(QueryData));
                 if code~=0
                     msg='Communication with controller failed';
                 else
@@ -225,17 +221,19 @@ classdef MyTlb6700 < MyScpiInstrument
         end
         
         function stat = setMaxOutPower(this)
+            QueryData=System.Text.StringBuilder(64); 
+            
+            openDevice(this);
             % Depending on if the laser in the constat power or current
             % mode, set value to max
-            openDevice(this);
             if this.const_power
                 Query(this.Device, this.address, ...
-                    'SOURce:POWer:DIODe MAX;', this.QueryData);
+                    'SOURce:POWer:DIODe MAX;', QueryData);
             else
                 Query(this.Device, this.address, ...
-                    'SOURce:CURRent:DIODe MAX;', this.QueryData);
+                    'SOURce:CURRent:DIODe MAX;', QueryData);
             end
-            stat = char(ToString(this.QueryData));
+            stat = char(ToString(QueryData));
         end
         
         % Returns minimum and maximum wavelengths of the laser. There does 
