@@ -12,6 +12,7 @@ classdef MyLog < MyInputHandler
         
         column_sep = '\t' % Data columns are separated by this symbol
         line_sep = '\r\n' % Line separator
+        hdr_spec = '==' % Specifier that is used to separate header from data
         
         % File extension that is appended by default when saving the log 
         % if a different one is not specified explicitly
@@ -59,18 +60,10 @@ classdef MyLog < MyInputHandler
             end
             
             % Verify that the data can be saved
-%             [~, m] = size(this.data);
-%             % Check that 
-%             try
-%                 % Conversion to matrix is for dimensions verification only.
-%                 l=length(this.data{1});
-%                 cellfun(@(x)(isreal(x)&&length(x)==l),this.data);
-%             catch
-%                 warning(['Cannot convert the log data to matrix, saving in '...
-%                     'text format is not possible. You may try saving as ',...
-%                     '.mat file instead.'])
-%                 return
-%             end
+            assert(isDataArray(this),...
+                ['Data cannot be reshaped into array, saving in '...
+                'text format is not possible. You may try saving as ',...
+                '.mat file instead.']);
             
             % Add file extension if it is not specified explicitly
             if ~ismember('.',fname)
@@ -82,7 +75,6 @@ classdef MyLog < MyInputHandler
                 fid = fopen(fname,'w');
                 % Write time labels and column headers
                 printHeader(this, fid);
-                
                 % Write data body
                 fmt_str = this.time_fmt;
                 for i=1:m
@@ -108,21 +100,40 @@ classdef MyLog < MyInputHandler
         % Print log header to the file, including time labels and column
         % headers
         function printHeader(this, fid)
-            % write data headers to file if specified
-            fprintf(fid, 'POSIX time [s]');
+            hs=this.hdr_spec;
+            cs=this.column_sep;
+            nl=this.line_sep;
+            
+            % Write time labels
+            fprintf(fid,[hs,'Time labels',hs,nl]);
+            for i=1:lenght(this.time_labels)
+                fprintf(fid,['%s',cs,'%s',nl], ...
+                    datestr(this.time_labels(i).time),...
+                    this.time_labels(i).str);
+            end
+            
+            % Write column names to file if specified
+            fprintf(fid,[hs,'Column names',hs,nl]);
+            fprintf(fid, 'POSIX time (s)');
             for i=1:length(this.data_headers)
                 fprintf(fid, ['%',this.data_field_width,'s'],...
                     this.data_headers{i});
             end
-            fprintf(fid,'\r\n');
+            fprintf(fid, nl);
+            fprintf(fid,[hs,'Data',hs,nl]);
         end
         
+        
+        % Save log header to file
         function loadLog(this, fname)
             if nargin()<2
                 fname=this.file_name;
             end
-            
-            
+        end
+        
+        
+        % Read log header from file
+        function scanHeader(this, fid)
         end
         
         %% Other functions
@@ -222,15 +233,19 @@ classdef MyLog < MyInputHandler
             this.time_labels = struct('time',{},'str',{});
         end
         
-        % Create matrix from the cell array of data. Different from
-        % cell2mat in that it ensures that the 
-        function mdata = dataToMat(this)
-            l=length(this.data);
-            mdata=cell2mat(this.data);
-            [n,~]=size(mdata);
-            if n~=l
-                reshape(mdata,[l,n/l])
+        % Check if data is suitable for plotting and saving as a list of
+        % numerical vectors of equal length 
+        function bool = isDataArray(this)
+            % An empty cell array passes the test
+            if isempty(this.data)
+                bool = true;
+                return
             end
+            % Then check if all the elements are numeric vectors and have
+            % the same length. Difference between columns and rows is
+            % disregarded here. 
+            l=length(this.data{1});
+            bool = all(cellfun(@(x)(isreal(x)&&(length(x)==l)),this.data));
         end
     end
 end
