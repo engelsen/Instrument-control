@@ -108,17 +108,16 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             EventData.Instr=this;
             % An option to suppress collection of new header so that
             % NewData can be used to transfer previously acquired trace 
-            % to Daq 
+            % to Daq
+            EventData.no_new_header=false;
             if length(varargin)>=1
                 if strcmpi(varargin{1},'no_new_header')
                     EventData.no_new_header=true;
                 else
                     warning(['Keyword %s is unrecognized. Use ',...
                         '''no_new_header'' to suppress header ',...
-                        'collection.'],varargin{1})
+                        'collection.'],varargin{1});
                 end
-            else
-                EventData.no_new_header=false;
             end
             notify(this,'NewData',EventData);
         end

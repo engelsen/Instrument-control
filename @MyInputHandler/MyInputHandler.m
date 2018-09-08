@@ -7,12 +7,20 @@ classdef MyInputHandler < handle
         ConstructionParser;
     end
     
+    methods
+        function this = MyInputHandler(varargin)
+            createConstructionParser(this);
+            parseClassInputs(this, varargin{:});
+        end
+    end
+    
     methods (Access=protected)
         % Create parser. Can contain parameter additions 
         % if overloaded in a subclass 
         function p = createConstructionParser(this)
             p=inputParser();
             this.ConstructionParser=p;
+            addClassProperties(this);
         end
         
         % Add all the properties the class which are not present in the 
@@ -22,7 +30,9 @@ classdef MyInputHandler < handle
             thisMetaclass = metaclass(this);    
             for i=1:length(thisMetaclass.PropertyList)
                 Tmp = thisMetaclass.PropertyList(i);
-                % Constant, Dependent and Abstract propeties cannot be set
+                % Constant, Dependent and Abstract propeties cannot be set.
+                % Also, do not add the parameters that are already in the
+                % parser scheme.
                 if (~Tmp.Constant)&&(~Tmp.Abstract)&&(~Tmp.Dependent)&&...
                         strcmpi(Tmp.SetAccess,'public')&&...
                         (~ismember(Tmp.Name,...
