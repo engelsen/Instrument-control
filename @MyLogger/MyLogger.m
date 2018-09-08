@@ -33,8 +33,9 @@ classdef MyLogger < MyInputHandler
     
     methods
         function this = MyLogger(varargin)
-            createConstructionParser(this);
-            parseClassInputs(this, varargin{:});
+            %Parse input arguments with ConstructionParser and load them
+            %into class properties
+            this@MyInputHandler(varargin{:});
                  
             if ismember('MeasTimer', this.ConstructionParser.UsingDefaults)
                 % Create and confitugure timer unless it was supplied

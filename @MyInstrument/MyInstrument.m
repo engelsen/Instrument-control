@@ -44,9 +44,9 @@ classdef MyInstrument < dynamicprops & MyInputHandler
     
     methods (Access=public)
         function this=MyInstrument(interface, address, varargin)
-            createConstructionParser(this);      
-            %Loads parsed variables into class properties
-            parseClassInputs(this,interface,address,varargin{:});
+            % Parse input arguments with ConstructionParser and load values
+            % into class properties
+            this@MyInputHandler(interface,address,varargin{:});
             
             % Create an empty trace
             this.Trace=MyTrace();

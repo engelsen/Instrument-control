@@ -77,7 +77,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         %Defines the save function for the class. Note that this is only
         %used when we want to write only the data with its associated
         %trace, rather than just the trace. To write just the trace with
-        %fewer input checks, use the writeTrace function.
+        %fewer input checks, use the writeData function.
         function save(this,varargin)
             %Parse inputs for saving
             p=inputParser;
@@ -111,7 +111,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         %programs can write to the file from the outside. We circumvent the
         %checks for the existence of the file here, assuming it is done
         %outside.
-        function writeData(this,fullfilename, varargin)
+        function writeData(this, fullfilename, varargin)
             p=inputParser;
             addRequired(p,'fullfilename',@ischar);
             addParameter(p,'save_prec',15);
