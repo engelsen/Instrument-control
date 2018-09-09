@@ -6,6 +6,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         end_header
         column_sep % Columns are separated by this symbol
         comment_sep % Comments start from this symbol
+        line_sep
         % Limit for column padding. Variables which take more space than
         % this limit are ignored when calculating the padding length.
         pad_lim 
@@ -27,6 +28,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             addParameter(p,'end_header','Data',@ischar);
             addParameter(p,'column_sep',' \t',@ischar);
             addParameter(p,'comment_sep','%',@ischar);
+            addParameter(p,'line_sep','\r\n',@ischar);
             addParameter(p,'pad_lim',12,@isreal);
             parse(p,varargin{:});
             
@@ -35,6 +37,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             this.comment_sep=p.Results.comment_sep;
             this.end_header=p.Results.end_header;
             this.pad_lim=p.Results.pad_lim;
+            this.line_sep=p.Results.line_sep;
+            
             this.PropHandles=struct();
             
             if ~isempty(p.Results.load_path)
@@ -49,6 +53,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         function addField(this, field_name)
             assert(isvarname(field_name),...
                 'Field name must be a valid MATLAB variable name.');
+            assert(~ismember(field_name, this.field_names),...
+                ['Field with name ',field_name,' already exists.']);
+            
             this.PropHandles.(field_name)=addprop(this,field_name);
             this.PropHandles.(field_name).SetAccess='protected';
             this.PropHandles.(field_name).NonCopyable=false;

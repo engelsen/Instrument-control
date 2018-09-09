@@ -3,16 +3,13 @@
 classdef MyLog < MyInputHandler
     
     properties (Access=public)
-        % format specifiers for data saving and display
         time_fmt = '%14.3f' % Save time as posixtime up to ms precision
         
         % Save data as reals with 14 decimal digits. Trailing zeros 
         % are removed by %g 
         data_fmt = '%.14g'
         
-        column_sep = '\t' % Data columns are separated by this symbol
-        line_sep = '\r\n' % Line separator
-        hdr_spec = '==' % Specifier that is used to separate header from data
+        data_column_sep = '\t' % Data columns are separated by this symbol
         
         % File extension that is appended by default when saving the log 
         % if a different one is not specified explicitly
@@ -22,10 +19,18 @@ classdef MyLog < MyInputHandler
         data_headers = {} % Cell array of column headers
     end
     
-    properties (SetAccess=public, GetAccess=public)
+    properties (SetAccess=public, GetAccess=public)    
         timestamps % Times at which data was aqcuired
-        data % Stored cell array of measurements
-        time_labels % Structure array of named time marks 
+        data % Cell array of measurements
+        Headers % MyMetadata object to store labeled time marks 
+    end
+    
+    properties (Dependent=true)
+        % Information about the log, including time labels and data headers
+        Metadata
+        
+        % Format for data line
+        data_line_fmt
     end
     
     methods (Access=public)
@@ -36,18 +41,13 @@ classdef MyLog < MyInputHandler
             %into class properties
             this@MyInputHandler(varargin{:});
             
-            % Define an empty array of time labels
-            this.time_labels=struct('time',{},'str',{});
+            this.Headers=MyMetadata();
             
             % Load the data from file if the file name was provided
             if ~ismember('file_name',this.ConstructionParser.UsingDefaults)
                 loadLog(this);
             end
             
-        end
-        
-        function delete(this)
-            fclose(this.file_name);
         end
         
         %% Save and load functionality
@@ -74,16 +74,15 @@ classdef MyLog < MyInputHandler
             	createFile(fname);
                 fid = fopen(fname,'w');
                 % Write time labels and column headers
-                printHeader(this, fid);
-                % Write data body
-                fmt_str = this.time_fmt;
-                for i=1:m
-                    fmt_str = [fmt_str, this.column_sep, this.data_fmt]; %#ok<AGROW>
-                end
-                fmt_str = [fmt_str, this.line_sep];
+                printAllHeaders(this.Metadata, fname);
                 
+                % Lowbrow code below is to be fixed in the future by
+                % incorporating this line into printHeader
+                fprintf(fid,'==Data==\r\n');
+                
+                % Write data body                
                 for i=1:length(this.timestamps)
-                    fprintf(fid, fmt_str,...
+                    fprintf(fid, this.data_line_fmt,...
                         posixtime(this.timestamps(i)), this.data{i});
                 end
                 fclose(fid);
@@ -97,49 +96,42 @@ classdef MyLog < MyInputHandler
             end
         end
         
-        % Print log header to the file, including time labels and column
-        % headers
-        function printHeader(this, fid)
-            hs=this.hdr_spec;
-            cs=this.column_sep;
-            nl=this.line_sep;
-            
-            % Write time labels
-            fprintf(fid,[hs,'Time labels',hs,nl]);
-            for i=1:lenght(this.time_labels)
-                fprintf(fid,['%s',cs,'%s',nl], ...
-                    datestr(this.time_labels(i).time),...
-                    this.time_labels(i).str);
-            end
-            
-            % Write column names to file if specified
-            fprintf(fid,[hs,'Column names',hs,nl]);
-            fprintf(fid, 'POSIX time (s)');
-            for i=1:length(this.data_headers)
-                fprintf(fid, ['%',this.data_field_width,'s'],...
-                    this.data_headers{i});
-            end
-            fprintf(fid, nl);
-            fprintf(fid,[hs,'Data',hs,nl]);
-        end
-        
         
         % Save log header to file
         function loadLog(this, fname)
             if nargin()<2
                 fname=this.file_name;
             end
+            
+            [this.Headers, end_line_no]=MyMetadata('load_path',fname);
+            
+            % Read data as delimiter-separated values and convert to cell
+            % array
+            mdata = dlmread(filename, this.column_sep, end_line_no, 0);
+            [m,~] = size(mdata);
+            this.data = mat2cell(mdata, ones(1,m));
+            
+            if ismember('ColumnNames', this.Headers.field_names)
+                cnames=structfun(@(x) x.value, this.Headers.ColumnNames,...
+                    'UniformOutput', false);
+                % The first column name is time, so skip it
+                cnames(1)=[];
+                % Assign the rest of the names to data headers
+                for i=1:length(cnames)
+                    this.data_headers{i}=cnames{i};
+                end
+                % Delete the field ColumnNames as it is generated
+                % automatically when referring to Metadata and is not
+                % supposed to be stored in the Headers
+                deleteField(this.Headers, 'ColumnNames')
+            end
         end
         
-        
-        % Read log header from file
-        function scanHeader(this, fid)
-        end
         
         %% Other functions
         
         % Append data point to the log
-        function append(this, time, val, varargin)
+        function appendPoint(this, time, val, varargin)
             p=inputParser();
             addParameter(p, 'save', false, @islogical);
             parse(p, varargin{:});
@@ -176,23 +168,36 @@ classdef MyLog < MyInputHandler
             end
         end
         
-        % Add time label
-        function addLabel(this, time, str)
+        % Add label to the metadata
+        function addTimeLabel(this, time, str)
             if nargin()<3
-                % Invoke a dilog to add the label time and name
-                answ = inputdlg({'Time','Text'},'Add time label',...
-                    [1 15],{datestr(datetime('now')),''});
+                % Invoke a dialog to add the label time and name
+                answ = inputdlg({'Label text', 'Time'},'Add time label',...
+                    [2 40; 1 40],{'',datestr(datetime('now'))});
                 
-                if isempty(answ)||isempty(answ{2})
+                if isempty(answ)||isempty(answ{1})
                     return
                 else
-                    time=datetime(answ{1});
-                    str=answ{2};
+                    % Conversion of the inputed value to datetime to
+                    % ensure proper format
+                    time=datetime(answ{2});
+                    str=answ{1};
                 end
             end
-            this.time_labels(end+1)=struct();
-            this.time_labels(end).time=time;
-            this.time_labels(end).str=str;
+            
+            time_str=datestr(time);
+            fieldname=genvarname('Lbl1', this.Headers.field_names);
+            addField(this.Headers, fieldname);
+            addParam(this.Headers, fieldname, 'time', time_str);
+            
+            % str can contain multiple lines, record them as separate
+            % parameters
+            [nlines,~]=size(str);
+            for i=1:nlines
+                strname=genvarname('str1',...
+                    fieldnames(this.Headers.(fieldname)));
+                addParam(this.Headers, fieldname, strname, str(i,:));
+            end
         end
         
         % Plot the log data with time labels 
@@ -213,15 +218,15 @@ classdef MyLog < MyInputHandler
                 return
             end       
             hold(Ax,'on');
-            [~, m] = size(mdata);
+            [~, n] = size(mdata);
             % Plot data
-            for i=1:m   
+            for i=1:n   
                 plot(Ax, this.timestamps, mdata(:,i));
             end
             % Plot time labels
             hold(Ax,'off');
             % Add legend
-            if m>=1 && ~isempty(this.data_headers{:})
+            if n>=1 && ~isempty(this.data_headers{:})
                 legend(Ax, this.data_headers{:},'Location','southwest');
                 ylabel(Ax, app.y_label);
             end
@@ -230,7 +235,8 @@ classdef MyLog < MyInputHandler
         function clearLog(this)
             this.timestamps = {};
             this.data = {};
-            this.time_labels = struct('time',{},'str',{});
+            delete(this.Headers);
+            this.Headers = MyMetadata();
         end
         
         % Check if data is suitable for plotting and saving as a list of
@@ -246,6 +252,43 @@ classdef MyLog < MyInputHandler
             % disregarded here. 
             l=length(this.data{1});
             bool = all(cellfun(@(x)(isreal(x)&&(length(x)==l)),this.data));
+        end
+    end
+    
+    %% set and get methods
+    methods
+        function data_line_fmt=get.data_line_fmt(this)
+            cs=this.data_column_sep;
+            nl=this.Headers.line_sep;
+            
+            if isempty(this.data)
+                l=0;
+            else
+                l=length(this.data{1});
+            end
+            
+            data_line_fmt = this.time_fmt;
+            for i=1:l
+                data_line_fmt = [data_line_fmt, cs, this.data_fmt]; %#ok<AGROW>
+            end
+            data_line_fmt = [data_line_fmt, nl];
+        end
+        
+        function Metadata=get.Metadata(this)
+            Metadata=copy(this.Headers);
+            
+            if ismember('ColumnNames', Metadata.field_names)
+                deleteField(Metadata, 'ColumnNames')
+            end
+            addField(Metadata, 'ColumnNames');
+            addParam(Metadata, 'ColumnNames', 'name1',...
+                    'POSIX time (s)')
+            for i=1:length(this.data_headers)
+                tmpname = genvarname('name1',...
+                    fieldnames(Metadata.ColumnNames));
+                addParam(Metadata, 'ColumnNames', tmpname,...
+                    this.data_headers{i})
+            end
         end
     end
 end
