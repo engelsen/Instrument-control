@@ -119,16 +119,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             fullfilename=p.Results.fullfilename;
             save_prec=p.Results.save_prec;
-            
-            fileID=fopen(fullfilename,'a');
 
             %Writes the metadata header
             printAllHeaders(this.Metadata,fullfilename);
             
-            %Puts in header title for the data
-            fprintf(fileID,...
-                [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
-            
+            fileID=fopen(fullfilename,'a');
             %Pads the vectors if they are not equal length
             diff=length(this.x)-length(this.y);
             if diff<0

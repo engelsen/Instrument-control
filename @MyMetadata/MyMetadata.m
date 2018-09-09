@@ -145,11 +145,12 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
         end
         
-        function printAllHeaders(this,fullfilename)
+        function printAllHeaders(this, fullfilename)
             addTimeHeader(this);
             for i=1:length(this.field_names)
                 printHeader(this, fullfilename, this.field_names{i});
             end
+            printEndHeader(this, fullfilename);
         end
         
         function printHeader(this, fullfilename, field_name, varargin)
@@ -187,8 +188,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             
             fileID=fopen(fullfilename,'a');
             %Prints the header
-            fprintf(fileID,'%s%s%s\r\n', this.hdr_spec, title_str,...
-                this.hdr_spec);
+            fprintf(fileID,[this.hdr_spec, title_str,...
+                this.hdr_spec, this.line_sep]);
             
             for i=1:length(param_names)
                 %Capitalize first letter of comment
@@ -203,14 +204,23 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 print_spec=[sprintf('%%-%is',name_pad_length),...
                     this.column_sep,...
                     sprintf('%%-%is',val_pad_length),...
-                    this.column_sep,'%s\r\n'];
+                    this.column_sep,'%s', this.line_sep];
 
                 fprintf(fileID, print_spec, param_names{i}, par_strs{i},...
                     fmt_comment);
             end
             
             %Prints an extra line at the end
-            fprintf(fileID,'\r\n');
+            fprintf(fileID, this.line_sep);
+            fclose(fileID);
+        end
+        
+        %Print terminator that separates header from data
+        function printEndHeader(this, fullfilename)
+            fileID=fopen(fullfilename,'a');
+            fprintf(fileID,...
+                [this.hdr_spec, this.end_header, ...
+                this.hdr_spec, this.line_sep]);
             fclose(fileID);
         end
         

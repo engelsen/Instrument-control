@@ -74,14 +74,9 @@ classdef MyLog < MyInputHandler
             
             try
             	createFile(fname);
-                fid = fopen(fname,'w');
                 % Write time labels and column headers
                 printAllHeaders(this.Metadata, fname);
-                
-                % Lowbrow code below is to be fixed in the future by
-                % incorporating this line into printHeader
-                fprintf(fid,'==Data==\r\n');
-                
+                fid = fopen(fname,'a');
                 % Write data body
                 fmt=this.data_line_fmt;
                 for i=1:length(this.timestamps)
@@ -134,7 +129,7 @@ classdef MyLog < MyInputHandler
         %% Other functions
         
         % Append data point to the log
-        function appendData(this, time, val, varargin)
+        function appendPoint(this, time, val, varargin)
             p=inputParser();
             addParameter(p, 'save', false, @islogical);
             parse(p, varargin{:});
@@ -150,12 +145,7 @@ classdef MyLog < MyInputHandler
                         % the metadata
                         createFile(this.file_name);
                         printAllHeaders(this.Metadata, this.file_name);
-                        
-                        fid = fopen(this.file_name,'w');
-                        % Lowbrow code below is to be fixed in the future by
-                        % incorporating this line into printHeader
-                        fprintf(fid,'==Data==\r\n');
-                        
+                        fid = fopen(this.file_name,'a');
                     else
                         % otherwise open for appending
                         fid = fopen(this.file_name,'a');
