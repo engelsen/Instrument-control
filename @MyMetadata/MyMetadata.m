@@ -1,15 +1,17 @@
 classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     properties (Access=public)
         % Header sections are separated by [hdr_spec,hdr_spec,hdr_spec]
-        hdr_spec
+        hdr_spec='=='
         % Data starts from the line next to [hdr_spec,end_header,hdr_spec]
-        end_header
-        column_sep % Columns are separated by this symbol
-        comment_sep % Comments start from this symbol
-        line_sep
+        end_header='Data'
+        % Columns are separated by this symbol
+        column_sep=' \t'
+        % Comments start from this symbol
+        comment_sep='%'
+        line_sep='\r\n'
         % Limit for column padding. Variables which take more space than
         % this limit are ignored when calculating the padding length.
-        pad_lim 
+        pad_lim=12
     end
     
     properties (Access=private)
@@ -23,6 +25,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     methods
         function [this,varargout]=MyMetadata(varargin)
             p=inputParser;
+            p.KeepUnmatched=true;
             addParameter(p,'hdr_spec','==',@ischar);
             addParameter(p,'load_path','',@ischar);
             addParameter(p,'end_header','Data',@ischar);

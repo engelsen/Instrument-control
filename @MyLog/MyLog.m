@@ -1,6 +1,6 @@
-% 
+% Class to store data series versus time
 
-classdef MyLog < MyInputHandler
+classdef MyLog < matlab.mixin.Copyable
     
     properties (Access=public)
         % Save time as posixtime up to ms precision
@@ -24,13 +24,12 @@ classdef MyLog < MyInputHandler
     properties (SetAccess=public, GetAccess=public)    
         timestamps % Times at which data was aqcuired
         data % Cell array of measurements
-        Headers % MyMetadata object to store labeled time marks 
+        Headers % MyMetadata object to store labeled time marks
     end
     
     properties (Dependent=true)
         % Information about the log, including time labels and data headers
-        Metadata
-        
+        Metadata    
         % Format specifier for one data line
         data_line_fmt
     end
@@ -39,14 +38,14 @@ classdef MyLog < MyInputHandler
         
         %% Constructo and destructor methods
         function this = MyLog(varargin)
-            %Parse input arguments with ConstructionParser and load them
-            %into class properties
-            this@MyInputHandler(varargin{:});
+            P=MyClassParser(this);
+            P.KeepUnmatched=true;
+            processInputs(P, this, varargin{:});
             
-            this.Headers=MyMetadata();
+            this.Headers=MyMetadata(varargin{:});
             
             % Load the data from file if the file name was provided
-            if ~ismember('file_name',this.ConstructionParser.UsingDefaults)
+            if ~ismember('file_name', P.UsingDefaults)
                 loadLog(this);
             end
             
