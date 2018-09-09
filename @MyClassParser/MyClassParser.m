@@ -56,7 +56,10 @@ classdef MyClassParser < inputParser
                         def = Tmp.DefaultValue;
                         % Create validation function based on the class of
                         % default value
-                        val_fcn = @(x)isa(x, class(def));
+                        val_fcn = @(x)assert(isa(x, class(def)),...
+                            ['The value must be of the class ',class(def),...
+                            ' while the present one is of the class ',...
+                            class(x),'.']);
                     else
                         def = [];
                         val_fcn = @(x)true;
