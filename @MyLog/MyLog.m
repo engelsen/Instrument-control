@@ -3,13 +3,15 @@
 classdef MyLog < MyInputHandler
     
     properties (Access=public)
-        time_fmt = '%14.3f' % Save time as posixtime up to ms precision
+        % Save time as posixtime up to ms precision
+        time_fmt = '%14.3f'
         
-        % Save data as reals with 14 decimal digits. Trailing zeros 
+        % Save data as reals with up to 14 decimal digits. Trailing zeros 
         % are removed by %g 
         data_fmt = '%.14g'
         
-        data_column_sep = '\t' % Data columns are separated by this symbol
+        % Data columns are separated by this symbol
+        data_column_sep = '\t'
         
         % File extension that is appended by default when saving the log 
         % if a different one is not specified explicitly
@@ -29,7 +31,7 @@ classdef MyLog < MyInputHandler
         % Information about the log, including time labels and data headers
         Metadata
         
-        % Format for data line
+        % Format specifier for one data line
         data_line_fmt
     end
     
@@ -80,9 +82,10 @@ classdef MyLog < MyInputHandler
                 % incorporating this line into printHeader
                 fprintf(fid,'==Data==\r\n');
                 
-                % Write data body                
+                % Write data body
+                fmt=this.data_line_fmt;
                 for i=1:length(this.timestamps)
-                    fprintf(fid, this.data_line_fmt,...
+                    fprintf(fid, fmt,...
                         posixtime(this.timestamps(i)), this.data{i});
                 end
                 fclose(fid);
@@ -131,7 +134,7 @@ classdef MyLog < MyInputHandler
         %% Other functions
         
         % Append data point to the log
-        function appendPoint(this, time, val, varargin)
+        function appendData(this, time, val, varargin)
             p=inputParser();
             addParameter(p, 'save', false, @islogical);
             parse(p, varargin{:});
@@ -144,17 +147,20 @@ classdef MyLog < MyInputHandler
                     exstat = exist(this.file_name,'file');
                     if exstat==0
                         % if the file does not exist, create it and write
-                        % header names
+                        % the metadata
                         createFile(this.file_name);
+                        printAllHeaders(this.Metadata, this.file_name);
+                        
                         fid = fopen(this.file_name,'w');
-                        writeColumnHeaders(this, fid);
+                        % Lowbrow code below is to be fixed in the future by
+                        % incorporating this line into printHeader
+                        fprintf(fid,'==Data==\r\n');
+                        
                     else
                         % otherwise open for appending
                         fid = fopen(this.file_name,'a');
                     end
-                    fprintf(fid, this.time_fmt, posixtime(time));
-                    fprintf(fid, this.data_fmt, meas_result);
-                    fprintf(fid,'\r\n');
+                    fprintf(fid, this.data_line_fmt, posixtime(time), val);
                     fclose(fid);
                 catch
                     warning(['Logger cannot save data at time = ',...
@@ -257,6 +263,7 @@ classdef MyLog < MyInputHandler
     
     %% set and get methods
     methods
+        
         function data_line_fmt=get.data_line_fmt(this)
             cs=this.data_column_sep;
             nl=this.Headers.line_sep;
@@ -264,7 +271,9 @@ classdef MyLog < MyInputHandler
             if isempty(this.data)
                 l=0;
             else
-                l=length(this.data{1});
+                % Use end of the data array for better robustness when
+                % appending a measurement
+                l=length(this.data{end});
             end
             
             data_line_fmt = this.time_fmt;

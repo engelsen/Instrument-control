@@ -124,6 +124,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
 
             %Writes the metadata header
             printAllHeaders(this.Metadata,fullfilename);
+            
             %Puts in header title for the data
             fprintf(fileID,...
                 [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
