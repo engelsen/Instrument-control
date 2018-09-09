@@ -1,4 +1,4 @@
-% 
+% Class to store data series versus time
 
 classdef MyLog < matlab.mixin.Copyable
     
