@@ -1,6 +1,6 @@
 % 
 
-classdef MyLog < MyInputHandler
+classdef MyLog < MyInputHandler & matlab.mixin.Copyable
     
     properties (Access=public)
         % Save time as posixtime up to ms precision
