@@ -29,8 +29,7 @@ classdef MyLog < matlab.mixin.Copyable
     
     properties (Dependent=true)
         % Information about the log, including time labels and data headers
-        Metadata
-        
+        Metadata    
         % Format specifier for one data line
         data_line_fmt
     end
@@ -40,9 +39,10 @@ classdef MyLog < matlab.mixin.Copyable
         %% Constructo and destructor methods
         function this = MyLog(varargin)
             P=MyClassParser(this);
+            P.KeepUnmatched=true;
             processInputs(P, this, varargin{:});
             
-            this.Headers=MyMetadata();
+            this.Headers=MyMetadata(varargin{:});
             
             % Load the data from file if the file name was provided
             if ~ismember('file_name', P.UsingDefaults)

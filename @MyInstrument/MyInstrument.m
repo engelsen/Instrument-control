@@ -1,10 +1,13 @@
-classdef MyInstrument < dynamicprops & MyInputHandler
+% Generic class to implement communication with instruments 
+
+classdef MyInstrument < dynamicprops
     
     % Access for these variables is 'protected' and in addition
-    % granted to MyInputHandler in order to use ConstructionParser 
-    properties (GetAccess=public, SetAccess=?MyInputHandler)     
+    % granted to MyClassParser in order to use construction parser 
+    properties (GetAccess=public, SetAccess={?MyClassParser,?MyInstrument})     
         % name is sometimes used as identifier in listeners callbacks, so
-        % it should not be changed after instrument object is initiated
+        % it better not to be changed after the instrument object is
+        % created
         name='';
         interface='';
         address=''; 
@@ -27,26 +30,17 @@ classdef MyInstrument < dynamicprops & MyInputHandler
     end
     
     events
-        NewData
-        PropertyRead
-    end
-    
-    methods (Access=protected)
-        % This function is overloaded to add more parameters to the parser 
-        function p = createConstructionParser(this)
-            p=inputParser();
-            addRequired(p,'interface',@ischar);
-            addRequired(p,'address',@ischar);
-            addParameter(p,'name','',@ischar);
-            this.ConstructionParser=p;
-        end
+        NewData 
+        PropertyRead 
     end
     
     methods (Access=public)
         function this=MyInstrument(interface, address, varargin)
-            % Parse input arguments with ConstructionParser and load values
-            % into class properties
-            this@MyInputHandler(interface,address,varargin{:});
+            P=MyClassParser();
+            addRequired(P,'interface',@ischar);
+            addRequired(P,'address',@ischar);
+            addParameter(P,'name','',@ischar);
+            processInputs(P, this, interface, address, varargin{:});
             
             % Create an empty trace
             this.Trace=MyTrace();
