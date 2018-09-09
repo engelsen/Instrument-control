@@ -23,26 +23,54 @@ classdef MyInputHandler < handle
             addClassProperties(this);
         end
         
-        % Add all the properties the class which are not present in the 
-        % scheme of ConstructionParser and which have public set acces 
-        % to the scheme of ConstructionParser 
+        % Add all the properties the class which are not already  present  
+        % in the scheme of ConstructionParser and which have set access 
+        % permitted for MyInputHandler 
         function addClassProperties(this)
             thisMetaclass = metaclass(this);    
             for i=1:length(thisMetaclass.PropertyList)
                 Tmp = thisMetaclass.PropertyList(i);
-                % Constant, Dependent and Abstract propeties cannot be set.
-                % Also, do not add the parameters that are already in the
-                % parser scheme.
-                if (~Tmp.Constant)&&(~Tmp.Abstract)&&(~Tmp.Dependent)&&...
-                        strcmpi(Tmp.SetAccess,'public')&&...
-                        (~ismember(Tmp.Name,...
-                        this.ConstructionParser.Parameters))
+                
+                % If parameter is already present in the parser scheme,
+                % skip
+                if ismember(Tmp.Name, this.ConstructionParser.Parameters)
+                    continue
+                end
+                
+                % Constant, Dependent and Abstract propeties cannot be set,
+                % so skip in this case also.
+                if Tmp.Constant||Tmp.Abstract||Tmp.Dependent
+                    continue
+                end
+                
+                % Check if MyInputHandler has access to the property. This 
+                % can be true in two cases: 1) SetAccess is public 
+                % 2) MyInputHandler class was explicitly given access 
+                sa=Tmp.SetAccess;
+                if ischar(sa)
+                    has_access=strcmpi(sa,'public');
+                elseif iscell(sa)
+                    % Case when SetAcces is specified as cell array of
+                    % metaclasses
+                    has_access = any(...
+                        cellfun(@(x) strcmpi(x.Name,'MyInputHandler'),sa));
+                else
+                    has_access=false;
+                end
+                
+                % If has set access, add parameter to the parser scheme
+                if has_access
                     if Tmp.HasDefault
                         def = Tmp.DefaultValue;
+                        % Create validation function based on the class of
+                        % default value
+                        val_fcn = @(x)isa(x, class(def));
                     else
                         def = [];
+                        val_fcn = @(x)true;
                     end
-                    addParameter(this.ConstructionParser, Tmp.Name, def);
+                    addParameter(this.ConstructionParser,...
+                        Tmp.Name, def, val_fcn);
                 end
             end
         end

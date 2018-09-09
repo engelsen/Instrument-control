@@ -1,5 +1,5 @@
 classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
-    properties
+    properties (Access=public)
         % Header sections are separated by [hdr_spec,hdr_spec,hdr_spec]
         hdr_spec
         % Data starts from the line next to [hdr_spec,end_header,hdr_spec]
