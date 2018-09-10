@@ -19,6 +19,8 @@ classdef MyLog < matlab.mixin.Copyable
         
         file_name = '' % Used to save or load the data
         data_headers = {} % Cell array of column headers
+        
+        length_lim = Inf % Keep the log length below this limit
     end
     
     properties (SetAccess=public, GetAccess=public)    
@@ -39,10 +41,9 @@ classdef MyLog < matlab.mixin.Copyable
         %% Constructo and destructor methods
         function this = MyLog(varargin)
             P=MyClassParser(this);
-            P.KeepUnmatched=true;
             processInputs(P, this, varargin{:});
             
-            this.Headers=MyMetadata(varargin{:});
+            this.Headers=MyMetadata(P.unmatched_nv{:});
             
             % Load the data from file if the file name was provided
             if ~ismember('file_name', P.UsingDefaults)
@@ -136,6 +137,10 @@ classdef MyLog < matlab.mixin.Copyable
             this.timestamps=[this.timestamps; time];
             this.data=[this.data; {val}];
             
+            % Ensure the log length is within the length limit
+            trim(this);
+            
+            % Optionally save the new data point to file
             if p.Results.save
                 try
                     exstat = exist(this.file_name,'file');
@@ -250,8 +255,30 @@ classdef MyLog < matlab.mixin.Copyable
         end
     end
     
+    methods (Access=private)
+        
+        % Ensure the log length is within length limit
+        function trim(this)
+            l=length(this.timestamps);
+            if l>this.length_lim
+                dn=l-this.length_lim;
+                this.timestamps(1:dn)=[];
+                this.data(1:dn)=[];
+            end
+        end
+        
+    end
+    
     %% set and get methods
     methods
+        
+        function set.length_lim(this, val)
+            assert(isreal(val),'''length_lim'' must be a real number');
+            % Make length_lim non-negative
+            this.length_lim=max(0,val);
+            % Apply the length limit to log
+            trim(this);
+        end
         
         function data_line_fmt=get.data_line_fmt(this)
             cs=this.data_column_sep;
