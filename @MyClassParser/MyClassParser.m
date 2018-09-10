@@ -1,12 +1,20 @@
 % Input parser, which functionality was extended to automatically add
 % class properties to the scheme and assign the results after parsing is
-% done
+% done.
+% Different to inputParser, KeepUnmatched is 'true' by default.
 
 classdef MyClassParser < inputParser
+    
+    properties (Dependent=true)
+        unmatched_nv % List of unmatched name-value pairs
+    end
     
     methods (Access=public)
         function this = MyClassParser(varargin)
             this@inputParser();
+            % KeepUnmatched is true so that the unmatched options could be
+            % passed to another class
+            this.KeepUnmatched=true;
             
             if nargin()==1
                 % If an object is supplied via varargin, add its properties
@@ -90,6 +98,19 @@ classdef MyClassParser < inputParser
             end 
         end
 
+    end
+    
+  
+    methods 
+        function unmatched_nv=get.unmatched_nv(this)
+            fns=fieldnames(this.Unmatched);
+            vals=struct2cell(this.Unmatched);
+            unmatched_nv=cell(1,2*length(fns));
+            for i=1:length(fns)
+                unmatched_nv{2*i-1}=fns{i};
+                unmatched_nv{2*i}=vals{i};
+            end
+        end
     end
     
 end
