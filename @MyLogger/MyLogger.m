@@ -1,18 +1,21 @@
 % Generic logger that executes MeasFcn according to MeasTimer, stores the
-% results and optionally continuously saves them. MeasFcn should be a
-% function with no arguments. Saving functionality works properly if 
-% MeasFcn returns a number or array of numbers, while intrinsically the 
-% logger can store any kind of outputs.
+% results and optionally continuously saves them. 
+% MeasFcn should be a function with no arguments.  
+% MeasFcn need to return a row vector of numbers in order to save the log
+% in text format or display it. With other kinds of returned values the 
+% log can still be recorded, but not saved or dispalyed.
 
-classdef MyLogger < MyInputHandler
+classdef MyLogger < handle
+    
     properties (Access=public)
-        MeasTimer % Timer object
+        % Timer object
+        MeasTimer
+        
+        % Function that provides data to be recorded
         MeasFcn = @()0
         save_cont = false
         
-        Log
-        
-        % Format for displaying last reading label: value
+        % Format for displaying last reading (label: value)
         disp_fmt = '%15s: %.2e'
     end
     
@@ -20,6 +23,9 @@ classdef MyLogger < MyInputHandler
         % If last measurement was succesful
         % 0-false, 1-true, 2-never measured
         last_meas_stat = 2 
+        
+        % MyLog object to store the recorded data
+        Log
     end
     
     events
@@ -27,15 +33,14 @@ classdef MyLogger < MyInputHandler
         NewData
     end
     
-    methods
+    methods (Access=public)
         function this = MyLogger(varargin)
             P=MyClassParser(this);
-            P.KeepUnmatched=true;
             processInputs(P, this, varargin{:});
             
-            this.Log=MyLog(varargin{:});
+            this.Log=MyLog(P.unmatched_nv{:});
                  
-            if ismember('MeasTimer', this.ConstructionParser.UsingDefaults)
+            if ismember('MeasTimer', P.UsingDefaults)
                 % Create and confitugure timer unless it was supplied
                 % externally in varargin
                 this.MeasTimer = timer();
@@ -44,33 +49,15 @@ classdef MyLogger < MyInputHandler
                 % period very well, but is robust with respect to
                 % function execution delays
                 this.MeasTimer.ExecutionMode = 'fixedSpacing';
-                this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
             end 
+            
+            this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
         end
         
         function delete(this)         
             %stop and delete the timer
             stop(this.MeasTimer);
             delete(this.MeasTimer);
-        end
-        
-        function LoggerFcn(this, event)
-            time = datetime(event.Data.time);
-            try
-                meas_result = this.MeasFcn();
-                this.last_meas_stat=1; % last measurement ok
-                triggerNewData(this);
-            catch
-                warning(['Logger cannot take measurement at time = ',...
-                    datestr(time)]);
-                this.last_meas_stat=0; % last measurement not ok
-            end
-            
-            if this.last_meas_stat==1 
-                % append measurement result together with time stamp
-                appendPoint(this.Log, time, meas_result,...
-                    'save', this.save_cont);
-            end
         end
         
         % save the entire data record
@@ -108,6 +95,29 @@ classdef MyLogger < MyInputHandler
             end
         end
     
+    end
+    
+    methods (Access=protected)
+        % Perform measurement and append point to the log
+        function LoggerFcn(this, event)
+            time = datetime(event.Data.time);
+            try
+                meas_result = this.MeasFcn();
+                this.last_meas_stat=1; % last measurement ok
+            catch
+                warning(['Logger cannot take measurement at time = ',...
+                    datestr(time)]);
+                this.last_meas_stat=0; % last measurement not ok
+            end
+            
+            if this.last_meas_stat==1 
+                % append measurement result together with time stamp
+                appendPoint(this.Log, time, meas_result,...
+                    'save', this.save_cont);
+                triggerNewData(this);
+            end
+        end
+        
         %Triggers event for acquired data
         function triggerNewData(this)
             notify(this,'NewData')
