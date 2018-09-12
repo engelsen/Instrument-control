@@ -8,15 +8,13 @@
 classdef MyLogger < handle
     
     properties (Access=public)
-        % Timer object
+        % timer object
         MeasTimer
         
         % Function that provides data to be recorded
         MeasFcn = @()0
-        save_cont = false
         
-        % Format for displaying last reading (label: value)
-        disp_fmt = '%15s: %.2e'
+        save_cont = false
     end
     
     properties (SetAccess=protected, GetAccess=public)
@@ -60,39 +58,14 @@ classdef MyLogger < handle
             delete(this.MeasTimer);
         end
         
-        % save the entire data record
-        function saveLog(this)
-            saveLog(this.Log)
-        end
         
-        function clearLog(this)
-            clearLog(this.Log)
-        end
-        
+        % Redefine start/stop functions for the brevity of use
         function start(this)
             start(this.MeasTimer);
         end
         
         function stop(this)
             stop(this.MeasTimer);
-        end
-        
-        function str = dispLastReading(this)
-            if isempty(this.timestamps)
-                str = '';
-            else
-                str = ['Last reading ',char(this.timestamps(end)),newline];
-                last_data = this.data{end};
-                for i=1:length(last_data)
-                    if length(this.data_headers)>=i
-                        lbl = this.data_headers{i};
-                    else
-                        lbl = sprintf('data%i',i);
-                    end
-                    str = [str,...
-                        sprintf(this.disp_fmt,lbl,last_data(i)),newline];
-                end
-            end
         end
     
     end

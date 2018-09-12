@@ -58,7 +58,8 @@ classdef MyClassParser < inputParser
                     has_access=false;
                 end
                 
-                % If has set access, add parameter to the parser scheme
+                % If the property has set access and default value,
+                % add it as parameter to the parser scheme
                 if has_access
                     if Tmp.HasDefault
                         def = Tmp.DefaultValue;
@@ -68,11 +69,8 @@ classdef MyClassParser < inputParser
                             ['The value must be of the class ',class(def),...
                             ' while the present one is of the class ',...
                             class(x),'.']);
-                    else
-                        def = [];
-                        val_fcn = @(x)true;
+                        addParameter(this, Tmp.Name, def, val_fcn);
                     end
-                    addParameter(this, Tmp.Name, def, val_fcn);
                 end
             end
         end
