@@ -136,9 +136,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             end
             
             if contains(p.Results.comment, newline_smb)
-                fprintf(['Comment string for ''%s'' must not contain ',...
+                disp(['Comment string for ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
-                    'with '' ''\n'], param_name);
+                    'with space.'], param_name);
                 this.(field_name).(param_name).comment= ...
                     replace(p.Results.comment, newline_smb,' ');
             else
@@ -165,6 +165,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             
             ParamStruct=this.(field_name);
             param_names=fieldnames(ParamStruct);
+            
             %width of the name column
             name_pad_length=max(cellfun(@(x) length(x), param_names));
             

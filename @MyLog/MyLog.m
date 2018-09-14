@@ -55,7 +55,6 @@ classdef MyLog < matlab.mixin.Copyable
                 'time_str',{},...   % time in text format
                 'text_str',{},...   % message string
                 'isdispl',{},...    % if this label is to be displayed
-                'mark_arr',{},...   % array that representing plot marker
                 'text_handles',{});  % handle to the plotted text object
             
             % Load the data from file if the file name was provided
