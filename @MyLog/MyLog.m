@@ -284,7 +284,7 @@ classdef MyLog < matlab.mixin.Copyable
             this.timestamps = [];
             this.data = [];
             
-            deleteAllFields(this.Metadata);
+            clearFields(this.Metadata);
         end
         
         % Verify that the data can be saved or plotted

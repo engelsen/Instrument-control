@@ -1,51 +1,54 @@
 % Convert textual representation of a Matlab expression to structure that 
 % can be used by subsref and subsasgn functions  
+
 function [S, varname] = str2substruct(str)
-    % Match variable name
-    vn = '^(?<varname>\w+)';           % pattern for base variable name
-    name_re_out=regexp(str,vn,'match');
+
+    % Define patterns to match the variable name and subscript references, 
+    % i.e. structure fields, array indices and cell indices 
     
-    % Check that the variable name had single match
-    if length(name_re_out)==1
-        varname=name_re_out{1};
-    elseif length(name_re_out)>1
-        error('Multiple matches are found for variable name.')
-    else
-        varname='';
-    end
+    vn = '^(?<varname>[a-zA-Z]\w*)?';       % pattern for variable name
     
-    % Next match references to structure fields (or class properties), 
-    % array indices and cell indices 
+    % Expresion always returns one and only one match, which might be empty
+    [re_tokens, re_rem]=regexp(str,vn,'tokens','split','once','emptymatch');
+  
+    varname=re_tokens{1};
+    str=re_rem{2};
     
-    % Define pattern to find comma-separated integers, possibly 
-    % surrounded by white spaces
+    % Pattern to find comma-separated integers, possibly 
+    % surrounded by white spaces, which represent array indices
     csint = '(( *[0-9]+ *,)*( *[0-9]+ *))';
     
-    aind = ['(?<arrind>\(',csint,'\))'];   % array index pattern
-    cind = ['(?<cellind>{',csint,'})'];    % cell index pattern
-    fn = '(?<fieldname>\.\w+)';            % field name pattern
+    % Define patterns to match subscript references, i.e. structure fields, 
+    % array indices and cell indices 
     
-    re_out=regexp(str,[fn,'|',aind,'|',cind],'names');
+    aind = ['\((?<arrind>',csint,')\)'];   % regular array index pattern
+    cind = ['{(?<cellind>',csint,')}'];    % cell array index pattern
+    fn = '\.(?<fieldname>\w+)';            % field name pattern
     
-    type_cell=cell(1,length(re_out));
-    subs_cell=cell(1,length(re_out));
-    for i=1:length(re_out)
-        if ~isempty(re_out(i).arrind)
+    [re_tokens, re_rem] = regexp(str, ...
+        [fn,'|',aind,'|',cind],'names','split','emptymatch');
+    
+    % Check that the unmatched remainder of the expression is empty, 
+    % i.e. that the expression has a proper format
+    assert(all(cellfun(@(x)isempty(x),re_rem)), ['Expression ''',str,...
+        ''' is not a valid subscript reference.']);
+    
+    type_cell=cell(1,length(re_tokens)-1);
+    subs_cell=cell(1,length(re_tokens)-1);
+    for i=1:length(re_tokens)
+        if ~isempty(re_tokens(i).arrind)
             type_cell{i}='()';
-            % Split, discarding the first and the last characters that are
-            % braces, and then convert to numbers.
-            char_ind=regexp(re_out(i).arrind(2:end-1),',','split');
+            % Split and convert indices to numbers.
+            char_ind=regexp(re_tokens(i).arrind,',','split');
             subs_cell{i}=num2cell(str2double(char_ind));
-        elseif ~isempty(re_out(i).cellind)
+        elseif ~isempty(re_tokens(i).cellind)
             type_cell{i}='{}';
-            % Split, discarding the first and the last characters that are
-            % braces, and then convert to numbers.
-            char_ind=regexp(re_out(i).cellind(2:end-1),',','split');
+            % Split and convert indices to numbers.
+            char_ind=regexp(re_tokens(i).cellind,',','split');
             subs_cell{i}=num2cell(str2double(char_ind));
-        elseif ~isempty(re_out(i).fieldname)
+        elseif ~isempty(re_tokens(i).fieldname)
             type_cell{i}='.';
-            % remove '.' from the matched expression
-            subs_cell{i}=re_out(i).fieldname(2:end);
+            subs_cell{i}=re_tokens(i).fieldname;
         end
     end
     S=struct('type', type_cell, 'subs', subs_cell);

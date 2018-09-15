@@ -4,7 +4,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         hdr_spec='=='
         % Data starts from the line next to [hdr_spec,end_header,hdr_spec]
         end_header='Data'
-        % Columns are separated by this symbol
+        % Columns are separated by this symbol (space-tab by default)
         column_sep=' \t'
         % Comments start from this symbol
         comment_sep='%'
@@ -24,29 +24,15 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     
     methods
         function [this,varargout]=MyMetadata(varargin)
-            p=inputParser;
-            p.KeepUnmatched=true;
-            addParameter(p,'hdr_spec','==',@ischar);
-            addParameter(p,'load_path','',@ischar);
-            addParameter(p,'end_header','Data',@ischar);
-            addParameter(p,'column_sep',' \t',@ischar);
-            addParameter(p,'comment_sep','%',@ischar);
-            addParameter(p,'line_sep','\r\n',@ischar);
-            addParameter(p,'pad_lim',12,@isreal);
-            parse(p,varargin{:});
-            
-            this.hdr_spec=p.Results.hdr_spec;
-            this.column_sep=p.Results.column_sep;
-            this.comment_sep=p.Results.comment_sep;
-            this.end_header=p.Results.end_header;
-            this.pad_lim=p.Results.pad_lim;
-            this.line_sep=p.Results.line_sep;
+            P=MyClassParser(this);
+            addParameter(P,'load_path','',@ischar);
+            processInputs(P,this, varargin{:});
+            load_path=P.Results.load_path;
             
             this.PropHandles=struct();
             
-            if ~isempty(p.Results.load_path)
-                varargout{1}=scanHeaders(this,p.Results.load_path,...
-                    'end_header',p.Results.end_header);
+            if ~isempty(load_path)
+                varargout{1}=load(this, load_path);
             end
         end
         
@@ -116,7 +102,11 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             addParameter(p,'fmt_spec','',@ischar);
             % Comment to be added to the line
             addParameter(p,'comment','',@ischar);
+            addParameter(p,'SubStruct',struct('type',{},'subs',{}),...
+                @isstruct)
             parse(p,varargin{:});
+            
+            S=p.results.SubStruct;
             
             %Adds the field, making sure that neither value nor comment
             %contain new line or carriage return characters, which would
@@ -129,10 +119,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 fprintf(['Value of ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
                     'with '' ''\n'], param_name);
-                this.(field_name).(param_name).value=...
-                    replace(value, newline_smb,' ');
-            else
-                this.(field_name).(param_name).value=value;
+                value=replace(value, newline_smb,' ');
             end
             
             if contains(p.Results.comment, newline_smb)
@@ -144,19 +131,28 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             else
                 this.(field_name).(param_name).comment=p.Results.comment;
             end
-
+            
+            if isempty(S)
+                this.(field_name).(param_name).value=value;
+            else
+                % Assign using subscript structure
+                this.(field_name).(param_name).value=[];
+                this.(field_name).(param_name).value=...
+                    subsasgn(this.(field_name).(param_name).value,S,value);
+            end
+            
             this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
         end
         
         function printAllHeaders(this, fullfilename)
             addTimeHeader(this);
             for i=1:length(this.field_names)
-                printHeader(this, fullfilename, this.field_names{i});
+                printField(this, this.field_names{i}, fullfilename);
             end
             printEndHeader(this, fullfilename);
         end
         
-        function printHeader(this, fullfilename, field_name, varargin)
+        function printField(this, field_name, fullfilename, varargin)
             %Takes optional inputs
             p=inputParser;
             addParameter(p,'title',field_name);
@@ -183,7 +179,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 TmpPar=ParStruct.(par_names{i});
                 for j=1:length(exp_par_names{i})
                     tmpnm=exp_par_names{i}{j};
-                    tmpval=subref(TmpPar.value, str2substruct(tmpnm));
+                    tmpval=subsref(TmpPar.value, str2substruct(tmpnm));
                     if isempty(TmpPar.fmt_spec)
                         % Convert to string with format specifier
                         % extracted from the varaible calss
@@ -232,8 +228,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 end
             end
             
-            %Prints an extra line at the end
-            fprintf(fileID, this.line_sep);
+            %Prints an extra line separator at the end
+            fprintf(fileID, ls);
             fclose(fileID);
         end
         
@@ -263,7 +259,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
         end
         
-        function n_end_header=scanHeaders(this, fullfilename, varargin)
+        function n_end_header=load(this, fullfilename, varargin)
             %Before we load, we clear all existing fields
             clearFields(this);
             
@@ -275,8 +271,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             line_no=0;
             curr_title='';
             
-            %Loop continues until we reach the next header or we reach the end of
-            %the file
+            %Loop continues until we reach the next header or we reach
+            %the end of the file
             while ~feof(fileID)
                 line_no=line_no+1;
                 %Grabs the current line
@@ -290,52 +286,69 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     continue
                 end
                 
-                res_str=regexp(curr_line,title_exp,'once','tokens');
+                title_token=regexp(curr_line,title_exp,'once','tokens');
                 %If we find a title, first check if it is the specified
                 %end header. Then change the title if a title was found, 
                 %then if no title was found, put the data under the current 
                 %title.
-                if ismember(res_str, this.end_header)
+                if ismember(this.end_header, title_token)
                     break
-                elseif ~isempty(res_str)
+                elseif ~isempty(title_token)
                     % Apply genvarname for sefety in case the title string 
                     % is not a proper variable name 
-                    curr_title=genvarname(res_str{1});
-                    addField(this,curr_title);
-                %This runs if there was no match for the regular
-                %expression, i.e. the current line is not a header, and the
-                %current line is not empty. We then add this line to the
-                %current field (curr_title).
+                    curr_title=genvarname(title_token{1});
+                    addField(this, curr_title);
+                %This runs if there was no match for the header regular
+                %expression, i.e. the current line is not a filed 
+                %separator, and the current line is not empty. We then 
+                %add this line to the current field (curr_title), possibly
+                %iterating over the parameter subscripts.
                 elseif ~isempty(curr_title)
                     % First separate the comment if present
-                    tmp=strsplit(curr_line, this.comment_sep);
+                    tmp=regexp(curr_line,this.comment_sep,'split','once');
                     if length(tmp)>1
                         % the line has comment
-                        comment_str=[tmp{2:end}];
+                        comment_str=tmp{2};
                     else
                         comment_str='';
                     end
-                    % Then process name-value pair
-                    tmp=strsplit(tmp{1}, this.column_sep,...
-                        'CollapseDelimiters',true);
+                    % Then process name-value pair. Regard everything after
+                    % the first column separator as value.
+                    tmp=regexp(tmp{1},this.column_sep,'split','once');
                     
-                    if length(tmp)>=2
-                        % If present line does not contain name-value pair,
-                        % ignore it
-                        name=strtrim(tmp{1});
-                        % Assume everything after the 1-st column separator 
-                        % to be the value and attempt convertion to number
-                        val=strtrim([tmp{2:end}]);
+                    if length(tmp)<2
+                        % Ignore if a name-value pair is not found
+                        continue
+                    else
+                        % Attempt convertion of value to number
                         val=str2doubleHedged(val);
-                        %Store retrieved value
-                        addParam(this, curr_title, name, val,...
-                            'comment',comment_str);
+                    end
+                    
+                    % Infer the variable name and subscript reference
+                    try
+                        [S, name]=str2substruct(strtrim(tmp{1}));
+                    catch
+                        name='';
+                    end
+                    
+                    if isempty(name)
+                        % Ignore if variable name is not missing
+                        continue
+                    elseif ismember(name, fieldnames(this.(curr_title)))
+                        % If the variable name already presents among
+                        % parameters, add new subscript value
+                        this.(curr_title).(name).value= ...
+                            subsasgn(this.(curr_title).(name).value,S,val);
+                    else
+                        % Add new parameter with comment
+                        addParam(this, curr_title, name, sv,...
+                            'SubStruct', S, 'comment', comment_str);
                     end
                 end
             end
             
             if isempty(this.field_names)
-                warning('No header found, continuing without header')
+                warning('No metadata found, continuing without metadata.')
                 n_end_header=1;
             else
                 n_end_header=line_no;
