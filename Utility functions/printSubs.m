@@ -1,27 +1,37 @@
-% Get printed expressions for sub-elements of var as cell array. 
-% Example: if var is a structure row array of 2 elements with fields
-% f1 and f2 the function returns 
+% Print valid subscripts for var as cell array. 
+% Example: if var is a structure row array with 2 elements, which have
+% fields f1 and f2 the function returns 
 % {'(1,1).f1','(1,1).f2','(1,2).f1','(1,2).f2'}
 
-function sn = printSubnames(var)
+function sn = printSubs(var, varargin)
+    p=inputParser();
+    % own_name is optionally prependend to the names of subs to create
+    % full expressions that can be used to access parts of var
+    addParameter(p, 'own_name', '', @(x) assert(isvarname(x), ...
+        '''own_name'' must be a valid variable name.'));
+    parse(p, varargin{:});
+    own_name=p.Results.own_name;
+    
     sn={};
     if length(var)>1
+        % Expand as array
+        
         if iscell(var)
-            % Expand as cell array
+            % Cell array
             lbrace='{';
             rbrace='}';
         else
-            % Expand as regular array
+            % Regular array
             lbrace='(';
             rbrace=')';
         end
         
         % Create structure to address array elements depending on 
-        % the braces type
+        % the brace type
         S.type=[lbrace,rbrace];
         S.subs={};
         
-        % Create string for prinding formatted indices
+        % Create string for printing formatted indices
         sz = size(var);
         ind_fmt=lbrace;
         for i=1:length(sz)
@@ -60,6 +70,10 @@ function sn = printSubnames(var)
         % Do not expand
         sn={''};
     end
-        
+    
+    % Optionally prepend the own name of var
+    if ~isempty(own_name)
+        sn=cellfun(@(x)[own_name, x], sn, 'UniformOutput', false);
+    end
 end
 
