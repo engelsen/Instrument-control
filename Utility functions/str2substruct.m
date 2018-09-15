@@ -1,6 +1,6 @@
 % Convert textual representation of a Matlab expression to structure that 
 % can be used by subsref and subsasgn functions  
-function [varname, S] = str2substruct(str)
+function [S, varname] = str2substruct(str)
     % Match variable name
     vn = '^(?<varname>\w+)';           % pattern for base variable name
     name_re_out=regexp(str,vn,'match');
@@ -11,7 +11,7 @@ function [varname, S] = str2substruct(str)
     elseif length(name_re_out)>1
         error('Multiple matches are found for variable name.')
     else
-        error('No matches are found for variable name.')
+        varname='';
     end
     
     % Next match references to structure fields (or class properties), 

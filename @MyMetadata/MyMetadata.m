@@ -163,55 +163,73 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             parse(p,varargin{:});
             title_str=p.Results.title;
             
-            ParamStruct=this.(field_name);
-            param_names=fieldnames(ParamStruct);
+            ParStruct=this.(field_name);
             
-            %width of the name column
-            name_pad_length=max(cellfun(@(x) length(x), param_names));
+            %Compose the list of parameter names expanded over subscripts
+            par_names=fieldnames(ParStruct);
+            exp_par_names=cellfun(...
+                @(x)printSubs(ParStruct.(x).value, 'own_name', x), ...
+                par_names, 'UniformOutput', false);
             
-            % Make list of parameter values converted to strings
-            par_strs=cell(1,length(param_names));
-            par_lengths=zeros(1,length(param_names));
-            for i=1:length(param_names)
-                TmpParam=ParamStruct.(param_names{i});
-                if isempty(TmpParam.fmt_spec)
-                    % Convert to string with format specifier
-                    % extracted from the varaible calss
-                    par_strs{i}=var2str(TmpParam.value);
-                else
-                    par_strs{i}=sprintf(TmpParam.fmt_spec, TmpParam.value);
-                end
-                % For beauty, do not account for variables with excessively
-                % long value strings when calculating the padding
-                if length(par_strs{i})<=this.pad_lim
-                    par_lengths(i)=length(par_strs{i});
+            %Calculate width of the name column
+            name_pad_length=max(cellfun(@(x) length(x), exp_par_names));
+            
+            %Compose list of parameter values converted to char strings
+            par_strs=cell(1, length(par_names));
+            %Width of the values column will be the maximum parameter
+            %string width
+            val_pad_length=0;
+            for i=1:length(par_names)
+                TmpPar=ParStruct.(par_names{i});
+                for j=1:length(exp_par_names{i})
+                    tmpnm=exp_par_names{i}{j};
+                    tmpval=subref(TmpPar.value, str2substruct(tmpnm));
+                    if isempty(TmpPar.fmt_spec)
+                        % Convert to string with format specifier
+                        % extracted from the varaible calss
+                        par_strs{i}{j}=var2str(tmpval);
+                    else
+                        par_strs{i}{j}=sprintf(TmpPar.fmt_spec, tmpval);
+                    end
+                    % Find maximum length to determine the colum width, 
+                    % but, for beauty, do not account for variables with 
+                    % excessively long value strings
+                    tmplen=length(par_strs{i});
+                    if (val_pad_length<tmplen)&&(tmplen<=this.pad_lim)
+                        val_pad_length=tmplen;
+                    end
                 end
             end
-            %width of the values column
-            val_pad_length=max(par_lengths);
             
             fileID=fopen(fullfilename,'a');
-            %Prints the header
+            %Prints the header separator
             fprintf(fileID,[this.hdr_spec, title_str,...
                 this.hdr_spec, this.line_sep]);
             
-            for i=1:length(param_names)
+            cs=this.column_sep;
+            ls=this.line_sep;
+            data_fmt_spec=[sprintf('%%-%is',name_pad_length),...
+                    cs, sprintf('%%-%is',val_pad_length)];
+            
+            for i=1:length(par_names)
                 %Capitalize first letter of comment
-                if ~isempty(ParamStruct.(param_names{i}).comment)
+                if ~isempty(ParStruct.(par_names{i}).comment)
                     fmt_comment=[this.comment_sep,' '...
-                        upper(ParamStruct.(param_names{i}).comment(1)),...
-                        ParamStruct.(param_names{i}).comment(2:end)];
+                        upper(ParStruct.(par_names{i}).comment(1)),...
+                        ParStruct.(par_names{i}).comment(2:end)];
                 else
                     fmt_comment='';
                 end
                 
-                print_spec=[sprintf('%%-%is',name_pad_length),...
-                    this.column_sep,...
-                    sprintf('%%-%is',val_pad_length),...
-                    this.column_sep,'%s', this.line_sep];
-
-                fprintf(fileID, print_spec, param_names{i}, par_strs{i},...
-                    fmt_comment);
+                for j=1:length(exp_par_names{i})
+                    if j==1
+                        % Print comment in the first line
+                        fprintf(fileID, [data_fmt_spec,cs,'%s',ls],...
+                            exp_par_names{i}{j},par_strs{i}{j},fmt_comment);
+                    end
+                    fprintf(fileID, [data_fmt_spec,ls],...
+                        exp_par_names{i}{j}, par_strs{i}{j});
+                end
             end
             
             %Prints an extra line at the end

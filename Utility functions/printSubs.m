@@ -48,7 +48,7 @@ function sn = printSubs(var, varargin)
             % Index the variable according to the array type and
             % print the subnames of its element
             S.subs={i};
-            tmp=printSubnames(subsref(var,S));
+            tmp=printSubs(subsref(var,S));
             % Prepend array indices to the sub-part names
             tmp=cellfun(@(x)[ind_str, x], tmp, 'UniformOutput', false);
             sn=[sn; tmp]; %#ok<AGROW>
@@ -58,13 +58,13 @@ function sn = printSubs(var, varargin)
         fn = fieldnames(var);
         for i=1:length(fn)
             field_str=sprintf('.%s', fn{i});
-            tmp=printSubnames(var.(fn{i}));
+            tmp=printSubs(var.(fn{i}));
             tmp=cellfun(@(x)[field_str, x], tmp, 'UniformOutput', false);
             sn=[sn; tmp]; %#ok<AGROW>
         end
     elseif iscell(var)&&length(var)==1
         % Expand as single cell
-        tmp=printSubnames(var{1});
+        tmp=printSubs(var{1});
         sn=cellfun(@(x)['{1}', x], tmp, 'UniformOutput', false);
     else
         % Do not expand
