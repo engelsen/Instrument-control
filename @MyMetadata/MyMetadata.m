@@ -110,7 +110,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             
             %Adds the field, making sure that neither value nor comment
             %contain new line or carriage return characters, which would
-            %mess up formating when saving the header
+            %mess up formating when saving metadata
             
             newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
             
@@ -121,7 +121,6 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     'with '' ''\n'], param_name);
                 value=replace(value, newline_smb,' ');
             end
-            
             if contains(p.Results.comment, newline_smb)
                 fprintf(['Comment string for ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
@@ -160,9 +159,11 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             ParStruct=this.(field_name);
             
             %Compose the list of parameter names expanded over subscripts
+            %except for those which are already character arrays
             par_names=fieldnames(ParStruct);
             exp_par_names=cellfun(...
-                @(x)printSubs(ParStruct.(x).value, 'own_name', x), ...
+                @(x)printSubs(ParStruct.(x).value, 'own_name', x,...
+                'expansion_test',@(y) ~ischar(y)), ...
                 par_names, 'UniformOutput', false);
             
             %Calculate width of the name column
