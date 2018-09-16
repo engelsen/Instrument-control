@@ -65,7 +65,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         end
         
         %Clears the object of all fields
-        function clearFields(this)
+        function clear(this)
             cellfun(@(x) deleteField(this, x), this.field_names)
         end
         
@@ -106,7 +106,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 @isstruct)
             parse(p,varargin{:});
             
-            S=p.results.SubStruct;
+            S=p.Results.SubStruct;
             
             %Adds the field, making sure that neither value nor comment
             %contain new line or carriage return characters, which would
@@ -136,23 +136,21 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 this.(field_name).(param_name).value=value;
             else
                 % Assign using subscript structure
-                this.(field_name).(param_name).value=[];
-                this.(field_name).(param_name).value=...
-                    subsasgn(this.(field_name).(param_name).value,S,value);
+                this.(field_name).(param_name).value=subsasgn([],S,value);
             end
             
             this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
         end
         
-        function printAllHeaders(this, fullfilename)
-            addTimeHeader(this);
+        function save(this, filename)
+            addTimeField(this);
             for i=1:length(this.field_names)
-                printField(this, this.field_names{i}, fullfilename);
+                printField(this, this.field_names{i}, filename);
             end
-            printEndHeader(this, fullfilename);
+            printEndMarker(this, filename);
         end
         
-        function printField(this, field_name, fullfilename, varargin)
+        function printField(this, field_name, filename, varargin)
             %Takes optional inputs
             p=inputParser;
             addParameter(p,'title',field_name);
@@ -179,7 +177,12 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 TmpPar=ParStruct.(par_names{i});
                 for j=1:length(exp_par_names{i})
                     tmpnm=exp_par_names{i}{j};
-                    tmpval=subsref(TmpPar.value, str2substruct(tmpnm));
+                    TmpS=str2substruct(tmpnm);
+                    if isempty(TmpS)
+                        tmpval=TmpPar.value;
+                    else
+                        tmpval=subsref(TmpPar.value, TmpS);
+                    end
                     if isempty(TmpPar.fmt_spec)
                         % Convert to string with format specifier
                         % extracted from the varaible calss
@@ -197,7 +200,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 end
             end
             
-            fileID=fopen(fullfilename,'a');
+            fileID=fopen(filename,'a');
             %Prints the header separator
             fprintf(fileID,[this.hdr_spec, title_str,...
                 this.hdr_spec, this.line_sep]);
@@ -222,9 +225,10 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                         % Print comment in the first line
                         fprintf(fileID, [data_fmt_spec,cs,'%s',ls],...
                             exp_par_names{i}{j},par_strs{i}{j},fmt_comment);
+                    else
+                        fprintf(fileID, [data_fmt_spec,ls],...
+                            exp_par_names{i}{j}, par_strs{i}{j});
                     end
-                    fprintf(fileID, [data_fmt_spec,ls],...
-                        exp_par_names{i}{j}, par_strs{i}{j});
                 end
             end
             
@@ -234,8 +238,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         end
         
         %Print terminator that separates header from data
-        function printEndHeader(this, fullfilename)
-            fileID=fopen(fullfilename,'a');
+        function printEndMarker(this, filename)
+            fileID=fopen(filename,'a');
             fprintf(fileID,...
                 [this.hdr_spec, this.end_header, ...
                 this.hdr_spec, this.line_sep]);
@@ -243,7 +247,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         end
         
         %Adds time header
-        function addTimeHeader(this)
+        function addTimeField(this)
             if isprop(this,'Time')
                 deleteField(this,'Time')
             end
@@ -259,11 +263,11 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
         end
         
-        function n_end_header=load(this, fullfilename, varargin)
+        function n_end_header=load(this, filename, varargin)
             %Before we load, we clear all existing fields
-            clearFields(this);
+            clear(this);
             
-            fileID=fopen(fullfilename);
+            fileID=fopen(filename,'r');
             
             title_exp=[this.hdr_spec,'(\w.*)',this.hdr_spec];
             
@@ -317,11 +321,11 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     tmp=regexp(tmp{1},this.column_sep,'split','once');
                     
                     if length(tmp)<2
-                        % Ignore if a name-value pair is not found
+                        % Ignore the line if a name-value pair is not found
                         continue
                     else
                         % Attempt convertion of value to number
-                        val=str2doubleHedged(val);
+                        val=str2doubleHedged(strtrim(tmp{2}));
                     end
                     
                     % Infer the variable name and subscript reference
@@ -332,7 +336,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     end
                     
                     if isempty(name)
-                        % Ignore if variable name is not missing
+                        % Ignore the line if variable name is not missing
                         continue
                     elseif ismember(name, fieldnames(this.(curr_title)))
                         % If the variable name already presents among
@@ -341,7 +345,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                             subsasgn(this.(curr_title).(name).value,S,val);
                     else
                         % Add new parameter with comment
-                        addParam(this, curr_title, name, sv,...
+                        addParam(this, curr_title, name, val,...
                             'SubStruct', S, 'comment', comment_str);
                     end
                 end
@@ -354,7 +358,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 n_end_header=line_no;
             end
         end
-        
+        fclose(fileID);
     end
     
     methods
