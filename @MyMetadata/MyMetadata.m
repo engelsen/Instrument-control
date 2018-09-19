@@ -130,8 +130,10 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             else
                 % Assign using subscript structure based on the value class
                 if ischar(value)
+                    % char
                     tmp='';
                 else
+                    % numeric
                     tmp=[];
                 end
                 this.(field_name).(param_name).value=subsasgn(tmp,S,value);
