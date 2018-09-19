@@ -109,25 +109,16 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             S=p.Results.SubStruct;
             comment=p.Results.comment;
             
-            %Adds the field, making sure that neither value nor comment
+            %Making sure that the comment does not
             %contain new line or carriage return characters, which would
             %mess up formating when saving metadata
             
             newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
             
-            % any(ismember) below handles mult-dimensional character arrays
-            if (ischar(value)||isstring(value)) && ...
-                    any(ismember(value, newline_smb))
-                fprintf(['Value of ''%s'' must not contain ',...
+            if contains(comment, newline_smb)
+                warning(['Comment string for ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
-                    'with '' ''\n'], param_name);
-                value=replace(value, newline_smb,' ');
-            end
-            
-            if any(ismember(comment, newline_smb))
-                fprintf(['Comment string for ''%s'' must not contain ',...
-                    '''\\n'' and ''\\r'' symbols, replacing them ',...
-                    'with space.\n'], param_name);
+                    'with space.'], param_name);
                 comment=replace(comment, newline_smb,' ');
             end
             
@@ -137,7 +128,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 % Assign value directly
                 this.(field_name).(param_name).value=value;
             else
-                % Assign using subscript structure
+                % Assign using subscript structure based on the value class
                 if ischar(value)
                     tmp='';
                 else
@@ -150,6 +141,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         end
         
         function save(this, filename)
+            createFile(filename);
             addTimeField(this);
             for i=1:length(this.field_names)
                 printField(this, this.field_names{i}, filename);
@@ -170,24 +162,22 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             %except for those which are already character arrays
             par_names=fieldnames(ParStruct);
             
-            exp_par_names=cell(1,length(par_names));
+            %Expand parameters over subscripts, except for the character
+            %arrays
+            exp_par_names=cell(1, length(par_names));
+            maxnmarr=zeros(1, length(par_names));
             for i=1:length(par_names)
                 tmpval=ParStruct.(par_names{i}).value;
-                if ischar(tmpval)
-                    % Character arrays are indexed separately to properly
-                    % handle multi-dimensional arrays
-                    exp_par_names{i}=printArraySubs(tmpval, ...
-                        'own_name', par_names{i}, 'contract_dims', 1);
-                else
-                    % All other data structures are indexed by elements
-                    exp_par_names{i}=printSubs(tmpval, ...
-                        'own_name', par_names{i}, ...
-                        'expansion_test',@(y) ~ischar(y));
-                end
+                exp_par_names{i}=printSubs(tmpval, ...
+                    'own_name', par_names{i}, ...
+                    'expansion_test',@(y) ~ischar(y));
+                
+                %Max name length for this parameter including subscripts
+                maxnmarr(i)=max(cellfun(@(x) length(x), exp_par_names{i}));
             end
             
             %Calculate width of the name column
-            name_pad_length=max(cellfun(@(x) length(x), exp_par_names));
+            name_pad_length=min(max(maxnmarr), this.pad_lim);
             
             %Compose list of parameter values converted to char strings
             par_strs=cell(1, length(par_names));
@@ -204,6 +194,27 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     else
                         tmpval=subsref(TmpPar.value, TmpS);
                     end
+                    
+                    %Do check to detect unsupported data type
+                    if ischar(tmpval)&&~isvector(tmpval)&&~isempty(tmpval)
+                        warning(['Argument ''%s'' is a multi-dimensional ',...
+                            'character array. It will be converted to ',...
+                            'single string during saving. Use cell',...
+                            'arrays to save data as a set of separate ',...
+                            'strings.'],tmpnm)
+                        % Flatten
+                        tmpval=tmpval(:);
+                    end
+                    
+                    %Check for new line symbols in strings
+                    if (ischar(tmpval)||isstring(tmpval)) && ...
+                            any(ismember({newline,sprintf('\r')},tmpval))
+                        warning(['String value must not contain ',...
+                            '''\\n'' and ''\\r'' symbols, replacing them ',...
+                            'with '' ''']);
+                        tmpval=replace(tmpval,{newline,sprintf('\r')},' ');
+                    end
+                    
                     if isempty(TmpPar.fmt_spec)
                         % Convert to string with format specifier
                         % extracted from the varaible calss
@@ -371,7 +382,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                     end
                 end
             end
-            
+            fclose(fileID);
             if isempty(this.field_names)
                 warning('No metadata found, continuing without metadata.')
                 n_end_header=1;
@@ -379,7 +390,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 n_end_header=line_no;
             end
         end
-        fclose(fileID);
+        
     end
     
     methods
