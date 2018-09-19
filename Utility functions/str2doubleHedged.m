@@ -1,6 +1,7 @@
 function [val,str_spec]=str2doubleHedged(str)
-    if ~isnan(str2double(str))
-        val=str2double(str);
+    conv_str=str2double(str);
+    if ~isnan(conv_str)
+        val=conv_str;
         str_spec='%e';
     else
         val=str;

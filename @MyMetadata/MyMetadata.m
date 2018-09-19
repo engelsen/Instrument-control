@@ -107,6 +107,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             parse(p,varargin{:});
             
             S=p.Results.SubStruct;
+            comment=p.Results.comment;
             
             %Adds the field, making sure that neither value nor comment
             %contain new line or carriage return characters, which would
@@ -114,28 +115,35 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             
             newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
             
+            % any(ismember) below handles mult-dimensional character arrays
             if (ischar(value)||isstring(value)) && ...
-                    contains(value, newline_smb)
+                    any(ismember(value, newline_smb))
                 fprintf(['Value of ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
                     'with '' ''\n'], param_name);
                 value=replace(value, newline_smb,' ');
             end
-            if contains(p.Results.comment, newline_smb)
+            
+            if any(ismember(comment, newline_smb))
                 fprintf(['Comment string for ''%s'' must not contain ',...
                     '''\\n'' and ''\\r'' symbols, replacing them ',...
                     'with space.\n'], param_name);
-                this.(field_name).(param_name).comment= ...
-                    replace(p.Results.comment, newline_smb,' ');
-            else
-                this.(field_name).(param_name).comment=p.Results.comment;
+                comment=replace(comment, newline_smb,' ');
             end
             
+            this.(field_name).(param_name).comment=comment;
+            
             if isempty(S)
+                % Assign value directly
                 this.(field_name).(param_name).value=value;
             else
                 % Assign using subscript structure
-                this.(field_name).(param_name).value=subsasgn([],S,value);
+                if ischar(value)
+                    tmp='';
+                else
+                    tmp=[];
+                end
+                this.(field_name).(param_name).value=subsasgn(tmp,S,value);
             end
             
             this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
@@ -161,10 +169,22 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             %Compose the list of parameter names expanded over subscripts
             %except for those which are already character arrays
             par_names=fieldnames(ParStruct);
-            exp_par_names=cellfun(...
-                @(x)printSubs(ParStruct.(x).value, 'own_name', x,...
-                'expansion_test',@(y) ~ischar(y)), ...
-                par_names, 'UniformOutput', false);
+            
+            exp_par_names=cell(1,length(par_names));
+            for i=1:length(par_names)
+                tmpval=ParStruct.(par_names{i}).value;
+                if ischar(tmpval)
+                    % Character arrays are indexed separately to properly
+                    % handle multi-dimensional arrays
+                    exp_par_names{i}=printArraySubs(tmpval, ...
+                        'own_name', par_names{i}, 'contract_dims', 1);
+                else
+                    % All other data structures are indexed by elements
+                    exp_par_names{i}=printSubs(tmpval, ...
+                        'own_name', par_names{i}, ...
+                        'expansion_test',@(y) ~ischar(y));
+                end
+            end
             
             %Calculate width of the name column
             name_pad_length=max(cellfun(@(x) length(x), exp_par_names));

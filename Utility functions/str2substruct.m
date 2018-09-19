@@ -16,7 +16,7 @@ function [S, varname] = str2substruct(str)
     
     % Pattern to find comma-separated integers, possibly 
     % surrounded by white spaces, which represent array indices
-    csint = '(( *[0-9]+ *,)*( *[0-9]+ *))';
+    csint = '(( *[:0-9]+ *,)*( *[:0-9]+ *))';
     
     % Define patterns to match subscript references, i.e. structure fields, 
     % array indices and cell indices 
@@ -40,12 +40,14 @@ function [S, varname] = str2substruct(str)
             type_cell{i}='()';
             % Split and convert indices to numbers.
             char_ind=regexp(re_tokens(i).arrind,',','split');
-            subs_cell{i}=num2cell(str2double(char_ind));
+            subs_cell{i}=cellfun(@str2doubleHedged, char_ind, ...
+                'UniformOutput', false);
         elseif ~isempty(re_tokens(i).cellind)
             type_cell{i}='{}';
             % Split and convert indices to numbers.
             char_ind=regexp(re_tokens(i).cellind,',','split');
-            subs_cell{i}=num2cell(str2double(char_ind));
+            subs_cell{i}=cellfun(@str2doubleHedged, char_ind, ...
+                'UniformOutput', false);
         elseif ~isempty(re_tokens(i).fieldname)
             type_cell{i}='.';
             subs_cell{i}=re_tokens(i).fieldname;
