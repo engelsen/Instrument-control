@@ -1,4 +1,5 @@
 % Class to store data series versus time
+% Metadata for this class is stored independently
 
 classdef MyLog < matlab.mixin.Copyable
     
@@ -15,7 +16,10 @@ classdef MyLog < matlab.mixin.Copyable
         
         % File extension that is appended by default when saving the log 
         % if a different one is not specified explicitly
-        file_ext = '.log'
+        data_file_ext = '.log'
+        
+        % File extension for metadata
+        meta_file_ext = '.meta'
         
         file_name = '' % Used to save or load the data
         data_headers = {} % Cell array of column headers
@@ -36,8 +40,12 @@ classdef MyLog < matlab.mixin.Copyable
     end
     
     properties (Dependent=true)   
-        % Format specifier for one data line
-        data_line_fmt
+        data_line_fmt % Format specifier for one data line
+        
+        column_headers % Data headers + time header
+        
+        data_file_name % File name with extension for data saving
+        meta_file_name % File name with extension for metadata saving
     end
     
     methods (Access=public)
@@ -74,20 +82,36 @@ classdef MyLog < matlab.mixin.Copyable
             % file_name property
             if nargin()<2
                 fname = this.file_name;
+            else
+                this.file_name=fname;
             end
             
+            assert(~isempty(fname), 'File name is not provided.');
+            
+            datfname=this.data_file_name;
+            metfname=this.meta_file_name;
+            
             try
-            	createFile(fname);
-                % Write time labels and column headers
-                printAllHeaders(this.Metadata, fname);
-                fid = fopen(fname,'a');
-                % Write data body
-                fmt=this.data_line_fmt;
-                for i=1:length(this.timestamps)
-                    fprintf(fid, fmt,...
-                        posixtime(this.timestamps(i)), this.data{i});
+            	stat=createFile(datfname);
+                if stat
+                    % Save time labels in separate file
+                    save(this.Metadata, metfname, 'overwrite', true);
+
+                    fid = fopen(datfname,'w');
+                    printDataHeaders(this, datfname);
+                    % Write data body
+                    fmt=this.data_line_fmt;
+                    % Convert time stamps to numbers if necessary
+                    if isa(this.timestamps,'datetime')
+                        time_num_arr=posixtime(this.timestamps);
+                    else
+                        time_num_arr=this.timestamps;
+                    end
+                    for i=1:length(this.timestamps)
+                        fprintf(fid, fmt, time_num_arr(i), this.data(i,:));
+                    end
+                    fclose(fid);
                 end
-                fclose(fid);
             catch
                 warning('Log was not saved');
                 % Try closing fid in case it is still open
@@ -101,18 +125,39 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Load log from file
         function load(this, fname)
-            if nargin()<2
-                fname=this.file_name;
+            if nargin()==2
+                this.file_name=fname;
             end
             
-            end_line_no=scanHeaders(this.Metadata, fname);
+            assert(~isempty(this.file_name), 'File name is not provided.');
+            
+            load(this.Metadata, this.meta_file_name);
+            
+            % Convert time to datetime if needed
+            fid=fopen(this.data_file_name,'r');
+            col_heads=strsplit(fgetl(fid),this.data_column_sep);
+            if length(col_heads)>1
+                this.data_headers=col_heads(2:end);
+            end
             
             % Read data as delimiter-separated values and convert to cell
-            % array
-            this.data = dlmread(filename, this.column_sep, end_line_no, 0);
+            % array, skip the first line containing column headers
+            fulldata = dlmread(this.data_file_name, this.column_sep, 1, 0);
             
-            % Process metadata
-            if ismember('ColumnNames', this.Metadata.field_names)
+            this.data = fulldata(:,2:end);
+            this.timestamps = fulldata(:,1);
+            
+            % Convert to datetime if the time column format is posixtime
+            if ~isempty(col_heads) && ...
+                    contains(col_heads{1},'posix','IgnoreCase',true)
+                this.timestamps=datetime(this.timestamps);
+            end
+            
+            % Process metadata. 
+            if ismember('ColumnNames', this.Metadata.field_names) && ...
+                    length(col_heads)<=1 
+                % Assign column headers from metadata here, 
+                % if no values are found in the data file 
                 this.data_headers=this.Metadata.ColumnNames.Name.value;
             end
             if ismember('TimeLabels', this.Metadata.field_names)
@@ -327,6 +372,14 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
+        % Print column names to file
+        function printDataHeaders(this, fname)
+            cs=this.data_column_sep;
+            fid=fopen(fname, 'a');
+            fprintf(['%s',cs], this.column_headers{:});
+            fclose(fid);
+        end
+        
     end
     
     %% set and get methods
@@ -340,17 +393,29 @@ classdef MyLog < matlab.mixin.Copyable
             trim(this);
         end
         
+        function set.data_headers(this, val)
+            assert(iscellstr(val) && isrow(val), ['''data_headers'' must '...
+                'be a row cell array of character strings.']) %#ok<ISCLSTR>
+            this.data_headers=val;
+        end
+        
         % The get function for file_name adds extension if it is not
         % already present and also ensures proper file separators 
         % (by splitting and combining the file name)
-        function fname = get.file_name(this)
+        function fname = get.data_file_name(this)
             fname = this.file_name;
             [filepath,name,ext] = fileparts(fname);
             if isempty(ext)
-                ext=this.file_ext;
+                ext=this.data_file_ext;
             end
             fname = fullfile(filepath,[name,ext]);
-            this.file_name = fname;
+        end
+        
+        function fname = get.meta_file_name(this)
+            fname = this.file_name;
+            [filepath,name,~] = fileparts(fname);
+            ext=this.meta_file_ext;
+            fname = fullfile(filepath,[name,ext]);
         end
         
         function data_line_fmt=get.data_line_fmt(this)
@@ -372,6 +437,16 @@ classdef MyLog < matlab.mixin.Copyable
             data_line_fmt = [data_line_fmt, nl];
         end
         
+        function hdrs=get.column_headers(this)
+            % Add header for the time column
+            if isa(this.timestamps,'datetime')
+                time_title_str = 'POSIX time (s)';
+            else
+                time_title_str = 'Time';
+            end
+            hdrs=[time_title_str,this.data_headers];
+        end
+        
         function Mdt=get.Metadata(this)
             Mdt=this.Metadata;
             % Clear Metadata but preserve formatting
@@ -385,8 +460,7 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Add column names
             addField(Mdt, 'ColumnNames');
-            addParam(Mdt, 'ColumnNames', 'Name',...
-                    ['POSIX time (s)',this.data_headers])
+            addParam(Mdt, 'ColumnNames', 'Name', this.column_headers)
         end
     end
 end

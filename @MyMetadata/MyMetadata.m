@@ -142,8 +142,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
         end
         
-        function save(this, filename)
-            createFile(filename);
+        function save(this, filename, varargin)
+            createFile(filename, varargin{:});
             addTimeField(this);
             for i=1:length(this.field_names)
                 printField(this, this.field_names{i}, filename);
@@ -153,7 +153,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         
         function printField(this, field_name, filename, varargin)
             %Takes optional inputs
-            p=inputParser;
+            p=inputParser();
             addParameter(p,'title',field_name);
             parse(p,varargin{:});
             title_str=p.Results.title;
