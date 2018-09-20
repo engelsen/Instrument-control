@@ -1,4 +1,4 @@
-% Print valid subscripts for var as cell array.
+% Get valid subscripts for var as cell array.
 %
 % Example: if var is a structure row array with 2 elements, which have
 % fields f1 and f2 the function returns 
@@ -26,7 +26,6 @@ function sn = printSubs(var, varargin)
         sn={''};
     elseif length(var)>1
         % Expand as array
-        
         if iscell(var)
             % Cell array
             lbrace='{';

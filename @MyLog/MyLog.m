@@ -91,34 +91,25 @@ classdef MyLog < matlab.mixin.Copyable
             datfname=this.data_file_name;
             metfname=this.meta_file_name;
             
-            try
-            	stat=createFile(datfname);
-                if stat
-                    % Save time labels in separate file
-                    save(this.Metadata, metfname, 'overwrite', true);
+            stat=createFile(datfname);
+            if stat
+                % Save time labels in separate file
+                save(this.Metadata, metfname, 'overwrite', true);
 
-                    fid = fopen(datfname,'w');
-                    printDataHeaders(this, datfname);
-                    % Write data body
-                    fmt=this.data_line_fmt;
-                    % Convert time stamps to numbers if necessary
-                    if isa(this.timestamps,'datetime')
-                        time_num_arr=posixtime(this.timestamps);
-                    else
-                        time_num_arr=this.timestamps;
-                    end
-                    for i=1:length(this.timestamps)
-                        fprintf(fid, fmt, time_num_arr(i), this.data(i,:));
-                    end
-                    fclose(fid);
+                fid = fopen(datfname,'w');
+                printDataHeaders(this, datfname);
+                % Write data body
+                fmt=this.data_line_fmt;
+                % Convert time stamps to numbers if necessary
+                if isa(this.timestamps,'datetime')
+                    time_num_arr=posixtime(this.timestamps);
+                else
+                    time_num_arr=this.timestamps;
                 end
-            catch
-                warning('Log was not saved');
-                % Try closing fid in case it is still open
-                try
-                    fclose(fid);
-                catch
+                for i=1:length(this.timestamps)
+                    fprintf(fid, fmt, time_num_arr(i), this.data(i,:));
                 end
+                fclose(fid);
             end
         end
         
@@ -130,19 +121,31 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             assert(~isempty(this.file_name), 'File name is not provided.');
+            assert(exist(fname, 'file')==2, ['File ''',fname,...
+                ''' is not found.'])
             
-            load(this.Metadata, this.meta_file_name);
+            % Load metadata if file is found
+            if exist(this.meta_file_name, 'file')==2
+                % Fields of Metadata are re-initialized by its get method, so
+                % need to copy in order for the loaded information to be not
+                % overwritten, on one hand, and on the other hand to use the
+                % formatting defined by Metadata.
+                M=copy(this.Metadata);
+                load(M, this.meta_file_name);
+            end
             
             % Convert time to datetime if needed
-            fid=fopen(this.data_file_name,'r');
-            col_heads=strsplit(fgetl(fid),this.data_column_sep);
-            if length(col_heads)>1
+            fid=fopen(fname,'r');
+            col_heads=strsplit(fgetl(fid),this.data_column_sep, ...
+                'CollapseDelimiters', true);
+            if length(col_heads)>=2
                 this.data_headers=col_heads(2:end);
             end
+            fclose(fid);
             
             % Read data as delimiter-separated values and convert to cell
             % array, skip the first line containing column headers
-            fulldata = dlmread(this.data_file_name, this.column_sep, 1, 0);
+            fulldata = dlmread(fname, this.column_sep, 1, 0);
             
             this.data = fulldata(:,2:end);
             this.timestamps = fulldata(:,1);
@@ -150,18 +153,20 @@ classdef MyLog < matlab.mixin.Copyable
             % Convert to datetime if the time column format is posixtime
             if ~isempty(col_heads) && ...
                     contains(col_heads{1},'posix','IgnoreCase',true)
-                this.timestamps=datetime(this.timestamps);
+                this.timestamps=datetime(this.timestamps, ...
+                    'ConvertFrom','posixtime');
             end
             
-            % Process metadata. 
-            if ismember('ColumnNames', this.Metadata.field_names) && ...
+            % Process metadata 
+            if ismember('ColumnNames', M.field_names) && ...
+                    length(M.ColumnNames.Name.value)>=2 && ...
                     length(col_heads)<=1 
                 % Assign column headers from metadata here, 
                 % if no values are found in the data file 
-                this.data_headers=this.Metadata.ColumnNames.Name.value;
+                this.data_headers=M.ColumnNames.Name.value(2:end);
             end
-            if ismember('TimeLabels', this.Metadata.field_names)
-                Lbl=this.Metadata.TimeLabels.Lbl.value;
+            if ismember('TimeLabels', M.field_names)
+                Lbl=M.TimeLabels.Lbl.value;
                 for i=1:length(Lbl)
                     this.TimeLabels(i).time_str=Lbl(i).time_str;
                     this.TimeLabels(i).time=datetime(Lbl(i).time_str);
@@ -292,8 +297,18 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         % Add label to the metadata
-        function addTimeLabel(this, time, str)
-            if nargin()<3
+        function addTimeLabel(this, time, str, varargin)
+            p=inputParser();
+            addOptional(p, 'time', datetime('now'), ...
+                @(x)assert(isa(x,'datetime'), ...
+                '''time'' must be of the type datetime.'));
+            addOptional(p, 'str', '', ...
+                @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
+                '''str'' must be a string or cell array of strings.'));
+            addParameter(p, 'save', false, @islogical);
+            parse(p, varargin{:});
+            
+            if any(ismember({'time','str'}, p.UsingDefaults))
                 % Invoke a dialog to add the label time and name
                 answ = inputdlg({'Label text', 'Time'},'Add time label',...
                     [2 40; 1 40],{'',datestr(datetime('now'))});
@@ -304,7 +319,7 @@ classdef MyLog < matlab.mixin.Copyable
                     % Conversion of the inputed value to datetime to
                     % ensure proper format
                     time=datetime(answ{2});
-                    str=answ{1};
+                    str=cellstr(answ{1});
                 end
             end
             
@@ -316,7 +331,12 @@ classdef MyLog < matlab.mixin.Copyable
             this.TimeLabels(l+1).time_str=datestr(time);
             this.TimeLabels(l+1).text_str=str;
             this.TimeLabels(l+1).isdispl=true;
-            this.TimeLabels(l+1).mark_arr=calcTimeLabelLine(this, time);
+            
+            if p.Results.save==true
+                % Save metadata with new time labels
+                save(this.Metadata, this.meta_file_name, ...
+                    'overwrite', true);
+            end
         end
         
         % Clear log data and time labels
@@ -328,8 +348,6 @@ classdef MyLog < matlab.mixin.Copyable
             % Clear data and its type
             this.timestamps = [];
             this.data = [];
-            
-            clearFields(this.Metadata);
         end
         
         % Verify that the data can be saved or plotted
@@ -354,23 +372,23 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
-        function mark_arr = calcTimeLabelLine(this, time)
-            % Define the extent of marker line to cover the data range
-            % at the point nearest to the time label
-            
-            if isempty(this.timestamps)||this.timestamps(end)<time
-                % If, for whatever reason, the time label is further in
-                % future than the end of the time array, keep the mark
-                % array undefined
-                mark_arr=[];
-            else
-                % Otherwise calculate it to cover all data points at the
-                % time of mark +/- 10%
-                [~, ind] = min(this.timestamps-time);
-                [mindat, maxdat]=minmax(this.data(ind,:));
-                mark_arr={time, linspace(0.9*mindat, 1.1*maxdat, 10)};
-            end
-        end
+%         function mark_arr = calcTimeLabelLine(this, time)
+%             % Define the extent of marker line to cover the data range
+%             % at the point nearest to the time label
+%             
+%             if isempty(this.timestamps)||this.timestamps(end)<time
+%                 % If, for whatever reason, the time label is further in
+%                 % future than the end of the time array, keep the mark
+%                 % array undefined
+%                 mark_arr=[];
+%             else
+%                 % Otherwise calculate it to cover all data points at the
+%                 % time of mark +/- 10%
+%                 [~, ind] = min(this.timestamps-time);
+%                 [mindat, maxdat]=minmax(this.data(ind,:));
+%                 mark_arr={time, linspace(0.9*mindat, 1.1*maxdat, 10)};
+%             end
+%         end
         
         % Print column names to file
         function printDataHeaders(this, fname)
