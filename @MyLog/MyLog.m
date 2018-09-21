@@ -46,6 +46,8 @@ classdef MyLog < matlab.mixin.Copyable
         
         data_file_name % File name with extension for data saving
         meta_file_name % File name with extension for metadata saving
+        
+        timestamps_num % timestamps converted to numerical format
     end
     
     methods (Access=public)
@@ -62,7 +64,7 @@ classdef MyLog < matlab.mixin.Copyable
                 'time',{},...       % datetime object
                 'time_str',{},...   % time in text format
                 'text_str',{},...   % message string
-                'isdispl',{},...    % if this label is to be displayed
+                'isdisp',{},...    % if this label is to be displayed
                 'text_handles',{});  % handle to the plotted text object
             
             % Load the data from file if the file name was provided
@@ -100,14 +102,9 @@ classdef MyLog < matlab.mixin.Copyable
                 printDataHeaders(this, datfname);
                 % Write data body
                 fmt=this.data_line_fmt;
-                % Convert time stamps to numbers if necessary
-                if isa(this.timestamps,'datetime')
-                    time_num_arr=posixtime(this.timestamps);
-                else
-                    time_num_arr=this.timestamps;
-                end
                 for i=1:length(this.timestamps)
-                    fprintf(fid, fmt, time_num_arr(i), this.data(i,:));
+                    fprintf(fid, fmt, this.timestamps_num(i), ...
+                        this.data(i,:));
                 end
                 fclose(fid);
             end
@@ -159,10 +156,9 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Process metadata 
             if ismember('ColumnNames', M.field_names) && ...
-                    length(M.ColumnNames.Name.value)>=2 && ...
-                    length(col_heads)<=1 
+                    length(M.ColumnNames.Name.value)>=2
                 % Assign column headers from metadata here, 
-                % if no values are found in the data file 
+                % possibly overwriting the ones found in the main file 
                 this.data_headers=M.ColumnNames.Name.value(2:end);
             end
             if ismember('TimeLabels', M.field_names)
@@ -182,32 +178,39 @@ classdef MyLog < matlab.mixin.Copyable
             % Verify that the data can be plotted
             assertDataMatrix(this);
             
+            [~, ncols] = size(this.data);
+            
             p=inputParser();
-            addOptional(p, 'Ax', gca(),...
-                @(x)assert(isa(x,'axes')||isa(x,'uiaxes'),...
+            addOptional(p, 'Ax', gca(), @(x)assert( ...
+                isa(x,'axes')||isa(x,'uiaxes'),...
                 'Argument must be axes or uiaxes.'));
-            addParameter(p, 'time_labels', true);
-            addParameter(p, 'legend', true);
+            addParameter(p, 'time_labels', true, @islogical);
+            addParameter(p, 'legend', true, @islogical);
+            addParameter(p, 'isdisp', true(1,ncols), @(x) assert(...
+                islogical(x) && isvector(x) && length(x)==ncols, ...
+                ['''isdisp'' must be a logical vector of the size ',...
+                'equal to the number of columns in data.']));
             parse(p, varargin{:});
             
             Ax=p.Results.Ax;
-            
-            [~, ncols] = size(this.data);
+            isdisp=p.Results.isdisp;
             
             % Plot data
-            pl_args=cell(1,2*ncols);
-            for i=1:ncols   
-                pl_args{2*i-1}=this.timestamps;
-                pl_args{2*i}=this.data(:,i);
+            pl_args={};
+            for i=1:ncols
+                if isdisp(i)
+                    pl_args=[pl_args, {this.timestamps}]; %#ok<AGROW>
+                    pl_args=[pl_args, {this.data(:,i)}]; %#ok<AGROW>
+                end
             end
             plot(Ax, pl_args{:});
             
             % Plot time labels and legend
             if (p.Results.time_labels)
-                plotTimeLabels(this);
+                plotTimeLabels(this, Ax);
             end
             if (p.Results.legend)
-                plotLegend(this);
+                plotLegend(this, Ax);
             end
 
         end
@@ -216,23 +219,36 @@ classdef MyLog < matlab.mixin.Copyable
             hold(Ax,'on')
             
             % Marker line for time labels spans over the entire plot
-            [ymin,ymax]=ylim(Ax);
-            markline = linspace(ymin, ymax, 10);
+            yminmax=ylim(Ax);
+            ymin=yminmax(1);
+            ymax=yminmax(2);
+            
+            Ax.ClippingStyle='rectangle';
+            markline = linspace(ymin, ymax, 2);
             for i=1:length(this.TimeLabels)
                 t=this.TimeLabels(i);
-                % Add line to plot
-                plot(Ax, t.time, markline);
-                % Add text label to plot
-                str=t.text_str;
-                txt_h=text(Ax, posixtime(t.time), 1, str);
-                t.text_handles=[t.text_handles,txt_h];
+                marktime = [t.time,t.time];
+                if t.isdisp
+                    % Add text label to plot, with 2% offset for beauty
+                    str=t.text_str;
+                    txt_h=text(Ax, t.time, 0.98*ymax, str,...
+                        'HorizontalAlignment','right',...
+                        'VerticalAlignment','bottom',...
+                        'Rotation',90,...
+                        'BackgroundColor','white',...
+                        'Clipping','on',...
+                        'Margin',1);
+                    t.text_handles=[t.text_handles,txt_h];
+                    % Add line to plot
+                    plot(Ax, marktime, markline,'color','black');
+                end
             end
             hold(Ax,'off')
         end
         
         function plotLegend(this, Ax)
              % Add legend
-            if n>=1 && ~isempty(this.data_headers{:})
+            if ~isempty(this.data_headers)
                 legend(Ax, this.data_headers{:},'Location','northeastoutside');
             end
         end
@@ -330,7 +346,7 @@ classdef MyLog < matlab.mixin.Copyable
             this.TimeLabels(l+1).time=time;
             this.TimeLabels(l+1).time_str=datestr(time);
             this.TimeLabels(l+1).text_str=str;
-            this.TimeLabels(l+1).isdispl=true;
+            this.TimeLabels(l+1).isdisp=true;
             
             if p.Results.save==true
                 % Save metadata with new time labels
@@ -371,24 +387,6 @@ classdef MyLog < matlab.mixin.Copyable
                 this.data(1:dn)=[];
             end
         end
-        
-%         function mark_arr = calcTimeLabelLine(this, time)
-%             % Define the extent of marker line to cover the data range
-%             % at the point nearest to the time label
-%             
-%             if isempty(this.timestamps)||this.timestamps(end)<time
-%                 % If, for whatever reason, the time label is further in
-%                 % future than the end of the time array, keep the mark
-%                 % array undefined
-%                 mark_arr=[];
-%             else
-%                 % Otherwise calculate it to cover all data points at the
-%                 % time of mark +/- 10%
-%                 [~, ind] = min(this.timestamps-time);
-%                 [mindat, maxdat]=minmax(this.data(ind,:));
-%                 mark_arr={time, linspace(0.9*mindat, 1.1*maxdat, 10)};
-%             end
-%         end
         
         % Print column names to file
         function printDataHeaders(this, fname)
@@ -463,6 +461,15 @@ classdef MyLog < matlab.mixin.Copyable
                 time_title_str = 'Time';
             end
             hdrs=[time_title_str,this.data_headers];
+        end
+        
+        function time_num_arr=get.timestamps_num(this)
+            % Convert time stamps to numbers
+            if isa(this.timestamps,'datetime')
+                time_num_arr=posixtime(this.timestamps);
+            else
+                time_num_arr=this.timestamps;
+            end
         end
         
         function Mdt=get.Metadata(this)

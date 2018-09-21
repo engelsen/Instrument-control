@@ -38,17 +38,13 @@ classdef MyLogger < handle
             
             this.Log=MyLog(P.unmatched_nv{:});
                  
-            if ismember('MeasTimer', P.UsingDefaults)
-                % Create and confitugure timer unless it was supplied
-                % externally in varargin
-                this.MeasTimer = timer();
-                this.MeasTimer.BusyMode = 'drop';
-                % Fixed spacing mode of operation does not follow the
-                % period very well, but is robust with respect to
-                % function execution delays
-                this.MeasTimer.ExecutionMode = 'fixedSpacing';
-            end 
-            
+            % Create and confitugure timer
+            this.MeasTimer = timer();
+            this.MeasTimer.BusyMode = 'drop';
+            % Fixed spacing mode of operation does not follow the
+            % period very well, but is robust with respect to
+            % function execution delays
+            this.MeasTimer.ExecutionMode = 'fixedSpacing';
             this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
         end
         
@@ -85,7 +81,7 @@ classdef MyLogger < handle
             
             if this.last_meas_stat==1 
                 % append measurement result together with time stamp
-                appendPoint(this.Log, time, meas_result,...
+                appendData(this.Log, time, meas_result,...
                     'save', this.save_cont);
                 triggerNewData(this);
             end
@@ -94,6 +90,15 @@ classdef MyLogger < handle
         %Triggers event for acquired data
         function triggerNewData(this)
             notify(this,'NewData')
+        end
+    end
+    
+    %% Set and get functions
+    methods 
+        function set.MeasFcn(this, val)
+            assert(isa(val,'function_handle'), ...
+                '''MeasFcn'' must be a function handle.');
+            this.MeasFcn=val;
         end
     end
 end
