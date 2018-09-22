@@ -23,7 +23,7 @@ classdef MyLogger < handle
         last_meas_stat = 2 
         
         % MyLog object to store the recorded data
-        Log
+        Record
     end
     
     events
@@ -36,7 +36,7 @@ classdef MyLogger < handle
             P=MyClassParser(this);
             processInputs(P, this, varargin{:});
             
-            this.Log=MyLog(P.unmatched_nv{:});
+            this.Record=MyLog(P.unmatched_nv{:});
                  
             % Create and confitugure timer
             this.MeasTimer = timer();
@@ -81,7 +81,7 @@ classdef MyLogger < handle
             
             if this.last_meas_stat==1 
                 % append measurement result together with time stamp
-                appendData(this.Log, time, meas_result,...
+                appendData(this.Record, time, meas_result,...
                     'save', this.save_cont);
                 triggerNewData(this);
             end

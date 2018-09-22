@@ -196,14 +196,18 @@ classdef MyLog < matlab.mixin.Copyable
             isdisp=p.Results.isdisp;
             
             % Plot data
-            pl_args={};
+%             pl_args={};
+%             for i=1:ncols
+%                 if isdisp(i)
+%                     pl_args=[pl_args, {this.timestamps}]; %#ok<AGROW>
+%                     pl_args=[pl_args, {this.data(:,i)}]; %#ok<AGROW>
+%                 end
+%             end
+%             plot(Ax, pl_args{:});
+            Pls=line(Ax, this.timestamps, this.data);
             for i=1:ncols
-                if isdisp(i)
-                    pl_args=[pl_args, {this.timestamps}]; %#ok<AGROW>
-                    pl_args=[pl_args, {this.data(:,i)}]; %#ok<AGROW>
-                end
+                Pls(i).Visible=isdisp(i);
             end
-            plot(Ax, pl_args{:});
             
             % Plot time labels and legend
             if (p.Results.time_labels)
