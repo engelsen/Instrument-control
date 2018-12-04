@@ -5,30 +5,29 @@
 % logger can store any kind of outputs.
 classdef MyLogger < handle & MyInputHandler
     properties (Access=public)
-        MeasTimer = []; % Timer object
-        MeasFcn = @()0;
-        save_cont = false;
-        save_file = '';
-        data_headers = {}; % Cell array of column headers
+        MeasTimer % Timer object
+        MeasFcn = @()0
+        save_cont = false
+        save_file
+        data_headers = {} % Cell array of column headers
         
         % format specifiers for data saving and display
-        time_fmt = '%14.3f'; % Save time as posixtime up to ms precision
-        data_field_width = '24';
-        data_fmt = '%24.14e'; % Save data as reals with 14 decimal digits
+        time_fmt = '%14.3f' % Save time as posixtime up to ms precision
+        data_field_width = '24'
+        data_fmt = '%24.14e' % Save data as reals with 14 decimal digits
         % Format for displaying last reading label: value
-        disp_fmt = '%15s: %.2e';
+        disp_fmt = '%15s: %.2e'
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        % Trace = MyTrace(); % Trace object for communication with Daq
-        timestamps = []; % Times at which data was aqcuired
-        data = []; % Stored cell array of measurements
-        last_meas_stat = 2; % If last measurement was succesful
+        timestamps % Times at which data was aqcuired
+        data % Stored cell array of measurements
+        last_meas_stat = 2 % If last measurement was succesful
         % 0-false, 1-true, 2-never measured
     end
     
     events
-        NewData;
+        NewData
     end
     
     methods
@@ -42,8 +41,11 @@ classdef MyLogger < handle & MyInputHandler
                 % Create and confitugure timer unless it was supplied
                 % externally in varargin
                 this.MeasTimer = timer();
-                this.MeasTimer.BusyMode = 'queue';
-                this.MeasTimer.ExecutionMode = 'FixedRate';
+                this.MeasTimer.BusyMode = 'drop';
+                % Fixed spacing mode of operation does not follow the
+                % period very well, but is robust with respect to
+                % communication delays
+                this.MeasTimer.ExecutionMode = 'fixedSpacing';
                 this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
             end 
         end

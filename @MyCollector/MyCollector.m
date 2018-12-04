@@ -1,22 +1,21 @@
 classdef MyCollector < handle & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
-        InstrProps=struct();
-        InstrList=struct();
-        MeasHeaders=MyMetadata();
-        Data=MyTrace();
-        collect_flag;
+        InstrList % Structure accomodating instruments 
+        InstrProps % Properties of instruments
+        MeasHeaders
+        collect_flag
     end
     
     properties (Access=private)
-        Listeners=struct();
+        Listeners
     end
     
     properties (Dependent=true)
-        open_instruments;
+        running_instruments
     end
     
     events
-        NewDataCollected;
+        NewDataWithHeaders
     end
     
     methods (Access=public)
@@ -30,53 +29,49 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             if ~isempty(p.Results.InstrHandles)
                 cellfun(@(x) addInstrument(this,x),p.Results.InstrHandles);
             end
+            
+            this.MeasHeaders=MyMetadata();
+            this.InstrList=struct();  
+            this.InstrProps=struct(); 
+            this.Listeners=struct();
         end
         
         function delete(this)
-            cellfun(@(x) deleteListeners(this,x), this.open_instruments);
+            cellfun(@(x) deleteListeners(this,x), this.running_instruments);
         end
         
-        function addInstrument(this,prog_handle,varargin)
+        function addInstrument(this,instr_handle,varargin)
             p=inputParser;
             addParameter(p,'name','UnknownDevice',@ischar)
             parse(p,varargin{:});
-            
+
             %Find a name for the instrument
             if ~ismember('name',p.UsingDefaults)
-                name=erase(p.Results.name,' ');
-            elseif isprop(prog_handle,'name') && ~isempty(prog_handle.name)
-                name=prog_handle.name;
-            elseif ~isempty(findMyInstrument(prog_handle))
-                h_instr=findMyInstrument(prog_handle);
-                if isprop(h_instr,'name') && ~isempty(h_instr.name)
-                    name=h_instr.name;
-                else
-                    name=p.Results.name;
-                end
-            else
                 name=p.Results.name;
+            elseif isprop(instr_handle,'name') && ~isempty(instr_handle.name)
+                name=genvarname(instr_handle.name, this.running_instruments);
+            else
+                name=genvarname(p.Results.name, this.running_instruments);
             end
             
-            %We add only classes that have readHeaders functionality
-            if contains('readHeader',methods(prog_handle))
+            if ismethod(instr_handle, 'readHeader')
                 %Defaults to read header
                 this.InstrProps.(name).header_flag=true;
-                this.InstrList.(name)=prog_handle;
-            elseif contains('readHeader',...
-                    methods(findMyInstrument(prog_handle)))
-                %Defaults to read header
-                this.InstrProps.(name).header_flag=true;
-                this.InstrList.(name)=findMyInstrument(prog_handle);
             else
-                error(['%s does not have a readHeaders function,',...
-                    ' cannot be added to Collector'],name)
+                % If class does not have readHeader function, it can still
+                % be added to the collector to transfer trace to Daq
+                this.InstrProps.(name).header_flag=false;
+                warning(['%s does not have a readHeader function, ',...
+                    'measurement headers will not be collected from ',...
+                    'this instrument.'],name)
             end
+            this.InstrList.(name)=instr_handle;
             
             %If the added instrument has a newdata event, we add a listener for it.
             if contains('NewData',events(this.InstrList.(name)))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
-                    @(src,~) acquireData(this,src));
+                    @(~,InstrEventData) acquireData(this, InstrEventData));
             end
             
             %Cleans up if the instrument is closed
@@ -85,12 +80,20 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function acquireData(this,src)
-            %Copy the data from the instrument. 
-            this.Data=copy(src.Trace);
+        function acquireData(this,InstrEventData)
+            src=InstrEventData.Source;
             
-            %Collect the headers if the flag is on
-            if this.collect_flag     
+            % Check that event data object is MyNewDataEvent,
+            % and fix otherwise
+            if ~isa(InstrEventData,'MyNewDataEvent')
+                InstrEventData=MyNewDataEvent();
+                InstrEventData.no_new_header=false;
+                InstrEventData.Instr=src;
+            end
+            
+            % Collect the headers if the flag is on and if the triggering 
+            % instrument does not request suppression of header collection
+            if this.collect_flag && ~InstrEventData.no_new_header
                 this.MeasHeaders=MyMetadata();
                 addField(this.MeasHeaders,'AcquiringInstrument')
                 if isprop(src,'name')
@@ -99,24 +102,31 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                     name='Not Accessible';
                 end
                 addParam(this.MeasHeaders,'AcquiringInstrument',...
-                    'Name',name,'%s');
+                    'Name',name);
                 acquireHeaders(this);
                 %We copy the MeasHeaders to the trace.
-                this.Data.MeasHeaders=copy(this.MeasHeaders);
+                src.Trace.MeasHeaders=copy(this.MeasHeaders);
             end
             
-            triggerNewDataCollected(this,'tag',src.name);
+            triggerNewDataWithHeaders(this,InstrEventData);
         end
         
         %Collects headers for open instruments with the header flag on
         function acquireHeaders(this)
-            for i=1:length(this.open_instruments)
-                name=this.open_instruments{i};
+            for i=1:length(this.running_instruments)
+                name=this.running_instruments{i};
                 
                 if this.InstrProps.(name).header_flag
-                    tmp_struct=readHeader(this.InstrList.(name));
-                    addField(this.MeasHeaders,name);
-                    addStructToField(this.MeasHeaders,name,tmp_struct);
+                    try
+                        TmpMetadata=readHeader(this.InstrList.(name));
+                        addMetadata(this.MeasHeaders, TmpMetadata);
+                    catch
+                        warning(['Error while reading metadata from %s.',...
+                            'Measurement header collection is switched ',...
+                            'off for this instrument.'],name)
+                        this.InstrProps.(name).header_flag=false;
+                    end
+                    
                 end
             end
         end
@@ -125,35 +135,18 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             this.MeasHeaders=MyMetadata();
         end
         
-        function Trace=getTrace(this,name)
-            assert(isopen(this,name),'%s is not an open instrument');
-            assert(isprop(this.InstrList.(name),'Trace'),...
-                'Cannot get trace, %s does not have a Trace property',...
-                name);
-            Trace=this.InstrList.(name).Trace;
-        end
-        
-        function bool=isopen(this,name)
+        function bool=isrunning(this,name)
             assert(~isempty(name),'Instrument name must be specified')
             assert(ischar(name),...
                 'Instrument name must be a character, not %s',...
             class(name));
-            bool=ismember(this.open_instruments,name);
+            bool=ismember(this.running_instruments,name);
         end
     end
     
-    methods (Access=private)
-        function triggerMeasHeaders(this)
-            notify(this,'NewMeasHeaders');
-        end
-        
-        function triggerNewDataCollected(this,varargin)
-            p=inputParser;
-            addParameter(p,'tag','',@ischar);
-            parse(p,varargin{:});
-            %Load the information into event data.
-            eventdata=MyNewDataEvent('src_tag',p.Results.tag);
-            notify(this,'NewDataCollected',eventdata);
+    methods (Access=private)       
+        function triggerNewDataWithHeaders(this,InstrEventData)
+            notify(this,'NewDataWithHeaders',InstrEventData);
         end
 
         %deleteListeners is in a separate file
@@ -168,8 +161,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
     end
     
     methods
-        function open_instruments=get.open_instruments(this)
-            open_instruments=fieldnames(this.InstrList);
+        function running_instruments=get.running_instruments(this)
+            running_instruments=fieldnames(this.InstrList);
         end
     end
 end

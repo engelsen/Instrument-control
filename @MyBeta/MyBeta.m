@@ -104,6 +104,12 @@ classdef MyBeta < handle
         %Initializes the GUI with correct callbacks
         function initGui(this)
             this.Gui.AnalyzeButton.Callback=@(~,~) analyzeCallback(this);
+            this.Gui.figure1.CloseRequestFcn=@(~,~) closeFigure(this);
+        end
+        
+        %The close figure function calls the deletion method.
+        function closeFigure(this)
+            delete(this);
         end
         
         %Creates input parser for constructor

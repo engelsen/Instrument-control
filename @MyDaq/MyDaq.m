@@ -1,113 +1,113 @@
+% Acquisition and analysis program that receives data from Collector. Can
+% also be used for analysis of previously acquired traces.
 classdef MyDaq < handle
     properties
+        %Global variable with Daq name is cleared on exit.
+        global_name
         %Contains GUI handles
-        Gui;
+        Gui
         %Contains Reference trace (MyTrace object)
-        Ref;
+        Ref
         %Contains Data trace (MyTrace object)
-        Data;
+        Data
         %Contains Background trace (MyTrace object)
-        Background;
+        Background
 
         %List of all the programs with run files
-        ProgramList=struct();
+        ProgramList
         %Struct containing Cursor objects
-        Cursors=struct();
+        Cursors
         %Struct containing Cursor labels
-        CrsLabels=struct();
+        CrsLabels
         %Struct containing MyFit objects
-        Fits=struct();
+        Fits
         %Input parser for class constructor
-        ConstructionParser;
+        ConstructionParser
         %Struct for listeners
-        Listeners=struct();
+        Listeners
 
         %Sets the colors of fits, data and reference
         fit_color='k';
         data_color='b';
         ref_color='r';
         bg_color='c';
-        
-        %Flag for enabling the GUI
-        enable_gui;
     end
     
     properties (Dependent=true)
-        save_dir;
-        main_plot;
-        open_fits;
-        open_crs;
-        running_progs;
+        save_dir
+        main_plot
+        open_fits
+        open_crs
     end
     
-    properties (Dependent=true, SetAccess=private)
+    properties (Dependent=true, SetAccess=private, GetAccess=public)
         %Properties for saving files
-        base_dir;
-        session_name;
-        filename;
+        base_dir
+        session_name
+        filename
     end
     
     methods (Access=public)
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
+            % Initialize variables
+            % Traces
+            this.Ref=MyTrace();
+            this.Data=MyTrace();
+            this.Background=MyTrace();
+            % Lists
+            this.ProgramList=struct();
+            this.Cursors=struct();
+            this.CrsLabels=struct();
+            this.Fits=struct();
+            this.ConstructionParser;
+            this.Listeners=struct();
+            
+            % Parse inputs
             p=inputParser;
-            addParameter(p,'enable_gui',1);
-            addParameter(p,'collector_handle',[])
+            addParameter(p,'global_name','',@ischar);
+            addParameter(p,'collector_handle',[]);
             this.ConstructionParser=p;
             parse(p, varargin{:});
             
-            %Sets the class variables to the inputs from the inputParser.
-            for i=1:length(p.Parameters)
-                %Takes the value from the inputParser to the appropriate
-                %property.
-                if isprop(this, p.Parameters{i})
-                    this.(p.Parameters{i})= p.Results.(p.Parameters{i});
-                end
+            this.global_name = p.Results.global_name;
+            
+            %Sets a listener to the collector
+            if ~isempty(p.Results.collector_handle)
+                this.Listeners.Collector.NewDataWithHeaders=...
+                    addlistener(p.Results.collector_handle,...
+                    'NewDataWithHeaders',...
+                    @(~,eventdata) acquireNewData(this,eventdata));
+            else
+                errordlg(['No collector handle was supplied. ',...
+                    'DAQ will be unable to acquire data'],...
+                    'Error: No collector');
             end
 
             %The list of instruments is automatically populated from the
             %run files
             this.ProgramList = readRunFiles();
             
-            if this.enable_gui
-                %We grab the guihandles from a GUI made in Guide.
-                this.Gui=guihandles(eval('GuiDaq'));
-                %This function sets all the callbacks for the GUI. If a new
-                %button is made, the associated callback must be put in the
-                %initGui function
-                initGui(this);
-                % Initialize the menu based on the available run files
-                content = menuFromRunFiles(this.ProgramList,...
-                    'show_in_daq',true);
-                set(this.Gui.InstrMenu,'String',[{'Select the application'};...
-                    content.titles]);
-                % Add a property to the menu for storing the program file
-                % names
-                if ~isprop(this.Gui.InstrMenu, 'ItemsData')
-                    addprop(this.Gui.InstrMenu, 'ItemsData');
-                end
-                set(this.Gui.InstrMenu,'ItemsData',[{''};...
-                    content.tags]);
-                hold(this.main_plot,'on');
+            %We grab the guihandles from a GUI made in Guide.
+            this.Gui=guihandles(eval('GuiDaq'));
+            %This function sets all the callbacks for the GUI. If a new
+            %button is made, the associated callback must be put in the
+            %initGui function
+            initGui(this);
+            % Initialize the menu based on the available run files
+            content = menuFromRunFiles(this.ProgramList,...
+                'show_in_daq',true);
+            set(this.Gui.InstrMenu,'String',[{'Select the application'};...
+                content.titles]);
+            % Add a property to the menu for storing the program file
+            % names
+            if ~isprop(this.Gui.InstrMenu, 'ItemsData')
+                addprop(this.Gui.InstrMenu, 'ItemsData');
             end
-            
-            %Sets a listener to the collector
-            if ~isempty(p.Results.collector_handle)
-                this.Listeners.Collector.NewDataCollected=...
-                    addlistener(p.Results.collector_handle,...
-                    'NewDataCollected',...
-                    @(src,event) acquireNewData(this,src,event));
-            else
-                errordlg(['No collector handle was supplied. ',...
-                    'DAQ will be unable to acquire data'],...
-                    'Error: No collector');
-            end
-            
-            %Initializes empty trace objects
-            this.Ref=MyTrace();
-            this.Data=MyTrace();
-            this.Background=MyTrace();
+            set(this.Gui.InstrMenu,'ItemsData',[{''};...
+                content.tags]);
+            hold(this.main_plot,'on');
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
@@ -126,13 +126,14 @@ classdef MyDaq < handle
                     fieldnames(this.Listeners));
             end
             
-            if this.enable_gui
-                this.Gui.figure1.CloseRequestFcn='';
-                %Deletes the figure
-                delete(this.Gui.figure1);
-                %Removes the figure handle to prevent memory leaks
-                this.Gui=[];
-            end         
+            % clear global variable, to which Daq handle is assigned
+            evalin('base', sprintf('clear(''%s'')', this.global_name));
+            
+            this.Gui.figure1.CloseRequestFcn='';
+            %Deletes the figure
+            delete(this.Gui.figure1);
+            %Removes the figure handle to prevent memory leaks
+            this.Gui=[];      
         end
     end
     
@@ -468,16 +469,12 @@ classdef MyDaq < handle
             else
                 tag = hObject.ItemsData{val};
             end
-            
 
             try
-                [~, fname, ~] =...
-                    fileparts(this.ProgramList.(tag).fullname);
-                prog = feval(fname);
-                evalin('base', prog);
+                eval(this.ProgramList.(tag).run_expr);
             catch
                 errordlg(sprintf('An error occured while running %s',...
-                    this.ProgramList.(tag).fullname))
+                    this.ProgramList.(tag).name))
             end
 
         end
@@ -794,17 +791,20 @@ classdef MyDaq < handle
         end
         
         %Callback function for the NewData listener
-        function acquireNewData(this, src, event)
+        function acquireNewData(this, EventData)
             %Get the currently selected instrument
             val=this.Gui.InstrMenu.Value;
-            curr_instr_tag=this.Gui.InstrMenu.ItemsData{val};
+            curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
+            %Get the name of instrument that generated new data
+            SourceInstr = EventData.Instr;
+            source_name = SourceInstr.name;
             
             %Check if the data originates from the currently selected
             %instrument
-            if strcmp(event.src_tag,curr_instr_tag)
+            if strcmp(source_name, curr_instr_name)
                 hline=getLineHandle(this.Data,this.main_plot);
-                %Copy the data from the collector
-                this.Data=copy(src.Data);
+                %Copy the data from the source instrument
+                this.Data=copy(SourceInstr.Trace);
                 %We give the new trace object the right line handle to plot in
                 if ~isempty(hline); this.Data.hlines{1}=hline; end
                 this.Data.plotTrace(this.main_plot,...
@@ -894,11 +894,7 @@ classdef MyDaq < handle
         
         %Get function for the plot handles
         function main_plot=get.main_plot(this)
-            if this.enable_gui
-                main_plot=this.Gui.figure1.CurrentAxes; 
-            else
-                main_plot=[];
-            end
+            main_plot=this.Gui.figure1.CurrentAxes; 
         end
         
         %Get function for open fits

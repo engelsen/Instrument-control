@@ -1,13 +1,18 @@
 % Class for communication with Pfeiffer TPG single and dual pressure gauge
-% controllers. 
-% Tested with TPG 362.
+% controllers.
+% Do not use visa communication objects with this instrument
+% Tested with TPG 262 and 362.
 classdef MyTpg < MyInstrument
+    
+    properties 
+        Lg % MyLogger object
+    end
     
     properties (Constant=true)
         % Named constants for communication
         ETX = char(3); % end of text
-        CR = char(13); % carriage return
-        LF = char(10); %#ok<CHARTEN> % line feed
+        CR = char(13); % carriage return \r
+        LF = char(10); %#ok<CHARTEN> % line feed \n
         ENQ = char(5); % enquiry
         ACK = char(6); % acknowledge
         NAK = char(21); % negative acknowledge
@@ -31,7 +36,13 @@ classdef MyTpg < MyInstrument
     methods (Access=public)
         function this = MyTpg(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
-            connectDevice(this, interface, address);
+            
+            % Create MyLogger object and configure it to measure pressure
+            initLogger(this);
+            
+            % Configure trace to store pressure vs time recorded by Logger
+            this.Trace.name_x='Time';
+            this.Trace.unit_x='s';
         end
         
         % read pressure from a single channel or both channels at a time
@@ -53,7 +64,8 @@ classdef MyTpg < MyInstrument
             % 6 –> Identification error  
             this.stat1 = gaugeStatusFromCode(this, arr(1));
             this.stat2 = gaugeStatusFromCode(this, arr(3));
-            triggerNewData(this);
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function pu = readPressureUnit(this)
@@ -69,6 +81,8 @@ classdef MyTpg < MyInstrument
             pu_code = sscanf(str,'%i');
             pu = pressureUnitFromCode(this, pu_code);
             this.pressure_unit = pu;
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function id_list = readGaugeId(this)
@@ -77,9 +91,12 @@ classdef MyTpg < MyInstrument
             id_list = deblank(strsplit(str,{','}));
             this.gauge_id1 = id_list{1};
             this.gauge_id2 = id_list{2};
+            % Trigger event notification
+            triggerPropertyRead(this);
         end
         
         function p_arr = readAllHedged(this)
+            was_open = isopen(this);
             openDevice(this);
             try
                 p_arr = readPressure(this);
@@ -89,14 +106,96 @@ classdef MyTpg < MyInstrument
                 p_arr = [0,0];
                 warning('Error while communicating with gauge controller')
             end
-            closeDevice(this)
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                closeDevice(this);
+            end
         end
         
+                
         function code_list = turnGauge(this)
             query(this.Device,['SEN',char(1,1),this.CR,this.LF]);
             str = query(this.Device,this.ENQ);
             code_list = deblank(strsplit(str,{','}));
         end
+        
+        %% Overloading MyInstrument functions
+        
+        % Implement instrument-specific readHeader function
+        function Hdr=readHeader(this)
+            Hdr=readHeader@MyInstrument(this);
+            % Hdr should contain single field
+            fn=Hdr.field_names{1};           
+            readAllHedged(this);
+            addParam(Hdr, fn, 'pressure_unit', this.pressure_unit);
+            addParam(Hdr, fn, 'pressure1', this.pressure1);
+            addParam(Hdr, fn, 'pressure2', this.pressure2);
+            addParam(Hdr, fn, 'stat1', this.stat1);
+            addParam(Hdr, fn, 'stat2', this.stat2);
+            addParam(Hdr, fn, 'gauge_id1', this.gauge_id1);
+            addParam(Hdr, fn, 'gauge_id2', this.gauge_id2);
+        end
+        
+        % Attempt communication and identification of the device
+        function [str, msg]=idn(this)
+            was_open=isopen(this);
+            try
+                openDevice(this);
+                query(this.Device,['AYT',this.CR,this.LF]);
+                [str,~,msg]=query(this.Device,this.ENQ);
+            catch ErrorMessage
+                str='';
+                msg=ErrorMessage.message;
+            end
+            % Remove carriage return and new line symbols from the string
+            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
+            str=replace(str, newline_smb,' ');
+            
+            this.idn_str=str;
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                try
+                    closeDevice(this);
+                catch
+                end
+            end
+        end
+        
+        %% Logging functionality
+        
+        function initLogger(this)
+            if ~(isa(this.Lg, 'MyLogger')&&isvalid(this.Lg))
+                this.Lg = MyLogger('MeasFcn', @()readAllHedged(this));
+            end
+            if isempty(this.Lg.data_headers)&& (~isempty(this.pressure_unit))
+                pu = this.pressure_unit;
+                this.Lg.data_headers=...
+                    {['P ch1 (',pu,')'],['P ch2 (',pu,')']};
+            end
+        end
+        
+        % Trigger NewData event that sends trace to Daq
+        function transferTrace(this, n_ch)
+            if nargin==1
+                % Channel number is 1 if not specified explicitly
+                n_ch=1;
+            end
+            
+            if isa(this.Lg, 'MyLogger')&&isvalid(this.Lg)
+                time_arr=posixtime(this.Lg.timestamps);
+                % Shift time origin to 0
+                this.Trace.x=time_arr-time_arr(1);
+                this.Trace.y=cellfun(@(x)(x(n_ch)),this.Lg.data);
+                this.Trace.name_y=sprintf('P Ch%i',n_ch);
+                this.Trace.unit_y=this.pressure_unit;
+                triggerNewData(this);
+            else
+                warning(['Cannot transfer trace from the logger, ',...
+                    'missing or invalid MyLogger object.'])
+            end
+        end
+        
+        %% Functions for convertion between numerical codes and strings
         
         % Convert numerical code for gauge status to a string
         function str = gaugeStatusFromCode(~, code)
