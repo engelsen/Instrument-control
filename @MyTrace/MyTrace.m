@@ -307,7 +307,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         function fwhm=calcFwhm(this)
             assert(validatePlot(this),['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to find the fwhm'])
-            [~,~,fwhm,~]=findPeaks(this.y,this.x,'NPeaks',1);
+            [~,~,fwhm,~]=findpeaks(this.y,this.x,'NPeaks',1);
         end
         
         %Integrates the trace numerically
