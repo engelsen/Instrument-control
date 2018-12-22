@@ -1,3 +1,9 @@
+% MyMetadata stores parameter-value pairs grouped by fields. MyMetadata can
+% be saved and read in a readable text format.
+% Parameters can be strings, numerical values or cells, as well as any 
+% arrays and structures of such with arbitrary nesting. Sub-indices are 
+% automatically expanded when saving.
+
 classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     properties (Access=public)
         % Header sections are separated by [hdr_spec,hdr_spec,hdr_spec]
@@ -25,7 +31,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
     methods
         function [this,varargout]=MyMetadata(varargin)
             P=MyClassParser(this);
-            addParameter(P,'load_path','',@ischar);
+            addParameter(P, 'load_path','',@ischar);
             processInputs(P,this, varargin{:});
             load_path=P.Results.load_path;
             
@@ -128,14 +134,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 % Assign value directly
                 this.(field_name).(param_name).value=value;
             else
-                % Assign using subscript structure based on the value class
-                if ischar(value)
-                    % char
-                    tmp='';
-                else
-                    % numeric
-                    tmp=[];
-                end
+                % Assign using subref structure
+                tmp=feval([class(value),'.empty']);
                 this.(field_name).(param_name).value=subsasgn(tmp,S,value);
             end
             
@@ -297,7 +297,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
         end
         
-        function n_end_header=load(this, filename, varargin)
+        function n_end_header=load(this, filename)
             %Before we load, we clear all existing fields
             clear(this);
             
