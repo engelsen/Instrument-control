@@ -61,7 +61,7 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                     mp = findprop(tmpval, tag_split{end});
                     % Newer create callbacks for the properties with
                     % attributes listed below, as those cannot be set
-                    if mp.Dependent || mp.Constant || mp.Abstract ||...
+                    if mp.Constant || mp.Abstract ||...
                         ~strcmpi(mp.SetAccess,'public')
                         create_callback=false;
                     end
