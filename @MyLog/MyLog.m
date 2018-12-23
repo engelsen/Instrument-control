@@ -14,6 +14,9 @@ classdef MyLog < matlab.mixin.Copyable
         % are removed by %g 
         data_fmt = '%.14g'
         
+        % Format for displaying the last reading (column name: value)
+        disp_fmt = '%15s: %.2g'
+        
         % Data columns are separated by this symbol
         data_column_sep = '\t'
         
@@ -67,14 +70,14 @@ classdef MyLog < matlab.mixin.Copyable
             this.TimeLabels=struct(...
                 'time',{},...       % datetime object
                 'time_str',{},...   % time in text format
-                'text_str',{},...   % message string
-                'isdisp',{},...     % if this label is to be displayed
-                'text_handles',{}); % handle to the last plotted text object
+                'text_str',{});     % message string
             
             % Create an empty structure array of axes
             this.PlotList=struct(...
-                'axes',{},...       % axes handles
-                'hlines',{});       % line handles 
+                'Axes',{},...       % axes handles
+                'DataLines',{},...  % data line handles
+                'LbLines',{},...    % labels line handles
+                'LbText',{});       % labels text handles 
             
             % Load the data from file if the file name was provided
             if ~ismember('file_name', P.UsingDefaults)
@@ -189,8 +192,8 @@ classdef MyLog < matlab.mixin.Copyable
         
         %% Plotting
         
-        % Plot the log data with time labels 
-        function plot(this, varargin)
+        % Plot the log data with time labels. Reurns plotted line objects.  
+        function Pls = plot(this, varargin)
             % Verify that the data is a numeric matrix, 
             % otherwise it cannot be plotted
             assertDataMatrix(this);
@@ -199,26 +202,68 @@ classdef MyLog < matlab.mixin.Copyable
             
             p=inputParser();
             % Axes in which log should be plotted
-            addOptional(p, 'Ax', gca(), @(x)assert( ...
-                isa(x,'axes')||isa(x,'uiaxes'),...
+            addOptional(p, 'Ax', [], @(x)assert( ...
+                isa(x,'matlab.graphics.axis.Axes')||...
+                isa(x,'matlab.ui.control.UIAxes'),...
                 'Argument must be axes or uiaxes.'));
+            
             % If time labels are to be displayed
             addParameter(p, 'time_labels', true, @islogical);
+            
             % If legend is to be displayed
             addParameter(p, 'legend', true, @islogical);
+            
             % Logical vector defining the data columns to be displayed
             addParameter(p, 'isdisp', true(1,ncols), @(x) assert(...
                 islogical(x) && isvector(x) && length(x)==ncols, ...
                 ['''isdisp'' must be a logical vector of the size ',...
                 'equal to the number of data columns.']));
+            
+            % If 'reset' is true than all the data lines and time labels are
+            % re-plotted with default style even if they are already present 
+            % in the plot
+            addParameter(p, 'reset', false, @islogical);
+            
             parse(p, varargin{:});
             
-            Ax=p.Results.Ax;
+            if ~isempty(p.Results.Ax)
+                Ax=p.Results.Ax;
+            else
+                Ax=gca();
+            end
+            
             isdisp=p.Results.isdisp;
             
-            % Plot data. Create a new line if it was never plotted in this
-            % axes or update the existing line if it was
-            Pls=line(Ax, this.timestamps, this.data);
+            % Find out if the log was already plotted in these axes. If
+            % not, appned Ax to the PlotList.
+            ind=findPlotInd(this, Ax);
+            if isempty(ind)
+                l=length(this.PlotList);
+                this.PlotList(l+1).Axes=Ax;
+                ind=l+1;
+            end
+            
+            % Plot data 
+            if isempty(this.PlotList(ind).DataLines)
+                % If the log was never plotted in Ax, 
+                % plot using default style and store the line handles 
+                Pls=line(Ax, this.timestamps, this.data);
+                this.PlotList(ind).DataLines=Pls;
+            else
+                % Replace existing data
+                Pls=this.PlotList(ind).DataLines;
+                for i=1:ncols
+                    try
+                        Pls(i).XData=this.timestamps;
+                        Pls(i).YData=this.data(:,i);
+                    catch
+                        warning(['Could not update plot for '...
+                            '%i-th data column'],i);
+                    end
+                end
+            end
+            
+            % Set line visibility
             for i=1:ncols
                 Pls(i).Visible=isdisp(i);
             end
@@ -227,44 +272,56 @@ classdef MyLog < matlab.mixin.Copyable
             if (p.Results.time_labels)
                 plotTimeLabels(this, Ax);
             end
-            if (p.Results.legend)
+            if (p.Results.legend)&&(~isempty(this.data_headers))
                 % Add legend
-                if ~isempty(this.data_headers)
-                    legend(Ax, this.data_headers{:},'Location','best');
-                end
+                legend(Ax, this.data_headers{:}, 'Location','southwest');
             end
 
         end
         
         function plotTimeLabels(this, Ax)
-            hold(Ax,'on')
+            % Find out if the log was already plotted in these axes
+            ind=findPlotInd(this, Ax);
+            if isempty(ind)
+                l=length(this.PlotList);
+                this.PlotList(l+1).Axes=Ax;
+                ind=l+1;
+            end
             
-            % Marker line for time labels spans over the entire plot
+            % Remove existing labels 
+            delete(this.PlotList(ind).LbLines);
+            this.PlotList(ind).LbLines=[];
+            delete(this.PlotList(ind).LbText);
+            this.PlotList(ind).LbText=[];
+            
+            % Define marker lines to span over the entire plot
             yminmax=ylim(Ax);
             ymin=yminmax(1);
             ymax=yminmax(2);
-            
             Ax.ClippingStyle='rectangle';
             markline = linspace(ymin, ymax, 2);
+            
+            % Plot labels
             for i=1:length(this.TimeLabels)
-                t=this.TimeLabels(i);
-                marktime = [t.time,t.time];
-                if t.isdisp
-                    % Add text label to plot, with 2% offset for beauty
-                    str=t.text_str;
-                    txt_h=text(Ax, t.time, 0.98*ymax, str,...
-                        'HorizontalAlignment','right',...
-                        'VerticalAlignment','bottom',...
-                        'Rotation',90,...
-                        'BackgroundColor','white',...
-                        'Clipping','on',...
-                        'Margin',1);
-                    t.text_handles=[t.text_handles,txt_h];
-                    % Add line to plot
-                    plot(Ax, marktime, markline,'color','black');
-                end
+                T=this.TimeLabels(i);
+                marktime = [T.time,T.time];
+                % Add text label to plot, with 2% offset from 
+                % the boundary for beauty
+                Txt=text(Ax, T.time, 0.98*ymax, T.text_str,...
+                    'HorizontalAlignment','right',...
+                    'VerticalAlignment','bottom',...
+                    'Rotation',90,...
+                    'BackgroundColor','white',...
+                    'Clipping','on',...
+                    'Margin',1);
+                % Add line to plot
+                Pl=line(Ax, marktime, markline,'color','black');
+                % Store the handles of text and line
+                this.PlotList(ind).LbLines = ...
+                    [this.PlotList(ind).LbLines,Pl];
+                this.PlotList(ind).LbText = ...
+                    [this.PlotList(ind).LbText,Txt];
             end
-            hold(Ax,'off')
         end
         
         
@@ -373,6 +430,7 @@ classdef MyLog < matlab.mixin.Copyable
             % Clear while preserving the array types
             this.TimeLabels(:)=[];
             this.data_headers(:)=[];
+            this.PlotList(:)=[];
             
             % Clear data and its type
             this.timestamps = [];
@@ -386,6 +444,24 @@ classdef MyLog < matlab.mixin.Copyable
                 'text format is not possible.']);
         end
         
+        % Display last reading
+        function str = printLastReading(this)
+            if isempty(this.timestamps)
+                str = '';
+            else
+                str = ['Last reading ',char(this.timestamps(end)),newline];
+                last_data = this.data(end,:);
+                for i=1:length(last_data)
+                    if length(this.data_headers)>=i
+                        lbl = this.data_headers{i};
+                    else
+                        lbl = sprintf('data%i',i);
+                    end
+                    str = [str,...
+                        sprintf(this.disp_fmt,lbl,last_data(i)),newline];
+                end
+            end
+        end
     end
     
     methods (Access=private)
@@ -409,6 +485,19 @@ classdef MyLog < matlab.mixin.Copyable
             fclose(fid);
         end
         
+        % Find out if the log was already plotted in the axes Ax and return
+        % the corresponding index of PlotList if it was 
+        function ind=findPlotInd(this, Ax)
+            assert(isvalid(Ax),'Ax must be valid axes or uiaxes')
+            
+            if ~isempty(this.PlotList)
+                ind_b=cellfun(@(x) isequal(x, Ax),{this.PlotList.Axes});
+                % Find index of the first match
+                ind=find(ind_b,1);
+            else
+                ind=[];
+            end
+        end
     end
     
     %% set and get methods
