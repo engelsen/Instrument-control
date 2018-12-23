@@ -232,8 +232,6 @@ classdef MyLog < matlab.mixin.Copyable
                 Ax=gca();
             end
             
-            isdisp=p.Results.isdisp;
-            
             % Find out if the log was already plotted in these axes. If
             % not, appned Ax to the PlotList.
             ind=findPlotInd(this, Ax);
@@ -252,7 +250,7 @@ classdef MyLog < matlab.mixin.Copyable
             else
                 % Replace existing data
                 Pls=this.PlotList(ind).DataLines;
-                for i=1:ncols
+                for i=1:length(Pls)
                     try
                         Pls(i).XData=this.timestamps;
                         Pls(i).YData=this.data(:,i);
@@ -263,18 +261,23 @@ classdef MyLog < matlab.mixin.Copyable
                 end
             end
             
-            % Set line visibility
-            for i=1:ncols
-                Pls(i).Visible=isdisp(i);
+            % Set the visibility of lines
+            if ~ismember('isdisp',p.UsingDefaults)
+                for i=1:ncols
+                    Pls(i).Visible=p.Results.isdisp(i);
+                end
             end
             
             % Plot time labels and legend
             if (p.Results.time_labels)
                 plotTimeLabels(this, Ax);
             end
-            if (p.Results.legend)&&(~isempty(this.data_headers))
-                % Add legend
-                legend(Ax, this.data_headers{:}, 'Location','southwest');
+            if (p.Results.legend)&&(~isempty(this.data_headers))&&...
+                (~isempty(this.data))    
+                % Add legend only for for those lines that are displayed
+                disp_ind = cellfun(@(x)strcmpi(x,'on'),{Pls.Visible});
+                legend(Ax, Pls(disp_ind), this.data_headers{disp_ind},...
+                    'Location','southwest');
             end
 
         end
