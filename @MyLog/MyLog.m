@@ -308,12 +308,13 @@ classdef MyLog < matlab.mixin.Copyable
             for i=1:length(this.TimeLabels)
                 T=this.TimeLabels(i);
                 marktime = [T.time,T.time];
-                % Add text label to plot, with 2% offset from 
+                % Add text label to plot, with 5% offset from 
                 % the boundary for beauty
-                Txt=text(Ax, T.time, 0.98, T.text_str,...
+                Txt=text(Ax, T.time, 0.95, T.text_str,...
                     'Units','data',...
                     'HorizontalAlignment','right',...
                     'VerticalAlignment','bottom',...
+                    'FontWeight', 'bold',...
                     'Rotation',90,...
                     'BackgroundColor','white',...
                     'Clipping','off',...
@@ -387,7 +388,8 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         % Add label to the metadata
-        function addTimeLabel(this, time, str, varargin)
+        % Form with optional arguments: addTimeLabel(this, time, str)
+        function addTimeLabel(this, varargin)
             p=inputParser();
             addOptional(p, 'time', datetime('now'), ...
                 @(x)assert(isa(x,'datetime'), ...
@@ -409,6 +411,7 @@ classdef MyLog < matlab.mixin.Copyable
                     % Conversion of the inputed value to datetime to
                     % ensure proper format
                     time=datetime(answ{2});
+                    % Store multiple lines as cell array
                     str=cellstr(answ{1});
                 end
             end
@@ -420,12 +423,27 @@ classdef MyLog < matlab.mixin.Copyable
             this.TimeLabels(l+1).time=time;
             this.TimeLabels(l+1).time_str=datestr(time);
             this.TimeLabels(l+1).text_str=str;
-            this.TimeLabels(l+1).isdisp=true;
             
             if p.Results.save==true
                 % Save metadata with new time labels
                 save(this.Metadata, this.meta_file_name, ...
                     'overwrite', true);
+            end
+        end
+        
+        % Show the list of labels in readable format
+        function lst=printTimeLabelList(this)
+            lst=cell(1,length(this.TimeLabels));
+            for i=1:length(this.TimeLabels)
+                if ischar(this.TimeLabels(i).text_str) ||...
+                        isstring(this.TimeLabels(i).text_str)
+                    tmpstr=this.TimeLabels(i).text_str;
+                elseif iscell(this.TimeLabels(i).text_str)
+                    % If text is cell array, elements corresponding to 
+                    % multiple lines, display the first line
+                    tmpstr=this.TimeLabels(i).text_str{1};
+                end
+                lst{i}=[this.TimeLabels(i).time_str,' ', tmpstr];
             end
         end
         
