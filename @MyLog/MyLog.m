@@ -134,8 +134,8 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             assert(~isempty(this.file_name), 'File name is not provided.');
-            assert(exist(fname, 'file')==2, ['File ''',fname,...
-                ''' is not found.'])
+            assert(exist(this.data_file_name, 'file')==2, ...
+                ['File ''',this.data_file_name,''' is not found.'])
             
             % Load metadata if file is found
             % Fields of Metadata are re-initialized by its get method, so
@@ -156,7 +156,7 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Read data as delimiter-separated values and convert to cell
             % array, skip the first line containing column headers
-            fulldata = dlmread(fname, this.column_sep, 1, 0);
+            fulldata = dlmread(fname, this.data_column_sep, 1, 0);
             
             this.data = fulldata(:,2:end);
             this.timestamps = fulldata(:,1);
@@ -166,7 +166,7 @@ classdef MyLog < matlab.mixin.Copyable
             % the metadata file over those found in the main file. This is 
             % done because the column names in the main file are not 
             % updated once they are printed, while the column names in 
-            % metadata are always up to date.   
+            % metadata are always up to date.
             if ismember('ColumnNames', M.field_names) && ...
                     length(M.ColumnNames.Name.value)>=2
                 % Assign column headers from metadata if present 
@@ -560,7 +560,7 @@ classdef MyLog < matlab.mixin.Copyable
                         lbl = sprintf('data%i',i);
                     end
                     str = [str,...
-                        sprintf(this.disp_fmt,lbl,last_data(i)),newline];
+                        sprintf(this.disp_fmt,lbl,last_data(i)),newline]; %#ok<AGROW>
                 end
             end
         end

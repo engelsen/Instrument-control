@@ -4,7 +4,7 @@
 % arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
 
-classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
+classdef MyMetadata < dynamicprops
     properties (Access=public)
         % Header sections are separated by [hdr_spec,hdr_spec,hdr_spec]
         hdr_spec='=='
@@ -53,7 +53,9 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
             
             this.PropHandles.(field_name)=addprop(this,field_name);
             this.PropHandles.(field_name).SetAccess='protected';
-            this.PropHandles.(field_name).NonCopyable=false;
+            % Dynamic properties must not be copyable, copying of
+            % MyMetadata objects is handled by dedicated overloaded method
+            this.PropHandles.(field_name).NonCopyable=true;
             this.(field_name)=struct();
         end
         
@@ -299,7 +301,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         
         function n_end_header=load(this, filename)
             %Before we load, we clear all existing fields
-            clear(this);
+            clearFields(this);
             
             fileID=fopen(filename,'r');
             
@@ -392,8 +394,31 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
                 n_end_header=line_no;
             end
         end
-        
+
+        % Need a custom copy method as the one provided by 
+        % matlab.mixin.Copyable does not re-create the handles of dynamic
+        % properties
+        function NewMet=copy(this)
+            NewMet=MyMetadata();
+            Mc=metaclass(NewMet);
+            
+            % Copy static public non-dependent properties
+            for i=1:length(Mc.PropertyList)
+                TmpProp=Mc.PropertyList(i);
+                if strcmpi(TmpProp.GetAccess,'public') && ...
+                        strcmpi(TmpProp.SetAccess,'public') && ...
+                        ~TmpProp.Dependent
+                    NewMet.(TmpProp.Name)=this.(TmpProp.Name);
+                end
+            end
+            
+            % Copy dynamic properties
+            addMetadata(NewMet, this);
+        end
     end
+    
+    
+    %% Set and Get methods
     
     methods
         function field_names=get.field_names(this)
