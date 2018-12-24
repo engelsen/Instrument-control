@@ -64,6 +64,7 @@ classdef MyLog < matlab.mixin.Copyable
         %% Constructor and destructor methods
         function this = MyLog(varargin)
             P=MyClassParser(this);
+            addOptional(P, 'load_path','',@ischar);
             processInputs(P, this, varargin{:});
             
             this.Metadata=MyMetadata(P.unmatched_nv{:});
@@ -82,8 +83,8 @@ classdef MyLog < matlab.mixin.Copyable
                 'LbText',{});       % labels text handles 
             
             % Load the data from file if the file name was provided
-            if ~ismember('file_name', P.UsingDefaults)
-                load(this, P.Results.file_name); 
+            if ~isempty(P.Results.load_path)
+                load(this, P.Results.load_path);
             end
             
         end
