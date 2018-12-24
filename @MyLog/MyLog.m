@@ -424,6 +424,56 @@ classdef MyLog < matlab.mixin.Copyable
             this.TimeLabels(l+1).time_str=datestr(time);
             this.TimeLabels(l+1).text_str=str;
             
+            % Order time labels by ascending time
+            sortTimeLabels(this);
+            
+            if p.Results.save==true
+                % Save metadata with new time labels
+                save(this.Metadata, this.meta_file_name, ...
+                    'overwrite', true);
+            end
+        end
+        
+        % Modify text or time of an exising label. If new time and text are
+        % not provided as arguments, modifyTimeLabel(this, ind, time, str), 
+        % invoke a dialog.
+        % ind - index of the label to be modified in TimeLabels array.
+        function modifyTimeLabel(this, ind, varargin)
+            p=inputParser();
+            addRequired(p, 'ind', @(x)assert((rem(x,1)==0)&&(x>0), ...
+                '''ind'' must be a positive integer.'));
+            addOptional(p, 'time', datetime('now'), ...
+                @(x)assert(isa(x,'datetime'), ...
+                '''time'' must be of the type datetime.'));
+            addOptional(p, 'str', '', ...
+                @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
+                '''str'' must be a string or cell array of strings.'));
+            addParameter(p, 'save', false, @islogical);
+            parse(p, ind, varargin{:});
+            
+            if any(ismember({'time','str'}, p.UsingDefaults))
+                Tlb=this.TimeLabels(ind);
+                answ = inputdlg({'Label text', 'Time'},'Modify time label',...
+                    [2 40; 1 40],{char(Tlb.text_str), Tlb.time_str});
+
+                if isempty(answ)||isempty(answ{1})
+                    return
+                else
+                    % Conversion of the inputed value to datetime to
+                    % ensure proper format
+                    time=datetime(answ{2});
+                    % Store multiple lines as cell array
+                    str=cellstr(answ{1});
+                end
+            end
+            
+            this.TimeLabels(ind).time=time;
+            this.TimeLabels(ind).time_str=datestr(time);
+            this.TimeLabels(ind).text_str=str;
+            
+            % Order time labels by ascending time
+            sortTimeLabels(this);
+            
             if p.Results.save==true
                 % Save metadata with new time labels
                 save(this.Metadata, this.meta_file_name, ...
@@ -519,6 +569,17 @@ classdef MyLog < matlab.mixin.Copyable
             else
                 ind=[];
             end
+        end
+        
+        % Re-order the elements of TimeLabels array so that newer labels 
+        % have larger index 
+        function sortTimeLabels(this)
+            % Convert to table and sort rows
+            tbl=struct2table(this.TimeLabels);
+            this.TimeLabels=table2struct(sortrows(tbl));
+            % Conversion to tables instead of matrices simplifies the code 
+            % but takes longer to execute. 
+            % So switch to matrices in the future if time delay is an ussue 
         end
     end
     
