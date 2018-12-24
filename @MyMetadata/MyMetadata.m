@@ -71,7 +71,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.Copyable
         end
         
         %Clears the object of all fields
-        function clear(this)
+        function clearFields(this)
             cellfun(@(x) deleteField(this, x), this.field_names)
         end
         

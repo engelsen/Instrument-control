@@ -20,6 +20,8 @@ classdef MyLog < matlab.mixin.Copyable
         % Data columns are separated by this symbol
         data_column_sep = '\t'
         
+        line_sep='\r\n'
+        
         % File extension that is appended by default when saving the log 
         % if a different one is not specified explicitly
         data_file_ext = '.log'
@@ -111,7 +113,9 @@ classdef MyLog < matlab.mixin.Copyable
                 save(this.Metadata, metfname, 'overwrite', true);
 
                 fid = fopen(datfname,'w');
-                printDataHeaders(this, datfname);
+                % Write column headers
+                str=printDataHeaders(this);
+                fprintf(fid,'%s',str);
                 % Write data body
                 fmt=this.data_line_fmt;
                 for i=1:length(this.timestamps)
@@ -282,6 +286,71 @@ classdef MyLog < matlab.mixin.Copyable
 
         end
         
+         %% Manipulations with log data
+        
+        % Append data point to the log
+        function appendData(this, time, val, varargin)
+            p=inputParser();
+            addParameter(p, 'save', false, @islogical);
+            parse(p, varargin{:});
+            
+            % Format checks on the input data
+            assert(isa(time,'datetime')||isnumeric(time),...
+                ['''time'' argument must be numeric or ',...
+                'of the class datetime.']);
+            assert(isrow(val),'''val'' argument must be a row vector.');
+            
+            if ~isempty(this.data)
+                [~, ncols]=size(this.data);
+                assert(length(val)==ncols,['Length of ''val'' ',...
+                    'does not match the number of data columns']);
+            end
+            
+            % Append new data and time stamps
+            this.timestamps=[this.timestamps; time];
+            this.data=[this.data; val];
+            
+            % Ensure the log length is within the length limit
+            trim(this);
+            
+            % Optionally save the new data point to file
+            if p.Results.save
+                try
+                    exstat = exist(this.data_file_name,'file');
+                    if exstat==0
+                        % if the file does not exist, create it and write
+                        % the column headers 
+                        createFile(this.data_file_name);
+                        fid = fopen(this.data_file_name,'w');
+                        str=printDataHeaders(this);
+                        fprintf(fid,'%s',str);
+                    else
+                        % otherwise open for appending
+                        fid = fopen(this.data_file_name,'a');
+                    end
+                    % Convert the new timestamps to numeric form for saving
+                    if isa(time,'datetime')
+                        time_num=posixtime(time);
+                    else
+                        time_num=time;
+                    end
+                    % Append new data points to file
+                    fprintf(fid, this.data_line_fmt, time_num, val);
+                    fclose(fid);
+                catch
+                    warning(['Logger cannot save data at time = ',...
+                        datestr(datetime('now'))]);
+                    % Try closing fid in case it is still open
+                    try
+                        fclose(fid);
+                    catch
+                    end
+                end
+            end
+        end
+        
+        %% Time labels 
+        
         function plotTimeLabels(this, Ax)
             % Find out if the log was already plotted in these axes
             ind=findPlotInd(this, Ax);
@@ -292,16 +361,12 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             % Remove existing labels 
-            delete(this.PlotList(ind).LbLines);
-            this.PlotList(ind).LbLines=[];
-            delete(this.PlotList(ind).LbText);
-            this.PlotList(ind).LbText=[];
+            eraseTimeLabels(this, Ax);
             
             % Define marker lines to span over the entire plot
             yminmax=ylim(Ax);
             ymin=yminmax(1);
             ymax=yminmax(2);
-            Ax.ClippingStyle='rectangle';
             markline = linspace(ymin, ymax, 2);
             
             % Plot labels
@@ -317,7 +382,7 @@ classdef MyLog < matlab.mixin.Copyable
                     'FontWeight', 'bold',...
                     'Rotation',90,...
                     'BackgroundColor','white',...
-                    'Clipping','off',...
+                    'Clipping','on',...
                     'Margin',1);
                 % Add line to plot
                 Pl=line(Ax, marktime, markline,'color','black');
@@ -329,65 +394,22 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
-        
-        %% Manipulations with log data
-        
-        % Append data points to the log
-        function appendData(this, time, val, varargin)
-            p=inputParser();
-            addParameter(p, 'save', false, @islogical);
-            parse(p, varargin{:});
-            
-            % Format checks on the input data
-            assert(isa(time,'datetime')||isnumeric(time),...
-                ['''time'' argument must be numeric or ',...
-                'of the class datetime.']);
-            assert(iscolumn(time),'Time and array must be column');
-            assert(ismatrix(val),'Value must be matrix.')
-            [nrows, ~]=size(val);
-            assert(length(time)==nrows,...
-                'Lengths of the time and value arrays do not match');
-            
-            % Append new data and time stamps
-            this.timestamps=[this.timestamps; time];
-            this.data=[this.data; val];
-            
-            % Ensure the log length is within the length limit
-            trim(this);
-            
-            % Optionally save the new data to file
-            if p.Results.save
-                try
-                    exstat = exist(this.file_name,'file');
-                    if exstat==0
-                        % if the file does not exist, create it and write
-                        % the metadata
-                        createFile(this.file_name);
-                        printAllHeaders(this.Metadata, this.file_name);
-                        fid = fopen(this.file_name,'a');
-                    else
-                        % otherwise open for appending
-                        fid = fopen(this.file_name,'a');
-                    end
-                    % Print new values to the file
-                    for i=1:length(time)
-                        fprintf(fid, this.data_line_fmt, ...
-                            posixtime(time(i)), val(i));
-                    end
-                    fclose(fid);
-                catch
-                    warning(['Logger cannot save data at time = ',...
-                        datestr(time(1))]);
-                    % Try closing fid in case it is still open
-                    try
-                        fclose(fid);
-                    catch
-                    end
-                end
+        % Remove existing labels from the plot 
+        function eraseTimeLabels(this, Ax)
+            % Find out if the log was already plotted in these axes
+            ind=findPlotInd(this, Ax);
+            if ~isempty(ind)
+                % Remove existing labels 
+                delete(this.PlotList(ind).LbLines);
+                this.PlotList(ind).LbLines=[];
+                delete(this.PlotList(ind).LbText);
+                this.PlotList(ind).LbText=[];
+            else
+                warning('Cannot erase time labels. Axes not found.')
             end
         end
         
-        % Add label to the metadata
+        % Add label
         % Form with optional arguments: addTimeLabel(this, time, str)
         function addTimeLabel(this, varargin)
             p=inputParser();
@@ -483,7 +505,7 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Show the list of labels in readable format
         function lst=printTimeLabelList(this)
-            lst=cell(1,length(this.TimeLabels));
+            lst=cell(length(this.TimeLabels),1);
             for i=1:length(this.TimeLabels)
                 if ischar(this.TimeLabels(i).text_str) ||...
                         isstring(this.TimeLabels(i).text_str)
@@ -497,11 +519,19 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
+        %% Misc public functions
+        
         % Clear log data and time labels
         function clear(this)
             % Clear while preserving the array types
             this.TimeLabels(:)=[];
-            this.data_headers(:)=[];
+            
+            % Delete all the data lines and time labels
+            for i=1:length(this.PlotList)
+                delete(this.PlotList(i).DataLines);
+                delete(this.PlotList(i).LbLines);
+                delete(this.PlotList(i).LbText);
+            end
             this.PlotList(:)=[];
             
             % Clear data and its type
@@ -549,12 +579,11 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
-        % Print column names to file
-        function printDataHeaders(this, fname)
+        % Print column names to a string
+        function str=printDataHeaders(this)
             cs=this.data_column_sep;
-            fid=fopen(fname, 'a');
-            fprintf(['%s',cs], this.column_headers{:});
-            fclose(fid);
+            str=sprintf(['%s',cs], this.column_headers{:});
+            str=[str,sprintf(this.line_sep)];
         end
         
         % Find out if the log was already plotted in the axes Ax and return
@@ -571,15 +600,12 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
-        % Re-order the elements of TimeLabels array so that newer labels 
-        % have larger index 
+        % Re-order the elements of TimeLabels array so that labels 
+        % corresponding to later times have larger index 
         function sortTimeLabels(this)
-            % Convert to table and sort rows
-            tbl=struct2table(this.TimeLabels);
-            this.TimeLabels=table2struct(sortrows(tbl));
-            % Conversion to tables instead of matrices simplifies the code 
-            % but takes longer to execute. 
-            % So switch to matrices in the future if time delay is an ussue 
+            times=[this.TimeLabels.time];
+            [~,ind]=sort(times);
+            this.TimeLabels=this.TimeLabels(ind);
         end
     end
     
@@ -621,14 +647,12 @@ classdef MyLog < matlab.mixin.Copyable
         
         function data_line_fmt=get.data_line_fmt(this)
             cs=this.data_column_sep;
-            nl=this.TimeLabels.line_sep;
+            nl=this.line_sep;
             
             if isempty(this.data)
                 l=0;
             else
-                % Use end of the data array for better robustness when
-                % appending a measurement
-                l=length(this.data{end});
+                [~,l]=size(this.data);
             end
             
             data_line_fmt = this.time_fmt;
@@ -668,8 +692,8 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Add time labels (textual part of TimeLabels structure)
             addField(Mdt, 'TimeLabels');
-            Lbl=struct('time_str', this.TimeLabels.time_str,...
-                'text_str', this.TimeLabels.text_str);
+            Lbl=struct('time_str', {this.TimeLabels.time_str},...
+                'text_str', {this.TimeLabels.text_str});
             addParam(Mdt, 'TimeLabels', 'Lbl', Lbl)
         end
     end
