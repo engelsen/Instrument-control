@@ -1,6 +1,6 @@
 % Class for XY data representation with labelling, plotting and
 % saving/loading functionality
-classdef MyTrace < handle & matlab.mixin.Copyable
+classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     properties (Access=public)
         x=[];
         y=[];
@@ -10,15 +10,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         unit_y='';
         % MyMetadata storing information about how the trace was taken
         MeasHeaders
-        load_path='';
+        file_name='';
         uid='';
         
         %Cell that contains handles the trace is plotted in
         hlines={};
-    end
-    
-    properties (Access=private)
-        Parser
     end
     
     properties (Dependent=true)
@@ -30,48 +26,16 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         label_y
     end
     
-    methods (Access=private)
-        %Creates the input parser for the class. Includes default values
-        %for all optional parameters.
-        function createParser(this)
-            p=inputParser;
-            addParameter(p,'x',[]);
-            addParameter(p,'y',[]);
-            addParameter(p,'unit_x','x',@ischar);
-            addParameter(p,'unit_y','y',@ischar);
-            addParameter(p,'name_x','x',@ischar);
-            addParameter(p,'name_y','y',@ischar);
-            addParameter(p,'load_path','',@ischar);
-            addParameter(p,'uid','',@ischar);
-            addParameter(p,'MeasHeaders',MyMetadata(),...
-                @(x) isa(x,'MyMetadata'));
-            this.Parser=p;
-        end
-        
-        %Sets the class variables to the inputs from the inputParser. Can
-        %be used to reset class to default values if default_flag=true.
-        function parseInputs(this, inputs, default_flag)
-            parse(this.Parser,inputs{:});
-            for i=1:length(this.Parser.Parameters)
-                %Sets the value if there was an input or if the default
-                %flag is on. The default flag is used to reset the class to
-                %its default values.
-                if default_flag || ~any(ismember(this.Parser.Parameters{i},...
-                        this.Parser.UsingDefaults))
-                    this.(this.Parser.Parameters{i})=...
-                        this.Parser.Results.(this.Parser.Parameters{i});
-                end
-            end
-        end
-    end
-    
     methods (Access=public)
         function this=MyTrace(varargin)
-            createParser(this);
-            parseInputs(this,varargin,true);
+            P=MyClassParser(this);
+            addOptional(P, 'load_path','',@ischar);
+            processInputs(P, this, varargin{:});
             
-            if ~ismember('load_path',this.Parser.UsingDefaults)
-                loadTrace(this,this.load_path);
+            this.MeasHeaders=MyMetadata();
+            
+            if ~ismember('load_path', P.UsingDefaults)
+                loadTrace(this, P.Results.load_path);
             end
         end
         
@@ -170,8 +134,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             %Instantiate a header object from the file you are loading. We
             %get the line number we want to read from as an output.
-            [this.MeasHeaders,end_line_no]=MyMetadata(...
-                'load_path',file_path,...
+            [this.MeasHeaders,end_line_no]=MyMetadata(file_path,...
                 'hdr_spec',hdr_spec,...
                 'end_header',end_header);
             
@@ -197,13 +160,9 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.x=data_array(:,1);
             this.y=data_array(:,2);
             
-            this.load_path=file_path;
+            this.file_name=file_path;
         end
         
-        %Allows setting of multiple properties in one command.
-        function setTrace(this, varargin)
-            parseInputs(this, varargin, false);
-        end
 
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
@@ -423,10 +382,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.name_y=name_y;
         end
         
-        function set.load_path(this, load_path)
-            assert(ischar(load_path),'File path must be a char, not a %s',...
-                class(load_path));
-            this.load_path=load_path;
+        function set.file_name(this, file_name)
+            assert(ischar(file_name),'File path must be a char, not a %s',...
+                class(file_name));
+            this.file_name=file_name;
         end
         
         function set.uid(this, uid)
