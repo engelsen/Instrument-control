@@ -1,5 +1,11 @@
 % Class for controlling Tektronix RSA5103 and RSA5106 spectrum analyzers 
+
 classdef MyRsa < MyScpiInstrument
+    
+    properties (SetAccess=protected, GetAccess=public)
+        acq_trace=[] % Last read trace
+    end
+    
     %% Constructor and destructor
     methods (Access=public)
         function this=MyRsa(interface, address, varargin)
@@ -109,9 +115,21 @@ classdef MyRsa < MyScpiInstrument
             %Trace object is created containing the data and its units
             this.Trace.x = x_vec;
             this.Trace.y = power_spectrum;
+            
+            this.acq_trace=n_trace;
 
             %Trigger acquired data event (inherited from MyInstrument)
             triggerNewData(this);
+        end
+        
+        % Extend readHeader function
+        function Hdr=readHeader(this)
+            %Call parent class method and then append parameters
+            Hdr=readHeader@MyScpiInstrument(this);
+            %Hdr should contain single field
+            addParam(Hdr, Hdr.field_names{1}, ...
+                'acq_trace', this.acq_trace, ...
+                'comment', 'Last read trace');
         end
     end
 end
