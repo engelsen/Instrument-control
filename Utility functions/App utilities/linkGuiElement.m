@@ -28,52 +28,63 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     
     create_callback = p.Results.create_callback;
     
-    % Check if the property is present in the app and if it corresponds to
-    % an instrument command
-    tmpval = app;
-    tag_split=regexp(prop_tag,'\.','split');
-    nlev=length(tag_split);
-    for i=1:nlev
+    if isempty(prop_tag)
+        warning('''prop_tag'' is empty, element is not linked')
+        return
+    end
+    
+    % Make sure the property tag starts with a dot and convert to
+    % subreference structure
+    if prop_tag(1)~='.'
+        PropSubref=str2substruct(['.',prop_tag]);
+    else
+        PropSubref=str2substruct(prop_tag);
+    end
+    
+    % Check if the referenced property is accessible
+    try
+        subsref(app, PropSubref);
+    catch
+        disp(['Property corresponding to tag ',prop_tag,...
+            ' is not accessible, element is not linked and disabled.'])
+        elem.Enable='off';
+        return
+    end
+    
+    % Do extra checks if the tag refers to a property of an object
+    if (length(PropSubref)>1) && PropSubref(end).type=='.'
+        % Potential MyInstrument object
+        Obj=subsref(app, PropSubref(1:end-1));
+        % Potential command name
+        tag=PropSubref(end).subs;
+        % Check if the property corresponds to an instrument command
         try 
-            % If value is inaccesible for any reason, an error will be
-            % thrown
-            tmpval=tmpval.(tag_split{i});
-            
-            % Check if prop_tag corresponds to a command of 
-            % MyScpiInstrument. Instrument object would be at the one
-            % before last level in this case.
-            if i==(nlev-1)
-                try
-                    is_cmd=ismember(tag_split{end},tmpval.command_names);
-                catch
-                    is_cmd=false;
-                end
-                if is_cmd
-                    Instr=tmpval;
-                    cmd=tag_split{end};
-                    % Never create callbacks for read-only properties
-                    if ~contains(Instr.CommandList.(cmd).access,'w')
-                        create_callback=false;
-                    end
-                % Then check if the tag corresponds to a simple bject
-                % property
-                elseif isprop(tmpval, tag_split{end})
-                    mp = findprop(tmpval, tag_split{end});
-                    % Newer create callbacks for the properties with
-                    % attributes listed below, as those cannot be set
-                    if mp.Constant || mp.Abstract ||...
-                        ~strcmpi(mp.SetAccess,'public')
-                        create_callback=false;
-                    end
-                end
-            end
+            is_cmd=ismember(tag, Obj.command_names);
         catch
-            disp(['Property corresponding to tag ',prop_tag,...
-                ' is not accesible, element is not linked.'])
-            elem.Enable='off';
-            return
+            % If anything goes wrong in the previous block the prop is not
+            % a command
+            is_cmd=false;
+        end
+        if is_cmd
+            % Object is an instrument.
+            Instr=Obj;
+            % Never create callbacks for read-only properties.
+            if ~contains(Instr.CommandList.(tag).access,'w')
+                create_callback=false;
+            end
+        % Then check if the tag corresponds to a simple object
+        % property (and not to a structure field)
+        elseif isprop(Obj, tag)
+            mp = findprop(Obj, tag);
+            % Newer create callbacks for the properties with
+            % attributes listed below, as those cannot be set
+            if mp.Constant || mp.Abstract ||...
+                ~strcmpi(mp.SetAccess,'public')
+                create_callback=false;
+            end
         end
     end
+    
 
     % If the create_callback is true, assign genericValueChanged as
     % callback
@@ -120,10 +131,10 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     
     if is_cmd
         % If supplied command does not have read permission, issue warning.
-        if ~contains(Instr.CommandList.(cmd).access,'r')
+        if ~contains(Instr.CommandList.(tag).access,'r')
             fprintf(['Instrument command ''%s'' does not have read permission,\n',...
                 'corresponding gui element will not be automatically ',...
-                'syncronized\n'],cmd);
+                'syncronized\n'],tag);
             % Try switching color of the gui element to orange
             warning_color = [0.93, 0.69, 0.13];
             try
@@ -139,11 +150,11 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         % Auto initialization of entries, for dropdown menus only
         if p.Results.init_val_list && isequal(elem.Type, 'uidropdown')
             try
-                cmd_val_list = Instr.CommandList.(cmd).val_list;
+                cmd_val_list = Instr.CommandList.(tag).val_list;
                 if all(cellfun(@ischar, cmd_val_list))
                     % If the command has only string values, get the list of
                     % values ignoring abbreviations
-                    cmd_val_list = stdValueList(Instr, cmd);
+                    cmd_val_list = stdValueList(Instr, tag);
                     % Capitalized the displayed values
                     elem.Items = cellfun(@(x)[upper(x(1)),lower(x(2:end))],...
                         cmd_val_list,'UniformOutput',false);
@@ -162,14 +173,14 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                 elem.ItemsData = cmd_val_list;
             catch
                 warning(['Could not automatically assign values',...
-                    ' when linking ',cmd,' property']);
+                    ' when linking ',tag,' property']);
             end
         end
     end
     
     % The property-control link is established by assigning the tag
     % and adding the control to the list of linked elements
-    elem.Tag = prop_tag;
+    elem.UserData.GuiLinkSubs = PropSubref;
     app.linked_elem_list = [app.linked_elem_list, elem];
 end
 
