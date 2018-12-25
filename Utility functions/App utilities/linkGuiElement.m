@@ -51,7 +51,7 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         return
     end
     
-    % Do extra checks if the tag refers to a property of an object
+    % Check if the tag refers to a property of an object
     if (length(PropSubref)>1) && PropSubref(end).type=='.'
         % Potential MyInstrument object
         Obj=subsref(app, PropSubref(1:end-1));
@@ -78,14 +78,14 @@ function linkGuiElement(app, elem, prop_tag, varargin)
             mp = findprop(Obj, tag);
             % Newer create callbacks for the properties with
             % attributes listed below, as those cannot be set
-            if mp.Constant || mp.Abstract ||...
-                ~strcmpi(mp.SetAccess,'public')
+            if mp.Constant||mp.Abstract||~strcmpi(mp.SetAccess,'public')
                 create_callback=false;
             end
         end
+    else
+        is_cmd=false;
     end
     
-
     % If the create_callback is true, assign genericValueChanged as
     % callback
     if create_callback
@@ -127,7 +127,14 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         elem.OutputProcessingFcn = p.Results.out_proc_fcn;
     end
     
-    %% Code below is applicable when linking to commands of MyScpiInstrument
+    % The link is established by storing the subreference structure
+    % in UserData and adding elem to the list of linked elements
+    elem.UserData.LinkSubs = PropSubref;
+    app.linked_elem_list = [app.linked_elem_list, elem];
+    
+    %% MyScpiInstrument-specific
+    % The remaining code provides extended functionality for linking to 
+    % commands of MyScpiInstrument
     
     if is_cmd
         % If supplied command does not have read permission, issue warning.
@@ -177,10 +184,5 @@ function linkGuiElement(app, elem, prop_tag, varargin)
             end
         end
     end
-    
-    % The property-control link is established by assigning the tag
-    % and adding the control to the list of linked elements
-    elem.UserData.GuiLinkSubs = PropSubref;
-    app.linked_elem_list = [app.linked_elem_list, elem];
 end
 
