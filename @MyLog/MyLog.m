@@ -17,9 +17,8 @@ classdef MyLog < matlab.mixin.Copyable
         % Format for displaying the last reading (column name: value)
         disp_fmt = '%15s: %.2g'
         
-        % Data columns are separated by this symbol
+        % Data column and line separators
         data_column_sep = '\t'
-        
         line_sep='\r\n'
         
         % File extension that is appended by default when saving the log 

@@ -13,6 +13,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         file_name='';
         uid='';
         
+        % Data column and line separators
+        data_column_sep = '\t'
+        line_sep='\r\n'
+        
         %Cell that contains handles the trace is plotted in
         hlines={};
     end
@@ -117,7 +121,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.y=[];
         end
         
-        function loadTrace(this, file_path, varargin)
+        function load(this, file_path, varargin)
             p=inputParser;
             addParameter(p,'hdr_spec',...
                 this.MeasHeaders.hdr_spec,@ischar);
@@ -156,7 +160,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             %Reads x and y data
-            data_array=dlmread(file_path,'\t',end_line_no,0);
+            data_array=dlmread(file_path, this.data_column_sep, ...
+                end_line_no,0);
             this.x=data_array(:,1);
             this.y=data_array(:,2);
             
@@ -167,17 +172,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
-        function plotTrace(this,plot_axes,varargin)
-            %Checks that there are axes to plot
-            assert(exist('plot_axes','var') && ...
-                (isa(plot_axes,'matlab.graphics.axis.Axes')||...
-                isa(plot_axes,'matlab.ui.control.UIAxes')),...
-                'Please input axes to plot in.')
+        function plot(this, varargin)
             %Checks that x and y are the same size
             assert(validatePlot(this),...
                 'The length of x and y must be identical to make a plot')
             %Parses inputs 
             p=inputParser();
+            
+            % Axes in which log should be plotted
+            addOptional(p, 'plot_axes', [], @(x)assert( ...
+                isa(x,'matlab.graphics.axis.Axes')||...
+                isa(x,'matlab.ui.control.UIAxes'),...
+                'Argument must be axes or uiaxes.'));
             
             validateColor=@(x) assert(iscolor(x),...
                 'Input must be a valid color. See iscolor function');
@@ -200,6 +206,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 'Interpreter must be none, tex or latex');
             addParameter(p,'Interpreter','latex',validateInterpreter);
             parse(p,varargin{:});
+            
+            %If axes are not supplied get current
+            if ~isempty(p.Results.plot_axes)
+                plot_axes=p.Results.plot_axes;
+            else
+                plot_axes=gca();
+            end
             
             ind=findLineInd(this, plot_axes);
             if ~isempty(ind) && any(ind)
