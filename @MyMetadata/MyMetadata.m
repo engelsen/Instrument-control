@@ -3,6 +3,8 @@
 % Parameters can be strings, numerical values or cells, as well as any 
 % arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
+% If instantiated as MyMetadata(fname) or MyMetadata('file_name', fname) 
+% then the content is loaded from file
 
 classdef MyMetadata < dynamicprops
     properties (Access=public)
@@ -31,13 +33,25 @@ classdef MyMetadata < dynamicprops
     methods
         function [this,varargout]=MyMetadata(varargin)
             P=MyClassParser(this);
-            addOptional(P, 'load_path','',@ischar);
-            processInputs(P,this, varargin{:});
+            addParameter(P, 'file_name','',@ischar);
+            
+            if mod(length(varargin),2)==1
+                % odd number of elements in varargin - interpret the first
+                % element as file name and the rest as name-value pairs
+                fname=varargin{1};
+                assert(ischar(fname)&&isvector(fname),...
+                    '''file_name'' must be a vector of characters');
+                processInputs(P, this, varargin{2:end});
+            else
+                % Parse varargin as a list of name-value pairs 
+                processInputs(P, this, varargin{:});
+                fname=P.Results.file_name;
+            end
             
             this.PropHandles=struct();
             
-            if ~isempty(P.Results.load_path)
-                varargout{1}=load(this, P.Results.load_path);
+            if ~isempty(fname)
+                varargout{1}=load(this, fname);
             end
         end
         

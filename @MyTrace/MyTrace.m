@@ -1,5 +1,8 @@
 % Class for XY data representation with labelling, plotting and
 % saving/loading functionality
+% If instantiated as MyTrace(fname) or MyTrace('file_name', fname) then 
+% the content is loaded from file
+
 classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     properties (Access=public)
         x=[];
@@ -14,7 +17,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         uid='';
         
         % Data column and line separators
-        data_column_sep = '\t'
+        column_sep = '\t'
         line_sep='\r\n'
         
         %Cell that contains handles the trace is plotted in
@@ -33,13 +36,26 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     methods (Access=public)
         function this=MyTrace(varargin)
             P=MyClassParser(this);
-            addOptional(P, 'load_path','',@ischar);
-            processInputs(P, this, varargin{:});
+            % options for MeasHeaders
+            addParameter(P, 'metadata_opts',{},@iscell);
             
-            this.MeasHeaders=MyMetadata();
+            if mod(length(varargin),2)==1
+                % odd number of elements in varargin - interpret the first
+                % element as file name and the rest as name-value pairs
+                fname=varargin{1};
+                assert(ischar(fname)&&isvector(fname),...
+                    '''file_name'' must be a vector of characters');
+                processInputs(P, this, varargin{2:end});
+                this.file_name=fname;
+            else
+                % Parse varargin as a list of name-value pairs 
+                processInputs(P, this, varargin{:});
+            end
             
-            if ~ismember('load_path', P.UsingDefaults)
-                loadTrace(this, P.Results.load_path);
+            this.MeasHeaders=MyMetadata(P.Results.metadata_opts{:});
+            
+            if ~isempty(this.file_name)
+                load(this, this.file_name);
             end
         end
         
@@ -47,25 +63,29 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %used when we want to write only the data with its associated
         %trace, rather than just the trace. To write just the trace with
         %fewer input checks, use the writeData function.
-        function save(this,varargin)
+        function save(this, varargin)
             %Parse inputs for saving
             p=inputParser;
-            addParameter(p,'filename','placeholder',@ischar);
-            addParameter(p,'save_dir',pwd,@ischar);
             addParameter(p,'save_prec',15);
-            addParameter(p,'overwrite_flag',false);
-            parse(p,varargin{:});
+            addParameter(p,'overwrite',false);
             
-            %Assign shorter names
-            filename=p.Results.filename;
-            save_dir=p.Results.save_dir;
-            save_prec=p.Results.save_prec;
-            overwrite_flag=p.Results.overwrite_flag;
-            %Puts together the full file name
-            fullfilename=fullfile([save_dir,filename,'.txt']);
+            if mod(length(varargin),2)==1
+                % odd number of elements in varargin - interpret the first
+                % element as file name and the rest as name-value pairs
+                fname=varargin{1};
+                assert(ischar(fname)&&isvect(fname),...
+                    '''filename'' must be a vector of characters');
+                this.file_name=fname;
+                parse(p,varargin{2:end});
+            else
+                % Parse varargin as a list of name-value pairs and take
+                % file name from the class property
+                fname=this.file_name;
+                parse(p,varargin{:});
+            end
             
             %Creates the file in the given folder
-            stat=createFile(fullfilename,'overwrite',overwrite_flag);
+            stat=createFile(fname, 'overwrite', p.Results.overwrite);
             
             %Returns if the file is not created for some reason 
             if ~stat 
@@ -73,7 +93,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             %We now write the data to the file
-            writeData(this, fullfilename,'save_prec',save_prec);
+            writeData(this, fullfilename,'save_prec', p.Results.save_prec);
         end
         
         %Writes the data to a file. This is separated so that other
@@ -108,11 +128,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             %Save in the more compact of fixed point and scientific 
             %notation with trailing zeros removed
             %If save_prec=15, we get %.15g\t%.15g\r\n
-            %Formatting without column padding may look ugly, but it makes
-            %files quite a bit smaller
-            data_format_str=sprintf('%%.%ig\t%%.%ig\r\n',...
-                save_prec,save_prec);
-            fprintf(fileID,data_format_str,[this.x, this.y]');
+            %Formatting without column padding may looks ugly but makes
+            %files significantly smaller
+            data_format_str=sprintf(['%%.%ig',this.column_sep,'%%.%ig',...
+                this.line_sep],save_prec,save_prec);
+            fprintf(fileID, data_format_str,[this.x, this.y]');
             fclose(fileID);
         end
         
@@ -129,18 +149,16 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 this.MeasHeaders.end_header,@ischar);
             parse(p,varargin{:});
             
-            hdr_spec=p.Results.hdr_spec;
-            end_header=p.Results.end_header;
+            this.MeasHeaders.hdr_spec=p.Results.hdr_spec;
+            this.MeasHeaders.end_header=p.Results.end_header;
             
             if ~exist(file_path,'file')
                 error('File does not exist, please choose a different load path')
             end
             
-            %Instantiate a header object from the file you are loading. We
-            %get the line number we want to read from as an output.
-            [this.MeasHeaders,end_line_no]=MyMetadata(file_path,...
-                'hdr_spec',hdr_spec,...
-                'end_header',end_header);
+            %Read metadata. We get the line number we want to read
+            %the main data from as an output.
+            end_line_no=load(this.MeasHeaders, file_path);
             
             %Tries to assign units and names and then delete the Info field
             %from MeasHeaders
@@ -160,7 +178,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             %Reads x and y data
-            data_array=dlmread(file_path, this.data_column_sep, ...
+            data_array=dlmread(file_path, this.column_sep, ...
                 end_line_no,0);
             this.x=data_array(:,1);
             this.y=data_array(:,2);
