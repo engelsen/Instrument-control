@@ -1,6 +1,6 @@
 % Class for XY data representation with labelling, plotting and
 % saving/loading functionality
-% If instantiated as MyTrace(fname) or MyTrace('file_name', fname) then 
+% If instantiated as MyTrace(load_path) then 
 % the content is loaded from file
 
 classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
@@ -42,20 +42,21 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             if mod(length(varargin),2)==1
                 % odd number of elements in varargin - interpret the first
                 % element as file name and the rest as name-value pairs
-                fname=varargin{1};
-                assert(ischar(fname)&&isvector(fname),...
+                load_path=varargin{1};
+                assert(ischar(load_path)&&isvector(load_path),...
                     '''file_name'' must be a vector of characters');
                 processInputs(P, this, varargin{2:end});
-                this.file_name=fname;
+                this.file_name=load_path;
             else
                 % Parse varargin as a list of name-value pairs 
                 processInputs(P, this, varargin{:});
+                load_path=[];
             end
             
             this.MeasHeaders=MyMetadata(P.Results.metadata_opts{:});
             
-            if ~isempty(this.file_name)
-                load(this, this.file_name);
+            if ~isempty(load_path)
+                load(this, load_path);
             end
         end
         

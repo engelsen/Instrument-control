@@ -163,13 +163,17 @@ classdef MyTpg < MyInstrument
         
         %% Logging functionality
         
-        function initLogger(this)
-            if ~(isa(this.Lg, 'MyLogger')&&isvalid(this.Lg))
-                this.Lg = MyLogger('MeasFcn', @()readAllHedged(this));
+        % Init or reset logger
+        function initLogger(this, varargin)
+            if isa(this.Lg, 'MyLogger')
+                delete(this.Lg);
             end
-            if isempty(this.Lg.data_headers)&& (~isempty(this.pressure_unit))
+            this.Lg = MyLogger('MeasFcn', @()readAllHedged(this), ...
+                varargin{:});
+            if isempty(this.Lg.Record.data_headers) &&...
+                    (~isempty(this.pressure_unit))
                 pu = this.pressure_unit;
-                this.Lg.data_headers=...
+                this.Lg.Record.data_headers=...
                     {['P ch1 (',pu,')'],['P ch2 (',pu,')']};
             end
         end

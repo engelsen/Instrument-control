@@ -3,7 +3,7 @@
 % labels (time marks) for particular moments in time. Data can be saved 
 % and plotted with the time marks. 
 % Metadata for this class is stored independently.
-% If instantiated as MyLog(fname) or MyLog('file_name', fname) then 
+% If instantiated as MyLog(load_path) then 
 % the content is loaded from file
 
 classdef MyLog < matlab.mixin.Copyable
@@ -71,14 +71,15 @@ classdef MyLog < matlab.mixin.Copyable
             if mod(length(varargin),2)==1
                 % odd number of elements in varargin - interpret the first
                 % element as file name and the rest as name-value pairs
-                fname=varargin{1};
-                assert(ischar(fname)&&isvector(fname),...
+                load_path=varargin{1};
+                assert(ischar(load_path)&&isvector(load_path),...
                     '''file_name'' must be a vector of characters');
                 processInputs(P, this, varargin{2:end});
-                this.file_name=fname;
+                this.file_name=load_path;
             else
-                % Parse varargin as a list of name-value pairs 
+                % Parse varargin as a list of name-value pairs
                 processInputs(P, this, varargin{:});
+                load_path=[];
             end
             
             this.Metadata=MyMetadata(P.Results.metadata_opts{:});
@@ -97,8 +98,8 @@ classdef MyLog < matlab.mixin.Copyable
                 'LbText',{});       % labels text handles 
             
             % Load the data from file if the file name was provided
-            if ~isempty(this.file_name)
-                load(this, this.file_name);
+            if ~isempty(load_path)
+                load(this, load_path);
             end
             
         end
@@ -379,9 +380,8 @@ classdef MyLog < matlab.mixin.Copyable
             eraseTimeLabels(this, Ax);
             
             % Define marker lines to span over the entire plot
-            yminmax=ylim(Ax);
-            ymin=yminmax(1);
-            ymax=yminmax(2);
+            ymin=Ax.YLim(1);
+            ymax=Ax.YLim(2);
             markline = linspace(ymin, ymax, 2);
             
             % Plot labels
@@ -390,7 +390,7 @@ classdef MyLog < matlab.mixin.Copyable
                 marktime = [T.time,T.time];
                 % Add text label to plot, with 5% offset from 
                 % the boundary for beauty
-                Txt=text(Ax, T.time, 0.95, T.text_str,...
+                Txt=text(Ax, T.time, ymin+0.95*(ymax-ymin), T.text_str,...
                     'Units','data',...
                     'HorizontalAlignment','right',...
                     'VerticalAlignment','bottom',...
@@ -705,11 +705,13 @@ classdef MyLog < matlab.mixin.Copyable
             addField(Mdt, 'ColumnNames');
             addParam(Mdt, 'ColumnNames', 'Name', this.column_headers)
             
-            % Add time labels (textual part of TimeLabels structure)
-            addField(Mdt, 'TimeLabels');
-            Lbl=struct('time_str', {this.TimeLabels.time_str},...
-                'text_str', {this.TimeLabels.text_str});
-            addParam(Mdt, 'TimeLabels', 'Lbl', Lbl)
+            if ~isempty(this.TimeLabels)
+                % Add time labels (textual part of TimeLabels structure)
+                addField(Mdt, 'TimeLabels');
+                Lbl=struct('time_str', {this.TimeLabels.time_str},...
+                    'text_str', {this.TimeLabels.text_str});
+                addParam(Mdt, 'TimeLabels', 'Lbl', Lbl)
+            end
         end
     end
 end
