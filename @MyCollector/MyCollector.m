@@ -103,9 +103,9 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 end
                 addParam(this.MeasHeaders,'AcquiringInstrument',...
                     'Name',name);
-                acquireHeaders(this);
                 %Add field indicating the time when the trace was acquired
                 addTimeField(this.MeasHeaders, 'AcquisitionTime')
+                acquireHeaders(this);
                 %We copy the MeasHeaders to the trace.
                 src.Trace.MeasHeaders=copy(this.MeasHeaders);
             end

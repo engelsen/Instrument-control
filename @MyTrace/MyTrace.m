@@ -11,9 +11,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         % MyMetadata storing information about how the trace was taken
         MeasHeaders
         load_path='';
+        uid='';
+        
         %Cell that contains handles the trace is plotted in
         hlines={};
-        uid='';
     end
     
     properties (Access=private)
@@ -121,7 +122,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             save_prec=p.Results.save_prec;
 
             %Writes the metadata header
-            printAllHeaders(this.Metadata,fullfilename);
+            save(this.Metadata,fullfilename);
             
             fileID=fopen(fullfilename,'a');
             %Pads the vectors if they are not equal length
