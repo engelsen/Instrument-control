@@ -73,7 +73,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 % odd number of elements in varargin - interpret the first
                 % element as file name and the rest as name-value pairs
                 fname=varargin{1};
-                assert(ischar(fname)&&isvect(fname),...
+                assert(ischar(fname)&&isvector(fname),...
                     '''filename'' must be a vector of characters');
                 this.file_name=fname;
                 parse(p,varargin{2:end});
@@ -93,7 +93,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             %We now write the data to the file
-            writeData(this, fullfilename,'save_prec', p.Results.save_prec);
+            writeData(this, fname, 'save_prec', p.Results.save_prec);
         end
         
         %Writes the data to a file. This is separated so that other
