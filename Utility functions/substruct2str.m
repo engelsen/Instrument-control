@@ -7,7 +7,7 @@ function str = substruct2str(S, own_name)
     str=own_name;
     
     for i=1:length(S)
-        if S(i).type=='.'
+        if strcmp(S(i).type,'.')
             % Structure field
             str=[str,'.',S(i).subs]; %#ok<*AGROW>
         elseif strcmp(S(i).type,'()') || strcmp(S(i).type,'{}')

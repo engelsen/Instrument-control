@@ -17,9 +17,12 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     % If input_presc is given, the value assigned to the instrument propery  
     % is related to the value x displayed in GUI as x/input_presc.
     addParameter(p,'input_presc',1,@isnumeric);
-    % Add an arbitrary function for processing the value, read from the
-    % device before outputting it. 
+    % Arbitrary processing functions can be specified for input and output.
+    % out_proc_fcn is applied to values before assigning them to gui
+    % elements and in_proc_fcn is applied before assigning
+    % to the linked properties
     addParameter(p,'out_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
+    addParameter(p,'in_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
     addParameter(p,'create_callback',true,@islogical);
     % For drop-down menues initializes entries automatically based on the 
     % list of values. Ignored for all the other control elements. 
@@ -51,8 +54,9 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         return
     end
     
-    % Check if the tag refers to a property of an object
-    if (length(PropSubref)>1) && PropSubref(end).type=='.'
+    % Check if the tag refers to a property of an object, which also helps
+    % to determine is callback is to be created
+    if (length(PropSubref)>1) && isequal(PropSubref(end).type,'.')
         % Potential MyInstrument object
         Obj=subsref(app, PropSubref(1:end-1));
         % Potential command name
@@ -86,9 +90,9 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         is_cmd=false;
     end
     
-    % If the create_callback is true, assign genericValueChanged as
-    % callback
-    if create_callback
+    % If the create_callback is true and the element does not alreasy have 
+    % a callback, assign genericValueChanged as ValueChangedFcn
+    if create_callback && isempty(elem.ValueChangedFcn)
         assert(ismethod(app,'createGenericCallback'), ['App needs to ',...
             'contain public createGenericCallback method to automatically'...
             'assign callbacks. Use ''create_callback'',false in order to '...
@@ -116,7 +120,7 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         elem.InputPrescaler = p.Results.input_presc;
     end
     
-    % Add an arbitrary function for output processing
+    % Optionally add an arbitrary function for output processing
     if ~ismember('out_proc_fcn',p.UsingDefaults)
         if isprop(elem, 'OutputProcessingFcn')
             warning(['The OutputProcessingFcn property already exists',...
@@ -126,6 +130,18 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         end
         elem.OutputProcessingFcn = p.Results.out_proc_fcn;
     end
+    % Optionally add an arbitrary function for input processing
+    if ~ismember('in_proc_fcn',p.UsingDefaults)
+        if isprop(elem, 'InputProcessingFcn')
+            warning(['The InputProcessingFcn property already exists',...
+                ' in the control element']);
+        else
+            addprop(elem,'InputProcessingFcn');
+        end
+        elem.InputProcessingFcn = p.Results.in_proc_fcn;
+    end
+    
+    %% Linking
     
     % The link is established by storing the subreference structure
     % in UserData and adding elem to the list of linked elements
