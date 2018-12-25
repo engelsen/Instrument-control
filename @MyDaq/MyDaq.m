@@ -788,6 +788,18 @@ classdef MyDaq < handle
             updateAxis(this);
             updateCursors(this);
         end
+        
+        % Callback for open folder button
+        function openFolderCallback(this, hObject, eventdata)
+            dir=uigetdir(this.Gui.BaseDir.String);
+            if ~isempty(dir)
+                this.Gui.BaseDir.String=dir;
+            end
+            
+            % Execute the same callback as if the base directory edit 
+            % field was manually updated 
+            baseDirCallback(this, hObject, eventdata);
+        end
     end
     
     methods (Access=public)
