@@ -2,7 +2,9 @@
 % Data can be continuously appended and saved. It is possible to add
 % labels (time marks) for particular moments in time. Data can be saved 
 % and plotted with the time marks. 
-% Metadata for this class is stored independently
+% Metadata for this class is stored independently.
+% If instantiated as MyLog(fname) or MyLog('file_name', fname) then 
+% the content is loaded from file
 
 classdef MyLog < matlab.mixin.Copyable
     
@@ -17,9 +19,8 @@ classdef MyLog < matlab.mixin.Copyable
         % Format for displaying the last reading (column name: value)
         disp_fmt = '%15s: %.2g'
         
-        % Data columns are separated by this symbol
-        data_column_sep = '\t'
-        
+        % Data column and line separators
+        column_sep = '\t'
         line_sep='\r\n'
         
         % File extension that is appended by default when saving the log 
@@ -64,9 +65,23 @@ classdef MyLog < matlab.mixin.Copyable
         %% Constructor and destructor methods
         function this = MyLog(varargin)
             P=MyClassParser(this);
-            processInputs(P, this, varargin{:});
+            % options for MeasHeaders
+            addParameter(P, 'metadata_opts',{},@iscell);
             
-            this.Metadata=MyMetadata(P.unmatched_nv{:});
+            if mod(length(varargin),2)==1
+                % odd number of elements in varargin - interpret the first
+                % element as file name and the rest as name-value pairs
+                fname=varargin{1};
+                assert(ischar(fname)&&isvector(fname),...
+                    '''file_name'' must be a vector of characters');
+                processInputs(P, this, varargin{2:end});
+                this.file_name=fname;
+            else
+                % Parse varargin as a list of name-value pairs 
+                processInputs(P, this, varargin{:});
+            end
+            
+            this.Metadata=MyMetadata(P.Results.metadata_opts{:});
             
             % Create an empty structure array of time labels
             this.TimeLabels=struct(...
@@ -82,8 +97,8 @@ classdef MyLog < matlab.mixin.Copyable
                 'LbText',{});       % labels text handles 
             
             % Load the data from file if the file name was provided
-            if ~ismember('file_name', P.UsingDefaults)
-                load(this, P.Results.file_name); 
+            if ~isempty(this.file_name)
+                load(this, this.file_name);
             end
             
         end
@@ -150,13 +165,13 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Read column headers from data file
             fid=fopen(fname,'r');
-            dat_col_heads=strsplit(fgetl(fid),this.data_column_sep, ...
+            dat_col_heads=strsplit(fgetl(fid),this.column_sep, ...
                 'CollapseDelimiters', true);
             fclose(fid);
             
             % Read data as delimiter-separated values and convert to cell
             % array, skip the first line containing column headers
-            fulldata = dlmread(fname, this.data_column_sep, 1, 0);
+            fulldata = dlmread(fname, this.column_sep, 1, 0);
             
             this.data = fulldata(:,2:end);
             this.timestamps = fulldata(:,1);
@@ -581,7 +596,7 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Print column names to a string
         function str=printDataHeaders(this)
-            cs=this.data_column_sep;
+            cs=this.column_sep;
             str=sprintf(['%s',cs], this.column_headers{:});
             str=[str,sprintf(this.line_sep)];
         end
@@ -646,7 +661,7 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         function data_line_fmt=get.data_line_fmt(this)
-            cs=this.data_column_sep;
+            cs=this.column_sep;
             nl=this.line_sep;
             
             if isempty(this.data)

@@ -3,6 +3,8 @@
 % Parameters can be strings, numerical values or cells, as well as any 
 % arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
+% If instantiated as MyMetadata(fname) or MyMetadata('file_name', fname) 
+% then the content is loaded from file
 
 classdef MyMetadata < dynamicprops
     properties (Access=public)
@@ -31,14 +33,25 @@ classdef MyMetadata < dynamicprops
     methods
         function [this,varargout]=MyMetadata(varargin)
             P=MyClassParser(this);
-            addParameter(P, 'load_path','',@ischar);
-            processInputs(P,this, varargin{:});
-            load_path=P.Results.load_path;
+            addParameter(P, 'file_name','',@ischar);
+            
+            if mod(length(varargin),2)==1
+                % odd number of elements in varargin - interpret the first
+                % element as file name and the rest as name-value pairs
+                fname=varargin{1};
+                assert(ischar(fname)&&isvector(fname),...
+                    '''file_name'' must be a vector of characters');
+                processInputs(P, this, varargin{2:end});
+            else
+                % Parse varargin as a list of name-value pairs 
+                processInputs(P, this, varargin{:});
+                fname=P.Results.file_name;
+            end
             
             this.PropHandles=struct();
             
-            if ~isempty(load_path)
-                varargout{1}=load(this, load_path);
+            if ~isempty(fname)
+                varargout{1}=load(this, fname);
             end
         end
         
@@ -146,7 +159,6 @@ classdef MyMetadata < dynamicprops
         
         function save(this, filename, varargin)
             createFile(filename, varargin{:});
-            addTimeField(this);
             for i=1:length(this.field_names)
                 printField(this, this.field_names{i}, filename);
             end
@@ -283,19 +295,30 @@ classdef MyMetadata < dynamicprops
         end
         
         %Adds time header
-        function addTimeField(this)
-            if isprop(this,'Time')
-                deleteField(this,'Time')
+        %Second optional argument is the name of the field, i.e 
+        %addTimeField(this, 'TimeField')
+        function addTimeField(this, t_field_name)
+            if nargin()>1
+                assert(ischar(t_field_name)&&isvector(t_field_name),...
+                    'Time field name must be a character vector')
+            else
+                t_field_name='Time';
             end
+            
+            if ismember(t_field_name, this.field_names)
+                deleteField(this, t_field_name)
+            end
+            
             dv=datevec(datetime('now'));
-            addField(this,'Time');
-            addParam(this,'Time','Year',dv(1),'fmt_spec','%i');
-            addParam(this,'Time','Month',dv(2),'fmt_spec','%i');
-            addParam(this,'Time','Day',dv(3),'fmt_spec','%i');
-            addParam(this,'Time','Hour',dv(4),'fmt_spec','%i');
-            addParam(this,'Time','Minute',dv(5),'fmt_spec','%i');
-            addParam(this,'Time','Second',floor(dv(6)),'fmt_spec','%i');
-            addParam(this,'Time','Millisecond',...
+            addField(this,t_field_name);
+            addParam(this,t_field_name,'Year',dv(1),'fmt_spec','%i');
+            addParam(this,t_field_name,'Month',dv(2),'fmt_spec','%i');
+            addParam(this,t_field_name,'Day',dv(3),'fmt_spec','%i');
+            addParam(this,t_field_name,'Hour',dv(4),'fmt_spec','%i');
+            addParam(this,t_field_name,'Minute',dv(5),'fmt_spec','%i');
+            addParam(this,t_field_name,'Second',...
+                floor(dv(6)),'fmt_spec','%i');
+            addParam(this,t_field_name,'Millisecond',...
                 round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
         end
         
@@ -397,7 +420,7 @@ classdef MyMetadata < dynamicprops
 
         % Need a custom copy method as the one provided by 
         % matlab.mixin.Copyable does not re-create the handles of dynamic
-        % properties
+        % properties stored in this.PropHandles
         function NewMet=copy(this)
             NewMet=MyMetadata();
             Mc=metaclass(NewMet);

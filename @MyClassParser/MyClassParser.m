@@ -79,13 +79,12 @@ classdef MyClassParser < inputParser
         % parse varargin and assign results to class properties 
         % with the same names as parameters 
         function processInputs(this, obj, varargin)  
-            parse(this, varargin{:});  
+            parse(this, varargin{:}); 
             % assign results that have associated class properties with
             % public set access
             for i=1:length(this.Parameters)
                 par = this.Parameters{i};
-                if ~ismember(par, this.UsingDefaults)&&...
-                        isprop(obj, par)
+                if ~ismember(par, this.UsingDefaults) && isprop(obj, par)
                     try
                         obj.(par) = this.Results.(par);
                     catch

@@ -499,14 +499,22 @@ classdef MyDaq < handle
             %Check if the trace is valid (i.e. x and y are equal length)
             %before saving
             if ~this.(trace_tag).validatePlot
-                errordlg(sprintf('%s trace was empty, could not save',trace_tag));
+                errordlg(sprintf('%s trace was empty, could not save',...
+                    trace_tag));
                 return
             end
             
-            %Uses the protected save function of MyTrace
-            save(this.(trace_tag),...
-                'save_dir',this.save_dir,...
-                'filename',this.filename)
+            [~,~,ext]=fileparts(this.filename);
+            if isempty(ext)
+                % Add default file extension
+                fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
+            else
+                % Use file extension supplied in the field
+                fullfilename=fullfile(this.save_dir,this.filename);
+            end
+            
+            %Save in a readable format using the method of MyTrace
+            save(this.(trace_tag), fullfilename)
         end
         
         %Toggle button callback for showing the data trace.
@@ -538,22 +546,24 @@ classdef MyDaq < handle
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
             if this.Data.validatePlot
-                setTrace(this.Ref,...
+                set(this.Ref,...
                     'x',this.Data.x,...
                     'y',this.Data.y,...
                     'name_x',this.Data.name_x,...
                     'name_y',this.Data.name_y,...
                     'unit_x',this.Data.unit_x,...
-                    'unit_y',this.Data.unit_y)
+                    'unit_y',this.Data.unit_y);
                 
                 %Since UID is automatically reset when y is changed, we now
                 %change it back to be the same as the Data.
                 this.Ref.uid=this.Data.uid;
                 
+                this.Ref.MeasHeaders=copy(this.Data.MeasHeaders);
+                
                 %Plot the reference trace and make it visible
-                this.Ref.plotTrace(this.main_plot,'Color',this.ref_color,...
+                plot(this.Ref, this.main_plot, 'Color',this.ref_color,...
                     'make_labels',true);
-                this.Ref.setVisible(this.main_plot,1);
+                setVisible(this.Ref, this.main_plot,1);
                 %Update the fit objects
                 updateFits(this);
                 %Change button color
@@ -570,7 +580,7 @@ classdef MyDaq < handle
             if this.Ref.validatePlot
                 this.Background.x=this.Ref.x;
                 this.Background.y=this.Ref.y;
-                this.Background.plotTrace(this.main_plot,...
+                this.Background.plot(this.main_plot,...
                     'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
             else
@@ -583,7 +593,7 @@ classdef MyDaq < handle
             if this.Data.validatePlot
                 this.Background.x=this.Data.x;
                 this.Background.y=this.Data.y;
-                this.Background.plotTrace(this.main_plot,...
+                this.Background.plot(this.main_plot,...
                     'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
             else
@@ -769,14 +779,26 @@ classdef MyDaq < handle
             %Finds the destination trace from the GUI
             dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
             %Call the load trace function on the right trace
-            loadTrace(this.(dest_trc),load_path);
+            load(this.(dest_trc), load_path);
             %Color and plot the right trace.
-            this.(dest_trc).plotTrace(this.main_plot,...
+            plot(this.(dest_trc), this.main_plot,...
                 'Color',this.(sprintf('%s_color',lower(dest_trc))),...
                 'make_labels',true);
             %Update axis and cursors
             updateAxis(this);
             updateCursors(this);
+        end
+        
+        % Callback for open folder button
+        function openFolderCallback(this, hObject, eventdata)
+            dir=uigetdir(this.Gui.BaseDir.String);
+            if ~isempty(dir)
+                this.Gui.BaseDir.String=dir;
+            end
+            
+            % Execute the same callback as if the base directory edit 
+            % field was manually updated 
+            baseDirCallback(this, hObject, eventdata);
         end
     end
     
@@ -806,8 +828,10 @@ classdef MyDaq < handle
                 %Copy the data from the source instrument
                 this.Data=copy(SourceInstr.Trace);
                 %We give the new trace object the right line handle to plot in
-                if ~isempty(hline); this.Data.hlines{1}=hline; end
-                this.Data.plotTrace(this.main_plot,...
+                if ~isempty(hline)
+                    this.Data.hlines{1}=hline;
+                end
+                plot(this.Data, this.main_plot,...
                     'Color',this.data_color,...
                     'make_labels',true)
                 updateAxis(this);
