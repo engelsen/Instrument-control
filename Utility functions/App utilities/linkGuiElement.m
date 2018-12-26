@@ -90,9 +90,13 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         is_cmd=false;
     end
     
-    % Check if the gui element is editable - if it is not, then callback is
-    % not assigned
-    if isprop(elem, 'Editable') && strcmpi(elem.Editable, 'off')
+    % Check if the gui element is editable - if it is not, then a callback 
+    % is not assigned. This is only meaningful for uieditfieds. Drop-downs
+    % also have 'Editable' property, but it corresponds to the editability
+    % of elements and does not have an effect on assigning callback.
+    if (strcmpi(elem.Type, 'uinumericeditfield') || ...
+            strcmpi(elem.Type, 'uieditfield')) ...
+            && strcmpi(elem.Editable, 'off')
         create_callback=false;
     end
     
