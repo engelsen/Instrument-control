@@ -1,8 +1,11 @@
 function genericValueChanged(app, event)
     val = event.Value;
-    % scale the value if the control element has a prescaler
-    if isprop(event.Source, 'InputPrescaler')
-        val = val/event.Source.InputPrescaler;
+    
+    % Apply input processing function or prescaler if exist
+    if isfield(event.Source.UserData, 'InputProcessingFcn')
+        val = event.Source.UserData.InputProcessingFcn(val);
+    elseif isfield(event.Source.UserData, 'InputPrescaler')
+        val = val/event.Source.UserData.InputPrescaler;
     end
     
     assert(isfield(event.Source.UserData,'LinkSubs'),...

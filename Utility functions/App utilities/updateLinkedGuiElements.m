@@ -10,11 +10,11 @@ function updateLinkedGuiElements(app)
         try
             % get value using the subreference structure 
             tmpval = subsref(app, tmpelem.UserData.LinkSubs);
-            % Apply the output processing function and input prescaler 
-            if isprop(tmpelem, 'OutputProcessingFcn')
-                tmpval = tmpelem.OutputProcessingFcn(tmpval);
-            elseif isprop(tmpelem, 'InputPrescaler')
-                tmpval = tmpval*tmpelem.InputPrescaler;
+            % Apply the output processing function or input prescaler 
+            if isfield(tmpelem.UserData, 'OutputProcessingFcn')
+                tmpval = tmpelem.UserData.OutputProcessingFcn(tmpval);
+            elseif isfield(tmpelem.UserData, 'InputPrescaler')
+                tmpval = tmpval*tmpelem.UserData.InputPrescaler;
             end
             % Setting value of a matlab app elemen is time consuming, so do
             % this only if the value has actually changed

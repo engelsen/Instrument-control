@@ -34,6 +34,7 @@ classdef MyTpg < MyInstrument
     end
     
     methods (Access=public)
+        %% Constructor and destructor
         function this = MyTpg(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
             
@@ -45,6 +46,15 @@ classdef MyTpg < MyInstrument
             this.Trace.unit_x='s';
         end
         
+        % Delete method that cleans up logger. Superclass delete method as
+        % usual is executed after this one.
+        function delete(this)
+            % Stop and delete logger
+            stop(this.Lg)
+            delete(this.Lg);
+        end  
+        
+        %% Communication commands
         % read pressure from a single channel or both channels at a time
         function p_arr = readPressure(this)
             query(this.Device,['PRX',this.CR,this.LF]);

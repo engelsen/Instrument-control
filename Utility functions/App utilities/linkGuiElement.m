@@ -124,36 +124,16 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         end
     end
 
-    % If prescaler is given, add it to the element as a new property
+    % If a prescaler, input processing function or output processing  
+    % function is specified, store it in UserData of the element
     if p.Results.input_presc ~= 1
-        if isprop(elem, 'InputPrescaler')
-            warning(['The InputPrescaler property already exists',...
-                ' in the control element']);
-        else
-            addprop(elem,'InputPrescaler');
-        end
-        elem.InputPrescaler = p.Results.input_presc;
+        elem.UserData.InputPrescaler = p.Results.input_presc;
     end
-    
-    % Optionally add an arbitrary function for output processing
-    if ~ismember('out_proc_fcn',p.UsingDefaults)
-        if isprop(elem, 'OutputProcessingFcn')
-            warning(['The OutputProcessingFcn property already exists',...
-                ' in the control element']);
-        else
-            addprop(elem,'OutputProcessingFcn');
-        end
-        elem.OutputProcessingFcn = p.Results.out_proc_fcn;
-    end
-    % Optionally add an arbitrary function for input processing
     if ~ismember('in_proc_fcn',p.UsingDefaults)
-        if isprop(elem, 'InputProcessingFcn')
-            warning(['The InputProcessingFcn property already exists',...
-                ' in the control element']);
-        else
-            addprop(elem,'InputProcessingFcn');
-        end
-        elem.InputProcessingFcn = p.Results.in_proc_fcn;
+        elem.UserData.InputProcessingFcn = p.Results.in_proc_fcn;
+    end
+    if ~ismember('out_proc_fcn',p.UsingDefaults)
+        elem.UserData.OutputProcessingFcn = p.Results.out_proc_fcn;
     end
     
     %% Linking
