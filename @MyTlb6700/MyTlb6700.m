@@ -4,14 +4,20 @@
 % Start instrument as MyTlb6700('','USBaddr'), where USBaddr is indicated
 % in the instrument menu. Example: MyTlb6700('','1')
 %
-% Operation of opening device is time-consuming with Newport USB driver,
+% This class does not have 'Device' property but uses the communication
+% class UsbComm (which needs to be shared between multiple devices) to
+% mimic some of the standard MyInstrument operations.
+%
+% Operation of opening devices is time-consuming with Newport USB driver,
 % on the other hand multiple open devices do not interfere. So keep 
 % the device open for the whole session
 
 classdef MyTlb6700 < MyScpiInstrument
     
     properties (SetAccess=protected, GetAccess=public)
-        NetAsm % .NET assembly
+        % Instance of Newport.USBComm.USB used for communication. 
+        % Must be shared between the devices that use Newport USB driver
+        UsbComm  
     end
     
     %% Constructor and destructor
@@ -109,20 +115,35 @@ classdef MyTlb6700 < MyScpiInstrument
         function connectDevice(this)
             % In this case 'interface' property is ignored and 'address' is
             % the USB address, indicated in the controller menu
-            dll_path = which('UsbDllWrap.dll');
-            if isempty(dll_path)
-                error(['UsbDllWrap.dll is not found. This library ',...
-                    'is a part of Newport USB driver and needs ',...
-                    'to be present on Matlab path.'])
+            
+            % Check if the usb driver is already present in the global
+            % workspace
+            name_exist = evalin('base',...
+                'exist(''NewportUsbComm'', ''var'')');
+            if ~name_exist
+                dll_path = which('UsbDllWrap.dll');
+                if isempty(dll_path)
+                    error(['UsbDllWrap.dll is not found. This library ',...
+                        'is a part of Newport USB driver and needs ',...
+                        'to be present on Matlab path.'])
+                end
+                
+                NetAsm=NET.addAssembly(dll_path);
+                % Create an instance of Newport.USBComm.USB class
+                Type=GetType(NetAsm.AssemblyHandle,'Newport.USBComm.USB');
+                this.UsbComm = System.Activator.CreateInstance(Type);
+                
+                % Put the communication class in global workspace
+                NewportUsbComm.Usb = this.UsbComm;
+                assignin('base', 'NewportUsbComm', NewportUsbComm);
+            else
+                this.UsbComm=evalin('base', 'NewportUsbComm.Usb');
             end
-            this.NetAsm=NET.addAssembly(dll_path);
-            % Create an instance of Newport.USBComm.USB class
-            Type=GetType(this.NetAsm.AssemblyHandle,'Newport.USBComm.USB');
-            this.Device=System.Activator.CreateInstance(Type);
+            
         end
          
         function openDevice(this)
-            OpenDevices(this.Device, hex2num('100A'));
+            OpenDevices(this.UsbComm, hex2num('100A'));
         end
         
         % Overload isopen method of MyInstrument
@@ -132,7 +153,7 @@ classdef MyTlb6700 < MyScpiInstrument
             bool=false;
             QueryData=System.Text.StringBuilder(64); 
             try
-                stat = Query(this.Device,this.address,'*IDN?',QueryData);
+                stat = Query(this.UsbComm,this.address,'*IDN?',QueryData);
                 if stat==0
                     bool=true;
                 end
@@ -141,11 +162,13 @@ classdef MyTlb6700 < MyScpiInstrument
         end
         
         function closeDevice(this)
-            CloseDevices(this.Device);
+            CloseDevices(this.UsbComm);
         end
         
         function stat_list=writeCommand(this, varargin)
             % Create auxiliary variable for device communication
+            % Query is used for writing as the controller always returns
+            % a status string that needs to be read out
             QueryData=System.Text.StringBuilder(64);  
             if ~isempty(varargin)
                 n_cmd=length(varargin);
@@ -154,7 +177,7 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.Device, this.address, cmd, QueryData);
+                    Query(this.UsbComm, this.address, cmd, QueryData);
                     stat_list{i} = char(ToString(QueryData));
                 end
             end
@@ -170,7 +193,7 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.Device, this.address, cmd, QueryData);
+                    Query(this.UsbComm, this.address, cmd, QueryData);
                     res_list{i} = char(ToString(QueryData));
                 end
             else
@@ -206,7 +229,7 @@ classdef MyTlb6700 < MyScpiInstrument
             QueryData=System.Text.StringBuilder(64); 
             try
                 openDevice(this);
-                code=Query(this.Device, this.address, '*IDN?', QueryData);
+                code=Query(this.UsbComm, this.address, '*IDN?', QueryData);
                 str=char(ToString(QueryData));
                 if code~=0
                     msg='Communication with controller failed';
@@ -227,10 +250,10 @@ classdef MyTlb6700 < MyScpiInstrument
             % Depending on if the laser in the constat power or current
             % mode, set value to max
             if this.const_power
-                Query(this.Device, this.address, ...
+                Query(this.UsbComm, this.address, ...
                     'SOURce:POWer:DIODe MAX;', QueryData);
             else
-                Query(this.Device, this.address, ...
+                Query(this.UsbComm, this.address, ...
                     'SOURce:CURRent:DIODe MAX;', QueryData);
             end
             stat = char(ToString(QueryData));

@@ -92,7 +92,6 @@ classdef MyInstrument < dynamicprops
             try
                 delete(this.Device);
             catch
-                warning('Device object cannot be deleted')
             end
         end    
         
