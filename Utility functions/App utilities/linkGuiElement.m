@@ -90,6 +90,17 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         is_cmd=false;
     end
     
+    % Check if the gui element is editable - if it is not, then callback is
+    % not assigned
+    if isprop(elem, 'Editable') && strcmpi(elem.Editable, 'off')
+        create_callback=false;
+    end
+    
+    % If the gui element is disabled callback is not assigned
+    if isprop(elem, 'Enable') && strcmpi(elem.Enable, 'off')
+        create_callback=false;
+    end
+    
     % If the create_callback is true and the element does not alreasy have 
     % a callback, assign genericValueChanged as ValueChangedFcn
     if create_callback && isempty(elem.ValueChangedFcn)
