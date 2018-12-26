@@ -22,6 +22,7 @@ classdef MyTlb6700 < MyScpiInstrument
     
     %% Constructor and destructor
     methods (Access=public)
+        
         function this=MyTlb6700(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
             % Interface field is not used in this instrument, but is
