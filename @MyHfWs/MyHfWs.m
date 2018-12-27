@@ -1,8 +1,10 @@
-% Class for controlling HighFinesse wavelengthmeter, tested with WS6 
+% Class for controlling HighFinesse wavelengthmeter, tested with WS6-200 
 
 classdef MyHfWs < handle
     
     properties (Access=public)
+        name = ''
+        
         % Files containg the functions for communication with
         % wavelengthmeter, dll and header
         dllname = 'wlmData.dll'
@@ -36,24 +38,15 @@ classdef MyHfWs < handle
             loadWlmLib(this);
             
             % Check if the wavelengthmeter software is running
-            is_server_running=calllib(this.libname,'Instantiate',0,0,0,0);
-            
-            if ~is_server_running
+            if ~isServerRunning(this)
                 disp(['Wavelength meter server apptication ', ...
                     'is not running. Attempting to start.'])
-                runServerApp(this);
+                runServer(this);
                 startMeas(this);
             end
             
             % Identificate the instrument
             this.idn_str=idn(this);
-        end
-        
-        function delete(this)
-            try
-                unloadlibrary(this.libname)
-            catch
-            end
         end
         
         %% Communication methods
@@ -69,8 +62,12 @@ classdef MyHfWs < handle
                 error([this.headername,' is not found. This header ',...
                     'file needs to be present on Matlab path.'])
             end
-
-            loadlibrary(dll_path, header_path)
+            
+            if ~libisloaded(this.libname)
+                fprintf('Loading %s library with %s header\n', ...
+                    this.dllname, this.headername);
+                loadlibrary(dll_path, header_path);
+            end
         end
         
         function ret_val=readWavelength(this, varargin)
@@ -100,7 +97,7 @@ classdef MyHfWs < handle
         end
         
         % Run the wavelengthmeter control program
-        function runServerApp(this)
+        function runServer(this)
             T=timer('Period',0.5,...
                 'ExecutionMode','fixedDelay',...
                 'TasksToExecute', ceil(this.run_server_timeout/0.5));
@@ -111,25 +108,25 @@ classdef MyHfWs < handle
             % not running
             if calllib(this.libname,'ControlWLM',1,0,0) == 1
                 start(T);
-                waitfor(T);
-%                 timeOutCounter = tic;
-%                 while calllib(this.libname,'GetWLMVersion',0) == -5 && toc(timeOutCounter) < timeout
-%                     pause(0.5)
-%                 end
-%                 if toc(timeOutCounter)>timeout
-%                     disp('Sofware start has timed out. Aborting.')
-%                 end 
+                wait(T);
             else
-                disp('Error: software could not be started. Aborting')
+                warning('Wavelengthmeter server app could not be started.')
             end
+            
+            % Clean up
+            delete(T);
         end
         
-        % Start continuous measurement
+        function bool=isServerRunning(this)
+            bool=calllib(this.libname,'Instantiate',0,0,0,0);
+        end
+        
+        % Start continuous measurement on the server
         function stat=startMeas(this)
             stat=calllib(this.libname,'Operation',hex2dec('0002'));
         end
         
-        % Stop measurement
+        % Stop measurement on the server
         function stat=stopMeas(this)
             stat=calllib(this.libname,'Operation',hex2dec('0000'));
         end
@@ -161,14 +158,21 @@ classdef MyHfWs < handle
             addField(Hdr, field_name);
             % Add identification string as parameter
             addParam(Hdr, field_name, 'idn', this.idn_str);
-            addParam(Hdr, field_name, 'wavelength', this.wavelength, 'comment', '(nm)');
+            
+            wl=this.wavelength;
+            if wl<=0
+                % The last measurement was not ok, so get the error code
+                % instead of the value
+                wl=readErrorFromCode(this, wl);
+            end
+            addParam(Hdr, field_name, 'wavelength', wl, 'comment', '(nm)');
         end
         
         %% Auxiliary functions
         
         %Convert error codes returned by readWavelength and 
         %readFrequency commands to message
-        function str=errorFromCode(~, code)
+        function str=readErrorFromCode(~, code)
             if code>0
                 str='Measurement ok';
                 return
@@ -205,14 +209,13 @@ classdef MyHfWs < handle
     methods (Access=private)
         
         function runServerTimerCallback(this, Timer, ~)
-            if calllib(this.libname,'GetWLMVersion',0)==-5
+            if ~isServerRunning(this)
                 % Check if the timer has reached its limit
-                if Timer.TasksExecuted>=T.TasksToExecute
+                if Timer.TasksExecuted>=Timer.TasksToExecute
                     warning(['Timeout for running the server ',...
-                        'app (%is) is exceeded'], this.run_server_timeout)
+                        'app (%is) is exceeded.'], this.run_server_timeout)
                 end
             else
-                % stop the timer
                 stop(Timer);
             end
         end
