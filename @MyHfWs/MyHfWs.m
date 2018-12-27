@@ -32,6 +32,7 @@ classdef MyHfWs < handle
         % they will be stored in P.unmatched_nv
         function this = MyHfWs(varargin)
             P=MyClassParser(this);
+            P.PartialMatching=false;
             processInputs(P, this, varargin{:});
             
             % Load dll library and its header
