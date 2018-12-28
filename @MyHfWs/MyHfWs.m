@@ -159,13 +159,21 @@ classdef MyHfWs < handle
             % Add identification string as parameter
             addParam(Hdr, field_name, 'idn', this.idn_str);
             
-            wl=this.wavelength;
-            if wl<=0
+            % Calculate wavelength in vacuum from frequency to avoid 
+            % vaccum/air ambiguity
+            f=this.frequency;
+            c=299792458; % (m/s), speed of light
+            % Print with 9 digits of precision which corresponds to 
+            % kHz-scale resolution in the visible range. 
+            % This should be safely beyond the instrument resolution.   
+            wl=sprintf('%.9f',(c/(f*1e12))*1e9);
+            if f<=0
                 % The last measurement was not ok, so get the error code
                 % instead of the value
-                wl=readErrorFromCode(this, wl);
+                wl=readErrorFromCode(this, f);
             end
-            addParam(Hdr, field_name, 'wavelength', wl, 'comment', '(nm)');
+            addParam(Hdr, field_name, 'wavelength', wl, ...
+                'comment', '(nm), in vacuum');
         end
         
         %% Auxiliary functions
