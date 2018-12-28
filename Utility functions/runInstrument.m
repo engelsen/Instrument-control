@@ -52,7 +52,18 @@ function Instr = runInstrument(name, instr_class, interface, address)
             % Return with empty results in the case of falure
             warning('Could not assign instrument %s from Collector',name);
             Instr = [];
+            return
         end
+    end
+    
+    % Open device. Communication commands will re-open the device if is
+    % closed, but keepeing it always open speeds communication up.
+    if ismethod(Instr,'openDevice')
+        openDevice(Instr);
+    end
+    % Send identification request to the instrument
+    if ismethod(Instr,'idn')
+        idn(Instr);
     end
 
 end

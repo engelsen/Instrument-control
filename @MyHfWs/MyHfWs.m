@@ -15,6 +15,8 @@ classdef MyHfWs < handle
     end
     
     properties (GetAccess=public, SetAccess=protected)
+        % These properties use get methods to read value every time they
+        % are addressed
         wavelength = 0  % Wavelength in nm
         frequency = 0   % Frequency in THz
         
@@ -45,9 +47,6 @@ classdef MyHfWs < handle
                 runServer(this);
                 startMeas(this);
             end
-            
-            % Identificate the instrument
-            this.idn_str=idn(this);
         end
         
         %% Communication methods

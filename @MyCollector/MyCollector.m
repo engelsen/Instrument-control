@@ -95,6 +95,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             % instrument does not request suppression of header collection
             if this.collect_flag && ~InstrEventData.no_new_header
                 this.MeasHeaders=MyMetadata();
+                %Add field indicating the time when the trace was acquired
+                addTimeField(this.MeasHeaders, 'AcquisitionTime')
                 addField(this.MeasHeaders,'AcquiringInstrument')
                 if isprop(src,'name')
                     name=src.name;
@@ -103,8 +105,6 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 end
                 addParam(this.MeasHeaders,'AcquiringInstrument',...
                     'Name',name);
-                %Add field indicating the time when the trace was acquired
-                addTimeField(this.MeasHeaders, 'AcquisitionTime')
                 acquireHeaders(this);
                 %We copy the MeasHeaders to the trace.
                 src.Trace.MeasHeaders=copy(this.MeasHeaders);
@@ -139,11 +139,21 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         
         function bool=isrunning(this,name)
             assert(~isempty(name),'Instrument name must be specified')
-            assert(ischar(name),...
-                'Instrument name must be a character, not %s',...
+            assert(ischar(name)&&isvector(name),...
+                'Instrument name must be a character vector, not %s',...
             class(name));
-            bool=ismember(this.running_instruments,name);
+            bool=ismember(name,this.running_instruments);
         end
+        
+        function deleteInstrument(this,name)
+            if isrunning(this,name)
+                %We remove the instrument
+                this.InstrList=rmfield(this.InstrList,name);
+                this.InstrProps=rmfield(this.InstrProps,name);
+                deleteListeners(this,name);
+            end
+        end
+        
     end
     
     methods (Access=private)       
@@ -153,13 +163,6 @@ classdef MyCollector < handle & matlab.mixin.Copyable
 
         %deleteListeners is in a separate file
         deleteListeners(this, obj_name);
-        
-        function deleteInstrument(this,name)
-            %We remove the instrument
-            this.InstrList=rmfield(this.InstrList,name);
-            this.InstrProps=rmfield(this.InstrProps,name);
-            deleteListeners(this,name);
-        end
     end
     
     methods

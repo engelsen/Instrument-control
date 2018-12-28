@@ -129,11 +129,16 @@ classdef MyDaq < handle
             % clear global variable, to which Daq handle is assigned
             evalin('base', sprintf('clear(''%s'')', this.global_name));
             
-            this.Gui.figure1.CloseRequestFcn='';
-            %Deletes the figure
-            delete(this.Gui.figure1);
-            %Removes the figure handle to prevent memory leaks
-            this.Gui=[];      
+            %A class destructor should never through errors, so enclose the
+            %attempt to close figure into try-catch structure
+            try
+                this.Gui.figure1.CloseRequestFcn='';
+                %Deletes the figure
+                delete(this.Gui.figure1);
+                %Removes the figure handle to prevent memory leaks
+                this.Gui=[];
+            catch
+            end
         end
     end
     
