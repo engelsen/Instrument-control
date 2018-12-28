@@ -26,10 +26,10 @@ function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, interface, 
             'f(name, instr_class, interface, address, gui)'])
     end
     
-    % Run gui and assign handles to a variable in global workspace
+    % Run gui and assign handles to variable in global workspace
     gui_name = ['Gui',name];
     if ~isValidBaseVar(gui_name)
-        % If gui does not present in the base workspace, create it
+        % If gui is not present in the base workspace, create it
         GuiInstr = feval(gui, Instr);
         if isprop(GuiInstr,'name')
             GuiInstr.name = gui_name;
