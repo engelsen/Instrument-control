@@ -1,7 +1,8 @@
 % Create instrument instance and add it to the collector
 
 function Instr = runInstrument(name, instr_class, interface, address)
-    Collector=getCollector();
+    % Get the unique instance of Collector
+    Collector=MyCollector.instance();
     
     if ~ismember(name, Collector.running_instruments)
         if nargin==1

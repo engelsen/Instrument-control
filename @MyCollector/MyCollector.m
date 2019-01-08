@@ -1,4 +1,4 @@
-classdef MyCollector < handle & matlab.mixin.Copyable
+classdef MyCollector < MySingleton & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
         InstrList % Structure accomodating instruments 
         InstrProps % Properties of instruments
@@ -18,7 +18,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         NewDataWithHeaders
     end
     
-    methods (Access=public)
+    methods (Access=private)
+        % Constructor of a singletone class must be private
         function this=MyCollector(varargin)
             p=inputParser;
             addParameter(p,'InstrHandles',{});
@@ -35,6 +36,9 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             this.InstrProps=struct(); 
             this.Listeners=struct();
         end
+    end
+    
+    methods (Access=public)
         
         function delete(this)
             cellfun(@(x) deleteListeners(this,x), this.running_instruments);
@@ -154,6 +158,21 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             end
         end
         
+    end
+    
+    methods(Static)
+        % Concrete implementation of the singletone constructor.
+        function this = instance()
+            persistent UniqueInstance
+
+            if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
+                disp('Creating new instance of MyCollector')
+                this = MyCollector();
+                UniqueInstance = this;
+            else
+                this = UniqueInstance;
+            end
+        end
     end
     
     methods (Access=private)       
