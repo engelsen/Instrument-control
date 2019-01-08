@@ -1,14 +1,17 @@
 classdef MyNewportUsbComm < MySingletone
     
     properties (GetAccess=public, SetAccess=private)
-        isbusy = false; % is driver in use 
-        QueryData
+        isbusy = false  % driver in use 
+        QueryData       % query buffer
+    end
+    
+    properties (Access=public)
+        Usb % Instance of Newport.USBComm.USB class 
     end
     
     methods(Access=private)
-        % Guard the constructor against external invocation.  We only want
-        % to allow a single instance of this class.  See description in
-        % Singleton superclass.
+        % The constructor of a singletone class should only be invoked from
+        % the getInstance method.
         function this = MyNewportUsbComm()
             this.QueryData=System.Text.StringBuilder(64);
             loadLib(this);
@@ -28,19 +31,25 @@ classdef MyNewportUsbComm < MySingletone
             NetAsm=NET.addAssembly(dll_path);
             % Create an instance of Newport.USBComm.USB class
             Type=GetType(NetAsm.AssemblyHandle,'Newport.USBComm.USB');
-            this.Asm = System.Activator.CreateInstance(Type);
+            this.Usb = System.Activator.CreateInstance(Type);
         end
         
-        function query(this, addr, cmd)
+        function str=query(this, addr, cmd)
+            this.isbusy=true;
+            % Send query using the QueryData buffer
             stat = Query(this.Asm, addr, cmd, this.QueryData);
             if stat==0
-                bool=true;
+                str = char(ToString(this.QueryData));
+            else
+                str='';
+                warning('Query to Newport usb driver was unsuccessful.');
             end
+            this.isbusy=false;
         end
     end
    
     methods(Static)
-        % Concrete implementation.  See Singleton superclass.
+        % Concrete implementation of the singletone constructor.
         function this = getInstance()
             persistent UniqueInstance
 
