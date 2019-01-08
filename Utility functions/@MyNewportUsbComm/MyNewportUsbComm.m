@@ -1,4 +1,4 @@
-classdef MyNewportUsbComm < MySingletone
+classdef MyNewportUsbComm < MySingleton
     
     properties (GetAccess=public, SetAccess=private)
         isbusy = false  % driver in use 
@@ -10,7 +10,7 @@ classdef MyNewportUsbComm < MySingletone
     end
     
     methods(Access=private)
-        % The constructor of a singletone class should only be invoked from
+        % The constructor of a singleton class should only be invoked from
         % the getInstance method.
         function this = MyNewportUsbComm()
             this.QueryData=System.Text.StringBuilder(64);
@@ -35,6 +35,13 @@ classdef MyNewportUsbComm < MySingletone
         end
         
         function str=query(this, addr, cmd)
+            % Check if the driver is already being used by another process.
+            % A race condition with various strange consequences is 
+            % potentially possible if it is.
+            if this.isbusy
+                warning('NewportUsbComm is already in use')
+            end
+            
             this.isbusy=true;
             % Send query using the QueryData buffer
             stat = Query(this.Usb, addr, cmd, this.QueryData);
@@ -54,12 +61,11 @@ classdef MyNewportUsbComm < MySingletone
             persistent UniqueInstance
 
             if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
+                disp('Creating new instance of NewportUsbComm')
                 this = MyNewportUsbComm();
                 UniqueInstance = this;
-                disp('creating new instance of NewportUsbComm')
             else
                 this = UniqueInstance;
-                disp('returning existing instance of NewportUsbComm')
             end
         end
     end

@@ -102,7 +102,10 @@ classdef MyScpiInstrument < MyInstrument
         % Wrapper for writeProperty that opens and closes the device
         function writePropertyHedged(this, varargin)
             was_open = isopen(this);
-            openDevice(this);
+            if ~was_open
+                openDevice(this);
+            end
+            
             try
                 writeProperty(this, varargin{:});
             catch
@@ -168,7 +171,10 @@ classdef MyScpiInstrument < MyInstrument
         % Wrapper for readProperty that opens and closes the device
         function result=readPropertyHedged(this, varargin)
             was_open = isopen(this);
-            openDevice(this);
+            if ~was_open
+                openDevice(this);
+            end
+            
             try
                 result = readProperty(this, varargin{:});
             catch

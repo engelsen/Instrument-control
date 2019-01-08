@@ -3,7 +3,7 @@
 % See https://ch.mathworks.com/matlabcentral/fileexchange/24911-design-pattern-singleton-creational
 % for more information.
 
-classdef MySingletone < handle
+classdef MySingleton < handle
     
    methods(Abstract, Static)
       this = instance();

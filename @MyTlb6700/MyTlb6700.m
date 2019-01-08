@@ -109,9 +109,11 @@ classdef MyTlb6700 < MyScpiInstrument
         
     end
     
-    %% Public functions including callbacks
+    
     methods (Access=public)
-        % NewFocus lasers no not support visa communication, thus need to
+        
+        %% Overloaded methods
+        % NewFocus lasers do not support visa communication, thus need to
         % overload connectDevice, writeCommand and queryCommand methods
         function connectDevice(this)
             % In this case 'interface' property is ignored and 'address' is
@@ -123,26 +125,23 @@ classdef MyTlb6700 < MyScpiInstrument
         end
          
         function openDevice(this)
+            % Opening a single device is not supported by Newport Usb 
+            % Driver, so open all the devices of the given type
             OpenDevices(this.UsbComm.Usb, hex2num('100A'));
         end
         
-        % Overload isopen method of MyInstrument
         function bool=isopen(this)
-            % Could not find a better way to check if device is open other
-            % than attempting communication with it
-            try
-                str=query(this.UsbComm, this.address, '*IDN?');
-                if ~isempty(str)
-                    bool=true;
-                end
-            catch
-                bool=false;
-            end
+            % There does not seem to be a quick way of checking if devices 
+            % are open with Newport Usb Driver. 
+            % On the other hand devices normally should always be open and 
+            % trying to re-open them is not time consuming.
+            openDevice(this);
+            bool=true;
         end
         
-        function closeDevice(this)
-            disp(['A single device cannot be closed with Newport Usb Driver'])
-            % CloseDevices(this.UsbComm.Usb);
+        function closeDevice(~)
+            % Closing a single device is not supported by Newport Usb 
+            % driver. use CloseDevices(this.UsbComm.Usb) to close all.
         end
         
         function stat_list=writeCommand(this, varargin)
@@ -176,45 +175,7 @@ classdef MyTlb6700 < MyScpiInstrument
             end
         end
         
-        % readPropertyHedged and writePropertyHedged
-        % are overloaded to not close the device
-        function writePropertyHedged(this, varargin)
-            openDevice(this);
-            try
-                writeProperty(this, varargin{:});
-            catch
-                warning('Error while writing the properties:');
-                disp(varargin);
-            end
-            readProperty(this, 'all');
-        end
-        
-        function result=readPropertyHedged(this, varargin)
-            openDevice(this);
-            try
-                result = readProperty(this, varargin{:});
-            catch
-                warning('Error while reading the properties:');
-                disp(varargin);
-            end
-        end
-        
-        % Attempt communication and identification
-        function [str, msg]=idn(this)
-            try
-                openDevice(this);
-                str=query(this.UsbComm, this.address, '*IDN?');
-                if isempty(str)
-                    msg='Communication with controller failed';
-                else
-                    msg='';
-                end
-            catch ErrorMessage
-                str='';
-                msg=ErrorMessage.message;
-            end
-            this.idn_str=str;
-        end
+        %% Laser power and scan control functions
         
         function stat = setMaxOutPower(this)
             openDevice(this);
@@ -247,7 +208,6 @@ classdef MyTlb6700 < MyScpiInstrument
             writeProperty(this, 'scan_start_wl', tmp);
         end
         
-        %% Wavelength scan-related functions
         function configSingleScan(this)
             openDevice(this);
             % Configure:
