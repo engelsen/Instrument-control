@@ -16,7 +16,7 @@ classdef MyTlb6700 < MyScpiInstrument
     
     properties (SetAccess=protected, GetAccess=public)
         % Instance of Newport.USBComm.USB used for communication. 
-        % Must be shared between the devices that use Newport USB driver
+        % Must be shared between the devices
         UsbComm  
     end
     
@@ -117,60 +117,38 @@ classdef MyTlb6700 < MyScpiInstrument
             % In this case 'interface' property is ignored and 'address' is
             % the USB address, indicated in the controller menu
             
-            % Check if the usb driver is already present in the global
-            % workspace
-            name_exist = evalin('base',...
-                'exist(''NewportUsbComm'', ''var'')');
-            if ~name_exist
-                dll_path = which('UsbDllWrap.dll');
-                if isempty(dll_path)
-                    error(['UsbDllWrap.dll is not found. This library ',...
-                        'is a part of Newport USB driver and needs ',...
-                        'to be present on Matlab path.'])
-                end
-                
-                NetAsm=NET.addAssembly(dll_path);
-                % Create an instance of Newport.USBComm.USB class
-                Type=GetType(NetAsm.AssemblyHandle,'Newport.USBComm.USB');
-                this.UsbComm = System.Activator.CreateInstance(Type);
-                
-                % Put the communication class in global workspace
-                NewportUsbComm.Usb = this.UsbComm;
-                assignin('base', 'NewportUsbComm', NewportUsbComm);
-            else
-                this.UsbComm=evalin('base', 'NewportUsbComm.Usb');
-            end
+            % Get the unique instance of control class for Newport driver 
+            this.UsbComm=MyNewportUsbComm.instance();
             
         end
          
         function openDevice(this)
-            OpenDevices(this.UsbComm, hex2num('100A'));
+            OpenDevices(this.UsbComm.Usb, hex2num('100A'));
         end
         
         % Overload isopen method of MyInstrument
         function bool=isopen(this)
             % Could not find a better way to check if device is open other
             % than attempting communication with it
-            bool=false;
-            QueryData=System.Text.StringBuilder(64); 
             try
-                stat = Query(this.UsbComm,this.address,'*IDN?',QueryData);
-                if stat==0
+                str=query(this.UsbComm, this.address, '*IDN?');
+                if ~isempty(str)
                     bool=true;
                 end
             catch
+                bool=false;
             end
         end
         
         function closeDevice(this)
-            CloseDevices(this.UsbComm);
+            disp(['A single device cannot be closed with Newport Usb Driver'])
+            % CloseDevices(this.UsbComm.Usb);
         end
         
         function stat_list=writeCommand(this, varargin)
             % Create auxiliary variable for device communication
             % Query is used for writing as the controller always returns
             % a status string that needs to be read out
-            QueryData=System.Text.StringBuilder(64);  
             if ~isempty(varargin)
                 n_cmd=length(varargin);
                 stat_list=cell(n_cmd,1);
@@ -178,15 +156,12 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.UsbComm, this.address, cmd, QueryData);
-                    stat_list{i} = char(ToString(QueryData));
+                    stat_list{i} = query(this.UsbComm, this.address, cmd);
                 end
             end
         end
         
         function res_list=queryCommand(this, varargin)
-            % Create auxiliary variable for device communication
-            QueryData=System.Text.StringBuilder(64);  
             if ~isempty(varargin)
                 n_cmd=length(varargin);
                 res_list=cell(n_cmd,1);
@@ -194,8 +169,7 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.UsbComm, this.address, cmd, QueryData);
-                    res_list{i} = char(ToString(QueryData));
+                    res_list{i} = query(this.UsbComm, this.address, cmd);
                 end
             else
                 res_list={};
@@ -227,12 +201,10 @@ classdef MyTlb6700 < MyScpiInstrument
         
         % Attempt communication and identification
         function [str, msg]=idn(this)
-            QueryData=System.Text.StringBuilder(64); 
             try
                 openDevice(this);
-                code=Query(this.UsbComm, this.address, '*IDN?', QueryData);
-                str=char(ToString(QueryData));
-                if code~=0
+                str=query(this.UsbComm, this.address, '*IDN?');
+                if isempty(str)
                     msg='Communication with controller failed';
                 else
                     msg='';
@@ -245,19 +217,16 @@ classdef MyTlb6700 < MyScpiInstrument
         end
         
         function stat = setMaxOutPower(this)
-            QueryData=System.Text.StringBuilder(64); 
-            
             openDevice(this);
             % Depending on if the laser in the constat power or current
             % mode, set value to max
             if this.const_power
-                Query(this.UsbComm, this.address, ...
-                    'SOURce:POWer:DIODe MAX;', QueryData);
+                stat = query(this.UsbComm, this.address, ...
+                    'SOURce:POWer:DIODe MAX;');
             else
-                Query(this.UsbComm, this.address, ...
-                    'SOURce:CURRent:DIODe MAX;', QueryData);
+                stat = query(this.UsbComm, this.address, ...
+                    'SOURce:CURRent:DIODe MAX;');
             end
-            stat = char(ToString(QueryData));
         end
         
         % Returns minimum and maximum wavelengths of the laser. There does 

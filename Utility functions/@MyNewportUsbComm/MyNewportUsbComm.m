@@ -31,13 +31,13 @@ classdef MyNewportUsbComm < MySingletone
             NetAsm=NET.addAssembly(dll_path);
             % Create an instance of Newport.USBComm.USB class
             Type=GetType(NetAsm.AssemblyHandle,'Newport.USBComm.USB');
-            this.Usb = System.Activator.CreateInstance(Type);
+            this.Usb=System.Activator.CreateInstance(Type);
         end
         
         function str=query(this, addr, cmd)
             this.isbusy=true;
             % Send query using the QueryData buffer
-            stat = Query(this.Asm, addr, cmd, this.QueryData);
+            stat = Query(this.Usb, addr, cmd, this.QueryData);
             if stat==0
                 str = char(ToString(this.QueryData));
             else
@@ -50,14 +50,16 @@ classdef MyNewportUsbComm < MySingletone
    
     methods(Static)
         % Concrete implementation of the singletone constructor.
-        function this = getInstance()
+        function this = instance()
             persistent UniqueInstance
 
             if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
                 this = MyNewportUsbComm();
                 UniqueInstance = this;
+                disp('creating new instance of NewportUsbComm')
             else
                 this = UniqueInstance;
+                disp('returning existing instance of NewportUsbComm')
             end
         end
     end
