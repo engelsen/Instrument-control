@@ -323,8 +323,25 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandList.(tag).write_flag=contains(p.Results.access,'w');
             this.CommandList.(tag).read_flag=contains(p.Results.access,'r');
             this.CommandList.(tag).default=p.Results.default;
-            this.CommandList.(tag).val_list=p.Results.val_list;
             this.CommandList.(tag).info=p.Results.info;
+            
+            %Add the list of values, if needed extending it to include
+            %short forms. For example, for the allowed value 'AVErage'
+            %its short form 'AVE' also will be added.
+            vl=p.Results.val_list;
+            short_vl={};
+            for i=1:length(vl)
+                if ischar(vl{i})
+                    idx = isstrprop(vl{i},'upper');
+                    short_form=vl{i}(idx);
+                    % Add the short form to the list of values if it was
+                    % not included explicitly
+                    if ~ismember(short_form, vl)
+                        short_vl{end+1}=short_form; %#ok<AGROW>
+                    end
+                end
+            end
+            this.CommandList.(tag).val_list=[vl,short_vl];
             
             % Adds the string specifier to the list. if the format
             % specifier is not given explicitly, try to infer
