@@ -79,11 +79,16 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         % Then check if the tag corresponds to a simple object
         % property (and not to a structure field)
         elseif isprop(Obj, tag)
-            mp = findprop(Obj, tag);
-            % Newer create callbacks for the properties with
-            % attributes listed below, as those cannot be set
-            if mp.Constant||mp.Abstract||~strcmpi(mp.SetAccess,'public')
-                create_callback=false;
+            try
+                % indprop may sometimes throw errors, especially on Matlab 
+                % below 2018a, therefore use try-catch
+                mp = findprop(Obj, tag);
+                % Newer create callbacks for the properties with
+                % attributes listed below, as those cannot be set
+                if mp.Constant||mp.Abstract||~strcmpi(mp.SetAccess,'public')
+                    create_callback=false;
+                end
+            catch
             end
         end
     else

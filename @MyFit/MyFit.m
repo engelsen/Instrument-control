@@ -542,7 +542,7 @@ classdef MyFit < dynamicprops
             assert((isa(this.plot_handle,'matlab.graphics.axis.Axes')||...
                 isa(this.plot_handle,'matlab.ui.control.UIAxes')),...
                 'plot_handle property must be defined to valid axis in order to plot')
-            this.Fit.plotTrace(this.plot_handle,varargin{:});
+            this.Fit.plot(this.plot_handle,varargin{:});
         end
         
         %Clears the plots
