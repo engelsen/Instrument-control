@@ -1,5 +1,5 @@
 % Class for controlling 4-channel Tektronix TBS scopes. 
-% Tested with TBS2000
+% Tested with TBS2074
 
 classdef MyTbs < MyScpiInstrument
     properties (SetAccess=protected, GetAccess=public)

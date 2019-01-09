@@ -11,7 +11,7 @@ classdef MyNewportUsbComm < MySingleton
     
     methods(Access=private)
         % The constructor of a singleton class should only be invoked from
-        % the getInstance method.
+        % the instance method.
         function this = MyNewportUsbComm()
             this.QueryData=System.Text.StringBuilder(64);
             loadLib(this);
@@ -56,7 +56,7 @@ classdef MyNewportUsbComm < MySingleton
     end
    
     methods(Static)
-        % Concrete implementation of the singletone constructor.
+        % Concrete implementation of the singleton constructor.
         function this = instance()
             persistent UniqueInstance
 
