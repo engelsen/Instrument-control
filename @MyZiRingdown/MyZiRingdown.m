@@ -19,8 +19,7 @@ classdef MyZiRingdown < handle
         dev_serial='dev4090'
         
         % enumeration for demodulators, oscillators and output starts from 1
-        trig_demod=1 % demodulator used for triggering, 
-        meas_demod=2 % demodulator used for recording the ringdown
+        demod=1 % demodulator used for both triggering and measurement 
         
         drive_osc=1
         meas_osc=2
@@ -33,10 +32,8 @@ classdef MyZiRingdown < handle
         
         % Enumeration in the node structure starts from 0, so, for example,
         % the default path to the trigger demodulator refers to the
-        % demodulator #1 and measurement - to #2
-        % Trigger and measurement demodulator paths in the node structure
-        td_path='/dev4090/demods/0'
-        md_path='/dev4090/demods/1'
+        % demodulator #1
+        demod_path='/dev4090/demods/0'
         
         % Device clock frequency, i.e. the number of timestamps per second
         clockbase
@@ -65,6 +62,11 @@ classdef MyZiRingdown < handle
         drive_osc_freq
         meas_osc_freq
         drive_on % true when the dirive output is on
+        current_osc
+    end
+    
+    properties (Access=private)
+        PollTimer
     end
     
     events
@@ -82,6 +84,16 @@ classdef MyZiRingdown < handle
                 'name_y','Magnitude r',...
                 'unit_y','V');
             
+            % Set up the poll timer. Using a timer for anyncronous
+            % data readout allows to use the wait time for execution 
+            % of other programs.
+            % Fixed spacing is preferred as it is the most robust mode of 
+            % operation when the precision of timing is less of a concern. 
+            this.PollTimer=timer(...
+                'ExecutionMode','fixedSpacing',...
+                'Period',0.1,...
+                'TimerFcn',@this.pollTimerCallback);
+            
             % Check the ziDAQ MEX (DLL) and Utility functions can be found in Matlab's path.
             if ~(exist('ziDAQ', 'file') == 3) && ~(exist('ziCreateAPISession', 'file') == 2)
                 fprintf('Failed to either find the ziDAQ mex file or ziDevices() utility.\n')
@@ -92,15 +104,12 @@ classdef MyZiRingdown < handle
                 return
             end
             
-            % Create an API session; connect to the correct Data Server for the device.
+            % Create an API session and connect to the correct Data Server 
+            % for the device. This is a high level function that uses
+            % ziDAQ('connect',.. and ziDAQ('connectDevice', ... when
+            % necessary
             apilevel=6;
-            cs_devtype = 'UHF|MF'; % Regular expression of supported instruments.
-            cs_options = {}; % No special options required.
-            cs_err_msg = '';
-            [this.dev_id, props] = ziCreateAPISession(dev_serial, apilevel, ...
-                                     'required_devtype', cs_devtype, ...
-                                     'required_options', cs_options, ...
-                                     'required_err_msg', cs_err_msg);
+            [this.dev_id,~]=ziCreateAPISession(dev_serial, apilevel);
             
             % Read the divice clock frequency
             this.clockbase = ...
@@ -108,104 +117,109 @@ classdef MyZiRingdown < handle
             
             % -1 accounts for the difference in enumeration conventions 
             % in the demodulator names and their node numbers
-            this.td_path=['/',this.dev_id,'/demods/',this.trig_demod-1'];
-            this.md_path=['/',this.dev_id,'/demods/',this.meas_demod-1'];
+            this.demod_path=['/',this.dev_id,'/demods/',this.demod-1'];
             
-            % Configure the demodulators
-            % Inputs
-            ziDAQ('setInt', [this.td_path,'/adcselect'], this.signal_in-1);
-            ziDAQ('setInt', [this.md_path,'/adcselect'], this.signal_in-1);
-            % Oscillators
-            ziDAQ('setInt', [this.td_path,'oscselect'], this.drive_osc-1);
-            ziDAQ('setInt', [this.md_path,'oscselect'], this.meas_osc-1);
+            % Configure the demodulator. Signal input:
+            ziDAQ('setInt', ...
+                [this.demod_path,'/adcselect'], this.signal_in-1);
+            % Oscillator:
+            ziDAQ('setInt', ...
+                [this.demod_path,'oscselect'], this.drive_osc-1);
+            % Enable data transfer from the demodulator to the computer
+            ziDAQ('setInt', [this.demod_path,'/enable'], 1);
+            
         end
         
         function delete(this)
             % delete function should never throw errors, so protect
             % statements with try-catch
             try
-                ziDAQ('unsubscribe',[this.td_path,'/sample']);
-                ziDAQ('unsubscribe',[this.md_path,'/sample']);
-                ziDAQ('disconnectDevice', this.dev_serial);
+                stopPoll(this)
             catch
-                warning(['Failded to usubscribe from the demodulator ',...
-                    'nodes or disconnect the device'])
+                warning(['Could not usubscribe from the demodulator ', ...
+                    'or stop the poll timer.'])
+            end
+            try
+                delete(this.PollTimer)
+            catch
+                warning('Could not delete the poll timer.')
             end
         end
         
         %% Other methods
         
-        function startPoll(this)
-            % Enable data transfer from demodulators to the computer
-            ziDAQ('setInt', [this.td_path,'/enable'], 1);
-            ziDAQ('setInt', [this.md_path,'/enable'], 1);
-            
-            % Subscribe to continuously receive samples from demodulators.
-            % Samples will be read out using ziDAQ poll. 
-            ziDAQ('subscribe',[this.td_path,'/sample']);
-            ziDAQ('subscribe',[this.md_path,'/sample']);
+        function startPoll(this)         
+            % Subscribe to continuously receive samples from the 
+            % demodulator. Samples accumulated between timer callbacks 
+            % will be read out using ziDAQ('poll', ... 
+            ziDAQ('subscribe',[this.demod_path,'/sample']);
             
             % Enter the continuous polling loop
-            loop(this);
+            start(this.PollTimer)
+        end
+        
+        function stopPoll(this)
+            ziDAQ('unsubscribe',[this.demod_path,'/sample']);
+            stop(this.PollTimer)
         end
         
         % Main function that continuously polls the device
-        function loop(this)
-            poll_duration = 0.1; % s
+        function pollTimerCallback(this)
+            % Poll duration of 1 ms practically means that the function
+            % returns immediately with the data accumulated since the
+            % previous function call. 
+            poll_duration = 0.001; % s
             poll_timeout = 50; % ms
             
-            % Enter infinite loop
-            while true
-                Data = ziDAQ('poll', poll_duration, poll_timeout);
+            Data = ziDAQ('poll', poll_duration, poll_timeout);
                 
-                if ziCheckPathInData(Data, [this.td_path,'/sample'])
-                    % Trigger demodulator returns data
-                    DemodSample= ...
-                        Data.(this.dev_id).demods(this.trig_demod).sample;
+            if ziCheckPathInData(Data, [this.demod_path,'/sample'])
+                % Demodulator returns data
+                DemodSample= ...
+                    Data.(this.dev_id).demods(this.demod).sample;
+
+                rmax=max(sqrt(DemodSample.x^2+DemodSample.y^2));
+
+                if ~this.recording && this.enable_acq && ...
+                        rmax>this.threshold
+                    % Start acquisition of a new trace if the maximum
+                    % of the signal exceeds threshold
+                    clearData(this.Trace);
+                    this.recording=true;
+                    this.t0=DemodSample.timestamp(1);
+
+                    % Switch the drive off
+                    this.drive_on=false;
+
+                    % Set the measurement oscillator frequency to be
+                    % the frequency at which triggering occurred
+                    this.meas_osc_freq=this.drive_osc_freq;
                     
-                    rmax=max(sqrt(DemodSample.x^2+DemodSample.y^2));
-                    
-                    if ~this.recording && this.enable_acq && ...
-                            rmax>this.threshold
-                        % Start acquisition of a new trace if the maximum
-                        % of the signal exceeds threshold
-                        clearData(this.Trace);
-                        this.recording=true;
-                        this.t0=DemodSample.timestamp(1);
-                        
-                        % Switch the drive off
-                        this.drive_on=false;
-                        
-                        % Set the measurement oscillator frequency to be
-                        % the 
-                        this.meas_osc_freq=this.drive_osc_freq;
-                    end
+                    % Switch the oscillator
+                    this.current_osc=this.meas_osc;
                 end
-                if ziCheckPathInData( Data, [this.md_path,'/sample'])
-                    % measurement demodulator returns data
-                    DemodSample= ...
-                        Data.(this.dev_id).demods(this.meas_demod).sample;
-                    if this.recording
-                        appendSamples(this, DemodSample)
-                    end
+                if this.recording
+                    % If recording is under way, append the new samples to
+                    % the trace
+                    appendSamples(this, DemodSample)
                 end
-                if this.recording && this.Trace.x(end)>=this.record_time
-                    % stop recording
-                    this.recording=false;
-                    triggerNewData(this);
-                end
+            end
+            if this.recording && this.Trace.x(end)>=this.record_time
+                % stop recording
+                this.recording=false;
+                % Switch the oscillator
+                this.current_osc=this.drive_osc;
+                triggerNewData(this);
             end
         end
         
         function appendSamples(this, DemodSample)
             r=sqrt(DemodSample.x^2+DemodSample.y^2);
+            % Subtract the reference time, convert timestamps to seconds
+            % and append the new data to the trace.
             this.Trace.x=[this.Trace.x, ...
                 double(DemodSample.timestamp-this.t0)/this.clockbase];
             this.Trace.y=[this.Trace.y, r];
-        end
-              
-        function connectDevice(this)
-            ziDAQ('connect', 'localhost', 8004, 6)
         end
         
         function str=idn(this)
@@ -266,6 +280,18 @@ classdef MyZiRingdown < handle
         function bool=get.drive_on(this)
             bool=logical(ziDAQ('getInt', ...
                 ['/',this.dev_id,'/sigouts/',this.drive_out-1,'/on']));
+        end
+        
+        function set.current_osc(this, val)
+            assert((val==this.drive_osc) && (val==this.meas_osc), ...
+                ['The number of current oscillator must be that of ', ...
+                'the drive or measurement oscillator'])
+            ziDAQ('setInt', ...
+                [this.demod_path,'/oscselect'], this.drive_osc-1);
+        end
+        
+        function osc_num=get.current_osc(this)
+            osc_num=ziDAQ('getInt', [this.demod_path,'/oscselect']);
         end
     end
 end
