@@ -1,3 +1,11 @@
+% Class for performing ringdown measurements of mechanical oscillators
+% using Zurich Instruments UHF or MF lock-in.
+%
+% Operation: sweep the driving tone (drive_osc) using the sweep module 
+% in LabOne web user interface, when the magnitude of the demodulator 
+% signal exceeds trig_threshold switch off the driving tone and start 
+% recording the demodulated signal for the duration of record_time.   
+
 classdef MyZiRingdown < handle
     
     properties (Access=public)
@@ -15,7 +23,9 @@ classdef MyZiRingdown < handle
     
     % The properties which are read or set only once during the class
     % initialization
-    properties (GetAccess=public, SetAccess=protected)
+    properties (GetAccess=public, SetAccess={?MyClassParser,?MyZiRingdown})
+        name='ziRingdown'
+        
         dev_serial='dev4090'
         
         % enumeration for demodulators, oscillators and output starts from 1
@@ -42,7 +52,15 @@ classdef MyZiRingdown < handle
         % in the server's node tree. Can be the same as dev_serial.
         dev_id
         
-        idn_str % Device identification info
+        % Device information string containing the data returned by  
+        % ziDAQ('discoveryGet', ... 
+        idn_str
+        
+        % Poll duration of 1 ms practically means that ziDAQ('poll', ...
+        % returns immediately with the data accumulated since the
+        % previous function call. 
+        poll_duration = 0.001; % s
+        poll_timeout = 50; % ms
     end
     
     % Internal variables
@@ -53,16 +71,24 @@ classdef MyZiRingdown < handle
         % Stored as uint64.
         t0
         
+        elapsed_t % Time elapsed since the last recording was started
+        
         Trace % MyTrace object storing the ringdown
     end
     
+    % Setting or reading these properties automatically invokes
+    % communication with the device
     properties (Dependent=true)
-        % Serring or reading these properties automatically passes values
-        % to the device
         drive_osc_freq
         meas_osc_freq
         drive_on % true when the dirive output is on
         current_osc
+        
+        % The properties below are only used within the program to display
+        % the information about device state.
+        drive_ampl % (V), peak-to-peak amplitude of the driving tone
+        lp_filt_order % low-pass filter order
+        lp_filt_bw % low-pass filter bandwidth
     end
     
     properties (Access=private)
@@ -70,13 +96,20 @@ classdef MyZiRingdown < handle
     end
     
     events
-        NewData % Event for communication with Daq that signals the acquisition of a new 
+        % Event for communication with Daq that signals the acquisition of 
+        % a new ringdown
+        NewData  
     end
     
     methods (Access=public)
         
         %% Constructor and destructor
-        function this = MyZiRingdown(dev_serial)
+        function this = MyZiRingdown(dev_serial, varargin)
+            P=MyClassParser(this);
+            % Poll timer period
+            addPArameter(P,'poll_period',0.1,@isnumeric);
+            processInputs(P, varargin{:});
+            
             % Create and configure the trace object
             this.Trace=MyTrace(...
                 'name_x','Time',...
@@ -91,7 +124,7 @@ classdef MyZiRingdown < handle
             % operation when the precision of timing is less of a concern. 
             this.PollTimer=timer(...
                 'ExecutionMode','fixedSpacing',...
-                'Period',0.1,...
+                'Period',P.Results.poll_period,...
                 'TimerFcn',@this.pollTimerCallback);
             
             % Check the ziDAQ MEX (DLL) and Utility functions can be found in Matlab's path.
@@ -104,10 +137,9 @@ classdef MyZiRingdown < handle
                 return
             end
             
-            % Create an API session and connect to the correct Data Server 
-            % for the device. This is a high level function that uses
-            % ziDAQ('connect',.. and ziDAQ('connectDevice', ... when
-            % necessary
+            % Create an API session and connect to the correct Data Server. 
+            % This is a high level function that uses ziDAQ('connect',.. 
+            % and ziDAQ('connectDevice', ... when necessary
             apilevel=6;
             [this.dev_id,~]=ziCreateAPISession(dev_serial, apilevel);
             
@@ -124,10 +156,15 @@ classdef MyZiRingdown < handle
                 [this.demod_path,'/adcselect'], this.signal_in-1);
             % Oscillator:
             ziDAQ('setInt', ...
-                [this.demod_path,'oscselect'], this.drive_osc-1);
+                [this.demod_path,'/oscselect'], this.drive_osc-1);
             % Enable data transfer from the demodulator to the computer
             ziDAQ('setInt', [this.demod_path,'/enable'], 1);
             
+            % Configure the driving output - disable all the oscillator 
+            % contributions including the driving tone since we start 
+            % form 'enable_acq=false' state 
+            ziDAQ('setInt', ...
+                ['/',this.dev_id,'/sigouts/',drive_out,'/enables/*'], 0);
         end
         
         function delete(this)
@@ -165,13 +202,11 @@ classdef MyZiRingdown < handle
         
         % Main function that continuously polls the device
         function pollTimerCallback(this)
-            % Poll duration of 1 ms practically means that the function
-            % returns immediately with the data accumulated since the
-            % previous function call. 
-            poll_duration = 0.001; % s
-            poll_timeout = 50; % ms
             
-            Data = ziDAQ('poll', poll_duration, poll_timeout);
+            % ziDAQ('poll', ... with short poll_duration returns 
+            % immediately with the data accumulated since the last timer 
+            % callback 
+            Data = ziDAQ('poll', this.poll_duration, this.poll_timeout);
                 
             if ziCheckPathInData(Data, [this.demod_path,'/sample'])
                 % Demodulator returns data
@@ -186,7 +221,9 @@ classdef MyZiRingdown < handle
                     % of the signal exceeds threshold
                     clearData(this.Trace);
                     this.recording=true;
+                    
                     this.t0=DemodSample.timestamp(1);
+                    this.elapsed_t=0;
 
                     % Switch the drive off
                     this.drive_on=false;
@@ -210,6 +247,9 @@ classdef MyZiRingdown < handle
                 % Switch the oscillator
                 this.current_osc=this.drive_osc;
                 triggerNewData(this);
+            else
+                % Update elapsed time
+                this.elapsed_t=this.Trace.x(end);
             end
         end
         

@@ -159,12 +159,11 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                 'corresponding gui element will not be automatically ',...
                 'syncronized\n'],tag);
             % Try switching color of the gui element to orange
-            warning_color = [0.93, 0.69, 0.13];
             try
-                elem.BackgroundColor = warning_color;
+                elem.BackgroundColor = MyAppColors.warning;
             catch
                 try
-                    elem.FontColor = warning_color;
+                    elem.FontColor = MyAppColors.warning;
                 catch
                 end
             end
