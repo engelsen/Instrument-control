@@ -29,7 +29,12 @@ classdef MyZiRingdown < handle
         dev_serial='dev4090'
         
         % enumeration for demodulators, oscillators and output starts from 1
-        demod=1 % demodulator used for both triggering and measurement 
+        demod=1 % demodulator used for both triggering and measurement
+        
+        % Enumeration in the node structure starts from 0, so, for example,
+        % the default path to the trigger demodulator refers to the
+        % demodulator #1
+        demod_path='/dev4090/demods/0'
         
         drive_osc=1
         meas_osc=2
@@ -39,11 +44,6 @@ classdef MyZiRingdown < handle
         signal_in=1 
         
         drive_out=1 % signal output used for driving
-        
-        % Enumeration in the node structure starts from 0, so, for example,
-        % the default path to the trigger demodulator refers to the
-        % demodulator #1
-        demod_path='/dev4090/demods/0'
         
         % Device clock frequency, i.e. the number of timestamps per second
         clockbase
@@ -84,11 +84,14 @@ classdef MyZiRingdown < handle
         drive_on % true when the dirive output is on
         current_osc
         
+        % demodulator sampling rate (as transferred to the computer)
+        demod_rate 
+        
         % The properties below are only used within the program to display
         % the information about device state.
-        drive_ampl % (V), peak-to-peak amplitude of the driving tone
-        lp_filt_order % low-pass filter order
-        lp_filt_bw % low-pass filter bandwidth
+        drive_amp % (V), peak-to-peak amplitude of the driving tone
+        lowpass_order % low-pass filter order
+        lowpass_bw % low-pass filter bandwidth
     end
     
     properties (Access=private)
@@ -146,25 +149,7 @@ classdef MyZiRingdown < handle
             % Read the divice clock frequency
             this.clockbase = ...
                 double(ziDAQ('getInt',['/',this.dev_id,'/clockbase']));
-            
-            % -1 accounts for the difference in enumeration conventions 
-            % in the demodulator names and their node numbers
-            this.demod_path=['/',this.dev_id,'/demods/',this.demod-1'];
-            
-            % Configure the demodulator. Signal input:
-            ziDAQ('setInt', ...
-                [this.demod_path,'/adcselect'], this.signal_in-1);
-            % Oscillator:
-            ziDAQ('setInt', ...
-                [this.demod_path,'/oscselect'], this.drive_osc-1);
-            % Enable data transfer from the demodulator to the computer
-            ziDAQ('setInt', [this.demod_path,'/enable'], 1);
-            
-            % Configure the driving output - disable all the oscillator 
-            % contributions including the driving tone since we start 
-            % form 'enable_acq=false' state 
-            ziDAQ('setInt', ...
-                ['/',this.dev_id,'/sigouts/',drive_out,'/enables/*'], 0);
+     
         end
         
         function delete(this)
@@ -185,22 +170,49 @@ classdef MyZiRingdown < handle
         
         %% Other methods
         
-        function startPoll(this)         
+        function startPoll(this)
+            % Configure the oscillators, demodulator and driving output
+            % -1 accounts for the difference in enumeration conventions 
+            % in the software names (starting from 1) and node numbers 
+            % (starting from 0)
+            this.demod_path = sprintf('/%s/demods/%i', ...
+                this.dev_id, this.demod-1);
+            
+            % Set the data transfer rate so that it satisfies the Nyquist
+            % criterion (>x2 the bandwidth of interest)
+            this.demod_rate=3*this.lowpass_bw;
+            
+            % Configure the demodulator. Signal input:
+            ziDAQ('setInt', ...
+                [this.demod_path,'/adcselect'], this.signal_in-1);
+            % Oscillator:
+            ziDAQ('setInt', ...
+                [this.demod_path,'/oscselect'], this.drive_osc-1);
+            % Enable data transfer from the demodulator to the computer
+            ziDAQ('setInt', [this.demod_path,'/enable'], 1);
+            
+            % Configure the driving output - disable all the oscillator 
+            % contributions including the driving tone since we start 
+            % form 'enable_acq=false' state
+            path = sprintf('/%s/sigouts/%i/enables/*', ...
+                this.dev_id, this.drive_out-1);
+            ziDAQ('setInt', path, 0);
+            
             % Subscribe to continuously receive samples from the 
             % demodulator. Samples accumulated between timer callbacks 
             % will be read out using ziDAQ('poll', ... 
             ziDAQ('subscribe',[this.demod_path,'/sample']);
             
-            % Enter the continuous polling loop
+            % Start continuous polling
             start(this.PollTimer)
         end
         
         function stopPoll(this)
-            ziDAQ('unsubscribe',[this.demod_path,'/sample']);
             stop(this.PollTimer)
+            ziDAQ('unsubscribe',[this.demod_path,'/sample']);
         end
         
-        % Main function that continuously polls the device
+        % Main function that polls data drom the device demodulator
         function pollTimerCallback(this)
             
             % ziDAQ('poll', ... with short poll_duration returns 
@@ -212,44 +224,49 @@ classdef MyZiRingdown < handle
                 % Demodulator returns data
                 DemodSample= ...
                     Data.(this.dev_id).demods(this.demod).sample;
-
-                rmax=max(sqrt(DemodSample.x^2+DemodSample.y^2));
-
-                if ~this.recording && this.enable_acq && ...
-                        rmax>this.threshold
-                    % Start acquisition of a new trace if the maximum
-                    % of the signal exceeds threshold
-                    clearData(this.Trace);
-                    this.recording=true;
-                    
-                    this.t0=DemodSample.timestamp(1);
-                    this.elapsed_t=0;
-
-                    % Switch the drive off
-                    this.drive_on=false;
-
-                    % Set the measurement oscillator frequency to be
-                    % the frequency at which triggering occurred
-                    this.meas_osc_freq=this.drive_osc_freq;
-                    
-                    % Switch the oscillator
-                    this.current_osc=this.meas_osc;
-                end
+                
                 if this.recording
                     % If recording is under way, append the new samples to
                     % the trace
                     appendSamples(this, DemodSample)
+                    
+                    % Check if recording should be stopped 
+                    if this.Trace.x(end)>=this.record_time
+                        % stop recording
+                        this.recording=false;
+                        % Switch the oscillator
+                        this.current_osc=this.drive_osc;
+                        % Do not enable acquisition after a ringdown is
+                        % recorded to prevent possible overwriting
+                        this.enable_acq=false;
+
+                        triggerNewData(this);
+                    else
+                        % Update elapsed time
+                        this.elapsed_t=this.Trace.x(end);
+                    end
+                else
+                    rmax=max(sqrt(DemodSample.x^2+DemodSample.y^2));
+                    if this.enable_acq && rmax>this.threshold
+                        % Start acquisition of a new trace if the maximum
+                        % of the signal exceeds threshold
+                        clearData(this.Trace);
+                        this.recording=true;
+
+                        this.t0=DemodSample.timestamp(1);
+                        this.elapsed_t=0;
+
+                        % Switch the drive off
+                        this.drive_on=false;
+
+                        % Set the measurement oscillator frequency to be
+                        % the frequency at which triggering occurred
+                        this.meas_osc_freq=this.drive_osc_freq;
+
+                        % Switch the oscillator
+                        this.current_osc=this.meas_osc;
+                    end
                 end
-            end
-            if this.recording && this.Trace.x(end)>=this.record_time
-                % stop recording
-                this.recording=false;
-                % Switch the oscillator
-                this.current_osc=this.drive_osc;
-                triggerNewData(this);
-            else
-                % Update elapsed time
-                this.elapsed_t=this.Trace.x(end);
             end
         end
         
@@ -283,55 +300,143 @@ classdef MyZiRingdown < handle
         function triggerNewData(this)
             notify(this,'NewData')
         end
+        
+        function Hdr=readHeader(this)
+            Hdr=MyMetadata();
+            % Generate valid field name from instrument name if present and
+            % class name otherwise
+            if ~isempty(this.name)
+                field_name=genvarname(this.name);
+            else
+                field_name=class(this);
+            end
+            addField(Hdr, field_name);
+            % Add identification string 
+            addParam(Hdr, field_name, 'idn', this.idn_str);
+            % Add the measurement configuration
+            addParam(Hdr, field_name, 'demod', this.demod, ...
+                'comment', 'Demodulator number (starting from 1)');
+            addParam(Hdr, field_name, 'drive_osc', this.drive_osc, ...
+                'comment', 'Swept oscillator number');
+            addParam(Hdr, field_name, 'meas_osc', this.meas_osc, ...
+                'comment', 'Measurement oscillator number');
+            addParam(Hdr, field_name, 'signal_in', this.signal_in, ...
+                'comment', 'Singnal input number');
+            addParam(Hdr, field_name, 'drive_out', this.drive_out, ...
+                'comment', 'Driving output number');
+            addParam(Hdr, field_name, 'clockbase', this.clockbase, ...
+                'comment', ['Device clock frequency, i.e. the number ', ...
+                'of timestamps per second']);
+            addParam(Hdr, field_name, 'drive_amp', this.drive_amp, ...
+                'comment', '(V) peak to peak');
+            addParam(Hdr, field_name, 'meas_osc_freq', ...
+                this.meas_osc_freq, 'comment', '(Hz)');
+            addParam(Hdr, field_name, 'trig_threshold', ...
+                this.drive_threshold, 'comment', '(V)');
+            addParam(Hdr, field_name, 'record_time', ...
+                this.record_time, 'comment', '(s)');
+            addParam(Hdr, field_name, 'lowpass_order', ...
+                this.lowpass_order, 'comment', ...
+                'Order of the demodulator low-pass filter');
+            addParam(Hdr, field_name, 'lowpass_bw', this.lowpass_bw, ...
+                'comment', ['(Hz), 3 dB bandwidth of the demodulator ', ...
+                'low-pass filter']);
+            addParam(Hdr, field_name, 'demod_rate', this.demod_rate, ...
+                'comment', '(samples/s), demodulator data transfer rate');
+            addParam(Hdr, field_name, 'poll_duration', ...
+                this.poll_duration, 'comment', '(s)');
+            addParam(Hdr, field_name, 'poll_timeout', ...
+                this.poll_timeout, 'comment', '(ms)');
+        end
     end
     
     %% Set and get methods
-    methods 
+    methods
+        
         function freq=get.drive_osc_freq(this)
-            freq=ziDAQ('getDouble', ...
-                ['/',this.dev_id,'/oscs/',this.drive_osc-1,'/freq']);
+            path=sprintf('/%s/oscs/%i/freq', this.dev_id, this.drive_osc-1);
+            freq=ziDAQ('getDouble', path);
         end
         
         function set.drive_osc_freq(this, val)
             assert(isfloat(val), ...
                 'Oscillator frequency must be a floating point number')
-            ziDAQ('setDouble', ...
-                ['/',this.dev_id,'/oscs/',this.drive_osc-1,'/freq'], val);
+            path=sprintf('/%s/oscs/%i/freq', this.dev_id, this.drive_osc-1);
+            ziDAQ('setDouble', path, val);
         end
         
         function freq=get.meas_osc_freq(this)
-            freq=ziDAQ('getDouble', ...
-                ['/',this.dev_id,'/oscs/',this.meas_osc-1,'/freq']);
+            path=sprintf('/%s/oscs/%i/freq', this.dev_id, this.meas_osc-1);
+            freq=ziDAQ('getDouble', path);
         end
         
         function set.meas_osc_freq(this, val)
             assert(isfloat(val), ...
                 'Oscillator frequency must be a floating point number')
-            ziDAQ('setDouble', ...
-                ['/',this.dev_id,'/oscs/',this.meas_osc-1,'/freq'], val);
+            path=sprintf('/%s/oscs/%i/freq', this.dev_id, this.meas_osc-1);
+            ziDAQ('setDouble', path, val);
         end
         
         function set.drive_on(this, val)
-            ziDAQ('setInt', ...
-                ['/',this.dev_id,'/sigouts/',this.drive_out-1,'/on'],...
-                double(val));
+            path=sprintf('/%s/sigouts/%i/on',this.dev_id,this.drive_out-1);
+            % Use double() to convert from logical type
+            ziDAQ('setInt', path, double(val));
         end
         
         function bool=get.drive_on(this)
-            bool=logical(ziDAQ('getInt', ...
-                ['/',this.dev_id,'/sigouts/',this.drive_out-1,'/on']));
+            path=sprintf('/%s/sigouts/%i/on',this.dev_id,this.drive_out-1);
+            bool=logical(ziDAQ('getInt', path));
         end
         
         function set.current_osc(this, val)
             assert((val==this.drive_osc) && (val==this.meas_osc), ...
                 ['The number of current oscillator must be that of ', ...
                 'the drive or measurement oscillator'])
-            ziDAQ('setInt', ...
-                [this.demod_path,'/oscselect'], this.drive_osc-1);
+            ziDAQ('setInt', [this.demod_path,'/oscselect'], val-1);
         end
         
         function osc_num=get.current_osc(this)
             osc_num=ziDAQ('getInt', [this.demod_path,'/oscselect']);
+        end
+        
+        function amp=get.drive_amp(this)
+            path=sprintf('/%s/sigouts/%i/amplitudes/%i', ...
+                this.dev_id, this.drive_out-1, this.drive_osc-1);
+            amp=ziDAQ('getDouble', path);
+        end
+        
+        function set.drive_amp(this, val)
+            path=sprintf('/%s/sigouts/%i/amplitudes/%i', ...
+                this.dev_id, this.drive_out-1, this.drive_osc-1);
+            ziDAQ('setDouble', path, val);
+        end
+        
+        function set.lowpass_order(this, val)
+            assert(any(val==[1,2,3,4,5,6,7,8]), ['Low-pass filter ', ...
+                'order must be an integer between 1 and 8'])
+            ziDAQ('setInt', [this.demod_path,'/order'], val);
+        end
+        
+        function n=get.lowpass_order(this)
+            n=ziDAQ('getInt', [this.demod_path,'/order']);
+        end
+        
+        function bw=get.lowpass_bw(this)
+            tc=ziDAQ('getDouble', [this.demod_path,'/timeconstant']);
+            bw=ziBW2TC(tc, this.lowpass_order);
+        end
+        
+        function set.lowpass_bw(this, val)
+            tc=ziBW2TC(val, this.lowpass_order);
+            ziDAQ('setDouble', [this.demod_path,'/timeconstant'], tc);
+        end
+        
+        function rate=get.demod_rate(this)
+            rate=ziDAQ('getDouble', [this.demod_path,'/rate']);
+        end
+        
+        function set.demod_rate(this, val)
+            ziDAQ('setDouble', [this.demod_path,'/rate'], val);
         end
     end
 end

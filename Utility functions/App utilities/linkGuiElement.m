@@ -149,7 +149,7 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     % lamp as an indicator of on/off state. If a lamp is being linked to a 
     % logical-type variable we therefore assign OutputProcessingFcn puts 
     % logical values in corresponcence with colors 
-    if strcmpi(elem.Type, 'uilamp') && islogical(target_val)
+    if strcmpi(elem.Type, 'uilamp') && ~iscolor(target_val)
         % The property of lamp that is to be updated by updateGui is not
         % Value but Color
         elem.UserData.elem_prop='Color';
