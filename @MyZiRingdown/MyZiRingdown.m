@@ -19,6 +19,10 @@ classdef MyZiRingdown < handle
         % If enable_acq is true, then the drive is on andthe acquisition 
         % of record is triggered when signal exceeds trig_threshold
         enable_acq=false
+        
+        % Downsample the measurement record to reduce the amount of data
+        % while keeping the large demodulation bandwidth
+        downsample_t=1e-3   % (s), averaging time 
     end
     
     % The properties which are read or set only once during the class
@@ -87,6 +91,10 @@ classdef MyZiRingdown < handle
         % demodulator sampling rate (as transferred to the computer)
         demod_rate 
         
+        % downsampling factor calculated from downsample_t 
+        % (not a device property)
+        downsample_n  
+        
         % The properties below are only used within the program to display
         % the information about device state.
         drive_amp % (V), peak-to-peak amplitude of the driving tone
@@ -101,7 +109,9 @@ classdef MyZiRingdown < handle
     events
         % Event for communication with Daq that signals the acquisition of 
         % a new ringdown
-        NewData  
+        NewData
+        
+        NewDemodSample % New demodulator samples received
     end
     
     methods (Access=public)
@@ -239,7 +249,10 @@ classdef MyZiRingdown < handle
                         % Do not enable acquisition after a ringdown is
                         % recorded to prevent possible overwriting
                         this.enable_acq=false;
-
+                        
+                        % Downsample the trace to reduce the amount of data
+                        downsample(this.Trace, this.downsample_n, 'avg');
+                        
                         triggerNewData(this);
                     else
                         % Update elapsed time
@@ -267,6 +280,7 @@ classdef MyZiRingdown < handle
                         this.current_osc=this.meas_osc;
                     end
                 end
+                notify(this,'NewDemodSample')
             end
         end
         
@@ -437,6 +451,10 @@ classdef MyZiRingdown < handle
         
         function set.demod_rate(this, val)
             ziDAQ('setDouble', [this.demod_path,'/rate'], val);
+        end
+        
+        function val=get.downsample_n(this)
+            val=ceil(this.downsample_t*this.demod_rate);
         end
     end
 end

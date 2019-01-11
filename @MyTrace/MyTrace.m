@@ -314,6 +314,25 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             area=trapz(this.x(ind),this.y(ind));
         end
         
+        % Picks every n-th element from the trace,
+        % performing a running average first if opt=='avg'
+        function downsample(this, n, opt)
+            n0=ceil(n/2);
+            if nargin()==3 && (strcmpi(opt,'average') || strcmpi(opt,'vg'))
+                % Compute moving average with 'shrink' option so that the
+                % total number of samples is preserved. Endpoints will be
+                % discarded by starting the indexing from n0.
+                tmpy=movmean(this.y, 'Endpoints', 'shrink');
+                
+                this.x=this.x(n0:n:end);
+                this.y=tmpy(n0:n:end);
+            else
+                % Downsample without averaging
+                this.x=this.x(n0:n:end);
+                this.y=this.y(n0:n:end);
+            end
+        end
+        
         %Checks if the object is empty
         function bool=isempty(this)
             bool=isempty(this.x) && isempty(this.y);
