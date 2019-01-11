@@ -10,23 +10,35 @@
 
 function linkGuiElement(app, elem, prop_tag, varargin)
     p=inputParser();
+    
     % GUI control element
     addRequired(p,'elem');
+    
     % Instrument command to be linked to the GUI element
     addRequired(p,'prop_tag',@ischar);
+    
+    % A property of the GUI element that is updated according to the value
+    % under prop_tag can be other than 'Value' (e.g. 'Color' in the case of
+    % a lamp indicator)
+    addParameter(p,'elem_prop','Value',@ischar);
+    
     % If input_presc is given, the value assigned to the instrument propery  
     % is related to the value x displayed in GUI as x/input_presc.
     addParameter(p,'input_presc',1,@isnumeric);
+    
     % Arbitrary processing functions can be specified for input and output.
     % out_proc_fcn is applied to values before assigning them to gui
     % elements and in_proc_fcn is applied before assigning
     % to the linked properties
     addParameter(p,'out_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
     addParameter(p,'in_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
+    
     addParameter(p,'create_callback',true,@islogical);
+    
     % For drop-down menues initializes entries automatically based on the 
     % list of values. Ignored for all the other control elements. 
     addParameter(p,'init_val_list',false,@islogical);
+    
     parse(p,elem,prop_tag,varargin{:});
     
     create_callback = p.Results.create_callback;
@@ -46,7 +58,7 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     
     % Check if the referenced property is accessible
     try
-        subsref(app, PropSubref);
+        target_val=subsref(app, PropSubref);
     catch
         disp(['Property corresponding to tag ',prop_tag,...
             ' is not accessible, element is not linked and disabled.'])
@@ -110,9 +122,13 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         create_callback=false;
     end
     
-    % If the create_callback is true and the element does not alreasy have 
+    % If create_callback is true and the element does not already have 
     % a callback, assign genericValueChanged as ValueChangedFcn
-    if create_callback && isempty(elem.ValueChangedFcn)
+    if create_callback && isprop(elem, 'ValueChangedFcn') && ...
+            isempty(elem.ValueChangedFcn)
+        % A public createGenericCallback method needs to intorduced in the
+        % app, as officially Matlab apps do not support an automatic
+        % callback assignment (as of the version of Matlab 2018a)
         assert(ismethod(app,'createGenericCallback'), ['App needs to ',...
             'contain public createGenericCallback method to automatically'...
             'assign callbacks. Use ''create_callback'',false in order to '...
@@ -128,6 +144,21 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                 prop_tag);
         end
     end
+    
+    % A step relevant for lamp indicators. It is often convenient to have a
+    % lamp as an indicator of on/off state. If a lamp is being linked to a 
+    % logical-type variable we therefore assign OutputProcessingFcn puts 
+    % logical values in corresponcence with colors 
+    if strcmpi(elem.Type, 'uilamp') && islogical(target_val)
+        % The property of lamp that is to be updated by updateGui is not
+        % Value but Color
+        elem.UserData.elem_prop='Color';
+        % Select between the default on and off colors. Different colors
+        % can be indicated by explicitly setting OutputProcessingFcn that
+        % will overwrite the one assigned here.
+        elem.UserData.OutputProcessingFcn = ...
+            @(x)select(x, MyAppColors.lampOn(), MyAppColors.lampOff());
+    end
 
     % If a prescaler, input processing function or output processing  
     % function is specified, store it in UserData of the element
@@ -139,6 +170,10 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     end
     if ~ismember('out_proc_fcn',p.UsingDefaults)
         elem.UserData.OutputProcessingFcn = p.Results.out_proc_fcn;
+    end
+    
+    if ~ismember('elem_prop',p.UsingDefaults)
+        elem.UserData.elem_prop = p.Results.out_proc_fcn;
     end
     
     %% Linking

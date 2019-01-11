@@ -16,10 +16,16 @@ function updateLinkedGuiElements(app)
             elseif isfield(tmpelem.UserData, 'InputPrescaler')
                 tmpval = tmpval*tmpelem.UserData.InputPrescaler;
             end
+            % Get the gui property to be updated. The default is Value.
+            if isfield(tmpelem.UserData, 'elem_prop')
+                elem_prop=tmpelem.UserData.elem_prop;
+            else
+                elem_prop='Value';
+            end
             % Setting value of a matlab app elemen is time consuming, so do
             % this only if the value has actually changed
-             if ~isequal(tmpelem.Value,tmpval)
-                tmpelem.Value = tmpval;
+             if ~isequal(tmpelem.(elem_prop),tmpval)
+                tmpelem.(elem_prop) = tmpval;
              end
         catch
             % Try converting the subreference structure to a readable 
