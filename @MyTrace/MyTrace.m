@@ -14,7 +14,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         % MyMetadata storing information about how the trace was taken
         MeasHeaders
         file_name='';
-        uid='';
         
         % Data column and line separators
         column_sep = '\t'
@@ -223,6 +222,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             addParameter(p,'MarkerSize',6,...
                 @(x) validateattributes(x,{'numeric'},{'positive'}));
+            
             addParameter(p,'make_labels',false,@islogical);
             
             interpreters={'none','tex','latex'};
@@ -394,7 +394,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.MeasHeaders=MeasHeaders;
         end
         
-        %Set function for x, checks if it is a vector of doubles.
+        %Set function for x, checks if it is a vector of doubles and
+        %reshapes into a column vector
         function set.x(this, x)
             assert(isnumeric(x),...
                 'Data must be of class double');
@@ -402,12 +403,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         end
         
         %Set function for y, checks if it is a vector of doubles and
-        %generates a new UID for the trace
+        %reshapes into a column vector
         function set.y(this, y)
             assert(isnumeric(y),...
                 'Data must be of class double');
             this.y=y(:);
-            this.uid=genUid(); %#ok<MCSUP>
         end
         
         %Set function for unit_x, checks if input is a string.
@@ -444,11 +444,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.file_name=file_name;
         end
         
-        function set.uid(this, uid)
-            assert(ischar(uid),'UID must be a char, not a %s',...
-                class(uid));
-            this.uid=uid;
-        end
         %Get function for label_x, creates label from name_x and unit_x.
         function label_x=get.label_x(this)
             label_x=sprintf('%s (%s)', this.name_x, this.unit_x);
@@ -464,7 +459,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             %First we update the trace information
             Metadata=MyMetadata();
             addField(Metadata,'Info');
-            addParam(Metadata,'Info','uid',this.uid);
             addParam(Metadata,'Info','Name1',this.name_x);
             addParam(Metadata,'Info','Name2',this.name_y);
             addParam(Metadata,'Info','Unit1',this.unit_x);

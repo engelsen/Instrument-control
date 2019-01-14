@@ -16,15 +16,15 @@ classdef MyZiRingdown < handle
         % Duration of the recorded ringdown
         record_time=1 % s
         
-        % If enable_acq is true, then the drive is on andthe acquisition 
+        % If enable_trig is true, then the drive is on and the acquisition 
         % of record is triggered when signal exceeds trig_threshold
-        enable_acq=false
+        enable_trig=false
         
         % Average the trace over n points to reduce amount of stored data
         % while keeping the demodulator bandwidth large
         downsample_n=1 
         
-        fft_length=256
+        fft_length=128
     end
     
     % The properties which are read or set only once during the class
@@ -89,7 +89,6 @@ classdef MyZiRingdown < handle
         drive_osc_freq
         meas_osc_freq
         drive_on % true when the dirive output is on
-        current_osc
         
         % demodulator sampling rate (as transferred to the computer)
         demod_rate   
@@ -108,6 +107,7 @@ classdef MyZiRingdown < handle
         % (samples/s), sampling rate of the trace after avraging
         downsampled_rate  
         
+        current_osc % oscillator presently in use with the demodulator
         fft_rbw % resolution bandwidth of fft
     end
     
@@ -123,8 +123,10 @@ classdef MyZiRingdown < handle
         % Event for communication with Daq that signals the acquisition of 
         % a new ringdown
         NewData
-        NewDemodSample % New demodulator samples received
-        NewSetting % Device settings changed
+        % New demodulator samples received
+        NewDemodSample 
+        % Device settings changed, used mostly for syncronization with Gui
+        NewSetting 
     end
     
     methods (Access=public)
@@ -209,7 +211,7 @@ classdef MyZiRingdown < handle
             
             % Set the data transfer rate so that it satisfies the Nyquist
             % criterion (>x2 the bandwidth of interest)
-            this.demod_rate=3*this.lowpass_bw;
+            this.demod_rate=4*this.lowpass_bw;
             
             % Configure the demodulator. Signal input:
             ziDAQ('setInt', ...
@@ -222,7 +224,7 @@ classdef MyZiRingdown < handle
             
             % Configure the signal output - disable all the oscillator 
             % contributions including the driving tone since we start 
-            % form 'enable_acq=false' state
+            % form 'enable_trig=false' state
             path = sprintf('/%s/sigouts/%i/enables/*', ...
                 this.dev_id, this.drive_out-1);
             ziDAQ('setInt', path, 0);
@@ -261,35 +263,22 @@ classdef MyZiRingdown < handle
                 if this.recording
                     % If recording is under way, append the new samples to
                     % the trace
-                    appendSamplesToTrace(this, DemodSample)
+                    rec_finished = appendSamplesToTrace(this, DemodSample);
                     
-                    % Check if recording should be stopped 
-                    if this.Trace.x(end)>=this.record_time
-                        % stop recording
-                        this.recording=false;
-                        % Switch the oscillator
-                        this.current_osc=this.drive_osc;
-                        % Do not enable acquisition after a ringdown is
-                        % recorded to prevent possible overwriting
-                        this.enable_acq=false;
-                        
-                        % Downsample the trace to reduce the amount of data
-                        downsample(this.Trace, this.downsample_n, 'avg');
-                        
-                        triggerNewData(this);
-                    else
-                        % Update elapsed time
-                        this.elapsed_t=this.Trace.x(end);
-                    end
+                    % Update elapsed time
+                    this.elapsed_t=this.Trace.x(end);
                 else
-                    rmax=max(sqrt(DemodSample.x.^2+DemodSample.y.^2));
-                    if this.enable_acq && rmax>this.threshold
+                    r=sqrt(DemodSample.x.^2+DemodSample.y.^2);
+                    if this.enable_trig && max(r)>this.trig_threshold
                         % Start acquisition of a new trace if the maximum
                         % of the signal exceeds threshold
-                        clearData(this.Trace);
                         this.recording=true;
-
-                        this.t0=DemodSample.timestamp(1);
+                        
+                        % Find index at which the threshold was
+                        % exceeded
+                        ind0=find(r>this.trig_threshold,1,'first');
+                        
+                        this.t0=DemodSample.timestamp(ind0);
                         this.elapsed_t=0;
 
                         % Switch the drive off
@@ -301,20 +290,65 @@ classdef MyZiRingdown < handle
 
                         % Switch the oscillator
                         this.current_osc=this.meas_osc;
+                        
+                        % Clear trace and append new data starting from the
+                        % index, at which triggering occurred
+                        clearData(this.Trace);
+                        rec_finished = ...
+                            appendSamplesToTrace(this, DemodSample, ind0);
+                    else
+                        rec_finished=false;
                     end
                 end
-                notify(this,'NewDemodSample')
+                
+                notify(this,'NewDemodSample');
+                
+                % Stop recording if the record was finished
+                if rec_finished
+                    % stop recording
+                    this.recording=false;
+                    % Switch the oscillator
+                    this.current_osc=this.drive_osc;
+                    % Do not enable acquisition after a ringdown is
+                    % recorded to prevent possible overwriting
+                    this.enable_trig=false;
+
+                    % Downsample the trace to reduce the amount of data
+                    downsample(this.Trace, this.downsample_n, 'avg');
+
+                    triggerNewData(this);
+                end
             end
         end
         
-        % Append timestamps vs r=sqrt(x^2+y^2) to the measurement record
-        function appendSamplesToTrace(this, DemodSample)
-            r=sqrt(DemodSample.x.^2+DemodSample.y.^2);
+        % Append timestamps vs r=sqrt(x^2+y^2) to the measurement record.
+        % Starting index can be supplied as varargin.
+        % The output variable tells if the record is finished.
+        function isfin = appendSamplesToTrace(this, DemodSample, varargin)
+            if isempty(varargin)
+                startind=1;
+            else
+                startind=varargin{1};
+            end
+            
+            r=sqrt(DemodSample.x(startind:end).^2 + ...
+                DemodSample.y(startind:end).^2);
             % Subtract the reference time, convert timestamps to seconds
-            % and append the new data to the trace.
-            this.Trace.x=[this.Trace.x, ...
-                double(DemodSample.timestamp-this.t0)/this.clockbase];
-            this.Trace.y=[this.Trace.y, r];
+            ts=double(DemodSample.timestamp(startind:end) -...
+                this.t0)/this.clockbase;
+            
+            % Check if recording should be stopped
+            isfin=(ts(end)>=this.record_time);
+            if isfin
+                % Remove excess data points from the new data
+                ind=(ts<this.record_time);
+                ts=ts(ind);
+                r=r(ind);
+            end
+            
+            % Append the new data in column format to the trace
+            this.Trace.x=[this.Trace.x; ts(:)];
+            this.Trace.y=[this.Trace.y; r(:)];
         end
         
         % Append timestamps vs z=x+iy to the shift register for fft
@@ -323,8 +357,9 @@ classdef MyZiRingdown < handle
             z=complex(DemodSample.x, DemodSample.y);
             t=double(DemodSample.timestamp)/this.clockbase;
             
-            this.DemodRecord.t=[this.DemodRecord.t, t];
-            this.DemodRecord.z=[this.DemodRecord.z, z];
+            % Convert the new data to column format and append
+            this.DemodRecord.t=[this.DemodRecord.t; t(:)];
+            this.DemodRecord.z=[this.DemodRecord.z; z(:)];
             
             assert(length(this.DemodRecord.t)==length(this.DemodRecord.z), ...
                 't and z=x+iy array lengths of DemodRecord are not equal.')
@@ -420,7 +455,7 @@ classdef MyZiRingdown < handle
         end
     end
     
-    %% Set and get methods
+    %% Set and get methods.
     methods
         
         function freq=get.drive_osc_freq(this)
@@ -462,15 +497,16 @@ classdef MyZiRingdown < handle
         end
         
         function set.current_osc(this, val)
-            assert((val==this.drive_osc) && (val==this.meas_osc), ...
+            assert((val==this.drive_osc) || (val==this.meas_osc), ...
                 ['The number of current oscillator must be that of ', ...
-                'the drive or measurement oscillator'])
+                'the drive or measurement oscillator, not ', num2str(val)])
             ziDAQ('setInt', [this.demod_path,'/oscselect'], val-1);
             notify(this,'NewSetting')
         end
         
         function osc_num=get.current_osc(this)
-            osc_num=ziDAQ('getInt', [this.demod_path,'/oscselect']);
+            osc_num=double(ziDAQ('getInt', ...
+                [this.demod_path,'/oscselect']))+1;
         end
         
         function amp=get.drive_amp(this)
