@@ -192,6 +192,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
         function plot(this, varargin)
+            % Do nothing if there is no data in the trace
+            if isempty(this)
+                return
+            end
+            
             %Checks that x and y are the same size
             assert(validatePlot(this),...
                 'The length of x and y must be identical to make a plot')

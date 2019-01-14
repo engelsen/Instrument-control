@@ -20,9 +20,11 @@ classdef MyZiRingdown < handle
         % of record is triggered when signal exceeds trig_threshold
         enable_acq=false
         
-        % Downsample the measurement record to reduce the amount of data
-        % while keeping the large demodulation bandwidth
-        downsample_t=1e-3   % (s), averaging time 
+        % Average the trace over n points to reduce amount of stored data
+        % while keeping the demodulator bandwidth large
+        downsample_n=1 
+        
+        fft_length=256
     end
     
     % The properties which are read or set only once during the class
@@ -75,12 +77,13 @@ classdef MyZiRingdown < handle
         % Stored as uint64.
         t0
         
-        elapsed_t % Time elapsed since the last recording was started
+        elapsed_t=0 % Time elapsed since the last recording was started
         
         Trace % MyTrace object storing the ringdown
+        DemodSpectrum % MyTrace object to store FFT of the demodulator data
     end
     
-    % Setting or reading these properties automatically invokes
+    % Setting or reading the properties below automatically invokes
     % communication with the device
     properties (Dependent=true)
         drive_osc_freq
@@ -89,11 +92,7 @@ classdef MyZiRingdown < handle
         current_osc
         
         % demodulator sampling rate (as transferred to the computer)
-        demod_rate 
-        
-        % downsampling factor calculated from downsample_t 
-        % (not a device property)
-        downsample_n  
+        demod_rate   
         
         % The properties below are only used within the program to display
         % the information about device state.
@@ -102,16 +101,30 @@ classdef MyZiRingdown < handle
         lowpass_bw % low-pass filter bandwidth
     end
     
-    properties (Access=private)
+    % Other dependent variables that are dont device properties
+    properties (Dependent=true) 
+        % Downsample the measurement record to reduce the amount of data
+        % while keeping the large demodulation bandwidth.
+        % (samples/s), sampling rate of the trace after avraging
+        downsampled_rate  
+        
+        fft_rbw % resolution bandwidth of fft
+    end
+    
+    properties (Access=public)
         PollTimer
+        
+        % Samples stored to continuously calculate spectrum
+        % values of z are complex here, z=x+iy
+        DemodRecord=struct('t',[],'z',[])
     end
     
     events
         % Event for communication with Daq that signals the acquisition of 
         % a new ringdown
         NewData
-        
         NewDemodSample % New demodulator samples received
+        NewSetting % Device settings changed
     end
     
     methods (Access=public)
@@ -120,25 +133,31 @@ classdef MyZiRingdown < handle
         function this = MyZiRingdown(dev_serial, varargin)
             P=MyClassParser(this);
             % Poll timer period
-            addPArameter(P,'poll_period',0.1,@isnumeric);
+            addParameter(P,'poll_period',0.1,@isnumeric);
             processInputs(P, varargin{:});
             
-            % Create and configure the trace object
+            % Create and configure trace objects
             this.Trace=MyTrace(...
                 'name_x','Time',...
                 'unit_x','s',...
                 'name_y','Magnitude r',...
                 'unit_y','V');
+            this.DemodSpectrum=MyTrace(...
+                'name_x','Frequency',...
+                'unit_x','Hz',...
+                'name_y','PSD',...
+                'unit_y','V^2/Hz');
             
             % Set up the poll timer. Using a timer for anyncronous
             % data readout allows to use the wait time for execution 
             % of other programs.
             % Fixed spacing is preferred as it is the most robust mode of 
-            % operation when the precision of timing is less of a concern. 
+            % operation when keeping the intervals between callbacks 
+            % precisely defined is not the biggest concern. 
             this.PollTimer=timer(...
                 'ExecutionMode','fixedSpacing',...
                 'Period',P.Results.poll_period,...
-                'TimerFcn',@this.pollTimerCallback);
+                'TimerFcn',@(~,~)pollTimerCallback(this));
             
             % Check the ziDAQ MEX (DLL) and Utility functions can be found in Matlab's path.
             if ~(exist('ziDAQ', 'file') == 3) && ~(exist('ziCreateAPISession', 'file') == 2)
@@ -201,7 +220,7 @@ classdef MyZiRingdown < handle
             % Enable data transfer from the demodulator to the computer
             ziDAQ('setInt', [this.demod_path,'/enable'], 1);
             
-            % Configure the driving output - disable all the oscillator 
+            % Configure the signal output - disable all the oscillator 
             % contributions including the driving tone since we start 
             % form 'enable_acq=false' state
             path = sprintf('/%s/sigouts/%i/enables/*', ...
@@ -235,10 +254,14 @@ classdef MyZiRingdown < handle
                 DemodSample= ...
                     Data.(this.dev_id).demods(this.demod).sample;
                 
+                % Append new samples to the record and recalculate spectrum
+                appendSamplesToBuff(this, DemodSample);
+                calcfft(this);
+                
                 if this.recording
                     % If recording is under way, append the new samples to
                     % the trace
-                    appendSamples(this, DemodSample)
+                    appendSamplesToTrace(this, DemodSample)
                     
                     % Check if recording should be stopped 
                     if this.Trace.x(end)>=this.record_time
@@ -259,7 +282,7 @@ classdef MyZiRingdown < handle
                         this.elapsed_t=this.Trace.x(end);
                     end
                 else
-                    rmax=max(sqrt(DemodSample.x^2+DemodSample.y^2));
+                    rmax=max(sqrt(DemodSample.x.^2+DemodSample.y.^2));
                     if this.enable_acq && rmax>this.threshold
                         % Start acquisition of a new trace if the maximum
                         % of the signal exceeds threshold
@@ -284,13 +307,43 @@ classdef MyZiRingdown < handle
             end
         end
         
-        function appendSamples(this, DemodSample)
-            r=sqrt(DemodSample.x^2+DemodSample.y^2);
+        % Append timestamps vs r=sqrt(x^2+y^2) to the measurement record
+        function appendSamplesToTrace(this, DemodSample)
+            r=sqrt(DemodSample.x.^2+DemodSample.y.^2);
             % Subtract the reference time, convert timestamps to seconds
             % and append the new data to the trace.
             this.Trace.x=[this.Trace.x, ...
                 double(DemodSample.timestamp-this.t0)/this.clockbase];
             this.Trace.y=[this.Trace.y, r];
+        end
+        
+        % Append timestamps vs z=x+iy to the shift register for fft
+        % calculation
+        function appendSamplesToBuff(this, DemodSample)
+            z=complex(DemodSample.x, DemodSample.y);
+            t=double(DemodSample.timestamp)/this.clockbase;
+            
+            this.DemodRecord.t=[this.DemodRecord.t, t];
+            this.DemodRecord.z=[this.DemodRecord.z, z];
+            
+            assert(length(this.DemodRecord.t)==length(this.DemodRecord.z), ...
+                't and z=x+iy array lengths of DemodRecord are not equal.')
+            
+            % Only store the latest data points required to calculate fft
+            flen=this.fft_length;
+            if length(this.DemodRecord.t)>flen
+                this.DemodRecord.t = this.DemodRecord.t(end-flen+1:end);
+                this.DemodRecord.z = this.DemodRecord.z(end-flen+1:end);
+            end
+        end
+        
+        function calcfft(this)
+            flen=min(this.fft_length, length(this.DemodRecord.t));
+            [freq, spectr]=xyFourier( ...
+                this.DemodRecord.t(end-flen+1:end), ...
+                this.DemodRecord.z(end-flen+1:end));
+            this.DemodSpectrum.x=freq;
+            this.DemodSpectrum.y=abs(spectr).^2;
         end
         
         function str=idn(this)
@@ -357,6 +410,9 @@ classdef MyZiRingdown < handle
                 'low-pass filter']);
             addParam(Hdr, field_name, 'demod_rate', this.demod_rate, ...
                 'comment', '(samples/s), demodulator data transfer rate');
+            addParam(Hdr, field_name, 'downsampled_rate', ...
+                this.downsampled_rate, 'comment', ...
+                '(samples/s), downsampling with averaging');
             addParam(Hdr, field_name, 'poll_duration', ...
                 this.poll_duration, 'comment', '(s)');
             addParam(Hdr, field_name, 'poll_timeout', ...
@@ -377,6 +433,7 @@ classdef MyZiRingdown < handle
                 'Oscillator frequency must be a floating point number')
             path=sprintf('/%s/oscs/%i/freq', this.dev_id, this.drive_osc-1);
             ziDAQ('setDouble', path, val);
+            notify(this,'NewSetting');
         end
         
         function freq=get.meas_osc_freq(this)
@@ -389,12 +446,14 @@ classdef MyZiRingdown < handle
                 'Oscillator frequency must be a floating point number')
             path=sprintf('/%s/oscs/%i/freq', this.dev_id, this.meas_osc-1);
             ziDAQ('setDouble', path, val);
+            notify(this,'NewSetting');
         end
         
         function set.drive_on(this, val)
             path=sprintf('/%s/sigouts/%i/on',this.dev_id,this.drive_out-1);
             % Use double() to convert from logical type
             ziDAQ('setInt', path, double(val));
+            notify(this,'NewSetting');
         end
         
         function bool=get.drive_on(this)
@@ -407,6 +466,7 @@ classdef MyZiRingdown < handle
                 ['The number of current oscillator must be that of ', ...
                 'the drive or measurement oscillator'])
             ziDAQ('setInt', [this.demod_path,'/oscselect'], val-1);
+            notify(this,'NewSetting')
         end
         
         function osc_num=get.current_osc(this)
@@ -423,12 +483,14 @@ classdef MyZiRingdown < handle
             path=sprintf('/%s/sigouts/%i/amplitudes/%i', ...
                 this.dev_id, this.drive_out-1, this.drive_osc-1);
             ziDAQ('setDouble', path, val);
+            notify(this,'NewSetting');
         end
         
         function set.lowpass_order(this, val)
             assert(any(val==[1,2,3,4,5,6,7,8]), ['Low-pass filter ', ...
                 'order must be an integer between 1 and 8'])
             ziDAQ('setInt', [this.demod_path,'/order'], val);
+            notify(this,'NewSetting');
         end
         
         function n=get.lowpass_order(this)
@@ -443,6 +505,7 @@ classdef MyZiRingdown < handle
         function set.lowpass_bw(this, val)
             tc=ziBW2TC(val, this.lowpass_order);
             ziDAQ('setDouble', [this.demod_path,'/timeconstant'], tc);
+            notify(this,'NewSetting');
         end
         
         function rate=get.demod_rate(this)
@@ -451,10 +514,54 @@ classdef MyZiRingdown < handle
         
         function set.demod_rate(this, val)
             ziDAQ('setDouble', [this.demod_path,'/rate'], val);
+            notify(this,'NewSetting');
         end
         
-        function val=get.downsample_n(this)
-            val=ceil(this.downsample_t*this.demod_rate);
+        function set.downsample_n(this, val)
+            n=round(val);
+            assert(n>=1, ['Number of points for trace averaging must ', ...
+                'be greater than 1'])
+            this.downsample_n=n;
+            notify(this,'NewSetting');
+        end
+        
+        function set.downsampled_rate(this, val)
+            dr=this.demod_rate;
+            if val>dr
+                % Downsampled rate should not exceed the data transfer rate
+                val=dr;
+            end
+            % Round so that the averaging is done over an integer number of
+            % points
+            this.downsample_n=round(dr/val);
+            notify(this,'NewSetting');
+        end
+        
+        function val=get.downsampled_rate(this)
+            val=this.demod_rate/this.downsample_n;
+        end
+        
+        function set.fft_length(this, val)
+            if val<1
+                val=1;
+            end
+            % Round val to the nearest 2^n to make the calculation of
+            % Fourier transform efficient
+            n=round(log2(val));
+            this.fft_length=2^n;
+            notify(this,'NewSetting');
+        end
+        
+        function val=get.fft_rbw(this)
+            val=this.demod_rate/this.fft_length;
+        end
+        
+        function set.fft_rbw(this, val)
+            assert(val>0,'FFT resolution bandwidth must be greater than 0')
+            % Rounding of fft_length to the nearest integer is handled by 
+            % its own set method
+            this.fft_length=this.demod_rate/val;
+            notify(this,'NewSetting');
         end
     end
 end
