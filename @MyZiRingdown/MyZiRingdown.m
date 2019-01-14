@@ -3,8 +3,14 @@
 %
 % Operation: sweep the driving tone (drive_osc) using the sweep module 
 % in LabOne web user interface, when the magnitude of the demodulator 
-% signal exceeds trig_threshold switch off the driving tone and start 
-% recording the demodulated signal for the duration of record_time.   
+% signal exceeds trig_threshold the driving tone is switched off and 
+% the recording of demodulated signal is started, the signal is recorded 
+% for the duration of record_time.
+% 
+% Features:
+% Adaptive measurement oscillator frequency
+% Averaging
+% Output signal 
 
 classdef MyZiRingdown < handle
     
@@ -25,6 +31,14 @@ classdef MyZiRingdown < handle
         downsample_n=1 
         
         fft_length=128
+        
+        n_avg=1 % number of ringdowns to be averaged 
+        
+        % In adaptive measurement oscillator mode the oscillator frequency
+        % is continuously changed to follow the signal frequency during
+        % ringdown acquisition. This helps against the oscillator frequency
+        % drift.
+        adaptive_meas_osc=false   
     end
     
     % The properties which are read or set only once during the class
@@ -65,13 +79,25 @@ classdef MyZiRingdown < handle
         % Poll duration of 1 ms practically means that ziDAQ('poll', ...
         % returns immediately with the data accumulated since the
         % previous function call. 
-        poll_duration = 0.001; % s
-        poll_timeout = 50; % ms
+        poll_duration = 0.001 % s
+        poll_timeout = 50 % ms
+        
+        % Margin for adaptive oscillator frequency adjustment - oscillator
+        % follows the signal if the dispersion of frequency in the
+        % demodulator band is below ad_osc_margin times the demodulation 
+        % bandwidth (under the condition that adaptive_meas_osc=true) 
+        ad_osc_margin = 0.1
     end
     
     % Internal variables
     properties (GetAccess=public, SetAccess=protected)
         recording=false % true if a ringdown is being recorded
+        
+        % true if adaptive measurement oscillator mode is on and if the
+        % measurement oscillator is actually actively following.
+        ad_osc_following=false  
+        
+        n_avg_completed=0
         
         % Reference timestamp at the beginning of measurement record. 
         % Stored as uint64.
@@ -111,12 +137,14 @@ classdef MyZiRingdown < handle
         fft_rbw % resolution bandwidth of fft
     end
     
-    properties (Access=public)
+    properties (Access=private)
         PollTimer
         
         % Samples stored to continuously calculate spectrum
         % values of z are complex here, z=x+iy
         DemodRecord=struct('t',[],'z',[])
+        
+        TraceAvg % MyTrace object used for averaging ringdowns
     end
     
     events
@@ -243,7 +271,7 @@ classdef MyZiRingdown < handle
             ziDAQ('unsubscribe',[this.demod_path,'/sample']);
         end
         
-        % Main function that polls data drom the device demodulator
+        % Main function that polls data from the device demodulator
         function pollTimerCallback(this)
             
             % ziDAQ('poll', ... with short poll_duration returns 
@@ -267,6 +295,24 @@ classdef MyZiRingdown < handle
                     
                     % Update elapsed time
                     this.elapsed_t=this.Trace.x(end);
+                    
+                    % If the adaptive measurement frequency mode is on,
+                    % update the measurement oscillator frequency.
+                    % Make sure that the demodulator record actually
+                    % contains signal by comparing the dispersion of 
+                    % frequency to demodulator bandwidth.
+                    if this.adaptive_meas_osc
+                        [df_avg, df_dev]=calcfreq(this);
+                        if df_dev < this.ad_osc_margin*this.lowpass_bw
+                            this.meas_osc_freq=this.meas_osc_freq+df_avg;
+                            % Change indicator
+                            this.ad_osc_following=true;
+                        else
+                            this.ad_osc_following=false;
+                        end
+                    else
+                        this.ad_osc_following=false;
+                    end
                 else
                     r=sqrt(DemodSample.x.^2+DemodSample.y.^2);
                     if this.enable_trig && max(r)>this.trig_threshold
@@ -299,24 +345,47 @@ classdef MyZiRingdown < handle
                     else
                         rec_finished=false;
                     end
+                    
+                    % Indicator for adaptive measurement is off, since
+                    % recording is not under way
+                    this.ad_osc_following=false;
                 end
                 
                 notify(this,'NewDemodSample');
                 
-                % Stop recording if the record was finished
+                % Stop recording if a record was finished
                 if rec_finished
                     % stop recording
                     this.recording=false;
+                    this.ad_osc_following=false;
                     % Switch the oscillator
                     this.current_osc=this.drive_osc;
-                    % Do not enable acquisition after a ringdown is
-                    % recorded to prevent possible overwriting
-                    this.enable_trig=false;
 
                     % Downsample the trace to reduce the amount of data
                     downsample(this.Trace, this.downsample_n, 'avg');
-
+                    
+                    % Do trace averaging
+                    this.TraceAvg=this.TraceAvg+this.trace;
+                    this.n_avg_completed=this.n_avg_completed+1;
+                    
                     triggerNewData(this);
+                    
+                    if this.n_avg_completed>=this.n_avg
+                        % Normalize the average trace
+                        this.TraceAvg=this.TraceAvg/n;
+                        % Do not enable acquisition after a ringdown is
+                        % recorded to prevent possible overwriting
+                        this.enable_trig=false;
+                        
+                        % Signal new data one more time to transfer the
+                        % average trace
+                        this.Trace=copy(this.TraceAvg);
+                        triggerNewData(this);
+                    else
+                        % Restart acquisition of a new trace
+                        this.enable_trig=true;
+                        this.drive_on=true;
+                    end
                 end
             end
         end
@@ -379,6 +448,20 @@ classdef MyZiRingdown < handle
                 this.DemodRecord.z(end-flen+1:end));
             this.DemodSpectrum.x=freq;
             this.DemodSpectrum.y=abs(spectr).^2;
+        end
+        
+        % Calculate the average frequency and dispersion of the demodulator 
+        % signal 
+        function [f_avg, f_dev]=calcfreq(this)
+            if ~isempty(this.DemodSpectrum)
+                norm=sum(this.DemodSpectrum.y);
+                f_avg=dot(this.DemodSpectrum.x, this.DemodSpectrum.y)/norm;
+                f_dev=sqrt(dot(this.DemodSpectrum.x.^2, ...
+                    this.DemodSpectrum.y)/norm-f_avg^2);
+            else
+                f_avg=[];
+                f_dev=[];
+            end
         end
         
         function str=idn(this)
@@ -597,6 +680,15 @@ classdef MyZiRingdown < handle
             % Rounding of fft_length to the nearest integer is handled by 
             % its own set method
             this.fft_length=this.demod_rate/val;
+            notify(this,'NewSetting');
+        end
+        
+        function set.n_avg(this, val)
+            % Number of averages needs to be integer and greater than one
+            if val<1
+                val=1;
+            end
+            this.n_avg=round(val);
             notify(this,'NewSetting');
         end
     end
