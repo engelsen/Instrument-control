@@ -33,11 +33,11 @@ classdef MyNa < MyScpiInstrument
         % Generate a new data event with header collection suppressed
         function transferTrace(this, n_trace)
             trace_tag = sprintf('Trace%i', n_trace);
-            % Assign either Trace1 or 2 to Trace with keeping the metadata 
+            % Assign either Trace1 or 2 to Trace while keeping the metadata 
             this.(trace_tag).MeasHeaders=copy(this.Trace.MeasHeaders);
             this.Trace=copy(this.(trace_tag));
             
-            triggerNewData(this,'no_new_header');
+            triggerNewData(this,'no_new_header',true);
         end
         
         function data = readTrace(this, n_trace)

@@ -88,12 +88,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             stat=createFile(fname, 'overwrite', p.Results.overwrite);
             
             %Returns if the file is not created for some reason 
-            if ~stat 
-                error('File not created, returned write_flag %i',stat);
+            if stat
+                %We now write the data to the file
+                writeData(this, fname, 'save_prec', p.Results.save_prec);
+            else
+                warning('File not created, returned write_flag %i',stat);
             end
             
-            %We now write the data to the file
-            writeData(this, fname, 'save_prec', p.Results.save_prec);
         end
         
         %Writes the data to a file. This is separated so that other

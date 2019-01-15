@@ -44,7 +44,7 @@ classdef MyDaq < handle
         %Properties for saving files
         base_dir
         session_name
-        filename
+        filename % File name is always returned with extension
     end
     
     methods (Access=public)
@@ -500,7 +500,13 @@ classdef MyDaq < handle
             end
         end
         
-        function saveTrace(this, trace_tag)         
+        function saveTrace(this, trace_tag, varargin) 
+            p=inputParser();
+            % If file already exists, generate a uinique name rather than
+            % show user the overwrite dialog.
+            addParameter(p, 'make_unique_name', false, @islogical);
+            parse(p,varargin{:});
+            
             %Check if the trace is valid (i.e. x and y are equal length)
             %before saving
             if ~this.(trace_tag).validatePlot
@@ -509,17 +515,40 @@ classdef MyDaq < handle
                 return
             end
             
-            [~,~,ext]=fileparts(this.filename);
-            if isempty(ext)
-                % Add default file extension
-                fullfilename=fullfile(this.save_dir,[this.filename,'.txt']);
-            else
-                % Use file extension supplied in the field
-                fullfilename=fullfile(this.save_dir,this.filename);
+            fullfilename=fullfile(this.save_dir,this.filename);
+            
+            if p.Results.make_unique_name && exist(fullfilename, 'file')~=0
+                fullfilename=makeUniqueFileName(this); 
             end
             
-            %Save in a readable format using the method of MyTrace
+            %Save in readable format using the method of MyTrace
             save(this.(trace_tag), fullfilename)
+        end
+        
+        % Make the filename unique within the measurement folder
+        % by appending _n. This function does not make sure that the 
+        % filename is valid - i.e. does not contain symbols forbidden by 
+        % the file system.   
+        function fullfilename=makeUniqueFileName(this)
+            [~, fn, ext]=fileparts(this.filename);
+            % List all the existing files in the measurement directory
+            % that have the same extension as our filename
+            DirCont=dir(fullfile(this.save_dir,['*', ext]));
+            file_ind=~[DirCont.isdir];
+            existing_fns={DirCont(file_ind).name};
+
+            % Remove extensions
+            [~,existing_fns,~]=cellfun(@fileparts, existing_fns, ...
+                'UniformOutput',false);
+
+            % Generate a new file name
+            if ~isempty(fn)
+                fn=matlab.lang.makeUniqueStrings(fn, existing_fns);
+            else
+                fn=matlab.lang.makeUniqueStrings('placeholder', ...
+                    existing_fns);
+            end
+            fullfilename=fullfile(this.save_dir,[fn, ext]); 
         end
         
         %Toggle button callback for showing the data trace.
@@ -842,6 +871,19 @@ classdef MyDaq < handle
                 updateAxis(this);
                 updateCursors(this);
                 updateFits(this);
+                
+                % If the save flag is on in EventData, save the new trace
+                if isprop(EventData, 'save') && EventData.save
+                    if isprop(EventData, 'filename') && ...
+                            ~isempty(EventData.filename)
+                        % If present, use the file name supplied externally
+                        this.filename=EventData.filename;
+                        saveTrace(this, 'Data');
+                    else
+                        % Generate a new unique filename
+                        saveTrace(this, 'Data', 'make_unique_name', true);
+                    end
+                end
             end
         end
         
@@ -963,16 +1005,22 @@ classdef MyDaq < handle
             this.Gui.SessionName.String=session_name;
         end
         
+        % Always return filename with extension
         function filename=get.filename(this)
             try
                 filename=this.Gui.FileName.String;
+                [~,~,ext]=fileparts(filename);
+                if isempty(ext)
+                    % Add default file extension
+                    filename=[filename,'.txt'];
+                end
             catch
-                filename='placeholder';
+                filename='placeholder.txt';
             end
         end
         
-        function set.filename(this,filename)
-            this.Gui.FileName.String=filename;
+        function set.filename(this, str)
+            this.Gui.FileName.String=str;
         end
         
             

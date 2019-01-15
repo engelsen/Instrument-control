@@ -95,23 +95,17 @@ classdef MyInstrument < dynamicprops
             end
         end    
         
-        %Triggers event for acquired data
-        function triggerNewData(this,varargin)
-            EventData = MyNewDataEvent();
+        %Trigger event signaling the acquisition of a new trace. 
+        %Any properties of MyNewDataEvent can be set by indicating the
+        %corresponding name-value pars in varargin. For the list of options 
+        %see the definition of MyNewDataEvent.  
+        function triggerNewData(this, varargin)
+            EventData = MyNewDataEvent(varargin{:});
             EventData.Instr=this;
             % An option to suppress collection of new header so that
             % NewData can be used to transfer previously acquired trace 
             % to Daq
-            EventData.no_new_header=false;
-            if length(varargin)>=1
-                if strcmpi(varargin{1},'no_new_header')
-                    EventData.no_new_header=true;
-                else
-                    warning(['Keyword %s is unrecognized. Use ',...
-                        '''no_new_header'' to suppress header ',...
-                        'collection.'],varargin{1});
-                end
-            end
+            
             notify(this,'NewData',EventData);
         end
         

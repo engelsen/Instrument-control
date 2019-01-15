@@ -19,7 +19,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
     end
     
     methods (Access=private)
-        % Constructor of a singletone class must be private
+        % Constructor of a singleton class must be private
         function this=MyCollector(varargin)
             p=inputParser;
             addParameter(p,'InstrHandles',{});
