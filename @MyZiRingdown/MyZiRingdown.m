@@ -65,6 +65,14 @@ classdef MyZiRingdown < handle
         
         drive_out=1 % signal output used for driving
         
+        % Auxiliary channel used for the output of triggering signal,
+        % primarily intended to switch the measurement apparatus off during
+        % a part of the ringdown and thus allow for free evolution of  
+        % the oscillator during that period.
+        aux_out=1 
+        aux_out_on_lev=1 % (V), output trigger on level
+        aux_out_off_lev=0 % (V), output trigger off level
+        
         % Device clock frequency, i.e. the number of timestamps per second
         clockbase
         
@@ -133,7 +141,12 @@ classdef MyZiRingdown < handle
         % (samples/s), sampling rate of the trace after avraging
         downsampled_rate  
         
-        current_osc % oscillator presently in use with the demodulator
+        % number of the oscillator presently in use with the demodulator
+        current_osc
+        
+        % true/false, true if the signal output from aux out is in on state
+        aux_out_on
+        
         fft_rbw % resolution bandwidth of fft
     end
     
@@ -256,6 +269,12 @@ classdef MyZiRingdown < handle
             path = sprintf('/%s/sigouts/%i/enables/*', ...
                 this.dev_id, this.drive_out-1);
             ziDAQ('setInt', path, 0);
+            
+            % Configure the auxiliary trigger output - put it in the manual
+            % mode so it does not output demodulator readings
+            path=sprintf('/%s/auxouts/%i/outputselect', ...
+                this.dev_id, this.aux_out-1);
+            ziDAQ('setInt', path, -1);
             
             % Subscribe to continuously receive samples from the 
             % demodulator. Samples accumulated between timer callbacks 
@@ -642,6 +661,28 @@ classdef MyZiRingdown < handle
                 'be greater than 1'])
             this.downsample_n=n;
             notify(this,'NewSetting');
+        end
+        
+        function set.aux_out_on(this, bool)
+            path=sprintf('/%s/auxouts/%i/offset', ...
+                this.dev_id, this.aux_out-1);
+            if bool
+                out_offset=this.aux_out_on_lev;
+            else
+                out_offset=this.aux_out_off_lev;
+            end
+            ziDAQ('setDouble', path, out_offset);
+        end
+        
+        function bool=get.aux_out_on(this)
+            path=sprintf('/%s/auxouts/%i/offset', ...
+                this.dev_id, this.aux_out-1);
+            val=ziDAQ('getDouble', path);
+            % Signal from the auxiliary output is continuous, we make the
+            % binary decision about the output state depending on if 
+            % the signal is closer to the ON or OFF level
+            bool=(abs(val-this.aux_out_on_lev) < ...
+                abs(val-this.aux_out_off_lev));
         end
         
         function set.downsampled_rate(this, val)
