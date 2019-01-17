@@ -153,9 +153,10 @@ classdef MyZiRingdown < handle
     properties (Access=private)
         PollTimer
         
-        % Samples stored to continuously calculate spectrum
-        % values of z are complex here, z=x+iy
-        DemodRecord=struct('t',[],'z',[])
+        % Demodulator samples z(t) stored to continuously calculate
+        % spectrum, values of z are complex here, z=x+iy. 
+        % osc_freq is the demodulation frequency
+        DemodRecord=struct('t',[],'z',[],'osc_freq',[])
         
         TraceAvg % MyTrace object used for averaging ringdowns
     end
@@ -323,7 +324,7 @@ classdef MyZiRingdown < handle
                     if this.adaptive_meas_osc
                         [df_avg, df_dev]=calcfreq(this);
                         if df_dev < this.ad_osc_margin*this.lowpass_bw
-                            this.meas_osc_freq=this.meas_osc_freq+df_avg;
+                            this.meas_osc_freq=df_avg;
                             % Change indicator
                             this.ad_osc_following=true;
                         else
@@ -448,6 +449,8 @@ classdef MyZiRingdown < handle
             % Convert the new data to column format and append
             this.DemodRecord.t=[this.DemodRecord.t; t(:)];
             this.DemodRecord.z=[this.DemodRecord.z; z(:)];
+            this.DemodRecord.osc_freq=[this.DemodRecord.osc_freq; ...
+                DemodSample.frequency(:)];
             
             assert(length(this.DemodRecord.t)==length(this.DemodRecord.z), ...
                 't and z=x+iy array lengths of DemodRecord are not equal.')
@@ -474,7 +477,14 @@ classdef MyZiRingdown < handle
         function [f_avg, f_dev]=calcfreq(this)
             if ~isempty(this.DemodSpectrum)
                 norm=sum(this.DemodSpectrum.y);
+                
+                % Calculate the center frequency of the spectrum
                 f_avg=dot(this.DemodSpectrum.x, this.DemodSpectrum.y)/norm;
+                
+                % Shift the FFT center by the demodulation frequency to
+                % output absolute value
+                f_avg=f_avg+mean(this.DemodRecord.osc_freq);
+                
                 f_dev=sqrt(dot(this.DemodSpectrum.x.^2, ...
                     this.DemodSpectrum.y)/norm-f_avg^2);
             else
@@ -499,6 +509,11 @@ classdef MyZiRingdown < handle
                 str=[str,'; server version: ', DevProp.serverversion];
             end
             this.idn_str=str;
+        end
+        
+        % Provide restricted access to the trace averaging counter
+        function resetAveraging(this)
+            this.n_avg_completed=0;
         end
         
         function triggerNewData(this)
