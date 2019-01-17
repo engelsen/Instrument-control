@@ -10,7 +10,13 @@
 % Features:
 % Adaptive measurement oscillator frequency
 % Averaging
-% Output signal 
+%
+% Auto saving
+%
+% Auxiliary output signal: If enable_aux_out=true 
+% then after a ringdown is started a sequence of pulses is applied
+% to the output consisting of itermittent on and off periods
+% starting from on. 
 
 classdef MyZiRingdown < handle
     
@@ -20,11 +26,18 @@ classdef MyZiRingdown < handle
         trig_threshold=1e-3 % V  
         
         % Duration of the recorded ringdown
-        record_time=1 % s
+        record_time=1 % (s)
         
         % If enable_trig is true, then the drive is on and the acquisition 
         % of record is triggered when signal exceeds trig_threshold
         enable_trig=false
+        
+        % Auxiliary output signal during ringdown. 
+        enable_aux_out=false % If auxiliary output is applied
+        % time during which the output is in aux_out_on_lev state
+        aux_out_on_t=1 % (s)
+        % time during which the output is in aux_out_off_lev state
+        aux_out_off_t=1 % (s)
         
         % Average the trace over n points to reduce amount of stored data
         % while keeping the demodulator bandwidth large
@@ -32,7 +45,9 @@ classdef MyZiRingdown < handle
         
         fft_length=128
         
-        n_avg=1 % number of ringdowns to be averaged 
+        n_avg=1 % number of ringdowns to be averaged
+        
+        auto_save=false % if all ringdowns should be automatically saved
         
         % In adaptive measurement oscillator mode the oscillator frequency
         % is continuously changed to follow the signal frequency during
@@ -65,11 +80,12 @@ classdef MyZiRingdown < handle
         
         drive_out=1 % signal output used for driving
         
-        % Auxiliary channel used for the output of triggering signal,
-        % primarily intended to switch the measurement apparatus off during
-        % a part of the ringdown and thus allow for free evolution of  
-        % the oscillator during that period.
+        % Number of an auxiliary channel used for the output of triggering 
+        % signal, primarily intended to switch the measurement apparatus 
+        % off during a part of the ringdown and thus allow for free  
+        % evolution of the oscillator during that period.
         aux_out=1 
+        
         aux_out_on_lev=1 % (V), output trigger on level
         aux_out_off_lev=0 % (V), output trigger off level
         
@@ -104,8 +120,6 @@ classdef MyZiRingdown < handle
         % true if adaptive measurement oscillator mode is on and if the
         % measurement oscillator is actually actively following.
         ad_osc_following=false  
-        
-        n_avg_completed=0
         
         % Reference timestamp at the beginning of measurement record. 
         % Stored as uint64.
@@ -153,12 +167,15 @@ classdef MyZiRingdown < handle
     properties (Access=private)
         PollTimer
         
+        AuxOutOffTimer   % Timer responsible for switching the aux out off
+        AuxOutOnTimer    % Timer responsible for switching the aux out on
+        
         % Demodulator samples z(t) stored to continuously calculate
         % spectrum, values of z are complex here, z=x+iy. 
         % osc_freq is the demodulation frequency
         DemodRecord=struct('t',[],'z',[],'osc_freq',[])
         
-        TraceAvg % MyTrace object used for averaging ringdowns
+        AvgTrace % MyAvgTrace object used for averaging ringdowns
     end
     
     events
@@ -191,6 +208,7 @@ classdef MyZiRingdown < handle
                 'unit_x','Hz',...
                 'name_y','PSD',...
                 'unit_y','V^2/Hz');
+            this.AvgTrace=MyAvgTrace();
             
             % Set up the poll timer. Using a timer for anyncronous
             % data readout allows to use the wait time for execution 
@@ -202,6 +220,18 @@ classdef MyZiRingdown < handle
                 'ExecutionMode','fixedSpacing',...
                 'Period',P.Results.poll_period,...
                 'TimerFcn',@(~,~)pollTimerCallback(this));
+            
+            % Aux out timers use fixedRate mode for more precise timing.
+            % First timer is executed periodically to switch the auxiliary
+            % output off 
+            this.AuxOutOffTimer=timer(...
+                'ExecutionMode','fixedRate',...
+                'TimerFcn',@(~,~)auxOutOffTimerCallback(this));
+            % Second timer is executed periodically to switch the auxiliary
+            % output on
+            this.AuxOutOnTimer=timer(...
+                'ExecutionMode','fixedRate',...
+                'TimerFcn',@(~,~)auxOutOffTimerCallback(this));
             
             % Check the ziDAQ MEX (DLL) and Utility functions can be found in Matlab's path.
             if ~(exist('ziDAQ', 'file') == 3) && ~(exist('ziCreateAPISession', 'file') == 2)
@@ -357,6 +387,22 @@ classdef MyZiRingdown < handle
                         % Switch the oscillator
                         this.current_osc=this.meas_osc;
                         
+                        % Optionally start the auxiliary output timers
+                        if this.enable_aux_out
+                            % Configure measurement periods and delays
+                            T=this.aux_out_on_t+this.aux_out_on_t;
+                            this.AuxOutOffTimer.Period=T;
+                            this.AuxOutOnTimer.Period=T;
+                            
+                            this.AuxOutOffTimer.startDelay=...
+                                this.aux_out_on_t;
+                            this.AuxOutOnTimer.startDelay=T;
+                            
+                            % Start timers
+                            start(this.AuxOutOffTimer
+                            start(this.AuxOutOnTimer
+                        end
+                        
                         % Clear trace and append new data starting from the
                         % index, at which triggering occurred
                         clearData(this.Trace);
@@ -385,21 +431,20 @@ classdef MyZiRingdown < handle
                     downsample(this.Trace, this.downsample_n, 'avg');
                     
                     % Do trace averaging
-                    this.TraceAvg=this.TraceAvg+this.trace;
-                    this.n_avg_completed=this.n_avg_completed+1;
+                    addAverage(this.AvgTrace, this.Trace);
                     
-                    triggerNewData(this);
+                    triggerNewData(this, 'save', this.auto_save);
                     
-                    if this.n_avg_completed>=this.n_avg
-                        % Normalize the average trace
-                        this.TraceAvg=this.TraceAvg/n;
+                    if this.AvgTrace.avg_count>=this.n_avg
                         % Do not enable acquisition after a ringdown is
                         % recorded to prevent possible overwriting
                         this.enable_trig=false;
                         
                         % Signal new data one more time to transfer the
                         % average trace
-                        this.Trace=copy(this.TraceAvg);
+                        this.Trace.x=this.AvgTrace.x;
+                        this.Trace.y=this.AvgTrace.y;
+                        
                         triggerNewData(this);
                     else
                         % Restart acquisition of a new trace
@@ -511,13 +556,18 @@ classdef MyZiRingdown < handle
             this.idn_str=str;
         end
         
-        % Provide restricted access to the trace averaging counter
-        function resetAveraging(this)
-            this.n_avg_completed=0;
+        function triggerNewData(this, varargin)
+            EventData = MyNewDataEvent(varargin{:});
+            EventData.Instr=this;
+            notify(this,'NewData',EventData);
         end
         
-        function triggerNewData(this)
-            notify(this,'NewData')
+        function auxOutOffTimerCallback(this)
+            this.aux_out_on=false;
+        end
+        
+        function auxOutOnTimerCallback(this)
+            this.aux_out_on=true;
         end
         
         function Hdr=readHeader(this)

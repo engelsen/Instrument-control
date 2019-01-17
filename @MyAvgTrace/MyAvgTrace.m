@@ -1,38 +1,113 @@
 % Adds averaging capabilities to MyTrace
+%
+% Averaging type is 'linear' or 'exp' ('exponential').
+% Linear averaging is a simple mean 
+% x=\sum_{n=0}^N x_n, 
+% exponential is an unlimited weighted sum 
+% x=(1-exp(-1/n_avg))*\sum_{n=0}^\inf x_n exp(-n/n_avg).
 
 classdef MyAvgTrace < MyTrace
-
-    properties (GetAccess=public, SetAccess=protected)
-        % Counter for the averaging function, can be reset by clearData
-        avg_count=1
+    
+    properties (Access=public)
+        % Target number of averages, when it is reached or exceeded 
+        % AveragingDone event is triggered
+        n_avg=1 
+        
+        avg_type='linear'
     end
     
-    methods
+    properties (GetAccess=public, SetAccess=protected)
+        % Counter for the averaging function, can be reset by clearData
+        avg_count=0
+    end
+    
+    events
+        AveragingDone
+    end
+    
+    methods (Access=public)
+        
+        % Adds data to the average accumulator. When the averaging counter
+        % exceeds n_avg, a notification is issued, but the averaging is not
+        % stopped.
         function addAverage(this, b)
+            assert(isa(b,'MyTrace') || (isvector(b) && isnumeric(b)), ...
+                ['Second argument must be a MyTrace object or ', ...
+                'a numeric vector'])
             
             if isa(b,'MyTrace')
-                checkArithmetic(this,b);
-                this.y=(this.y*this.avg_count+b.y)/(this.avg_count+1);
-            elseif isnumeric(b)
-                assert(isvector(b) && length(b)==length(this.y), ...
-                    ['Numeric array must be a vector of the same ', ...
-                    'length as y data of MyTrace in order to perform ', ...
-                    'averanging'])
-                this.y=(this.y*this.avg_count+b)/(this.avg_count+1);
+                % The new data is supplied as MyTrace
+                new_y=b.y;
             else
-                error(['Second argument must be a MyTrace object or ', ...
-                    'a numerical vector of the same length as y data ', ...
-                    'of MyTrace in order to perform averanging'])
+                % The new data is supplied directly as a numeric vector
+                new_y=b(:);
             end
             
+            if isempty(this)
+                % Initialize new data and return
+                this.y=new_y;
+                this.avg_count=1;
+                return
+            end
+            
+            assert(length(new_y)==length(this.y), ...
+                ['New vector of y values must be of the same', ...
+                'length as the exisiting y data of MyTrace in ', ...
+                'order to perform averanging'])
+            
             this.avg_count=this.avg_count+1;
+            
+            switch this.avg_type
+                case 'linear'
+                    this.y = (this.y*(this.avg_count-1)+new_y)/...
+                        this.avg_count;
+                case 'exp'
+                    this.y = new_y*(1-exp(-1/this.n_avg))+ ...
+                        this.y*exp(-1/this.n_avg);
+                otherwise
+                    error('Averaging type %s is not supported', ...
+                        this.avg_type)
+            end
+            
+            if this.avg_count>=this.n_avg
+                triggerAveragingDone(this);
+            end
         end
         
+        % Provide restricted access to the trace averaging counter
+        function resetCounter(this)
+            this.avg_count=0;
+        end
+        
+        function triggerAveragingDone(this)
+            notify(this, 'AveragingDone')
+        end
+        
+        % Overload clearData so that it reset the averaging counter in
+        % addition to clearing the x and y values
         function clearData(this)
             this.x=[];
             this.y=[];
-            this.avg_count=1;
+            resetCounter(this);
         end
+    end
+    
+    %% Set and get methods
+    
+    methods
+        
+        function set.avg_type(this, val)
+            assert(strcmpi(val, 'linear')||strcmpi(val, 'exp')|| ... 
+                strcmpi(val, 'exponential'), ...
+                'Averaging type must be ''linear'' or ''exp''')
+            this.avg_type=val;
+        end
+        
+        function set.n_avg(this, val)
+            % The number of averages should be integer not smaller than one
+            this.n_avg=max(1, round(val));
+        end
+        
     end
 end
 

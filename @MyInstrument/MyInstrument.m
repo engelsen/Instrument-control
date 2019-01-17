@@ -102,10 +102,6 @@ classdef MyInstrument < dynamicprops
         function triggerNewData(this, varargin)
             EventData = MyNewDataEvent(varargin{:});
             EventData.Instr=this;
-            % An option to suppress collection of new header so that
-            % NewData can be used to transfer previously acquired trace 
-            % to Daq
-            
             notify(this,'NewData',EventData);
         end
         
