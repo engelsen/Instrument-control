@@ -40,7 +40,16 @@ function Instr = runInstrument(name, instr_class, interface, address)
                 'f(name, instr_class, interface, address).'])
         end
         
-        Instr = feval(instr_class, interface, address, 'name', name);
+        % Skip the interface and address arguments if they are empty
+        req_args={};
+        if ~isempty(interface)
+            req_args=[req_args,{interface}];
+        end
+        if ~isempty(address)
+            req_args=[req_args,{address}];
+        end
+        
+        Instr = feval(instr_class, req_args{:}, 'name', name);
         addInstrument(Collector, Instr, 'name', name);
     else
         % If instrument is already present in the Collector, do not create
