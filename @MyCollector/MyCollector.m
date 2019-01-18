@@ -84,7 +84,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function acquireData(this,InstrEventData)
+        function acquireData(this, InstrEventData)
             src=InstrEventData.Source;
             
             % Check that event data object is MyNewDataEvent,
@@ -92,7 +92,12 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             if ~isa(InstrEventData,'MyNewDataEvent')
                 InstrEventData=MyNewDataEvent();
                 InstrEventData.new_header=true;
-                InstrEventData.Instr=src;
+                InstrEventData.Trace=copy(src.Trace);
+                try
+                    InstrEventData.src_name=src.name;
+                catch
+                    InstrEventData.src_name='UnknownDevice';
+                end
             end
             
             % Collect the headers if the flag is on and if the triggering 
@@ -102,15 +107,16 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 %Add field indicating the time when the trace was acquired
                 addTimeField(this.MeasHeaders, 'AcquisitionTime')
                 addField(this.MeasHeaders,'AcquiringInstrument')
-                if isprop(src,'name')
-                    name=src.name;
-                else
-                    name='Not Accessible';
-                end
+                %src_name is a valid matlab variable name as ensured by 
+                %its set method
                 addParam(this.MeasHeaders,'AcquiringInstrument',...
-                    'Name',name);
+                    'Name', InstrEventData.src_name);
                 acquireHeaders(this);
-                %We copy the MeasHeaders to the trace.
+                
+                %We copy the MeasHeaders to both copies of the trace - the
+                %one that is with the source and the one that is forwarded
+                %to Daq.
+                InstrEventData.Trace.MeasHeaders=copy(this.MeasHeaders);
                 src.Trace.MeasHeaders=copy(this.MeasHeaders);
             end
             

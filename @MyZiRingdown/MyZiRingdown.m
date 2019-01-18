@@ -18,7 +18,7 @@
 % to the output consisting of itermittent on and off periods
 % starting from on. 
 
-classdef MyZiRingdown < handle
+classdef MyZiRingdown < MyDataSource
     
     properties (Access=public)
         % Ringdown is recorded if the signal in the triggering demodulation 
@@ -61,9 +61,7 @@ classdef MyZiRingdown < handle
     
     % The properties which are read or set only once during the class
     % initialization
-    properties (GetAccess=public, SetAccess={?MyClassParser,?MyZiRingdown})
-        name='ziRingdown'
-        
+    properties (GetAccess=public, SetAccess={?MyClassParser})
         dev_serial='dev4090'
         
         % enumeration for demodulators, oscillators and output starts from 1
@@ -126,8 +124,8 @@ classdef MyZiRingdown < handle
         t0
         
         elapsed_t=0 % Time elapsed since the last recording was started
-        
         Trace % MyTrace object storing the ringdown
+
         DemodSpectrum % MyTrace object to store FFT of the demodulator data
     end
     
@@ -184,9 +182,6 @@ classdef MyZiRingdown < handle
     end
     
     events
-        % Event for communication with Daq that signals the acquisition of 
-        % a new ringdown
-        NewData
         % New demodulator samples received
         NewDemodSample 
         % Device settings changed, used mostly for syncronization with Gui
@@ -200,19 +195,21 @@ classdef MyZiRingdown < handle
             P=MyClassParser(this);
             % Poll timer period
             addParameter(P,'poll_period',0.1,@isnumeric);
-            processInputs(P, varargin{:});
+            processInputs(P, this, varargin{:});
             
             % Create and configure trace objects
-            this.Trace=MyTrace(...
-                'name_x','Time',...
-                'unit_x','s',...
-                'name_y','Magnitude r',...
-                'unit_y','V');
+            % Trace is inherited from the superclass
+            this.Trace.name_x='Time';
+            this.Trace.unit_x='s';
+            this.Trace.name_x='Magnitude r';
+            this.Trace.unit_x='V';
+            
             this.DemodSpectrum=MyTrace(...
                 'name_x','Frequency',...
                 'unit_x','Hz',...
                 'name_y','PSD',...
                 'unit_y','V^2/Hz');
+            
             this.AvgTrace=MyAvgTrace();
             
             % Set up the poll timer. Using a timer for anyncronous
@@ -470,6 +467,8 @@ classdef MyZiRingdown < handle
                     % Do trace averaging
                     addAverage(this.AvgTrace, this.Trace);
                     
+                    triggerNewData(this, 'save', this.auto_save);
+                    
                     % If the ringdown averaging is complete, disable
                     % further triggering to exclude data overwriting 
                     if this.AvgTrace.avg_count>=this.n_avg
@@ -477,9 +476,12 @@ classdef MyZiRingdown < handle
 
                         this.Trace.x=this.AvgTrace.x;
                         this.Trace.y=this.AvgTrace.y;
+                        % Trigger one more time to transfer the average
+                        % trace. New measurement header is not necessary as
+                        % the delay since the last triggering is minimum.
+                        triggerNewData(this, 'save', this.auto_save, ...
+                            'new_header', false);
                     end
-                    
-                    triggerNewData(this, 'save', this.auto_save);
                 end
             end
         end
@@ -591,12 +593,6 @@ classdef MyZiRingdown < handle
             this.idn_str=str;
         end
         
-        function triggerNewData(this, varargin)
-            EventData = MyNewDataEvent(varargin{:});
-            EventData.Instr=this;
-            notify(this,'NewData',EventData);
-        end
-        
         function auxOutOffTimerCallback(this)
             this.aux_out_on=false;
         end
@@ -689,18 +685,6 @@ classdef MyZiRingdown < handle
     
     %% Set and get methods.
     methods
-        
-        % Ensures that the instrument name is a valid Matlab variable
-        function set.name(this, str)
-            assert(ischar(str), ['The value assigned to ''name'' ' ...
-                'property must be char'])
-            if ~isempty(str)
-                str=matlab.lang.makeValidName(str);
-            else
-                str=class(this);
-            end
-            this.name=str;
-        end
         
         function freq=get.drive_osc_freq(this)
             path=sprintf('/%s/oscs/%i/freq', this.dev_id, this.drive_osc-1);

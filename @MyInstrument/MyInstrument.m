@@ -1,21 +1,16 @@
 % Generic class to implement communication with instruments 
 
-classdef MyInstrument < dynamicprops
+classdef MyInstrument < dynamicprops & MyDataSource
     
     % Access for these variables is 'protected' and in addition
     % granted to MyClassParser in order to use construction parser 
-    properties (GetAccess=public, SetAccess={?MyClassParser,?MyInstrument})     
-        % name is sometimes used as identifier in listeners callbacks, so
-        % it better not to be changed after the instrument object is
-        % created
-        name='';
+    properties (GetAccess=public, SetAccess={?MyClassParser})     
         interface='';
         address=''; 
     end
     
     properties (Access=public)
         Device %Device communication object    
-        Trace %MyTrace object for storing data
     end 
     
     properties (GetAccess=public, SetAccess=protected)
@@ -30,7 +25,6 @@ classdef MyInstrument < dynamicprops
     end
     
     events
-        NewData 
         PropertyRead 
     end
     
@@ -41,9 +35,6 @@ classdef MyInstrument < dynamicprops
             addRequired(P,'address',@ischar);
             addParameter(P,'name','',@ischar);
             processInputs(P, this, interface, address, varargin{:});
-            
-            % Create an empty trace
-            this.Trace=MyTrace();
             
             % Create dummy device object that supports properties
             this.Device=struct();
@@ -95,16 +86,6 @@ classdef MyInstrument < dynamicprops
             end
         end    
         
-        %Trigger event signaling the acquisition of a new trace. 
-        %Any properties of MyNewDataEvent can be set by indicating the
-        %corresponding name-value pars in varargin. For the list of options 
-        %see the definition of MyNewDataEvent.  
-        function triggerNewData(this, varargin)
-            EventData = MyNewDataEvent(varargin{:});
-            EventData.Instr=this;
-            notify(this,'NewData',EventData);
-        end
-        
         %Triggers event for property read from device
         function triggerPropertyRead(this)
             notify(this,'PropertyRead')
@@ -115,13 +96,8 @@ classdef MyInstrument < dynamicprops
         % Dummy method that needs to be re-defined by a parent class
         function Hdr=readHeader(this)
             Hdr=MyMetadata();
-            % Generate valid field name from instrument name if present and
-            % class name otherwise
-            if ~isempty(this.name)
-                field_name=genvarname(this.name);
-            else
-                field_name=class(this);
-            end
+            % Instrument name is a valid Matalb identifier as ensured by
+            % its set method (see the superclass)
             addField(Hdr, field_name);
             % Add identification string as parameter
             addParam(Hdr, field_name, 'idn', this.idn_str);

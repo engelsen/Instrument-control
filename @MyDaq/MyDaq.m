@@ -851,16 +851,13 @@ classdef MyDaq < handle
             %Get the currently selected instrument
             val=this.Gui.InstrMenu.Value;
             curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
-            %Get the name of instrument that generated new data
-            SourceInstr = EventData.Instr;
-            source_name = SourceInstr.name;
             
             %Check if the data originates from the currently selected
             %instrument
-            if strcmp(source_name, curr_instr_name)
+            if strcmp(EventData.src_name, curr_instr_name)
                 hline=getLineHandle(this.Data,this.main_plot);
                 %Copy the data from the source instrument
-                this.Data=copy(SourceInstr.Trace);
+                this.Data=copy(EventData.Trace);
                 %We give the new trace object the right line handle to plot in
                 if ~isempty(hline)
                     this.Data.hlines{1}=hline;
