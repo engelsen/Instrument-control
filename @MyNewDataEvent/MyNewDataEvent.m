@@ -6,10 +6,10 @@ classdef MyNewDataEvent < event.EventData
         % NewDataWithHeaders 
         Instr
         
-        % If true then MyCollector does not acquire new measurement headers 
-        % for this trace. Setting no_new_header = false allows transferring 
-        % an existing trace to Daq by triggering NewData.
-        no_new_header = false
+        % If false then MyCollector does not acquire new measurement  
+        % headers for this trace. Setting new_header = false allows  
+        % transferring an existing trace to Daq by triggering NewData.
+        new_header = true
         
         % If the new data should be automatically saved by Daq.
         save = false

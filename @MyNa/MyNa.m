@@ -37,7 +37,7 @@ classdef MyNa < MyScpiInstrument
             this.(trace_tag).MeasHeaders=copy(this.Trace.MeasHeaders);
             this.Trace=copy(this.(trace_tag));
             
-            triggerNewData(this,'no_new_header',true);
+            triggerNewData(this,'new_header',false);
         end
         
         function data = readTrace(this, n_trace)

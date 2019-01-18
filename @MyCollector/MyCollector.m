@@ -91,13 +91,13 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             % and fix otherwise
             if ~isa(InstrEventData,'MyNewDataEvent')
                 InstrEventData=MyNewDataEvent();
-                InstrEventData.no_new_header=false;
+                InstrEventData.new_header=true;
                 InstrEventData.Instr=src;
             end
             
             % Collect the headers if the flag is on and if the triggering 
             % instrument does not request suppression of header collection
-            if this.collect_flag && ~InstrEventData.no_new_header
+            if this.collect_flag && InstrEventData.new_header
                 this.MeasHeaders=MyMetadata();
                 %Add field indicating the time when the trace was acquired
                 addTimeField(this.MeasHeaders, 'AcquisitionTime')
