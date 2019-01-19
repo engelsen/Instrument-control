@@ -124,7 +124,6 @@ classdef MyZiRingdown < MyDataSource
         t0
         
         elapsed_t=0 % Time elapsed since the last recording was started
-        Trace % MyTrace object storing the ringdown
 
         DemodSpectrum % MyTrace object to store FFT of the demodulator data
     end
