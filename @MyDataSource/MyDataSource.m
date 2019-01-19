@@ -3,12 +3,15 @@
 
 classdef MyDataSource < handle
     
-    properties (GetAccess=public, SetAccess={?MyClassParser})     
+    properties (GetAccess=public, SetAccess={?MyClassParser,?MyDataSource})     
         % name is sometimes used as identifier in listeners callbacks, so
         % it better not to be changed after the object is created. 
         % Granting MyClassParser access to this variable allows to 
         % conveniently assign it in a subclass constructor from name-value 
         % pairs. 
+        % Explicitly granting access to MyDataSource makes setting this  
+        % property to be accessible to subclasses (i.e. protected and not 
+        % private). 
         name='MyDataSource'
     end
     

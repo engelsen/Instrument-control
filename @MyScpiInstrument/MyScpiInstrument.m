@@ -187,7 +187,33 @@ classdef MyScpiInstrument < MyInstrument
             end
         end
         
-        % readHeader function
+        %% Identification
+        % Overload the basic MyInstrument function to use a generalized way
+        % of querying commands avaliable in MyScpiInstrument
+        function [str, msg]=idn(this)
+            was_open=isopen(this);
+            try
+                openDevice(this);
+                str=queryCommand(this,'*IDN?');
+                assert(~isempty(str), ['IDN query to the instrument ' ...
+                    'did not return a result'])
+                str=str{1};
+            catch ErrorMessage
+                str='';
+                msg=ErrorMessage.message;
+            end   
+            this.idn_str=str;
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                try
+                    closeDevice(this);
+                catch
+                end
+            end
+        end
+        
+        %% Measurements header functionality
+
         function Hdr=readHeader(this)
             %Call parent class method and then append parameters
             Hdr=readHeader@MyInstrument(this);

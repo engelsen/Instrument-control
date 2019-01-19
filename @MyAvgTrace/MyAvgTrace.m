@@ -31,26 +31,24 @@ classdef MyAvgTrace < MyTrace
         % In linear regime when the averaging counter exceeds n_avg, new
         % data is discarded.
         function completed = addAverage(this, b)
-            assert(isa(b,'MyTrace') || (isvector(b) && isnumeric(b)), ...
-                ['Second argument must be a MyTrace object or ', ...
-                'a numeric vector'])
-            
-            if isa(b,'MyTrace')
-                % The new data is supplied as MyTrace
-                new_y=b.y;
-            else
-                % The new data is supplied directly as a numeric vector
-                new_y=b(:);
-            end
+            assert(isa(b,'MyTrace'), ['Second argument must be a ' ...
+                'MyTrace object']);
             
             if isempty(this)
                 % Initialize new data and return
-                this.y=new_y;
+                this.x=b.x;
+                this.y=b.y;
+                
+                this.name_x=b.name_x;
+                this.unit_x=b.unit_x;
+                this.name_y=b.name_y;
                 this.avg_count=1;
+                
+                completed=(this.avg_count>=this.n_avg);
                 return
             end
             
-            assert(length(new_y)==length(this.y), ...
+            assert(length(b.y)==length(this.y), ...
                 ['New vector of y values must be of the same', ...
                 'length as the exisiting y data of MyTrace in ', ...
                 'order to perform averanging'])
@@ -60,14 +58,14 @@ classdef MyAvgTrace < MyTrace
                     if this.avg_count<this.n_avg
                         % Increase the counter and update the data
                         this.avg_count=this.avg_count+1;
-                        this.y = (this.y*(this.avg_count-1)+new_y)/...
+                        this.y = (this.y*(this.avg_count-1)+b.y)/...
                             this.avg_count;
                     end
                 case 'exp'
                     % In the exponential case averaging proceeds
                     % indefinitely, so do not check if avg_count<n_avg
                     this.avg_count=this.avg_count+1;
-                    this.y = new_y*(1-exp(-1/this.n_avg))+ ...
+                    this.y = b.y*(1-exp(-1/this.n_avg))+ ...
                         this.y*exp(-1/this.n_avg);
                 otherwise
                     error('Averaging type %s is not supported', ...

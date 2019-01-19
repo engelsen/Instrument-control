@@ -3,8 +3,10 @@
 classdef MyInstrument < dynamicprops & MyDataSource
     
     % Access for these variables is 'protected' and in addition
-    % granted to MyClassParser in order to use construction parser 
-    properties (GetAccess=public, SetAccess={?MyClassParser})     
+    % granted to MyClassParser in order to use construction parser.
+    % Granting access to MyInstrument explicitly is needed to make 
+    % these properties accessible for subclasses. 
+    properties (GetAccess=public, SetAccess={?MyClassParser,?MyInstrument})     
         interface='';
         address=''; 
     end
@@ -211,9 +213,6 @@ classdef MyInstrument < dynamicprops & MyDataSource
                 str='';
                 msg=ErrorMessage.message;
             end   
-            % Remove carriage return and new line symbols from the string
-            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
-            str=replace(str, newline_smb,' ');
             this.idn_str=str;
             % Leave device in the state it was in the beginning
             if ~was_open
@@ -224,5 +223,15 @@ classdef MyInstrument < dynamicprops & MyDataSource
             end
         end
         
+    end
+    
+    %% Set and get methods
+    methods 
+        function set.idn_str(this, str)
+            % Remove carriage return and new line symbols from the string
+            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
+            str=replace(str, newline_smb,' ');
+            this.idn_str=str;
+        end
     end
 end

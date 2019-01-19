@@ -48,8 +48,6 @@ classdef MyZiRingdown < MyDataSource
         
         fft_length=128
         
-        n_avg=1 % number of ringdowns to be averaged
-        
         auto_save=false % if all ringdowns should be automatically saved
         
         % In adaptive measurement oscillator mode the oscillator frequency
@@ -158,8 +156,9 @@ classdef MyZiRingdown < MyDataSource
         % true/false, true if the signal output from aux out is in on state
         aux_out_on
         
-        % Provides public access to the average counter of private AvgTrace
-        n_avg_completed
+        % Provides public access to properties of private AvgTrace
+        n_avg % number of ringdowns to be averaged
+        avg_count % the average counter
         
         fft_rbw % resolution bandwidth of fft
     end
@@ -192,9 +191,10 @@ classdef MyZiRingdown < MyDataSource
         %% Constructor and destructor
         function this = MyZiRingdown(dev_serial, varargin)
             P=MyClassParser(this);
+            addRequired(P, dev_serial, @ischar)
             % Poll timer period
             addParameter(P,'poll_period',0.1,@isnumeric);
-            processInputs(P, this, varargin{:});
+            processInputs(P, this, dev_serial, varargin{:});
             
             % Create and configure trace objects
             % Trace is inherited from the superclass
@@ -258,7 +258,9 @@ classdef MyZiRingdown < MyDataSource
             catch ME
                 warning(ME.message)
             end
-     
+            
+            this.demod_path = sprintf('/%s/demods/%i', this.dev_id, ...
+                this.demod-1);
         end
         
         function delete(this)
@@ -297,7 +299,8 @@ classdef MyZiRingdown < MyDataSource
             % Configure the oscillators, demodulator and driving output
             % -1 accounts for the difference in enumeration conventions 
             % in the software names (starting from 1) and node numbers 
-            % (starting from 0)
+            % (starting from 0).
+            % First, update the demodulator path
             this.demod_path = sprintf('/%s/demods/%i', ...
                 this.dev_id, this.demod-1);
             
@@ -431,6 +434,12 @@ classdef MyZiRingdown < MyDataSource
                         % Clear trace and append new data starting from the
                         % index, at which triggering occurred
                         clearData(this.Trace);
+                        
+                        % Append the first portion of samples to the
+                        % record, starting from the index at which 
+                        % triggering occurred. Theoretically, a record can
+                        % be finished with this one portion if the record
+                        % time is set small.
                         rec_finished = ...
                             appendSamplesToTrace(this, DemodSample, ind0);
                     else
@@ -462,14 +471,14 @@ classdef MyZiRingdown < MyDataSource
                     % Downsample the trace to reduce the amount of data
                     downsample(this.Trace, this.downsample_n, 'avg');
                     
-                    % Do trace averaging
-                    addAverage(this.AvgTrace, this.Trace);
-                    
                     triggerNewData(this, 'save', this.auto_save);
+                    
+                    % Do trace averaging
+                    avg_compl=addAverage(this.AvgTrace, this.Trace);
                     
                     % If the ringdown averaging is complete, disable
                     % further triggering to exclude data overwriting 
-                    if this.AvgTrace.avg_count>=this.n_avg
+                    if avg_compl
                         this.enable_trig=false;
 
                         this.Trace.x=this.AvgTrace.x;
@@ -569,7 +578,8 @@ classdef MyZiRingdown < MyDataSource
         
         % Provide restricted access to private AvgTrace
         function resetAveraging(this)
-            resetCounter(this.AvgTrace);
+            % Clear data and reset counter
+            clearData(this.AvgTrace);
             notify(this,'NewSetting');
         end
         
@@ -667,7 +677,7 @@ classdef MyZiRingdown < MyDataSource
             addClassParam(this, Hdr, 'fft_length', 'comment', '(points)');
             
             % Timer poll parameters
-            addParam(Hdr, this.name, 'PollTimer.Period', ...
+            addParam(Hdr, this.name, 'poll_period', ...
                 this.PollTimer.Period, 'comment', '(s)');
             addClassParam(this, Hdr, 'poll_duration', 'comment', '(s)');
             addClassParam(this, Hdr, 'poll_timeout', 'comment', '(ms)');
@@ -849,15 +859,15 @@ classdef MyZiRingdown < MyDataSource
         end
         
         function set.n_avg(this, val)
-            % Number of averages needs to be integer and greater than one
-            if val<1
-                val=1;
-            end
-            this.n_avg=round(val);
+            this.AvgTrace.n_avg=val;
             notify(this,'NewSetting');
         end
         
-        function val=get.n_avg_completed(this)
+        function val=get.n_avg(this)
+            val=this.AvgTrace.n_avg;
+        end
+        
+        function val=get.avg_count(this)
             val=this.AvgTrace.avg_count;
         end
         
