@@ -193,7 +193,7 @@ classdef MyZiRingdown < MyDataSource
             P=MyClassParser(this);
             addRequired(P, dev_serial, @ischar)
             % Poll timer period
-            addParameter(P,'poll_period',0.1,@isnumeric);
+            addParameter(P,'poll_period',0.042,@isnumeric);
             processInputs(P, this, dev_serial, varargin{:});
             
             % Create and configure trace objects
@@ -471,23 +471,30 @@ classdef MyZiRingdown < MyDataSource
                     % Downsample the trace to reduce the amount of data
                     downsample(this.Trace, this.downsample_n, 'avg');
                     
-                    triggerNewData(this, 'save', this.auto_save);
-                    
                     % Do trace averaging
                     avg_compl=addAverage(this.AvgTrace, this.Trace);
+                    
+                    % Trigger NewData after addAverage has updated the
+                    % average counter (this helps syncronization with gui)
+                    triggerNewData(this, 'save', this.auto_save);
                     
                     % If the ringdown averaging is complete, disable
                     % further triggering to exclude data overwriting 
                     if avg_compl
                         this.enable_trig=false;
-
-                        this.Trace.x=this.AvgTrace.x;
-                        this.Trace.y=this.AvgTrace.y;
+                        
                         % Trigger one more time to transfer the average
-                        % trace. New measurement header is not necessary as
-                        % the delay since the last triggering is minimum.
-                        triggerNewData(this, 'save', this.auto_save, ...
-                            'new_header', false);
+                        % trace.
+                        if this.n_avg>1
+                            this.Trace.x=this.AvgTrace.x;
+                            this.Trace.y=this.AvgTrace.y;
+                            
+                            % New measurement header is not necessary 
+                            % as the delay since the last triggering is  
+                            % minimum.
+                            triggerNewData(this, 'save', this.auto_save, ...
+                                'new_header', false);
+                        end
                     end
                 end
             end
@@ -564,12 +571,12 @@ classdef MyZiRingdown < MyDataSource
                 % Calculate the center frequency of the spectrum
                 f_avg=dot(this.DemodSpectrum.x, this.DemodSpectrum.y)/norm;
                 
+                f_dev=sqrt(dot(this.DemodSpectrum.x.^2, ...
+                    this.DemodSpectrum.y)/norm-f_avg^2);
+                
                 % Shift the FFT center by the demodulation frequency to
                 % output absolute value
                 f_avg=f_avg+mean(this.DemodRecord.osc_freq);
-                
-                f_dev=sqrt(dot(this.DemodSpectrum.x.^2, ...
-                    this.DemodSpectrum.y)/norm-f_avg^2);
             else
                 f_avg=[];
                 f_dev=[];
@@ -806,6 +813,7 @@ classdef MyZiRingdown < MyDataSource
                 out_offset=this.aux_out_off_lev;
             end
             ziDAQ('setDouble', path, out_offset);
+            notify(this,'NewSetting');
         end
         
         function bool=get.aux_out_on(this)
@@ -875,12 +883,19 @@ classdef MyZiRingdown < MyDataSource
             assert(val>0.001, ...
                 'Aux out on time must be greater than 0.001 s.')
             this.aux_out_on_t=val;
+            notify(this,'NewSetting');
         end
         
         function set.aux_out_off_t(this, val)
             assert(val>0.001, ...
                 'Aux out off time must be greater than 0.001 s.')
             this.aux_out_off_t=val;
+            notify(this,'NewSetting');
+        end
+        
+        function set.enable_trig(this, val)
+            this.enable_trig=logical(val);
+            notify(this,'NewSetting');
         end
     end
 end
