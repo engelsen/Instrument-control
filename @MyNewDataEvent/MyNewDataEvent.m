@@ -52,7 +52,7 @@ classdef MyNewDataEvent < event.EventData
             else
                 str='UnknownInstrument';
             end
-            this.name=str;
+            this.src_name=str;
         end
     end
 end

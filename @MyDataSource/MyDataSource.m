@@ -15,7 +15,7 @@ classdef MyDataSource < handle
     % There does not seem to be a way to have a read-only protected access
     % for a handle variable, so keep it public
     properties (Access=public)
-        Trace
+        Trace % An object derived from MyTrace
     end
     
     events
@@ -23,10 +23,6 @@ classdef MyDataSource < handle
     end
     
     methods (Access=public)
-        
-        function this=MyDataSource()
-            this.Trace=MyTrace(); % Create an empty trace object
-        end
         
         %Trigger event signaling the acquisition of a new trace. 
         %Any properties of MyNewDataEvent can be set by indicating the

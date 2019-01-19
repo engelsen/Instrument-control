@@ -587,11 +587,7 @@ classdef MyDaq < handle
                     'name_y',this.Data.name_y,...
                     'unit_x',this.Data.unit_x,...
                     'unit_y',this.Data.unit_y);
-                
-                %Since UID is automatically reset when y is changed, we now
-                %change it back to be the same as the Data.
-                this.Ref.uid=this.Data.uid;
-                
+
                 this.Ref.MeasHeaders=copy(this.Data.MeasHeaders);
                 
                 %Plot the reference trace and make it visible

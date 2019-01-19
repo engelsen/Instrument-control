@@ -191,7 +191,7 @@ classdef MyScpiInstrument < MyInstrument
         function Hdr=readHeader(this)
             %Call parent class method and then append parameters
             Hdr=readHeader@MyInstrument(this);
-            %Hdr should contain single field
+            %Hdr should contain a single field
             readPropertyHedged(this,'all');
             for i=1:length(this.read_commands)
                 cmd = this.read_commands{i};

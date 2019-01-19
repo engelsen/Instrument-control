@@ -36,6 +36,9 @@ classdef MyInstrument < dynamicprops & MyDataSource
             addParameter(P,'name','',@ischar);
             processInputs(P, this, interface, address, varargin{:});
             
+            % Create an empty trace
+            this.Trace=MyTrace();
+            
             % Create dummy device object that supports properties
             this.Device=struct();
             this.Device.Status='not connected';
@@ -98,9 +101,9 @@ classdef MyInstrument < dynamicprops & MyDataSource
             Hdr=MyMetadata();
             % Instrument name is a valid Matalb identifier as ensured by
             % its set method (see the superclass)
-            addField(Hdr, field_name);
+            addField(Hdr, this.name);
             % Add identification string as parameter
-            addParam(Hdr, field_name, 'idn', this.idn_str);
+            addParam(Hdr, this.name, 'idn', this.idn_str);
         end
        
         
