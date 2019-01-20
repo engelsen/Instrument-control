@@ -28,9 +28,9 @@ classdef MyZiRingdown < MyDataSource
         % Duration of the recorded ringdown
         record_time=1 % (s)
         
-        % If enable_trig is true, then the drive is on and the acquisition 
+        % If enable_acq is true, then the drive is on and the acquisition 
         % of record is triggered when signal exceeds trig_threshold
-        enable_trig=false
+        enable_acq=false
         
         % Auxiliary output signal during ringdown. 
         enable_aux_out=false % If auxiliary output is applied
@@ -180,10 +180,9 @@ classdef MyZiRingdown < MyDataSource
     end
     
     events
-        % New demodulator samples received
-        NewDemodSample 
-        % Device settings changed, used mostly for syncronization with Gui
-        NewSetting 
+        NewDemodSample      % New demodulator samples received 
+        NewSetting          % Device settings changed
+        RecordingStarted    % Acquisition of a new trace triggered
     end
     
     methods (Access=public)
@@ -324,8 +323,8 @@ classdef MyZiRingdown < MyDataSource
             ziDAQ('setInt', path, 0);
             this.drive_on=true;
              
-            % By convention, we start form 'enable_trig=false' state
-            this.enable_trig=false;
+            % By convention, we start form 'enable_acq=false' state
+            this.enable_acq=false;
             
             % Configure the auxiliary trigger output - put it in the manual
             % mode so it does not output demodulator readings
@@ -371,6 +370,12 @@ classdef MyZiRingdown < MyDataSource
                     % the trace
                     rec_finished = appendSamplesToTrace(this, DemodSample);
                     
+                    % Recording can be manually stopped by setting
+                    % enable_acq=false
+                    if ~this.enable_acq
+                        rec_finished=true;
+                    end
+                    
                     % Update elapsed time
                     this.elapsed_t=this.Trace.x(end);
                     
@@ -393,7 +398,7 @@ classdef MyZiRingdown < MyDataSource
                     end
                 else
                     r=sqrt(DemodSample.x.^2+DemodSample.y.^2);
-                    if this.enable_trig && max(r)>this.trig_threshold
+                    if this.enable_acq && max(r)>this.trig_threshold
                         % Start acquisition of a new trace if the maximum
                         % of the signal exceeds threshold
                         this.recording=true;
@@ -442,6 +447,8 @@ classdef MyZiRingdown < MyDataSource
                         % time is set small.
                         rec_finished = ...
                             appendSamplesToTrace(this, DemodSample, ind0);
+                        
+                        notify(this, 'RecordingStarted');
                     else
                         rec_finished=false;
                     end
@@ -471,7 +478,20 @@ classdef MyZiRingdown < MyDataSource
                     % Downsample the trace to reduce the amount of data
                     downsample(this.Trace, this.downsample_n, 'avg');
                     
-                    % Do trace averaging
+                    % Do trace averaging. If the new data length is not of 
+                    % the same size as the length of the existing data 
+                    % (which should happen only when the record period was
+                    % changed during recording or when recording was 
+                    % manually stopped), truncate to the minimum length
+                    if ~isempty(this.AvgTrace) && ...
+                            (length(this.AvgTrace.y)~=length(this.Trace.y))
+                        l=min(length(this.AvgTrace.y),length(this.Trace.y));
+                        this.AvgTrace.y=this.AvgTrace.y(1:l);
+                        this.AvgTrace.x=this.AvgTrace.x(1:l);
+                        this.Trace.y=this.Trace.y(1:l);
+                        this.Trace.x=this.Trace.x(1:l);
+                        disp('Ringdown record was truncated')
+                    end
                     avg_compl=addAverage(this.AvgTrace, this.Trace);
                     
                     % Trigger NewData after addAverage has updated the
@@ -481,7 +501,7 @@ classdef MyZiRingdown < MyDataSource
                     % If the ringdown averaging is complete, disable
                     % further triggering to exclude data overwriting 
                     if avg_compl
-                        this.enable_trig=false;
+                        this.enable_acq=false;
                         
                         % Trigger one more time to transfer the average
                         % trace.
@@ -893,8 +913,8 @@ classdef MyZiRingdown < MyDataSource
             notify(this,'NewSetting');
         end
         
-        function set.enable_trig(this, val)
-            this.enable_trig=logical(val);
+        function set.enable_acq(this, val)
+            this.enable_acq=logical(val);
             notify(this,'NewSetting');
         end
     end
