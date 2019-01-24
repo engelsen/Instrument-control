@@ -75,12 +75,13 @@ function OutS = tabledlg(InS, varargin)
         row=EventData.Indices(1);
         col=EventData.Indices(2);
         if col==1
-            [newval,mod]=matlab.lang.makeValidName(EventData.NewData);
+            [newval,mod]=matlab.lang.makeValidName(T.Data{row,1});
             if mod
                 warning(['Parameter name must be a valid Matlab ' ...
                     'variable name']);
             end
-            [newval,mod]=matlab.lang.makeUniqueStrings(newval,T.Data(:,1));
+            [newval,mod]=matlab.lang.makeUniqueStrings(newval, ...
+                [T.Data(1:row-1,1);T.Data(row+1:end,1)]);
             if mod
                 warning('Parameter name must be unique');
             end
