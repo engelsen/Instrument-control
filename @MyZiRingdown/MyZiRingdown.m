@@ -568,6 +568,8 @@ classdef MyZiRingdown < MyDataSource
             if length(this.DemodRecord.t)>flen
                 this.DemodRecord.t = this.DemodRecord.t(end-flen+1:end);
                 this.DemodRecord.z = this.DemodRecord.z(end-flen+1:end);
+                this.DemodRecord.osc_freq = ...
+                    this.DemodRecord.osc_freq(end-flen+1:end);
             end
         end
         
