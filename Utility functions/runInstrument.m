@@ -31,10 +31,11 @@ function Instr = runInstrument(name, instr_class, interface, address)
             else
                 instr_class = InstrumentList.(name).control_class;
             end
+            
+            % Make a list of optional name-value pairs
+            opt_args={};
             if isfield(InstrumentList.(name), 'StartupOpts')
-                % Make a list of optional name-value pairs
                 opt_names=fieldnames(InstrumentList.(name).StartupOpts);
-                opt_args={};
                 for i=1:length(opt_names)
                     opt_args=[opt_args, {opt_names{i}, ...
                         InstrumentList.(name).StartupOpts.(opt_names{i})}]; %#ok<AGROW>

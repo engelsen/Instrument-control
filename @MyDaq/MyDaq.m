@@ -76,15 +76,6 @@ classdef MyDaq < handle
             this.Ref=MyTrace();
             this.Data=MyTrace();
             this.Background=MyTrace();
-            
-            % Add Data, Ref and Bg traces in the proper order on the plot.
-            % Create dummy lines for this purpose.
-            hold(this.main_plot,'on');
-            dummy_hlines=plot(this.main_plot,1,1,1,1,1,1);
-            set(dummy_hlines,'Visible','off');
-            this.Data.hlines{1}=dummy_hlines(3);
-            this.Ref.hlines{1}=dummy_hlines(2);
-            this.Background.hlines{1}=dummy_hlines(1);
 
             %The list of instruments is automatically populated from the
             %run files
@@ -108,6 +99,17 @@ classdef MyDaq < handle
             end
             set(this.Gui.InstrMenu,'ItemsData',[{''};...
                 content.tags]);
+            
+            % Add Data, Ref and Bg traces in the proper order on the plot.
+            % Create dummy lines for this purpose.
+            hold(this.main_plot,'on');
+            dummy_hlines=plot(this.main_plot,1,1,1,1,1,1);
+            dummy_hlines(3).Visible='on';
+            this.Data.hlines{1}=dummy_hlines(3);
+            dummy_hlines(2).Visible='off';
+            this.Ref.hlines{1}=dummy_hlines(2);
+            dummy_hlines(1).Visible='off';
+            this.Background.hlines{1}=dummy_hlines(1);
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');

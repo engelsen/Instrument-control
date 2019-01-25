@@ -42,6 +42,7 @@ classdef MyAvgTrace < MyTrace
                 this.name_x=b.name_x;
                 this.unit_x=b.unit_x;
                 this.name_y=b.name_y;
+                this.unit_y=b.unit_y;
                 this.avg_count=1;
                 
                 completed=(this.avg_count>=this.n_avg);
@@ -91,10 +92,10 @@ classdef MyAvgTrace < MyTrace
         % Extend the info stored in trace metadata compare to MyTrace 
         function Mdt=makeMetadata(this)
             Mdt=makeMetadata@MyTrace(this);
+            addParam(Mdt,'Info','avg_type',this.avg_type, ...
+                'comment','Averaging type, linear or exponential');
             addParam(Mdt,'Info','avg_count',this.avg_count, 'comment', ...
                 'Number of accomplished averages');
-            addParam(Mdt,'Info','avg_type',this.avg_type, ...
-                'comment','Linear or exponential');
             addParam(Mdt,'Info','n_avg',this.n_avg, 'comment', ...
                 ['Target number of averages (lin) or exponential ' ...
                 'averaging constant (exp)']);
@@ -108,7 +109,7 @@ classdef MyAvgTrace < MyTrace
                 this.n_avg=Mdt.Info.n_avg.value;
             end
             if isfield(Mdt.Info, 'avg_count')
-                this.n_avg=Mdt.Info.avg_count.value;
+                this.avg_count=Mdt.Info.avg_count.value;
             end
         end
     end

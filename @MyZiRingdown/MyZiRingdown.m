@@ -503,17 +503,15 @@ classdef MyZiRingdown < MyDataSource
                     if avg_compl
                         this.enable_acq=false;
                         
-                        % Trigger one more time to transfer the average
-                        % trace.
                         if this.n_avg>1
-                            this.Trace.x=this.AvgTrace.x;
-                            this.Trace.y=this.AvgTrace.y;
-                            
-                            % New measurement header is not necessary 
+                            % Trigger one more time to transfer the average
+                            % trace.
+                            % A new measurement header is not necessary 
                             % as the delay since the last triggering is  
                             % minimum.
-                            triggerNewData(this, 'save', this.auto_save, ...
-                                'new_header', false);
+                            triggerNewData(this, ...
+                                'Trace',copy(this.AvgTrace), ...
+                                'save', this.auto_save);
                         end
                     end
                 end

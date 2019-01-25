@@ -107,7 +107,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             save_prec=p.Results.save_prec;
 
             %Writes the metadata header
-            save(this.Metadata,fullfilename);
+            Mdt=makeMetadata(this);
+            save(Mdt, fullfilename);
             
             fileID=fopen(fullfilename,'a');
             %Pads the vectors if they are not equal length
