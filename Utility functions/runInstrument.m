@@ -5,7 +5,7 @@ function Instr = runInstrument(name, instr_class, interface, address)
     Collector=MyCollector.instance();
     
     if ~ismember(name, Collector.running_instruments)
-        if nargin==1
+        if nargin()==1
             % load instr_class, interface and address parameters 
             % from InstrumentList
             InstrumentList = getLocalSettings('InstrumentList');
@@ -31,9 +31,19 @@ function Instr = runInstrument(name, instr_class, interface, address)
             else
                 instr_class = InstrumentList.(name).control_class;
             end
-        elseif nargin==4
+            if isfield(InstrumentList.(name), 'StartupOpts')
+                % Make a list of optional name-value pairs
+                opt_names=fieldnames(InstrumentList.(name).StartupOpts);
+                opt_args={};
+                for i=1:length(opt_names)
+                    opt_args=[opt_args, {opt_names{i}, ...
+                        InstrumentList.(name).StartupOpts.(opt_names{i})}]; %#ok<AGROW>
+                end
+            end
+        elseif nargin()==4
             % Case when all the arguments are supplied explicitly, do
             % nothing
+            opt_args={};
         else
             error(['Wrong number of input arguments. ',...
                 'Function can be called as f(name) or ',...
@@ -49,8 +59,8 @@ function Instr = runInstrument(name, instr_class, interface, address)
             req_args=[req_args,{address}];
         end
         
-        Instr = feval(instr_class, req_args{:}, 'name', name);
-        addInstrument(Collector, Instr, 'name', name);
+        Instr = feval(instr_class, req_args{:}, opt_args{:}, 'name', name);
+        addInstrument(Collector, Instr);
     else
         % If instrument is already present in the Collector, do not create
         % a new object, but try taking the existing one.
