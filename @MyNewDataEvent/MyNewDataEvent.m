@@ -2,7 +2,8 @@
 %subclasses, including MyInstrument
 
 classdef MyNewDataEvent < event.EventData
-    properties
+    
+    properties (Access=public)
         % Name of the instrument that triggered the event. Usefult for
         % passing the event data forward, e.g. by triggering 
         % NewDataWithHeaders 
@@ -35,6 +36,7 @@ classdef MyNewDataEvent < event.EventData
         % varargin
         function this=MyNewDataEvent(varargin)
             P=MyClassParser(this);
+            addParameter(P, 'Trace', []);
             processInputs(P, this, varargin{:});
         end
         
@@ -53,6 +55,12 @@ classdef MyNewDataEvent < event.EventData
                 str='UnknownInstrument';
             end
             this.src_name=str;
+        end
+        
+        function set.Trace(this, Val)
+            assert(isa(Val, 'MyTrace'), ['Trace must be a derivative ' ...
+                'of MyTrace class.'])
+            this.Trace=Val;
         end
     end
 end

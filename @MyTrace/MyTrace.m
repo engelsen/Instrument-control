@@ -23,11 +23,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         hlines={};
     end
     
-    properties (Dependent=true)
-        %MyMetadata containing the MeasHeaders and 
-        %information about the trace
-        Metadata
-        
+    properties (Dependent=true)        
         label_x
         label_y
     end
@@ -164,18 +160,15 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             %Tries to assign units and names and then delete the Info field
             %from MeasHeaders
             try
-                this.unit_x=this.MeasHeaders.Info.Unit1.value;
-                this.unit_y=this.MeasHeaders.Info.Unit2.value;
-                this.name_x=this.MeasHeaders.Info.Name1.value;
-                this.name_y=this.MeasHeaders.Info.Name2.value;
+                setFromMetadata(this, this.MeasHeaders);
                 deleteField(this.MeasHeaders,'Info');
             catch
-                warning(['No metadata found. No units or labels assigned',...
-                    ' when loading trace from %s'],file_path)
+                warning(['No trace metadata found. No units or labels ',...
+                    'assigned when loading trace from %s'],file_path)
                 this.name_x='x';
                 this.name_y='y';
-                this.unit_x='x';
-                this.unit_y='y';
+                this.unit_x='';
+                this.unit_y='';
             end
             
             %Reads x and y data
@@ -185,6 +178,36 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.y=data_array(:,2);
             
             this.file_name=file_path;
+        end
+        
+        % Generate metadata that includes measurement headers and
+        % information about trace. This function is used in place of 'get'
+        % method so it can be overloaded in a subclass.
+        function Mdt=makeMetadata(this)
+            %First we update the trace information
+            Mdt=MyMetadata();
+            addField(Mdt,'Info');
+            addParam(Mdt,'Info','Name1',this.name_x);
+            addParam(Mdt,'Info','Name2',this.name_y);
+            addParam(Mdt,'Info','Unit1',this.unit_x);
+            addParam(Mdt,'Info','Unit2',this.unit_y);
+            
+            addMetadata(Mdt,this.MeasHeaders);
+        end
+        % Assign trace parameters from metadata
+        function setFromMetadata(this, Mdt)
+            if isfield(Mdt.Info, 'Unit1')
+                this.unit_x=Mdt.Info.Unit1.value;
+            end
+            if isfield(Mdt.Info, 'Unit2')
+                this.unit_y=Mdt.Info.Unit2.value;
+            end
+            if isfield(Mdt.Info, 'Name1')
+                this.name_x=Mdt.Info.Name1.value;
+            end
+            if isfield(Mdt.Info, 'Name2')
+                this.name_y=Mdt.Info.Name2.value;
+            end
         end
         
 
@@ -457,19 +480,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %Get function for label_y, creates label from name_y and unit_y.
         function label_y=get.label_y(this)
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
-        end
-        
-        %Generates the full metadata of the trace
-        function Metadata=get.Metadata(this)
-            %First we update the trace information
-            Metadata=MyMetadata();
-            addField(Metadata,'Info');
-            addParam(Metadata,'Info','Name1',this.name_x);
-            addParam(Metadata,'Info','Name2',this.name_y);
-            addParam(Metadata,'Info','Unit1',this.unit_x);
-            addParam(Metadata,'Info','Unit2',this.unit_y);
-            
-            addMetadata(Metadata,this.MeasHeaders);
         end
     end
 end

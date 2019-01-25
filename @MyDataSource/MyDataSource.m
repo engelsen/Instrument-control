@@ -36,7 +36,11 @@ classdef MyDataSource < handle
             EventData.src_name=this.name;
             % Pass trace by value to make sure that it is not modified 
             % before being transferred
-            EventData.Trace=copy(this.Trace);
+            if isempty(EventData.Trace)
+                % EventData.Trace can be set either automaticallt here or
+                % explicitly as a name-value pair supplied to the function. 
+                EventData.Trace=copy(this.Trace);
+            end
             notify(this,'NewData',EventData);
         end
         
@@ -59,8 +63,8 @@ classdef MyDataSource < handle
         end
         
         function set.Trace(this, Val)
-            assert(isa(Val, 'MyTrace'), ['The value of Trace must be ' ...
-                'of MyTrace class or its subcleass'])
+            assert(isa(Val, 'MyTrace'), ['Trace must be a derivative ' ...
+                'of MyTrace class.'])
             this.Trace=Val;
         end
     end

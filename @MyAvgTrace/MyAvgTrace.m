@@ -87,6 +87,30 @@ classdef MyAvgTrace < MyTrace
             this.y=[];
             resetCounter(this);
         end
+        
+        % Extend the info stored in trace metadata compare to MyTrace 
+        function Mdt=makeMetadata(this)
+            Mdt=makeMetadata@MyTrace(this);
+            addParam(Mdt,'Info','avg_count',this.avg_count, 'comment', ...
+                'Number of accomplished averages');
+            addParam(Mdt,'Info','avg_type',this.avg_type, ...
+                'comment','Linear or exponential');
+            addParam(Mdt,'Info','n_avg',this.n_avg, 'comment', ...
+                ['Target number of averages (lin) or exponential ' ...
+                'averaging constant (exp)']);
+        end
+        function setFromMetadata(this, Mdt)
+            setFromMetadata@MyTrace(this, Mdt)
+            if isfield(Mdt.Info, 'avg_type')
+                this.avg_type=Mdt.Info.avg_type.value;
+            end
+            if isfield(Mdt.Info, 'n_avg')
+                this.n_avg=Mdt.Info.n_avg.value;
+            end
+            if isfield(Mdt.Info, 'avg_count')
+                this.n_avg=Mdt.Info.avg_count.value;
+            end
+        end
     end
     
     %% Set and get methods
