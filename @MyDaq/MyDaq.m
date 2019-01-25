@@ -14,17 +14,17 @@ classdef MyDaq < handle
         Background
 
         %List of all the programs with run files
-        ProgramList
+        ProgramList=struct()
         %Struct containing Cursor objects
-        Cursors
+        Cursors=struct()
         %Struct containing Cursor labels
-        CrsLabels
+        CrsLabels=struct()
         %Struct containing MyFit objects
-        Fits
+        Fits=struct()
         %Input parser for class constructor
         ConstructionParser
         %Struct for listeners
-        Listeners
+        Listeners=struct()
 
         %Sets the colors of fits, data and reference
         fit_color='k';
@@ -51,19 +51,6 @@ classdef MyDaq < handle
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
-            % Initialize variables
-            % Traces
-            this.Ref=MyTrace();
-            this.Data=MyTrace();
-            this.Background=MyTrace();
-            % Lists
-            this.ProgramList=struct();
-            this.Cursors=struct();
-            this.CrsLabels=struct();
-            this.Fits=struct();
-            this.ConstructionParser;
-            this.Listeners=struct();
-            
             % Parse inputs
             p=inputParser;
             addParameter(p,'global_name','',@ischar);
@@ -84,6 +71,20 @@ classdef MyDaq < handle
                     'DAQ will be unable to acquire data'],...
                     'Error: No collector');
             end
+            
+            % Initialize traces
+            this.Ref=MyTrace();
+            this.Data=MyTrace();
+            this.Background=MyTrace();
+            
+            % Add Data, Ref and Bg traces in the proper order on the plot.
+            % Create dummy lines for this purpose.
+            hold(this.main_plot,'on');
+            dummy_hlines=plot(this.main_plot,1,1,1,1,1,1);
+            set(dummy_hlines,'Visible','off');
+            this.Data.hlines{1}=dummy_hlines(3);
+            this.Ref.hlines{1}=dummy_hlines(2);
+            this.Background.hlines{1}=dummy_hlines(1);
 
             %The list of instruments is automatically populated from the
             %run files
@@ -107,7 +108,6 @@ classdef MyDaq < handle
             end
             set(this.Gui.InstrMenu,'ItemsData',[{''};...
                 content.tags]);
-            hold(this.main_plot,'on');
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
@@ -580,16 +580,13 @@ classdef MyDaq < handle
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
             if this.Data.validatePlot
-                set(this.Ref,...
-                    'x',this.Data.x,...
-                    'y',this.Data.y,...
-                    'name_x',this.Data.name_x,...
-                    'name_y',this.Data.name_y,...
-                    'unit_x',this.Data.unit_x,...
-                    'unit_y',this.Data.unit_y);
-
-                this.Ref.MeasHeaders=copy(this.Data.MeasHeaders);
-                
+                % Copy Data to Reference and pass Reference the handle to 
+                % the line in the main plot
+                hline=getLineHandle(this.Ref, this.main_plot);
+                this.Ref=copy(this.Data);
+                if ~isempty(hline)
+                    this.Ref.hlines{1}=hline;
+                end
                 %Plot the reference trace and make it visible
                 plot(this.Ref, this.main_plot, 'Color',this.ref_color,...
                     'make_labels',true);
@@ -608,8 +605,11 @@ classdef MyDaq < handle
         %Callback for ref to bg button. Sends the reference to background
         function refToBgCallback(this, ~, ~)
             if this.Ref.validatePlot
-                this.Background.x=this.Ref.x;
-                this.Background.y=this.Ref.y;
+                hline=getLineHandle(this.Background, this.main_plot);
+                this.Background=copy(this.Ref);
+                if ~isempty(hline)
+                    this.Background.hlines{1}=hline;
+                end
                 this.Background.plot(this.main_plot,...
                     'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
@@ -621,8 +621,11 @@ classdef MyDaq < handle
         %Callback for data to bg button. Sends the data to background
         function dataToBgCallback(this, ~, ~)
             if this.Data.validatePlot
-                this.Background.x=this.Data.x;
-                this.Background.y=this.Data.y;
+                hline=getLineHandle(this.Background, this.main_plot);
+                this.Background=copy(this.Data);
+                if ~isempty(hline)
+                    this.Background.hlines{1}=hline;
+                end
                 this.Background.plot(this.main_plot,...
                     'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
@@ -808,7 +811,8 @@ classdef MyDaq < handle
             load_path=[path_name,load_name];
             %Finds the destination trace from the GUI
             dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
-            %Call the load trace function on the right trace
+            %Reset and load the destination trace
+            this.(dest_trc)=MyTrace();
             load(this.(dest_trc), load_path);
             %Color and plot the right trace.
             plot(this.(dest_trc), this.main_plot,...

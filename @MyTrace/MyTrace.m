@@ -129,7 +129,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             %Save in the more compact of fixed point and scientific 
             %notation with trailing zeros removed
             %If save_prec=15, we get %.15g\t%.15g\r\n
-            %Formatting without column padding may looks ugly but makes
+            %Formatting without column padding may look ugly but makes
             %files significantly smaller
             data_format_str=sprintf(['%%.%ig',this.column_sep,'%%.%ig',...
                 this.line_sep],save_prec,save_prec);
