@@ -156,6 +156,17 @@ classdef MyMetadata < dynamicprops
             this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
         end
         
+        % The function below is useful to ensure the correspondence between 
+        % metadata parameter names and object property names. It spares 
+        % some lines of code. Works only with single-field metadata.
+        function addObjProp(this, Obj, tag, varargin)
+            assert(length(this.field_names)==1, ['Metadata has to ' ...
+                'contain a single field in order to add object property.']);
+            fn=this.field_names{1};
+            addParam(this, fn, tag, Obj.(tag), varargin{:});
+        end
+        
+        % Save in a readable format
         function save(this, filename, varargin)
             createFile(filename, varargin{:});
             for i=1:length(this.field_names)

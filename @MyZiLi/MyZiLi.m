@@ -3,7 +3,7 @@
 
 classdef MyZiLi < handle
     
-    properties (GetAccess=public, SetAccess={?MyClassParser})
+    properties (GetAccess=public, SetAccess={?MyClassParser, ?MyZiLi})
         dev_serial='dev4090'
         
         % The string that specifies the device name as appears 
@@ -78,17 +78,11 @@ classdef MyZiLi < handle
             addField(Hdr, this.name);
             % Instrument identification 
             addParam(Hdr, this.name, 'idn', this.idn_str);
-            addClassParam(this, Hdr, 'clockbase', 'comment', ...
+            addObjProp(Hdr, this, 'clockbase', 'comment', ...
                 ['Device clock frequency, i.e. the number of ', ...
                 'timestamps per second']);
         end
-        
-        % The function below ensures the correspondence between the header
-        % parameter names and class property names. It spares quite a few 
-        % lines of code given the large size of readHeader function.
-        function addClassParam(this, Hdr, tag, varargin)
-            addParam(Hdr, this.name, tag, this.(tag), varargin{:});
-        end
+
     end
 end
 
