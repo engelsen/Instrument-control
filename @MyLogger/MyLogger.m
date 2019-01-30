@@ -15,15 +15,15 @@ classdef MyLogger < handle
         MeasFcn = @()0
         
         save_cont = false
+        
+        % MyLog object to store the recorded data
+        Record
     end
     
     properties (SetAccess=protected, GetAccess=public)
         % If last measurement was succesful
         % 0-false, 1-true, 2-never measured
         last_meas_stat = 2 
-        
-        % MyLog object to store the recorded data
-        Record
     end
     
     events
