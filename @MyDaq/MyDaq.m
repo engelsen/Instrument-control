@@ -105,10 +105,17 @@ classdef MyDaq < handle
             hold(this.main_plot,'on');
             dummy_hlines=plot(this.main_plot,1,1,1,1,1,1);
             dummy_hlines(3).Visible='on';
+            % plot cannot create empty lines, so empty the data explicitly
+            dummy_hlines(3).XData=[];
+            dummy_hlines(3).YData=[];
             this.Data.hlines{1}=dummy_hlines(3);
             dummy_hlines(2).Visible='off';
+            dummy_hlines(2).XData=[];
+            dummy_hlines(2).YData=[];
             this.Ref.hlines{1}=dummy_hlines(2);
             dummy_hlines(1).Visible='off';
+            dummy_hlines(1).XData=[];
+            dummy_hlines(1).YData=[];
             this.Background.hlines{1}=dummy_hlines(1);
             
             %Initializes saving locations
@@ -813,9 +820,19 @@ classdef MyDaq < handle
             load_path=[path_name,load_name];
             %Finds the destination trace from the GUI
             dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
+            
+            %Get the line handle from the trace to not create a new line
+            hline=getLineHandle(this.(dest_trc), this.main_plot);
+                
             %Reset and load the destination trace
             this.(dest_trc)=MyTrace();
             load(this.(dest_trc), load_path);
+            
+            % Assign existing line handle to the trace
+            if ~isempty(hline)
+                this.(dest_trc).hlines{1}=hline;
+            end
+            
             %Color and plot the right trace.
             plot(this.(dest_trc), this.main_plot,...
                 'Color',this.(sprintf('%s_color',lower(dest_trc))),...
