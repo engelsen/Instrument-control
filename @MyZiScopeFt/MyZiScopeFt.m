@@ -13,6 +13,8 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
         % including physical inputs, outputs, demodulator channels and 
         % results of arthmetic operations. See the LabOne user interface 
         % for the complete list of choices and corresponding numbers.
+        % This number is shifted by +1 compare to the hardware node
+        % enumeration as usual.
         signal_in=1 
     end
     
@@ -25,8 +27,9 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
     properties (Dependent=true)
         scope_path
         
-        scope_rate % samples/sec
-        fft_rbw % Resolution bandwidth of fourier transform
+        scope_rate      % samples/sec
+        n_pt            % length of scope wave 
+        fft_rbw         % Spacing between fft bins
     end
     
     events
@@ -103,7 +106,7 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
             % Enable the scope
             ziDAQ('setInt', [this.scope_path '/enable'], 1);
             
-            % Initialize and configure a Scope Module.
+            % Initialize and configure a software Scope Module.
             this.scope_module = ziDAQ('scopeModule');
             % Do not average
             ziDAQ('set', this.scope_module, ...
@@ -139,10 +142,12 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
                 for i=1:length(new_waves)
                     dt=new_waves{i}.dt;
                     n=new_waves{i}.totalsamples;
-                    this.tmpTrace.x=linspace(0, 1/(2*dt), n);
+                    % Calculate the frequency axis
+                    this.tmpTrace.x=linspace(0, (1-1/n)/(2*dt), n);
                     this.tmpTrace.y=new_waves{i}.wave;
                     addAverage(this.Trace, this.tmpTrace);
-                    if this.Trace.avg_count>=this.Trace.n_avg
+                    if this.Trace.avg_count>=this.Trace.n_avg && ...
+                            strcmpi(this.Trace.avg_type, 'lin')
                         triggerNewData(this);
                     end
                 end
@@ -163,7 +168,30 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
         end
         
         function val=get.scope_rate(this)
-            
+            tn=ziDAQ('getDouble', [this.scope_path '/time']);
+            val=this.clockbase/(2^tn);
+        end
+        
+        function set.scope_rate(this, val)
+            tn=round(log2(val/this.clockbase));
+            % Trim to be withn 0 and 16
+            tn=max(0,tn);
+            tn=min(tn, 16);
+            ziDAQ('setDouble', [this.scope_path '/time'], tn);
+            notify(this, 'NewSetting');
+        end
+        
+        function val=get.fft_rbw(this)
+            l=length(this.Trace.x);
+            if l>=2
+                val=this.Trace.x(2)-this.Trace.x(1);
+            else
+                val=Inf;
+            end
+        end
+        
+        function val=get.n_pt(this)
+            val=ziDAQ('getDouble', [this.scope_path '/length']);
         end
     end
 end
