@@ -34,6 +34,9 @@ classdef MyLog < matlab.mixin.Copyable
         data_headers = {} % Cell array of column headers
         
         length_lim = Inf % Keep the log length below this limit
+        
+        % Format for string representation of timestamps
+        datetime_fmt = 'yyyy-MMM-dd HH:mm:ss'
     end
     
     properties (SetAccess=public, GetAccess=public)    
@@ -196,7 +199,8 @@ classdef MyLog < matlab.mixin.Copyable
                 Lbl=M.TimeLabels.Lbl.value;
                 for i=1:length(Lbl)
                     this.TimeLabels(i).time_str=Lbl(i).time_str;
-                    this.TimeLabels(i).time=datetime(Lbl(i).time_str);
+                    this.TimeLabels(i).time=datetime(Lbl(i).time_str, ...
+                        'Format', this.datetime_fmt);
                     this.TimeLabels(i).text_str=Lbl(i).text_str;
                 end
             end 
@@ -206,7 +210,7 @@ classdef MyLog < matlab.mixin.Copyable
             if ~isempty(dat_col_heads) && ...
                     contains(dat_col_heads{1},'posix','IgnoreCase',true)
                 this.timestamps=datetime(this.timestamps, ...
-                    'ConvertFrom','posixtime');
+                    'ConvertFrom','posixtime','Format',this.datetime_fmt);
             end
         end
         
@@ -322,6 +326,11 @@ classdef MyLog < matlab.mixin.Copyable
                     'does not match the number of data columns']);
             end
             
+            % Ensure time format
+            if isa(time,'datetime')
+                time.Format=this.datetime_fmt;
+            end
+            
             % Append new data and time stamps
             this.timestamps=[this.timestamps; time];
             this.data=[this.data; val];
@@ -353,9 +362,17 @@ classdef MyLog < matlab.mixin.Copyable
                     % Append new data points to file
                     fprintf(fid, this.data_line_fmt, time_num, val);
                     fclose(fid);
+                    
+                    % Save metadata with time labels
+                    if ~isempty(this.TimeLabels) && ...
+                            exist(this.meta_file_name, 'file')==0
+                        save(this.Metadata, this.meta_file_name, ...
+                            'overwrite', true);
+                    end
                 catch
                     warning(['Logger cannot save data at time = ',...
-                        datestr(datetime('now'))]);
+                        datestr(datetime('now', ...
+                        'Format',this.datetime_fmt))]);
                     % Try closing fid in case it is still open
                     try
                         fclose(fid);
@@ -428,7 +445,8 @@ classdef MyLog < matlab.mixin.Copyable
         % Form with optional arguments: addTimeLabel(this, time, str)
         function addTimeLabel(this, varargin)
             p=inputParser();
-            addOptional(p, 'time', datetime('now'), ...
+            addOptional(p, 'time', ...
+                datetime('now', 'Format', this.datetime_fmt), ...
                 @(x)assert(isa(x,'datetime'), ...
                 '''time'' must be of the type datetime.'));
             addOptional(p, 'str', '', ...
@@ -440,14 +458,14 @@ classdef MyLog < matlab.mixin.Copyable
             if any(ismember({'time','str'}, p.UsingDefaults))
                 % Invoke a dialog to add the label time and name
                 answ = inputdlg({'Label text', 'Time'},'Add time label',...
-                    [2 40; 1 40],{'',datestr(datetime('now'))});
+                    [2 40; 1 40],{'',datestr(p.Results.time)});
                 
                 if isempty(answ)||isempty(answ{1})
                     return
                 else
                     % Conversion of the inputed value to datetime to
                     % ensure proper format
-                    time=datetime(answ{2});
+                    time=datetime(answ{2}, 'Format', this.datetime_fmt);
                     % Store multiple lines as cell array
                     str=cellstr(answ{1});
                 end
@@ -479,7 +497,8 @@ classdef MyLog < matlab.mixin.Copyable
             p=inputParser();
             addRequired(p, 'ind', @(x)assert((rem(x,1)==0)&&(x>0), ...
                 '''ind'' must be a positive integer.'));
-            addOptional(p, 'time', datetime('now'), ...
+            addOptional(p, 'time', ...
+                datetime('now', 'Format', this.datetime_fmt), ...
                 @(x)assert(isa(x,'datetime'), ...
                 '''time'' must be of the type datetime.'));
             addOptional(p, 'str', '', ...
@@ -496,9 +515,9 @@ classdef MyLog < matlab.mixin.Copyable
                 if isempty(answ)||isempty(answ{1})
                     return
                 else
-                    % Conversion of the inputed value to datetime to
-                    % ensure proper format
-                    time=datetime(answ{2});
+                    % Convert the input value to datetime and ensure 
+                    % proper format
+                    time=datetime(answ{2}, 'Format', this.datetime_fmt);
                     % Store multiple lines as cell array
                     str=cellstr(answ{1});
                 end
