@@ -330,8 +330,8 @@ classdef MyFit < dynamicprops
                     splitting=abs(this.coeffs(6)-this.coeffs(3));
                     this.mode_split=convOptFreq(this,splitting); %#ok<MCNPR>
                 case 'Exponential'
-                    this.tau=1/this.coeffs(2); %#ok<MCNPR>
-                    this.lw=this.coeffs(2)/pi; %#ok<MCNPR>
+                    this.tau=abs(1/this.coeffs(2)); %#ok<MCNPR>
+                    this.lw=abs(this.coeffs(2)/pi); %#ok<MCNPR>
                     this.Q=pi*this.freq*this.tau; %#ok<MCNPR>
                     this.Qf=this.Q*this.freq; %#ok<MCNPR>
                 otherwise
@@ -543,14 +543,19 @@ classdef MyFit < dynamicprops
                 isa(this.plot_handle,'matlab.ui.control.UIAxes')),...
                 'plot_handle property must be defined to valid axis in order to plot')
             this.Fit.plot(this.plot_handle,varargin{:});
+            clearInitFun(this);
         end
         
         %Clears the plots
         function clearFit(this)
             cellfun(@(x) delete(x), this.Fit.hlines);
+            clearInitFun(this);
+            this.Fit.hlines={};
+        end
+        
+        function clearInitFun(this)
             delete(this.hline_init);
             this.hline_init=[];
-            this.Fit.hlines={};
         end
         
         %Function for plotting fit model with current initial parameters.
