@@ -332,6 +332,12 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                 calcfft(this);
                 
                 if this.recording
+                    % If the recording has just started, save the start
+                    % time
+                    if isempty(this.Trace)
+                        this.t0=DemodSample.timestamp(1);
+                    end
+                    
                     % If recording is under way, append the new samples to
                     % the trace
                     rec_finished = appendSamplesToTrace(this, DemodSample);
@@ -368,12 +374,6 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                         % Start acquisition of a new trace if the maximum
                         % of the signal exceeds threshold
                         this.recording=true;
-                        
-                        % Find index at which the threshold was
-                        % exceeded
-                        ind0=find(r>this.trig_threshold,1,'first');
-                        
-                        this.t0=DemodSample.timestamp(ind0);
                         this.elapsed_t=0;
 
                         % Switch the drive off
@@ -402,22 +402,13 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                             start(this.AuxOutOnTimer)
                         end
                         
-                        % Clear trace and append new data starting from the
-                        % index, at which triggering occurred
+                        % Clear trace 
                         clearData(this.Trace);
                         
-                        % Append the first portion of samples to the
-                        % record, starting from the index at which 
-                        % triggering occurred. Theoretically, a record can
-                        % be finished with this one portion if the record
-                        % time is set small.
-                        rec_finished = ...
-                            appendSamplesToTrace(this, DemodSample, ind0);
-                        
                         notify(this, 'RecordingStarted');
-                    else
-                        rec_finished=false;
                     end
+                    
+                    rec_finished=false;
                     
                     % Indicator for adaptive measurement is off, since
                     % recording is not under way
@@ -487,18 +478,11 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
         % Append timestamps vs r=sqrt(x^2+y^2) to the measurement record.
         % Starting index can be supplied as varargin.
         % The output variable tells if the record is finished.
-        function isfin = appendSamplesToTrace(this, DemodSample, varargin)
-            if isempty(varargin)
-                startind=1;
-            else
-                startind=varargin{1};
-            end
+        function isfin = appendSamplesToTrace(this, DemodSample)
             
-            r=sqrt(DemodSample.x(startind:end).^2 + ...
-                DemodSample.y(startind:end).^2);
+            r=sqrt(DemodSample.x.^2 + DemodSample.y.^2);
             % Subtract the reference time, convert timestamps to seconds
-            ts=double(DemodSample.timestamp(startind:end) -...
-                this.t0)/this.clockbase;
+            ts=double(DemodSample.timestamp - this.t0)/this.clockbase;
             
             % Check if recording should be stopped
             isfin=(ts(end)>=this.record_time);
