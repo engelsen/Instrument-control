@@ -282,6 +282,11 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
             path = sprintf('/%s/sigouts/%i/enables/*', ...
                 this.dev_id, this.drive_out-1);
             ziDAQ('setInt', path, 0);
+            path = sprintf('/%s/sigouts/%i/enables/%i', ...
+                this.dev_id, this.drive_out-1, this.drive_osc-1);
+            ziDAQ('setInt', path, 1);
+            
+            % Enable output 
             this.drive_on=true;
              
             % By convention, we start form 'enable_acq=false' state
