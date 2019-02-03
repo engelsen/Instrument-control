@@ -34,7 +34,8 @@ classdef MyAvgTrace < MyTrace
             assert(isa(b,'MyTrace'), ['Second argument must be a ' ...
                 'MyTrace object']);
             
-            if isempty(this)
+            if isempty(this) || length(this.x)~=length(b.x) || ...
+                    any(this.x~=b.x)
                 % Initialize new data and return
                 this.x=b.x;
                 this.y=b.y;
@@ -61,6 +62,12 @@ classdef MyAvgTrace < MyTrace
                         this.avg_count=this.avg_count+1;
                         this.y = (this.y*(this.avg_count-1)+b.y)/...
                             this.avg_count;
+                        % Return completed==true if the averaging is
+                        % finished at this iteration
+                        completed=(this.avg_count==this.n_avg);
+                    else
+                        % New data is discarded
+                        completed=false;
                     end
                 case 'exp'
                     % In the exponential case averaging proceeds
@@ -68,12 +75,11 @@ classdef MyAvgTrace < MyTrace
                     this.avg_count=this.avg_count+1;
                     this.y = b.y*(1-exp(-1/this.n_avg))+ ...
                         this.y*exp(-1/this.n_avg);
+                    completed=(this.avg_count>=this.n_avg);
                 otherwise
                     error('Averaging type %s is not supported', ...
                         this.avg_type)
             end
-            
-            completed=(this.avg_count>=this.n_avg);
         end
         
         % Provide restricted access to the trace averaging counter
@@ -121,6 +127,8 @@ classdef MyAvgTrace < MyTrace
         % Ensure the supplied value for averaging mode is assigned in its
         % standard form - lowercase and abbreviated
         function set.avg_type(this, val)
+            old_val=this.avg_type;
+            
             switch lower(val)
                 case {'lin', 'linear'}
                     this.avg_type='lin';
@@ -129,6 +137,10 @@ classdef MyAvgTrace < MyTrace
                 otherwise
                     error(['Averaging type must be ''lin'' ' ...
                         '(''linear'') or ''exp'' (''exponential'')'])
+            end
+            % Clear data if the averaging type was changed
+            if this.avg_type~=old_val
+                clearData(this);
             end
         end
         

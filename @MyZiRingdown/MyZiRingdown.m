@@ -18,7 +18,7 @@
 % to the output consisting of itermittent on and off periods
 % starting from on. 
 
-classdef MyZiRingdown < MyDataSource
+classdef MyZiRingdown < MyZiLi & MyDataSource
     
     properties (Access=public)
         % Ringdown is recorded if the signal in the triggering demodulation 
@@ -60,8 +60,6 @@ classdef MyZiRingdown < MyDataSource
     % The properties which are read or set only once during the class
     % initialization
     properties (GetAccess=public, SetAccess={?MyClassParser})
-        dev_serial='dev4090'
-        
         % enumeration for demodulators, oscillators and output starts from 1
         demod=1 % demodulator used for both triggering and measurement
         
@@ -84,17 +82,6 @@ classdef MyZiRingdown < MyDataSource
         % off during a part of the ringdown and thus allow for free  
         % evolution of the oscillator during that period.
         aux_out=1 
-        
-        % Device clock frequency, i.e. the number of timestamps per second
-        clockbase
-        
-        % The string that specifies the device name as appears 
-        % in the server's node tree. Can be the same as dev_serial.
-        dev_id
-        
-        % Device information string containing the data returned by  
-        % ziDAQ('discoveryGet', ... 
-        idn_str
         
         % Poll duration of 1 ms practically means that ziDAQ('poll', ...
         % returns immediately with the data accumulated since the
@@ -181,7 +168,6 @@ classdef MyZiRingdown < MyDataSource
     
     events
         NewDemodSample      % New demodulator samples received 
-        NewSetting          % Device settings changed
         RecordingStarted    % Acquisition of a new trace triggered
     end
     
@@ -189,6 +175,8 @@ classdef MyZiRingdown < MyDataSource
         
         %% Constructor and destructor
         function this = MyZiRingdown(dev_serial, varargin)
+            this=this@MyZiLi(dev_serial);
+            
             P=MyClassParser(this);
             addRequired(P, dev_serial, @ischar)
             % Poll timer period
@@ -230,34 +218,7 @@ classdef MyZiRingdown < MyDataSource
             this.AuxOutOnTimer=timer(...
                 'ExecutionMode','fixedRate',...
                 'TimerFcn',@(~,~)auxOutOnTimerCallback(this));
-            
-            % Check the ziDAQ MEX (DLL) and Utility functions can be found in Matlab's path.
-            if ~(exist('ziDAQ', 'file') == 3) && ~(exist('ziCreateAPISession', 'file') == 2)
-                fprintf('Failed to either find the ziDAQ mex file or ziDevices() utility.\n')
-                fprintf('Please configure your path using the ziDAQ function ziAddPath().\n')
-                fprintf('This can be found in the API subfolder of your LabOne installation.\n');
-                fprintf('On Windows this is typically:\n');
-                fprintf('C:\\Program Files\\Zurich Instruments\\LabOne\\API\\MATLAB2012\\\n');
-                return
-            end
-            
-            % Do not throw errors in the constructor to allow creating an
-            % instance when the physical device is disconnected
-            try
-                % Create an API session and connect to the correct Data  
-                % Server. This is a high level function that uses  
-                % ziDAQ('connect',.. and ziDAQ('connectDevice', ... when 
-                % necessary
-                apilevel=6;
-                [this.dev_id,~]=ziCreateAPISession(dev_serial, apilevel);
-
-                % Read the divice clock frequency
-                this.clockbase = ...
-                    double(ziDAQ('getInt',['/',this.dev_id,'/clockbase']));
-            catch ME
-                warning(ME.message)
-            end
-            
+           
             this.demod_path = sprintf('/%s/demods/%i', this.dev_id, ...
                 this.demod-1);
         end
@@ -321,6 +282,11 @@ classdef MyZiRingdown < MyDataSource
             path = sprintf('/%s/sigouts/%i/enables/*', ...
                 this.dev_id, this.drive_out-1);
             ziDAQ('setInt', path, 0);
+            path = sprintf('/%s/sigouts/%i/enables/%i', ...
+                this.dev_id, this.drive_out-1, this.drive_osc-1);
+            ziDAQ('setInt', path, 1);
+            
+            % Enable output 
             this.drive_on=true;
              
             % By convention, we start form 'enable_acq=false' state
@@ -366,6 +332,12 @@ classdef MyZiRingdown < MyDataSource
                 calcfft(this);
                 
                 if this.recording
+                    % If the recording has just started, save the start
+                    % time
+                    if isempty(this.Trace)
+                        this.t0=DemodSample.timestamp(1);
+                    end
+                    
                     % If recording is under way, append the new samples to
                     % the trace
                     rec_finished = appendSamplesToTrace(this, DemodSample);
@@ -402,12 +374,6 @@ classdef MyZiRingdown < MyDataSource
                         % Start acquisition of a new trace if the maximum
                         % of the signal exceeds threshold
                         this.recording=true;
-                        
-                        % Find index at which the threshold was
-                        % exceeded
-                        ind0=find(r>this.trig_threshold,1,'first');
-                        
-                        this.t0=DemodSample.timestamp(ind0);
                         this.elapsed_t=0;
 
                         % Switch the drive off
@@ -436,22 +402,13 @@ classdef MyZiRingdown < MyDataSource
                             start(this.AuxOutOnTimer)
                         end
                         
-                        % Clear trace and append new data starting from the
-                        % index, at which triggering occurred
+                        % Clear trace 
                         clearData(this.Trace);
                         
-                        % Append the first portion of samples to the
-                        % record, starting from the index at which 
-                        % triggering occurred. Theoretically, a record can
-                        % be finished with this one portion if the record
-                        % time is set small.
-                        rec_finished = ...
-                            appendSamplesToTrace(this, DemodSample, ind0);
-                        
                         notify(this, 'RecordingStarted');
-                    else
-                        rec_finished=false;
                     end
+                    
+                    rec_finished=false;
                     
                     % Indicator for adaptive measurement is off, since
                     % recording is not under way
@@ -521,18 +478,11 @@ classdef MyZiRingdown < MyDataSource
         % Append timestamps vs r=sqrt(x^2+y^2) to the measurement record.
         % Starting index can be supplied as varargin.
         % The output variable tells if the record is finished.
-        function isfin = appendSamplesToTrace(this, DemodSample, varargin)
-            if isempty(varargin)
-                startind=1;
-            else
-                startind=varargin{1};
-            end
+        function isfin = appendSamplesToTrace(this, DemodSample)
             
-            r=sqrt(DemodSample.x(startind:end).^2 + ...
-                DemodSample.y(startind:end).^2);
+            r=sqrt(DemodSample.x.^2 + DemodSample.y.^2);
             % Subtract the reference time, convert timestamps to seconds
-            ts=double(DemodSample.timestamp(startind:end) -...
-                this.t0)/this.clockbase;
+            ts=double(DemodSample.timestamp - this.t0)/this.clockbase;
             
             % Check if recording should be stopped
             isfin=(ts(end)>=this.record_time);
@@ -610,24 +560,6 @@ classdef MyZiRingdown < MyDataSource
             notify(this,'NewSetting');
         end
         
-        function str=idn(this)
-            DevProp=ziDAQ('discoveryGet', this.dev_id);
-            str=this.dev_id;
-            if isfield(DevProp, 'devicetype')
-                str=[str,'; device type: ', DevProp.devicetype];
-            end
-            if isfield(DevProp, 'options')
-                % Print options from the list as comma-separated values and
-                % discard the last comma.
-                opt_str=sprintf('%s,',DevProp.options{:});
-                str=[str,'; options: ', opt_str(1:end-1)];
-            end
-            if isfield(DevProp, 'serverversion')
-                str=[str,'; server version: ', DevProp.serverversion];
-            end
-            this.idn_str=str;
-        end
-        
         function auxOutOffTimerCallback(this)
             this.aux_out_on=false;
         end
@@ -639,82 +571,67 @@ classdef MyZiRingdown < MyDataSource
         %% measurement header functionality
         
         function Hdr=readHeader(this)
-            Hdr=MyMetadata();
-            % name is always a valid variable as ensured by its set method
-            addField(Hdr, this.name);
-            
-            % Instrument identification 
-            addParam(Hdr, this.name, 'idn', this.idn_str);
-            addClassParam(this, Hdr, 'clockbase', 'comment', ...
-                ['Device clock frequency, i.e. the number of ', ...
-                'timestamps per second']);
-            
+            Hdr=readHeader@MyZiLi(this);
+
             % Demodulator parameters
-            addClassParam(this, Hdr, 'demod', 'comment', ...
+            addObjProp(Hdr, this, 'demod', 'comment', ...
                 'Number of the demodulator in use (starting from 1)');
-            addClassParam(this, Hdr, 'demod_rate', 'comment', ...
+            addObjProp(Hdr, this, 'demod_rate', 'comment', ...
                 '(samples/s), demodulator data transfer rate');
-            addClassParam(this, Hdr, 'lowpass_order', 'comment', ...
+            addObjProp(Hdr, this, 'lowpass_order', 'comment', ...
                 'Order of the demodulator low-pass filter');
-            addClassParam(this, Hdr, 'lowpass_bw', 'comment', ...
+            addObjProp(Hdr, this, 'lowpass_bw', 'comment', ...
                 ['(Hz), 3 dB bandwidth of the demodulator low-pass ', ...
                 'filter']);
-            addClassParam(this, Hdr, 'meas_osc', 'comment', ...
+            addObjProp(Hdr, this, 'meas_osc', 'comment', ...
                 'Measurement oscillator number');
-            addClassParam(this, Hdr, 'meas_osc_freq', 'comment', '(Hz)');
+            addObjProp(Hdr, this, 'meas_osc_freq', 'comment', '(Hz)');
             
             % Signal input
-            addClassParam(this, Hdr, 'signal_in', 'comment', ...
+            addObjProp(Hdr, this, 'signal_in', 'comment', ...
                 'Singnal input number');
             
             % Drive parameters
-            addClassParam(this, Hdr, 'drive_out', 'comment', ...
+            addObjProp(Hdr, this, 'drive_out', 'comment', ...
                 'Driving output number');
-            addClassParam(this, Hdr, 'drive_osc', 'comment', ...
+            addObjProp(Hdr, this, 'drive_osc', 'comment', ...
                 'Swept oscillator number');
-            addClassParam(this, Hdr, 'drive_amp', 'comment', ...
+            addObjProp(Hdr, this, 'drive_amp', 'comment', ...
                 '(V) peak to peak');
             
             % Parameters of the auxiliary output
-            addClassParam(this, Hdr, 'aux_out', 'comment', ...
+            addObjProp(Hdr, this, 'aux_out', 'comment', ...
                 'Auxiliary output number');
-            addClassParam(this, Hdr, 'enable_aux_out', 'comment', ...
+            addObjProp(Hdr, this, 'enable_aux_out', 'comment', ...
                 'Auxiliary output is applied during ringdown');
-            addClassParam(this, Hdr, 'aux_out_on_lev', 'comment', '(V)');
-            addClassParam(this, Hdr, 'aux_out_off_lev', 'comment', '(V)');
-            addClassParam(this, Hdr, 'aux_out_on_t', 'comment', '(s)');
-            addClassParam(this, Hdr, 'aux_out_off_t', 'comment', '(s)');
+            addObjProp(Hdr, this, 'aux_out_on_lev', 'comment', '(V)');
+            addObjProp(Hdr, this, 'aux_out_off_lev', 'comment', '(V)');
+            addObjProp(Hdr, this, 'aux_out_on_t', 'comment', '(s)');
+            addObjProp(Hdr, this, 'aux_out_off_t', 'comment', '(s)');
             
             % Software parameters
-            addClassParam(this, Hdr, 'trig_threshold', 'comment', ...
+            addObjProp(Hdr, this, 'trig_threshold', 'comment', ...
                 '(V), threshold for starting a ringdown record');
-            addClassParam(this, Hdr, 'record_time', 'comment', '(s)');
-            addClassParam(this, Hdr, 'n_avg', 'comment', ...
+            addObjProp(Hdr, this, 'record_time', 'comment', '(s)');
+            addObjProp(Hdr, this, 'n_avg', 'comment', ...
                 'Number of ringdowns to be averaged');
-            addClassParam(this, Hdr, 'downsampled_rate', 'comment', ...
+            addObjProp(Hdr, this, 'downsampled_rate', 'comment', ...
                 ['(samples/s), rate to which a ringown trace is ', ...
                 'downsampled with averaging after acquisition']);
-            addClassParam(this, Hdr, 'auto_save', 'comment', '(s)');
+            addObjProp(Hdr, this, 'auto_save', 'comment', '(s)');
             
             % Adaptive measurement oscillator
-            addClassParam(this, Hdr, 'adaptive_meas_osc', 'comment', ...
+            addObjProp(Hdr, this, 'adaptive_meas_osc', 'comment', ...
                 ['If true the measurement oscillator frequency is ', ...
                 'adjusted during ringdown']);
-            addClassParam(this, Hdr, 'ad_osc_margin');
-            addClassParam(this, Hdr, 'fft_length', 'comment', '(points)');
+            addObjProp(Hdr, this, 'ad_osc_margin');
+            addObjProp(Hdr, this, 'fft_length', 'comment', '(points)');
             
             % Timer poll parameters
             addParam(Hdr, this.name, 'poll_period', ...
                 this.PollTimer.Period, 'comment', '(s)');
-            addClassParam(this, Hdr, 'poll_duration', 'comment', '(s)');
-            addClassParam(this, Hdr, 'poll_timeout', 'comment', '(ms)');
-        end
-        
-        % The function below ensures the correspondence between the header
-        % parameter names and class property names. It spares quite a few 
-        % lines of code given the large size of readHeader function.
-        function addClassParam(this, Hdr, tag, varargin)
-            addParam(Hdr, this.name, tag, this.(tag), varargin{:});
+            addObjProp(Hdr, this, 'poll_duration', 'comment', '(s)');
+            addObjProp(Hdr, this, 'poll_timeout', 'comment', '(ms)');
         end
     end
     

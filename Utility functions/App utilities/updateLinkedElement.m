@@ -20,7 +20,7 @@ function updateLinkedElement(app, elem)
          if ~isequal(elem.(elem_prop),val)
             elem.(elem_prop) = val;
          end
-    catch
+    catch ME
         % Try converting the subreference structure to a readable 
         % format and throw a warning
         try
@@ -28,8 +28,8 @@ function updateLinkedElement(app, elem)
         catch
             tag='';
         end
-        warning(['Could not update the value of element with tag ''%s'' ',...
-            'and value ''%s''.'], tag, var2str(val));
+        warning(['Could not update the value of element with tag ''%s'' ' ...
+            'and value ''%s''. Error: ' ME.message], tag, var2str(val));
     end
 end
 
