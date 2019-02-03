@@ -100,23 +100,15 @@ classdef MyDaq < handle
             set(this.Gui.InstrMenu,'ItemsData',[{''};...
                 content.tags]);
             
-            % Add Data, Ref and Bg traces in the proper order on the plot.
-            % Create dummy lines for this purpose.
+            % Add Data, Ref and Bg traces in the proper order on the plot
+            % as empty lines.
             hold(this.main_plot,'on');
-            dummy_hlines=plot(this.main_plot,1,1,1,1,1,1);
-            dummy_hlines(3).Visible='on';
-            % plot cannot create empty lines, so empty the data explicitly
-            dummy_hlines(3).XData=[];
-            dummy_hlines(3).YData=[];
-            this.Data.hlines{1}=dummy_hlines(3);
-            dummy_hlines(2).Visible='off';
-            dummy_hlines(2).XData=[];
-            dummy_hlines(2).YData=[];
-            this.Ref.hlines{1}=dummy_hlines(2);
-            dummy_hlines(1).Visible='off';
-            dummy_hlines(1).XData=[];
-            dummy_hlines(1).YData=[];
-            this.Background.hlines{1}=dummy_hlines(1);
+            this.Background.hlines{1}=line(this.main_plot, ...
+                'XData',[],'YData',[],'Color',this.bg_color);
+            this.Ref.hlines{1}=line(this.main_plot, ...
+                'XData',[],'YData',[],'Color',this.ref_color);
+            this.Data.hlines{1}=line(this.main_plot, ...
+                'XData',[],'YData',[],'Color',this.data_color);
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
