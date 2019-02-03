@@ -2,10 +2,6 @@
 
 classdef MyZiScopeFt < MyZiLi & MyDataSource
     
-    properties (Access=public)
-        
-    end
-    
     properties (GetAccess=public, SetAccess={?MyClassParser})
         n_scope=1   % number of hardware scope
         n_ch=1      % number of scope channel
