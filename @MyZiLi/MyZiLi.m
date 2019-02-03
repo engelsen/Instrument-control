@@ -23,7 +23,7 @@ classdef MyZiLi < handle
     end
     
     methods
-        function this=MyZiLi(dev_serial, varargin)
+        function this=MyZiLi(dev_serial)
             
             % Check the ziDAQ MEX (DLL) and Utility functions can be found in Matlab's path.
             if ~(exist('ziDAQ', 'file') == 3) && ~(exist('ziCreateAPISession', 'file') == 2)

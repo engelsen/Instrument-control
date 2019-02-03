@@ -7,7 +7,8 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
     end
     
     properties (GetAccess=public, SetAccess={?MyClassParser})
-        n_scope=1 % number of scope node
+        n_scope=1   % number of hardware scope
+        n_ch=1      % number of scope channel
         
         % Input numbers between 1 and 148 correspond to various signals 
         % including physical inputs, outputs, demodulator channels and 
@@ -16,6 +17,11 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
         % This number is shifted by +1 compare to the hardware node
         % enumeration as usual.
         signal_in=1 
+        
+        % Deas time between scope frame acquisitions. Smaller time results 
+        % in faster averaging but may not look nice during real time 
+        % gui update.
+        trigholdoff=0.02 % seconds
     end
     
     properties (Access=private)
@@ -33,13 +39,13 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
     end
     
     events
-        NewWaves % Triggered when 
+        NewWave % Triggered when the scope acquires new waves 
     end
     
     methods (Access=public)
         
         function this = MyZiScopeFt(dev_serial, varargin)
-            this=this@MyZiLi();
+            this=this@MyZiLi(dev_serial);
             
             P=MyClassParser(this);
             addRequired(P, dev_serial, @ischar)
@@ -89,8 +95,9 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
         function startPoll(this)
             % Configure hardware scope
             % Signal input
-            ziDAQ('setInt', [this.scope_path,'/inputselect'], ...
-                this.signal_in+1);
+            path=sprintf('%s/channels/%i/inputselect', ...
+                this.scope_path, this.n_ch);
+            ziDAQ('setInt', path, this.signal_in-1);
             % Disable segmented mode of data transfer. This mode is only 
             % useful if records longer than 5Mpts are required. 
             ziDAQ('setInt', [this.scope_path '/segments/enable'], 0);
@@ -102,7 +109,8 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
             ziDAQ('setInt', [this.scope_path '/trigenable'], 0);
             % The scope hold off time inbetween acquiring triggers (still
             % relevant if triggering is disabled).
-            ziDAQ('setDouble', [this.scope_path '/trigholdoff'], 0.05);
+            ziDAQ('setDouble', [this.scope_path '/trigholdoff'], ...
+                this.trigholdoff);
             % Enable the scope
             ziDAQ('setInt', [this.scope_path '/enable'], 1);
             
@@ -124,7 +132,7 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
                 [this.scope_path '/wave']);
             
             ziDAQ('execute', this.scope_module);
-            stop(this.PollTimer);
+            start(this.PollTimer);
         end
         
         function stopPoll(this)
@@ -141,22 +149,32 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
                 % Add waves to the average trace
                 for i=1:length(new_waves)
                     dt=new_waves{i}.dt;
-                    n=new_waves{i}.totalsamples;
+                    n=double(new_waves{i}.totalsamples);
                     % Calculate the frequency axis
-                    this.tmpTrace.x=linspace(0, (1-1/n)/(2*dt), n);
-                    this.tmpTrace.y=new_waves{i}.wave;
-                    addAverage(this.Trace, this.tmpTrace);
-                    if this.Trace.avg_count>=this.Trace.n_avg && ...
-                            strcmpi(this.Trace.avg_type, 'lin')
+                    this.TmpTrace.x=linspace(0, (1-1/n)/(2*dt), n);
+                    this.TmpTrace.y=new_waves{i}.wave;
+                    is_compl=addAverage(this.Trace, this.TmpTrace);
+                    if is_compl && strcmpi(this.Trace.avg_type, 'lin')
                         triggerNewData(this);
                     end
                 end
-                notify(this, 'NewWaves');
+                notify(this, 'NewWave');
             end
         end
         
         function Hdr=readHeader(this)
             Hdr=readHeader@MyZiLi(this);
+            addObjProp(Hdr, this, 'n_scope', 'comment', ...
+                'Hardware scope number');
+            addObjProp(Hdr, this, 'n_ch', 'comment', ...
+                'Scope channel');
+            addObjProp(Hdr, this, 'signal_in', 'comment', ...
+                'Signal input number');
+            addObjProp(Hdr, this, 'trigholdoff', 'comment', ...
+                ['(s), the scope hold off time inbetween acquiring ' ...
+                'triggers']);
+            addParam(Hdr, this.name, 'poll_period', ...
+                this.PollTimer.Period, 'comment', '(s)');
         end
     end
     
@@ -164,7 +182,7 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
     
     methods
         function val=get.scope_path(this)
-            val=sprintf('/%s/scopes/%i',this.dev_id,this.n_scope+1);
+            val=sprintf('/%s/scopes/%i',this.dev_id,this.n_scope-1);
         end
         
         function val=get.scope_rate(this)
@@ -173,11 +191,12 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
         end
         
         function set.scope_rate(this, val)
-            tn=round(log2(val/this.clockbase));
+            tn=round(log2(this.clockbase/val));
             % Trim to be withn 0 and 16
             tn=max(0,tn);
             tn=min(tn, 16);
             ziDAQ('setDouble', [this.scope_path '/time'], tn);
+            clearData(this.Trace);
             notify(this, 'NewSetting');
         end
         
@@ -192,6 +211,12 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
         
         function val=get.n_pt(this)
             val=ziDAQ('getDouble', [this.scope_path '/length']);
+        end
+        
+        function set.n_pt(this, val)
+            ziDAQ('setDouble', [this.scope_path '/length'], val);
+            clearData(this.Trace);
+            notify(this, 'NewSetting');
         end
     end
 end
