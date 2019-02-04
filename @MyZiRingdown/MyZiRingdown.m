@@ -8,7 +8,9 @@
 % for the duration of record_time.
 % 
 % Features:
+%
 % Adaptive measurement oscillator frequency
+%
 % Averaging
 %
 % Auto saving
@@ -451,9 +453,14 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                     end
                     avg_compl=addAverage(this.AvgTrace, this.Trace);
                     
-                    % Trigger NewData after addAverage has updated the
-                    % average counter (this helps syncronization with gui)
-                    triggerNewData(this, 'save', this.auto_save);
+                    % Trigger NewData
+                    if this.n_avg>1
+                        end_str=sprintf('_%i', this.AvgTrace.avg_count);
+                    else
+                        end_str='';
+                    end
+                    triggerNewData(this, 'save', this.auto_save, ...
+                        'filename_ending', end_str);
                     
                     % If the ringdown averaging is complete, disable
                     % further triggering to exclude data overwriting 
@@ -461,14 +468,16 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                         this.enable_acq=false;
                         
                         if this.n_avg>1
+                            end_str='_avg';
                             % Trigger one more time to transfer the average
                             % trace.
                             % A new measurement header is not necessary 
                             % as the delay since the last triggering is  
                             % minimum.
                             triggerNewData(this, ...
-                                'Trace',copy(this.AvgTrace), ...
-                                'save', this.auto_save);
+                                'Trace', copy(this.AvgTrace), ...
+                                'save', this.auto_save, ...
+                                'filename_ending', end_str);
                         end
                     end
                 end

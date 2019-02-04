@@ -97,8 +97,6 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
             % Disable segmented mode of data transfer. This mode is only 
             % useful if records longer than 5Mpts are required. 
             ziDAQ('setInt', [this.scope_path '/segments/enable'], 0);
-            % Set sampling rate
-            ziDAQ('setInt', [this.scope_path '/time'], 0);
             % Take continuous records
             ziDAQ('setInt', [this.scope_path '/single'], 0);
             % Disable the scope trigger

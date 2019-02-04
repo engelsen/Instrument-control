@@ -27,10 +27,12 @@ classdef MyDaq < handle
         Listeners=struct()
 
         %Sets the colors of fits, data and reference
-        fit_color='k';
-        data_color='b';
-        ref_color='r';
-        bg_color='c';
+        fit_color='k'
+        data_color='b'
+        ref_color='r'
+        bg_color='c'
+        
+        default_ext='.txt' % default data file extension
     end
     
     properties (Dependent=true)
@@ -802,8 +804,8 @@ classdef MyDaq < handle
                 this.base_dir=pwd;
             end
 
-            [load_name,path_name]=uigetfile('.txt','Select the trace',...
-                this.base_dir);
+            [load_name,path_name]=uigetfile(this.this.default_ext, ...
+                'Select the trace', this.base_dir);
             if load_name==0
                 warning('No file was selected');
                 return
@@ -881,14 +883,20 @@ classdef MyDaq < handle
                 updateFits(this);
                 
                 % If the save flag is on in EventData, save the new trace
+                % making sure that a unique filename is generated to not
+                % prompt the owerwrite dialog
                 if isprop(EventData, 'save') && EventData.save
-                    if isprop(EventData, 'filename') && ...
-                            ~isempty(EventData.filename)
-                        % If present, use the file name supplied externally
-                        this.filename=EventData.filename;
-                        saveTrace(this, 'Data');
+                    if isprop(EventData, 'filename_ending')
+                        % If present, use the file name ending supplied 
+                        % externally. By default filename_ending is empty.
+                        [~,fn,ext]=fileparts(this.filename);
+                        this.filename=[fn, EventData.filename_ending, ext];
+                        
+                        saveTrace(this, 'Data', 'make_unique_name', true);
+                        
+                        % Return the file name to its original value
+                        this.filename=[fn, ext];
                     else
-                        % Generate a new unique filename
                         saveTrace(this, 'Data', 'make_unique_name', true);
                     end
                 end
@@ -1020,17 +1028,28 @@ classdef MyDaq < handle
                 [~,~,ext]=fileparts(filename);
                 if isempty(ext)
                     % Add default file extension
-                    filename=[filename,'.txt'];
+                    filename=[filename, this.default_ext];
                 end
             catch
-                filename='placeholder.txt';
+                filename=['placeholder', this.default_ext];
             end
         end
         
         function set.filename(this, str)
-            this.Gui.FileName.String=str;
+            [~,fn,ext]=fileparts(str);
+            if strcmpi(ext, this.default_ext)
+                % By default display filename without extension
+                this.Gui.FileName.String=fn;
+            else
+                this.Gui.FileName.String=[fn,ext];
+            end
         end
         
-            
+        function set.default_ext(this, str)
+            assert(ischar(str)&&(str(1)=='.'), ['Default file ' ...
+                'extension must be a character string startign ' ...
+                'with ''.'''])
+            this.default_ext=str;
+        end
     end
 end
