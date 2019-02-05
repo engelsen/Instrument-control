@@ -4,10 +4,10 @@ classdef MyFit < dynamicprops
         Data; %MyTrace object contains the data to be fitted to
         init_params=[]; %Contains the initial parameters
         scale_init=[]; %Contains the scale variables for the initial parameters, used for GUI purposes
-        lim_lower;
-        lim_upper;
+        lim_lower; %Lower limits for fit parameters
+        lim_upper; %Upper limits for fit parameters
         enable_plot; %If enabled, plots initial parameters in the plot_handle
-        plot_handle;
+        plot_handle; %The handle which fits and init params are plotted in
         
         %Calibration values supplied externally
         CalVals=struct();
@@ -127,9 +127,12 @@ classdef MyFit < dynamicprops
                 this.Data.y=this.Parser.Results.y;
             end
             
-            %Sets the scale_init to 1, this is used for the GUI.
+            %Sets dummy values for the GUI
             this.scale_init=ones(1,this.n_params);
             this.init_params=ones(1,this.n_params);
+            this.lim_lower=-Inf(1,this.n_params);
+            this.lim_upper=Inf(1,this.n_params);
+            
             %Creates the structure that contains variables for calibration
             %of fit results
             createUserGuiStruct(this);
@@ -139,7 +142,7 @@ classdef MyFit < dynamicprops
             if this.enable_gui; createGui(this); end
             
             %If the data is appropriate, generates initial
-            %parameters
+            %parameters 
             if validateData(this); genInitParams(this); end
         end
         
@@ -606,23 +609,38 @@ classdef MyFit < dynamicprops
                 'String',sprintf('%3.3e',this.scaled_params(param_ind)));
             if this.enable_plot; plotInitFun(this); end
         end
-        
-        %Callback function for edit boxes in GUI
+         %Callback function for edit boxes in GUI
         function editCallback(this, hObject, ~)
-            init_param=str2double(get(hObject,'String'));
-            tag=get(hObject,'Tag');
-            %Finds the index where the fit_param name begins (convention is
-            %after the underscore)
-            fit_param=tag((strfind(tag,'_')+1):end);
-            param_ind=strcmp(fit_param,this.fit_params);
+            init_param=str2double(hObject.String);
+            param_ind=str2double(hObject.Tag);
+
             %Updates the slider to be such that the scaling is 1
-            set(this.Gui.(sprintf('Slider_%s',fit_param)),...
+            set(this.Gui.(sprintf('Slider_%s',this.fit_params{param_ind})),...
                 'Value',50);
             %Updates the correct initial parameter
             this.init_params(param_ind)=init_param;
             if this.enable_plot; plotInitFun(this); end
             %Triggers event for new init values
             triggerNewInitVal(this);
+        end
+        
+        %Callback function for editing limits in the GUI
+        function limEditCallback(this, hObject,~)
+            lim = str2double(hObject.String);
+            %Regexp finds type (lower or upper bound) and index
+            expr = '(?<type>Upper|Lower)(?<ind>\d+)';
+            s=regexp(hObject.Tag,expr,'names');
+            ind=str2double(s.ind);
+            
+            switch s.type
+                case 'Lower'
+                    this.lim_lower(ind)=lim;
+                case 'Upper'
+                    this.lim_upper(ind)=lim;
+                otherwise
+                    error('%s is not properly named for assignment of limits',...
+                        hObject.Tag);
+            end
         end
         
         %Callback function for analyze button in GUI. Checks if the data is
@@ -794,10 +812,15 @@ classdef MyFit < dynamicprops
             %necessary for the slider
             slider_vals=50*log10(this.scale_init)+50;
             for i=1:this.n_params
-                set(this.Gui.(sprintf('Edit_%s',this.fit_params{i})),...
+                str=this.fit_params{i};
+                set(this.Gui.(sprintf('Edit_%s',str)),...
                     'String',sprintf('%3.3e',this.scaled_params(i)));
-                set(this.Gui.(sprintf('Slider_%s',this.fit_params{i})),...
+                set(this.Gui.(sprintf('Slider_%s',str)),...
                     'Value',slider_vals(i));
+                set(this.Gui.(sprintf('Lim_%s_upper',str)),...
+                    'String',sprintf('%3.3e',this.lim_upper(i)))
+                set(this.Gui.(sprintf('Lim_%s_lower',str)),...
+                    'String',sprintf('%3.3e',this.lim_lower(i)))
             end
         end
         
