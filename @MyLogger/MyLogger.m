@@ -100,6 +100,20 @@ classdef MyLogger < handle
                 '''MeasFcn'' must be a function handle.');
             this.MeasFcn=val;
         end
+        
+        function set.Record(this, val)
+            assert(isa(val,'MyLog'), '''Record'' must be a MyLog object')
+            this.Record=val;
+        end
+        
+        function set.save_cont(this, val)
+            this.save_cont=logical(val);
+        end
+        
+        function set.MeasTimer(this, val)
+            assert(isa(val,'timer'), '''MeasTimer'' must be a timer object')
+            this.MeasTimer=val;
+        end
     end
 end
 
