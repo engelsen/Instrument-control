@@ -17,7 +17,7 @@ classdef MyLog < matlab.mixin.Copyable
         data_fmt = '%.14g'
         
         % Format for displaying the last reading (column name: value)
-        disp_fmt = '%15s: %.2g'
+        disp_fmt = '%15s: %.3g'
         
         % Data column and line separators
         column_sep = '\t'
