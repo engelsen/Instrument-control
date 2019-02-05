@@ -34,6 +34,7 @@ classdef MyTpg < MyInstrument
     end
     
     methods (Access=public)
+        %% Constructor and destructor
         function this = MyTpg(interface, address, varargin)
             this@MyInstrument(interface, address, varargin{:});
             
@@ -45,6 +46,18 @@ classdef MyTpg < MyInstrument
             this.Trace.unit_x='s';
         end
         
+        % Delete method that cleans up logger. Superclass delete method as
+        % usual is executed after this one.
+        function delete(this)
+            % Stop and delete logger. Destructor should never throw errors.
+            try
+                stop(this.Lg)
+                delete(this.Lg);
+            catch
+            end
+        end  
+        
+        %% Communication commands
         % read pressure from a single channel or both channels at a time
         function p_arr = readPressure(this)
             query(this.Device,['PRX',this.CR,this.LF]);
@@ -97,7 +110,9 @@ classdef MyTpg < MyInstrument
         
         function p_arr = readAllHedged(this)
             was_open = isopen(this);
-            openDevice(this);
+            if ~was_open
+                openDevice(this);
+            end
             try
                 p_arr = readPressure(this);
                 readPressureUnit(this);
@@ -163,13 +178,17 @@ classdef MyTpg < MyInstrument
         
         %% Logging functionality
         
-        function initLogger(this)
-            if ~(isa(this.Lg, 'MyLogger')&&isvalid(this.Lg))
-                this.Lg = MyLogger('MeasFcn', @()readAllHedged(this));
+        % Init or reset logger
+        function initLogger(this, varargin)
+            if isa(this.Lg, 'MyLogger')
+                delete(this.Lg);
             end
-            if isempty(this.Lg.data_headers)&& (~isempty(this.pressure_unit))
+            this.Lg = MyLogger('MeasFcn', @()readAllHedged(this), ...
+                varargin{:});
+            if isempty(this.Lg.Record.data_headers) &&...
+                    (~isempty(this.pressure_unit))
                 pu = this.pressure_unit;
-                this.Lg.data_headers=...
+                this.Lg.Record.data_headers=...
                     {['P ch1 (',pu,')'],['P ch2 (',pu,')']};
             end
         end
@@ -182,10 +201,10 @@ classdef MyTpg < MyInstrument
             end
             
             if isa(this.Lg, 'MyLogger')&&isvalid(this.Lg)
-                time_arr=posixtime(this.Lg.timestamps);
+                time_arr=this.Lg.Record.timestamps_num;
                 % Shift time origin to 0
                 this.Trace.x=time_arr-time_arr(1);
-                this.Trace.y=cellfun(@(x)(x(n_ch)),this.Lg.data);
+                this.Trace.y=this.Lg.Record.data(:,n_ch);
                 this.Trace.name_y=sprintf('P Ch%i',n_ch);
                 this.Trace.unit_y=this.pressure_unit;
                 triggerNewData(this);

@@ -13,22 +13,25 @@ function file_created=createFile(fullfilename,varargin)
     if ~exist(save_dir,'dir')
         mkdir(save_dir)
     end
-
+    
     if exist(fullfilename,'file') && ~p.Results.overwrite
-        switch questdlg(...
-                'File already exists. Would you like to overwrite?',...
-                'File already exists', 'Yes', 'No', 'No')
-            case 'Yes'
-                fprintf('Overwriting file at %s\n',fullfilename);
-            otherwise
-                warning('No file written as %s already exists',...
-                    fullfilename);
-                file_created=false;
-                return
+        finfo=dir(fullfilename);
+        if finfo.bytes~=0
+            % File is not empty
+            switch questdlg(...
+                    'File already exists. Would you like to overwrite?',...
+                    'File already exists', 'Yes', 'No', 'No')
+                case 'Yes'
+                    fprintf('Overwriting file at %s\n',fullfilename);
+                otherwise
+                    warning('No file written as %s already exists',...
+                        fullfilename);
+                    file_created=false;
+                    return
+            end
         end
     end
-
-    %Creates the file
+    %Creates an empty file
     fileID=fopen(fullfilename,'w');
     fclose(fileID);
 

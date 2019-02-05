@@ -1,53 +1,51 @@
 % Generic logger that executes MeasFcn according to MeasTimer, stores the
-% results and optionally continuously saves them. MeasFcn should be a
-% function with no arguments. Saving functionality works properly if 
-% MeasFcn returns a number or array of numbers, while intrinsically the 
-% logger can store any kind of outputs.
-classdef MyLogger < handle & MyInputHandler
+% results and optionally continuously saves them. 
+% MeasFcn should be a function with no arguments.  
+% MeasFcn need to return a row vector of numbers in order to save the log
+% in text format or display it. With other kinds of returned values the 
+% log can still be recorded, but not saved or dispalyed.
+
+classdef MyLogger < handle
+    
     properties (Access=public)
-        MeasTimer % Timer object
-        MeasFcn = @()0
-        save_cont = false
-        save_file
-        data_headers = {} % Cell array of column headers
+        % timer object
+        MeasTimer
         
-        % format specifiers for data saving and display
-        time_fmt = '%14.3f' % Save time as posixtime up to ms precision
-        data_field_width = '24'
-        data_fmt = '%24.14e' % Save data as reals with 14 decimal digits
-        % Format for displaying last reading label: value
-        disp_fmt = '%15s: %.2e'
+        % Function that provides data to be recorded
+        MeasFcn = @()0
+        
+        save_cont = false
+        
+        % MyLog object to store the recorded data
+        Record
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        timestamps % Times at which data was aqcuired
-        data % Stored cell array of measurements
-        last_meas_stat = 2 % If last measurement was succesful
+        % If last measurement was succesful
         % 0-false, 1-true, 2-never measured
+        last_meas_stat = 2 
     end
     
     events
+        % Event that is triggered each time MeasFcn is successfully executed
         NewData
     end
     
-    methods
+    methods (Access=public)
         function this = MyLogger(varargin)
-            createConstructionParser(this);
-            this.ConstructionParser.KeepUnmatched = true;
-            addClassProperties(this);
-            parseClassInputs(this, varargin{:});
+            P=MyClassParser(this);
+            processInputs(P, this, varargin{:});
+            
+            this.Record=MyLog(P.unmatched_nv{:});
                  
-            if ismember('MeasTimer', this.ConstructionParser.UsingDefaults)
-                % Create and confitugure timer unless it was supplied
-                % externally in varargin
-                this.MeasTimer = timer();
-                this.MeasTimer.BusyMode = 'drop';
-                % Fixed spacing mode of operation does not follow the
-                % period very well, but is robust with respect to
-                % communication delays
-                this.MeasTimer.ExecutionMode = 'fixedSpacing';
-                this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
-            end 
+            % Create and confitugure timer
+            this.MeasTimer = timer();
+            this.MeasTimer.BusyMode = 'drop';
+            % Fixed spacing mode of operation does not follow the
+            % period very well, but is robust with respect to
+            % function execution delays
+            this.MeasTimer.ExecutionMode = 'fixedSpacing';
+            this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
         end
         
         function delete(this)         
@@ -56,92 +54,8 @@ classdef MyLogger < handle & MyInputHandler
             delete(this.MeasTimer);
         end
         
-        function LoggerFcn(this, event)
-            time = datetime(event.Data.time);
-            try
-                meas_result = this.MeasFcn();
-                % append measurement result together with time stamp
-                this.timestamps=[this.timestamps; time];
-                this.data=[this.data; {meas_result}];
-                this.last_meas_stat=1; % last measurement ok
-            catch
-                warning(['Logger cannot take measurement at time = ',...
-                    datestr(time)]);
-                this.last_meas_stat=0; % last measurement not ok
-            end
-            
-            triggerNewData(this);
-            
-            % save the point to file if continuous saving is enabled and
-            % last measurement was succesful
-            if this.save_cont&&(this.last_meas_stat==1)
-                try
-                    exstat = exist(this.save_file,'file');
-                    if exstat==0
-                        % if the file does not exist, create it and write
-                        % header names
-                        createFile(this.save_file);
-                        fid = fopen(this.save_file,'w');
-                        writeColumnHeaders(this, fid);
-                    else
-                        % otherwise open for appending
-                        fid = fopen(this.save_file,'a');
-                    end
-                    fprintf(fid, this.time_fmt, posixtime(time));
-                    fprintf(fid, this.data_fmt, meas_result);
-                    fprintf(fid,'\r\n');
-                    fclose(fid);
-                catch
-                    warning(['Logger cannot save data at time = ',...
-                        datestr(time)]);
-                    % Try closing fid in case it is still open
-                    try
-                        fclose(fid);
-                    catch
-                    end
-                end
-            end
-        end
         
-        % save the entire data record
-        function saveLog(this)
-            try
-            	createFile(this.save_file);
-                fid = fopen(this.save_file,'w');
-                writeColumnHeaders(this, fid);
-                for i=1:length(this.timestamps)
-                    fprintf(fid, this.time_fmt,...
-                        posixtime(this.timestamps(i)));
-                    fprintf(fid, this.data_fmt,...
-                        this.data{i});
-                    fprintf(fid,'\r\n');
-                end
-                fclose(fid);
-            catch
-                warning('Data was not saved');
-                % Try closing fid in case it is still open
-                try
-                    fclose(fid);
-                catch
-                end
-            end
-        end
-        
-        function clearLog(this)
-            this.timestamps = [];
-            this.data = [];
-        end
-               
-        function writeColumnHeaders(this, fid)
-            % write data headers to file if specified
-            fprintf(fid, 'POSIX time [s]');
-            for i=1:length(this.data_headers)
-                fprintf(fid, ['%',this.data_field_width,'s'],...
-                    this.data_headers{i});
-            end
-            fprintf(fid,'\r\n');
-        end
-        
+        % Redefine start/stop functions for the brevity of use
         function start(this)
             start(this.MeasTimer);
         end
@@ -149,28 +63,56 @@ classdef MyLogger < handle & MyInputHandler
         function stop(this)
             stop(this.MeasTimer);
         end
-        
-        function str = dispLastReading(this)
-            if isempty(this.timestamps)
-                str = '';
-            else
-                str = ['Last reading ',char(this.timestamps(end)),newline];
-                last_data = this.data{end};
-                for i=1:length(last_data)
-                    if length(this.data_headers)>=i
-                        lbl = this.data_headers{i};
-                    else
-                        lbl = sprintf('data%i',i);
-                    end
-                    str = [str,...
-                        sprintf(this.disp_fmt,lbl,last_data(i)),newline];
-                end
+    
+    end
+    
+    methods (Access=protected)
+        % Perform measurement and append point to the log
+        function LoggerFcn(this, event)
+            time = datetime(event.Data.time);
+            try
+                meas_result = this.MeasFcn();
+                this.last_meas_stat=1; % last measurement ok
+            catch
+                warning(['Logger cannot take measurement at time = ',...
+                    datestr(time)]);
+                this.last_meas_stat=0; % last measurement not ok
+            end
+            
+            if this.last_meas_stat==1 
+                % append measurement result together with time stamp
+                appendData(this.Record, time, meas_result,...
+                    'save', this.save_cont);
+                triggerNewData(this);
             end
         end
-    
+        
         %Triggers event for acquired data
         function triggerNewData(this)
             notify(this,'NewData')
+        end
+    end
+    
+    %% Set and get functions
+    methods 
+        function set.MeasFcn(this, val)
+            assert(isa(val,'function_handle'), ...
+                '''MeasFcn'' must be a function handle.');
+            this.MeasFcn=val;
+        end
+        
+        function set.Record(this, val)
+            assert(isa(val,'MyLog'), '''Record'' must be a MyLog object')
+            this.Record=val;
+        end
+        
+        function set.save_cont(this, val)
+            this.save_cont=logical(val);
+        end
+        
+        function set.MeasTimer(this, val)
+            assert(isa(val,'timer'), '''MeasTimer'' must be a timer object')
+            this.MeasTimer=val;
         end
     end
 end

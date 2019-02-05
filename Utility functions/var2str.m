@@ -10,6 +10,8 @@ function str_out = var2str(var)
             str_out=sprintf('%i',var);
         case {'char','string'}
             str_out=sprintf('%s',var);
+        case 'datetime'
+            str_out=datestr(var);
         otherwise
             warning(['Method for conversion of variable of class ',...
                 '''%s'' to string is not specified explicitly. ',...

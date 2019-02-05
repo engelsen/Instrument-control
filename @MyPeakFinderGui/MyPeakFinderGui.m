@@ -148,7 +148,7 @@ classdef MyPeakFinderGui < handle
             src.String='Loading..';
             
             loadTrace(this.PeakFinder,[path,fname]);
-            plotTrace(this.PeakFinder.Trace,this.axis_handle);
+            plot(this.PeakFinder.Trace,this.axis_handle);
             this.trace_handle.ButtonDownFcn=...
                 @(src, event) clickCallback(this, src, event);
             

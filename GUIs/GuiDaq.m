@@ -22,7 +22,7 @@ function varargout = GuiDaq(varargin)
 
 % Edit the above text to modify the response to help GuiDaq
 
-% Last Modified by GUIDE v2.5 24-Aug-2018 16:39:21
+% Last Modified by GUIDE v2.5 25-Dec-2018 15:48:30
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -214,72 +214,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-% --- Executes on button press in record.
-function record_Callback(hObject, eventdata, handles)
-% hObject    handle to record (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-%Takes the data from the fit
-try
-    h_main_plot=getappdata(0,'h_main_plot');
-    fit_meta_data=getappdata(h_main_plot,'fit_meta_data');
-    
-    f=fit_meta_data(1);
-    lw=fit_meta_data(2);
-    Q=fit_meta_data(3);
-catch
-    error('No fit parameters found')
-end
-
-%Standardized save path
-save_path=[handles.Drive_Letter,':\Measurement Campaigns\'];
-
-%Checks if a session name and file name is given
-if ~isstr(get(handles.SessionName,'string'))
-    error('No session name given')
-elseif ~isstr(get(handles.FileName,'string'))
-    error('No file name given')
-end
-
-%Puts the date in front of the session name
-session_name=[datestr(now,'yyyy-mm-dd '),...
-    get(handles.SessionName,'string'),'\'];
-
-%Makes the path if it does not exist
-if ~exist([save_path,session_name],'dir')
-    mkdir(save_path,session_name);
-end
-
-%Full path
-final_path=[save_path,session_name,'Q factor','.txt'];
-
-%Creates the file if it does not exist, otherwise opens the file
-if ~exist(final_path,'file')
-    fileID=fopen(final_path,'w');
-    %Creates headers in the file
-    fmt=['%s\t%s\t%s\t\t%s\t%s\t\r\n'];
-    fprintf(fileID,fmt,'Beam#','f(MHz)','Q(10^6)','Q*f(10^14)','lw');
-else
-    fileID=fopen(final_path,'a');
-end
-
-%Formatting string
-fmt=['%s\t%3.3f\t%3.3f\t\t%3.3f\t\t%3.3f\r\n'];
-tag=get(handles.edit_tag,'string');
-fprintf('Data saved in %s',final_path);
-%Reshapes the data in appropriate units
-fprintf(fileID,fmt,tag{1},f/1e6,Q/1e6,Q*f/1e14,lw);
-fclose(fileID);
-
-function edit_tag_Callback(hObject, eventdata, handles)
-% hObject    handle to edit_tag (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of edit_tag as text
-%        str2double(get(hObject,'String')) returns contents of edit_tag as a double
-
 
 % --- Executes during object creation, after setting all properties.
 function edit_tag_CreateFcn(hObject, eventdata, handles)
@@ -294,32 +228,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in Subtract_BG.
-function Subtract_BG_Callback(hObject, eventdata, handles)
-% hObject    handle to Subtract_BG (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of Subtract_BG
-h_main_plot=getappdata(0,'h_main_plot');
-if (get(hObject,'Value')==1)
-    set(hObject, 'BackGroundColor',[0,1,.2]);
-    y_data=getappdata(h_main_plot,'y_data')-getappdata(h_main_plot,'y_BG');
-else
-    set(hObject, 'BackGroundColor',[0.941,0.941,0.941]);
-    y_data=getappdata(h_main_plot,'y_data')+getappdata(h_main_plot,'y_BG');
-end
-setappdata(h_main_plot,'y_data',y_data);
-update_axes
-
-
-% --- Executes on button press in togglebutton9.
-function togglebutton9_Callback(hObject, eventdata, handles)
-% hObject    handle to togglebutton9 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of togglebutton9
 
 
 % --- Executes during object creation, after setting all properties.
@@ -339,10 +247,3 @@ function DestTrc_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
-
-% --- Executes when selected object is changed in uipanel1.
-function uipanel1_SelectionChangedFcn(hObject, eventdata, handles)
-% hObject    handle to the selected object in uipanel1 
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)

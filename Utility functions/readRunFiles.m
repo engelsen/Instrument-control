@@ -45,16 +45,22 @@ function RunFiles = readRunFiles(varargin)
         % RunFiles
         try 
             add_entry = ~isfield(RunFiles, nm) &&...
-                ~isempty(InstrumentList.(nm).interface) &&...
-                ~isempty(InstrumentList.(nm).address) &&...
-                ~isempty(InstrumentList.(nm).gui) &&...
                 ~isempty(InstrumentList.(nm).control_class);
         catch
         end
         if add_entry 
             RunFiles.(nm) = InstrumentList.(nm);
-            RunFiles.(nm).run_expr = ...
-                sprintf('runInstrumentWithGui(''%s'');',nm);
+            
+            % Command for running an instrument without gui
+            RunFiles.(nm).run_bg_expr = ...
+                sprintf('runInstrument(''%s'');',nm);
+            
+            % Command for running an instrument with gui, added only if gui
+            % is specified
+            if ~isempty(InstrumentList.(nm).gui)
+                RunFiles.(nm).run_expr = ...
+                    sprintf('runInstrumentWithGui(''%s'');',nm);
+            end
             RunFiles.(nm).header = ['% This entry is automatically ',...
                 'generated from InstrumentList'];
         end

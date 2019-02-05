@@ -130,7 +130,7 @@ classdef MyPeakFinder < handle
             
             switch ext
                 case '.txt'
-                    loadTrace(this.Trace,fullfilename);
+                    load(this.Trace,fullfilename);
                 case '.mat'
                     DataStruct=load(fullfilename);
                     fields=fieldnames(DataStruct);

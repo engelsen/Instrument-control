@@ -4,18 +4,25 @@
 % Start instrument as MyTlb6700('','USBaddr'), where USBaddr is indicated
 % in the instrument menu. Example: MyTlb6700('','1')
 %
-% Operation of opening device is time-consuming with Newport USB driver,
+% This class does not have 'Device' property but uses the communication
+% class UsbComm (which needs to be shared between multiple devices) to
+% mimic some of the standard MyInstrument operations.
+%
+% Operation of opening devices is time-consuming with Newport USB driver,
 % on the other hand multiple open devices do not interfere. So keep 
 % the device open for the whole session
 
 classdef MyTlb6700 < MyScpiInstrument
     
     properties (SetAccess=protected, GetAccess=public)
-        NetAsm % .NET assembly
+        % Instance of Newport.USBComm.USB used for communication. 
+        % Must be shared between the devices
+        UsbComm  
     end
     
     %% Constructor and destructor
     methods (Access=public)
+        
         function this=MyTlb6700(interface, address, varargin)
             this@MyScpiInstrument(interface, address, varargin{:});
             % Interface field is not used in this instrument, but is
@@ -102,51 +109,45 @@ classdef MyTlb6700 < MyScpiInstrument
         
     end
     
-    %% Public functions including callbacks
+    
     methods (Access=public)
-        % NewFocus lasers no not support visa communication, thus need to
+        
+        %% Overloaded methods
+        % NewFocus lasers do not support visa communication, thus need to
         % overload connectDevice, writeCommand and queryCommand methods
         function connectDevice(this)
             % In this case 'interface' property is ignored and 'address' is
             % the USB address, indicated in the controller menu
-            dll_path = which('UsbDllWrap.dll');
-            if isempty(dll_path)
-                error(['UsbDllWrap.dll is not found. This library ',...
-                    'is a part of Newport USB driver and needs ',...
-                    'to be present on Matlab path.'])
-            end
-            this.NetAsm=NET.addAssembly(dll_path);
-            % Create an instance of Newport.USBComm.USB class
-            Type=GetType(this.NetAsm.AssemblyHandle,'Newport.USBComm.USB');
-            this.Device=System.Activator.CreateInstance(Type);
+            
+            % Get the unique instance of control class for Newport driver 
+            this.UsbComm=MyNewportUsbComm.instance();
+            
         end
          
         function openDevice(this)
-            OpenDevices(this.Device, hex2num('100A'));
+            % Opening a single device is not supported by Newport Usb 
+            % Driver, so open all the devices of the given type
+            OpenDevices(this.UsbComm.Usb, hex2num('100A'));
         end
         
-        % Overload isopen method of MyInstrument
         function bool=isopen(this)
-            % Could not find a better way to check if device is open other
-            % than attempting communication with it
-            bool=false;
-            QueryData=System.Text.StringBuilder(64); 
-            try
-                stat = Query(this.Device,this.address,'*IDN?',QueryData);
-                if stat==0
-                    bool=true;
-                end
-            catch
-            end
+            % There does not seem to be a quick way of checking if devices 
+            % are open with Newport Usb Driver. 
+            % On the other hand devices normally should always be open and 
+            % trying to re-open them is not time consuming.
+            openDevice(this);
+            bool=true;
         end
         
-        function closeDevice(this)
-            CloseDevices(this.Device);
+        function closeDevice(~)
+            % Closing a single device is not supported by Newport Usb 
+            % driver. use CloseDevices(this.UsbComm.Usb) to close all.
         end
         
         function stat_list=writeCommand(this, varargin)
             % Create auxiliary variable for device communication
-            QueryData=System.Text.StringBuilder(64);  
+            % Query is used for writing as the controller always returns
+            % a status string that needs to be read out
             if ~isempty(varargin)
                 n_cmd=length(varargin);
                 stat_list=cell(n_cmd,1);
@@ -154,15 +155,12 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.Device, this.address, cmd, QueryData);
-                    stat_list{i} = char(ToString(QueryData));
+                    stat_list{i} = query(this.UsbComm, this.address, cmd);
                 end
             end
         end
         
         function res_list=queryCommand(this, varargin)
-            % Create auxiliary variable for device communication
-            QueryData=System.Text.StringBuilder(64);  
             if ~isempty(varargin)
                 n_cmd=length(varargin);
                 res_list=cell(n_cmd,1);
@@ -170,70 +168,26 @@ classdef MyTlb6700 < MyScpiInstrument
                 % to sometimes give errors if the string is very long
                 for i=1:n_cmd
                     cmd = [varargin{i},';'];
-                    Query(this.Device, this.address, cmd, QueryData);
-                    res_list{i} = char(ToString(QueryData));
+                    res_list{i} = query(this.UsbComm, this.address, cmd);
                 end
             else
                 res_list={};
             end
         end
         
-        % readPropertyHedged and writePropertyHedged
-        % are overloaded to not close the device
-        function writePropertyHedged(this, varargin)
-            openDevice(this);
-            try
-                writeProperty(this, varargin{:});
-            catch
-                warning('Error while writing the properties:');
-                disp(varargin);
-            end
-            readProperty(this, 'all');
-        end
-        
-        function result=readPropertyHedged(this, varargin)
-            openDevice(this);
-            try
-                result = readProperty(this, varargin{:});
-            catch
-                warning('Error while reading the properties:');
-                disp(varargin);
-            end
-        end
-        
-        % Attempt communication and identification
-        function [str, msg]=idn(this)
-            QueryData=System.Text.StringBuilder(64); 
-            try
-                openDevice(this);
-                code=Query(this.Device, this.address, '*IDN?', QueryData);
-                str=char(ToString(QueryData));
-                if code~=0
-                    msg='Communication with controller failed';
-                else
-                    msg='';
-                end
-            catch ErrorMessage
-                str='';
-                msg=ErrorMessage.message;
-            end
-            this.idn_str=str;
-        end
+        %% Laser power and scan control functions
         
         function stat = setMaxOutPower(this)
-            QueryData=System.Text.StringBuilder(64); 
-            
             openDevice(this);
             % Depending on if the laser in the constat power or current
             % mode, set value to max
             if this.const_power
-                Query(this.Device, this.address, ...
-                    'SOURce:POWer:DIODe MAX;', QueryData);
+                stat = query(this.UsbComm, this.address, ...
+                    'SOURce:POWer:DIODe MAX;');
             else
-                Query(this.Device, this.address, ...
-                    'SOURce:CURRent:DIODe MAX;', QueryData);
+                stat = query(this.UsbComm, this.address, ...
+                    'SOURce:CURRent:DIODe MAX;');
             end
-            stat = char(ToString(QueryData));
         end
         
         % Returns minimum and maximum wavelengths of the laser. There does 
@@ -254,7 +208,6 @@ classdef MyTlb6700 < MyScpiInstrument
             writeProperty(this, 'scan_start_wl', tmp);
         end
         
-        %% Wavelength scan-related functions
         function configSingleScan(this)
             openDevice(this);
             % Configure:

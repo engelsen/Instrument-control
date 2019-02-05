@@ -1,18 +1,18 @@
-classdef MyInstrument < dynamicprops & MyInputHandler
+% Generic class to implement communication with instruments 
+
+classdef MyInstrument < dynamicprops & MyDataSource
     
     % Access for these variables is 'protected' and in addition
-    % granted to MyInputHandler in order to use ConstructionParser 
-    properties (GetAccess=public, SetAccess=?MyInputHandler)     
-        % name is sometimes used as identifier in listeners callbacks, so
-        % it should not be changed after instrument object is initiated
-        name='';
+    % granted to MyClassParser in order to use construction parser.
+    % Granting access to MyInstrument explicitly is needed to make 
+    % these properties accessible for subclasses. 
+    properties (GetAccess=public, SetAccess={?MyClassParser,?MyInstrument})     
         interface='';
         address=''; 
     end
     
     properties (Access=public)
         Device %Device communication object    
-        Trace %MyTrace object for storing data
     end 
     
     properties (GetAccess=public, SetAccess=protected)
@@ -27,26 +27,16 @@ classdef MyInstrument < dynamicprops & MyInputHandler
     end
     
     events
-        NewData
-        PropertyRead
-    end
-    
-    methods (Access=protected)
-        % This function is overloaded to add more parameters to the parser 
-        function p = createConstructionParser(this)
-            p=inputParser();
-            addRequired(p,'interface',@ischar);
-            addRequired(p,'address',@ischar);
-            addParameter(p,'name','',@ischar);
-            this.ConstructionParser=p;
-        end
+        PropertyRead 
     end
     
     methods (Access=public)
         function this=MyInstrument(interface, address, varargin)
-            createConstructionParser(this);      
-            %Loads parsed variables into class properties
-            parseClassInputs(this,interface,address,varargin{:});
+            P=MyClassParser();
+            addRequired(P,'interface',@ischar);
+            addRequired(P,'address',@ischar);
+            addParameter(P,'name','',@ischar);
+            processInputs(P, this, interface, address, varargin{:});
             
             % Create an empty trace
             this.Trace=MyTrace();
@@ -98,30 +88,8 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             try
                 delete(this.Device);
             catch
-                warning('Device object cannot be deleted')
             end
         end    
-        
-        %Triggers event for acquired data
-        function triggerNewData(this,varargin)
-            EventData = MyNewDataEvent();
-            EventData.Instr=this;
-            % An option to suppress collection of new header so that
-            % NewData can be used to transfer previously acquired trace 
-            % to Daq 
-            if length(varargin)>=1
-                if strcmpi(varargin{1},'no_new_header')
-                    EventData.no_new_header=true;
-                else
-                    warning(['Keyword %s is unrecognized. Use ',...
-                        '''no_new_header'' to suppress header ',...
-                        'collection.'],varargin{1})
-                end
-            else
-                EventData.no_new_header=false;
-            end
-            notify(this,'NewData',EventData);
-        end
         
         %Triggers event for property read from device
         function triggerPropertyRead(this)
@@ -133,16 +101,11 @@ classdef MyInstrument < dynamicprops & MyInputHandler
         % Dummy method that needs to be re-defined by a parent class
         function Hdr=readHeader(this)
             Hdr=MyMetadata();
-            % Generate valid field name from instrument name if present and
-            % class name otherwise
-            if ~isempty(this.name)
-                field_name=genvarname(this.name);
-            else
-                field_name=class(this);
-            end
-            addField(Hdr, field_name);
+            % Instrument name is a valid Matalb identifier as ensured by
+            % its set method (see the superclass)
+            addField(Hdr, this.name);
             % Add identification string as parameter
-            addParam(Hdr, field_name, 'idn', this.idn_str);
+            addParam(Hdr, this.name, 'idn', this.idn_str);
         end
        
         
@@ -250,9 +213,6 @@ classdef MyInstrument < dynamicprops & MyInputHandler
                 str='';
                 msg=ErrorMessage.message;
             end   
-            % Remove carriage return and new line symbols from the string
-            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
-            str=replace(str, newline_smb,' ');
             this.idn_str=str;
             % Leave device in the state it was in the beginning
             if ~was_open
@@ -263,5 +223,15 @@ classdef MyInstrument < dynamicprops & MyInputHandler
             end
         end
         
+    end
+    
+    %% Set and get methods
+    methods 
+        function set.idn_str(this, str)
+            % Remove carriage return and new line symbols from the string
+            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
+            str=replace(str, newline_smb,' ');
+            this.idn_str=str;
+        end
     end
 end

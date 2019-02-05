@@ -102,7 +102,10 @@ classdef MyScpiInstrument < MyInstrument
         % Wrapper for writeProperty that opens and closes the device
         function writePropertyHedged(this, varargin)
             was_open = isopen(this);
-            openDevice(this);
+            if ~was_open
+                openDevice(this);
+            end
+            
             try
                 writeProperty(this, varargin{:});
             catch
@@ -168,7 +171,10 @@ classdef MyScpiInstrument < MyInstrument
         % Wrapper for readProperty that opens and closes the device
         function result=readPropertyHedged(this, varargin)
             was_open = isopen(this);
-            openDevice(this);
+            if ~was_open
+                openDevice(this);
+            end
+            
             try
                 result = readProperty(this, varargin{:});
             catch
@@ -181,11 +187,37 @@ classdef MyScpiInstrument < MyInstrument
             end
         end
         
-        % readHeader function
+        %% Identification
+        % Overload the basic MyInstrument function to use a generalized way
+        % of querying commands avaliable in MyScpiInstrument
+        function [str, msg]=idn(this)
+            was_open=isopen(this);
+            try
+                openDevice(this);
+                str=queryCommand(this,'*IDN?');
+                assert(~isempty(str), ['IDN query to the instrument ' ...
+                    'did not return a result'])
+                str=str{1};
+            catch ErrorMessage
+                str='';
+                msg=ErrorMessage.message;
+            end   
+            this.idn_str=str;
+            % Leave device in the state it was in the beginning
+            if ~was_open
+                try
+                    closeDevice(this);
+                catch
+                end
+            end
+        end
+        
+        %% Measurements header functionality
+
         function Hdr=readHeader(this)
             %Call parent class method and then append parameters
             Hdr=readHeader@MyInstrument(this);
-            %Hdr should contain single field
+            %Hdr should contain a single field
             readPropertyHedged(this,'all');
             for i=1:length(this.read_commands)
                 cmd = this.read_commands{i};
@@ -317,8 +349,25 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandList.(tag).write_flag=contains(p.Results.access,'w');
             this.CommandList.(tag).read_flag=contains(p.Results.access,'r');
             this.CommandList.(tag).default=p.Results.default;
-            this.CommandList.(tag).val_list=p.Results.val_list;
             this.CommandList.(tag).info=p.Results.info;
+            
+            %Add the list of values, if needed extending it to include
+            %short forms. For example, for the allowed value 'AVErage'
+            %its short form 'AVE' also will be added.
+            vl=p.Results.val_list;
+            short_vl={};
+            for i=1:length(vl)
+                if ischar(vl{i})
+                    idx = isstrprop(vl{i},'upper');
+                    short_form=vl{i}(idx);
+                    % Add the short form to the list of values if it was
+                    % not included explicitly
+                    if ~ismember(short_form, vl)
+                        short_vl{end+1}=short_form; %#ok<AGROW>
+                    end
+                end
+            end
+            this.CommandList.(tag).val_list=[vl,short_vl];
             
             % Adds the string specifier to the list. if the format
             % specifier is not given explicitly, try to infer

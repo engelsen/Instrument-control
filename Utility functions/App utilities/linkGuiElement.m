@@ -10,74 +10,125 @@
 
 function linkGuiElement(app, elem, prop_tag, varargin)
     p=inputParser();
+    
     % GUI control element
     addRequired(p,'elem');
+    
     % Instrument command to be linked to the GUI element
     addRequired(p,'prop_tag',@ischar);
+    
+    % A property of the GUI element that is updated according to the value
+    % under prop_tag can be other than 'Value' (e.g. 'Color' in the case of
+    % a lamp indicator)
+    addParameter(p,'elem_prop','Value',@ischar);
+    
     % If input_presc is given, the value assigned to the instrument propery  
     % is related to the value x displayed in GUI as x/input_presc.
     addParameter(p,'input_presc',1,@isnumeric);
-    % Add an arbitrary function for processing the value, read from the
-    % device before outputting it. 
+    
+    % Arbitrary processing functions can be specified for input and output.
+    % out_proc_fcn is applied to values before assigning them to gui
+    % elements and in_proc_fcn is applied before assigning
+    % to the linked properties
     addParameter(p,'out_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
+    addParameter(p,'in_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
+    
     addParameter(p,'create_callback',true,@islogical);
+    
     % For drop-down menues initializes entries automatically based on the 
     % list of values. Ignored for all the other control elements. 
     addParameter(p,'init_val_list',false,@islogical);
+    
     parse(p,elem,prop_tag,varargin{:});
     
     create_callback = p.Results.create_callback;
     
-    % Check if the property is present in the app and if it corresponds to
-    % an instrument command
-    tmpval = app;
-    tag_split=regexp(prop_tag,'\.','split');
-    nlev=length(tag_split);
-    for i=1:nlev
-        try 
-            % If value is inaccesible for any reason, an error will be
-            % thrown
-            tmpval=tmpval.(tag_split{i});
-            
-            % Check if prop_tag corresponds to a command of 
-            % MyScpiInstrument. Instrument object would be at the one
-            % before last level in this case.
-            if i==(nlev-1)
-                try
-                    is_cmd=ismember(tag_split{end},tmpval.command_names);
-                catch
-                    is_cmd=false;
-                end
-                if is_cmd
-                    Instr=tmpval;
-                    cmd=tag_split{end};
-                    % Never create callbacks for read-only properties
-                    if ~contains(Instr.CommandList.(cmd).access,'w')
-                        create_callback=false;
-                    end
-                % Then check if the tag corresponds to a simple bject
-                % property
-                elseif isprop(tmpval, tag_split{end})
-                    mp = findprop(tmpval, tag_split{end});
-                    % Newer create callbacks for the properties with
-                    % attributes listed below, as those cannot be set
-                    if mp.Dependent || mp.Constant || mp.Abstract ||...
-                        ~strcmpi(mp.SetAccess,'public')
-                        create_callback=false;
-                    end
-                end
-            end
-        catch
-            disp(['Property corresponding to tag ',prop_tag,...
-                ' is not accesible, element is not linked.'])
-            elem.Enable='off';
-            return
-        end
+    if isempty(prop_tag)
+        warning('''prop_tag'' is empty, element is not linked')
+        return
     end
-
-    % If the create_callback is true, assign genericValueChanged as
-    % callback
-    if create_callback
+    
+    % Make sure the property tag starts with a dot and convert to
+    % subreference structure
+    if prop_tag(1)~='.'
+        PropSubref=str2substruct(['.',prop_tag]);
+    else
+        PropSubref=str2substruct(prop_tag);
+    end
+    
+    % Check if the referenced property is accessible
+    try
+        target_val=subsref(app, PropSubref);
+    catch
+        disp(['Property corresponding to tag ',prop_tag,...
+            ' is not accessible, element is not linked and disabled.'])
+        elem.Enable='off';
+        return
+    end
+    
+    % Check if the tag refers to a property of an object, which also helps
+    % to determine is callback is to be created
+    if (length(PropSubref)>1) && isequal(PropSubref(end).type,'.')
+        % Potential MyInstrument object
+        Obj=subsref(app, PropSubref(1:end-1));
+        % Potential command name
+        tag=PropSubref(end).subs;
+        % Check if the property corresponds to an instrument command
+        try 
+            is_cmd=ismember(tag, Obj.command_names);
+        catch
+            % If anything goes wrong in the previous block the prop is not
+            % a command
+            is_cmd=false;
+        end
+        if is_cmd
+            % Object is an instrument.
+            Instr=Obj;
+            % Never create callbacks for read-only properties.
+            if ~contains(Instr.CommandList.(tag).access,'w')
+                create_callback=false;
+            end
+        % Then check if the tag corresponds to a simple object
+        % property (and not to a structure field)
+        elseif isprop(Obj, tag)
+            try
+                % indprop may sometimes throw errors, especially on Matlab 
+                % below 2018a, therefore use try-catch
+                mp = findprop(Obj, tag);
+                % Newer create callbacks for the properties with
+                % attributes listed below, as those cannot be set
+                if mp.Constant||mp.Abstract||~strcmpi(mp.SetAccess,'public')
+                    create_callback=false;
+                end
+            catch
+            end
+        end
+    else
+        is_cmd=false;
+    end
+    
+    % Check if the gui element is editable - if it is not, then a callback 
+    % is not assigned. This is only meaningful for uieditfieds. Drop-downs
+    % also have 'Editable' property, but it corresponds to the editability
+    % of elements and does not have an effect on assigning callback.
+    if (strcmpi(elem.Type, 'uinumericeditfield') || ...
+            strcmpi(elem.Type, 'uieditfield')) ...
+            && strcmpi(elem.Editable, 'off')
+        create_callback=false;
+    end
+    
+    % If the gui element is disabled callback is not assigned
+    if isprop(elem, 'Enable') && strcmpi(elem.Enable, 'off')
+        create_callback=false;
+    end
+    
+    % If create_callback is true and the element does not already have 
+    % a callback, assign genericValueChanged as ValueChangedFcn
+    if create_callback && isprop(elem, 'ValueChangedFcn') && ...
+            isempty(elem.ValueChangedFcn)
+        % A public createGenericCallback method needs to intorduced in the
+        % app, as officially Matlab apps do not support an automatic
+        % callback assignment (as of the version of Matlab 2018a)
         assert(ismethod(app,'createGenericCallback'), ['App needs to ',...
             'contain public createGenericCallback method to automatically'...
             'assign callbacks. Use ''create_callback'',false in order to '...
@@ -93,44 +144,61 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                 prop_tag);
         end
     end
+    
+    % A step relevant for lamp indicators. It is often convenient to have a
+    % lamp as an indicator of on/off state. If a lamp is being linked to a 
+    % logical-type variable we therefore assign OutputProcessingFcn puts 
+    % logical values in corresponcence with colors 
+    if strcmpi(elem.Type, 'uilamp') && ~iscolor(target_val)
+        % The property of lamp that is to be updated by updateGui is not
+        % Value but Color
+        elem.UserData.elem_prop='Color';
+        % Select between the default on and off colors. Different colors
+        % can be indicated by explicitly setting OutputProcessingFcn that
+        % will overwrite the one assigned here.
+        elem.UserData.OutputProcessingFcn = ...
+            @(x)select(x, MyAppColors.lampOn(), MyAppColors.lampOff());
+    end
 
-    % If prescaler is given, add it to the element as a new property
+    % If a prescaler, input processing function or output processing  
+    % function is specified, store it in UserData of the element
     if p.Results.input_presc ~= 1
-        if isprop(elem, 'InputPrescaler')
-            warning(['The InputPrescaler property already exists',...
-                ' in the control element']);
-        else
-            addprop(elem,'InputPrescaler');
-        end
-        elem.InputPrescaler = p.Results.input_presc;
+        elem.UserData.InputPrescaler = p.Results.input_presc;
     end
-    
-    % Add an arbitrary function for output processing
+    if ~ismember('in_proc_fcn',p.UsingDefaults)
+        elem.UserData.InputProcessingFcn = p.Results.in_proc_fcn;
+    end
     if ~ismember('out_proc_fcn',p.UsingDefaults)
-        if isprop(elem, 'OutputProcessingFcn')
-            warning(['The OutputProcessingFcn property already exists',...
-                ' in the control element']);
-        else
-            addprop(elem,'OutputProcessingFcn');
-        end
-        elem.OutputProcessingFcn = p.Results.out_proc_fcn;
+        elem.UserData.OutputProcessingFcn = p.Results.out_proc_fcn;
     end
     
-    %% Code below is applicable when linking to commands of MyScpiInstrument
+    if ~ismember('elem_prop',p.UsingDefaults)
+        elem.UserData.elem_prop = p.Results.out_proc_fcn;
+    end
+    
+    %% Linking
+    
+    % The link is established by storing the subreference structure
+    % in UserData and adding elem to the list of linked elements
+    elem.UserData.LinkSubs = PropSubref;
+    app.linked_elem_list = [app.linked_elem_list, elem];
+    
+    %% MyScpiInstrument-specific
+    % The remaining code provides extended functionality for linking to 
+    % commands of MyScpiInstrument
     
     if is_cmd
         % If supplied command does not have read permission, issue warning.
-        if ~contains(Instr.CommandList.(cmd).access,'r')
+        if ~contains(Instr.CommandList.(tag).access,'r')
             fprintf(['Instrument command ''%s'' does not have read permission,\n',...
                 'corresponding gui element will not be automatically ',...
-                'syncronized\n'],cmd);
+                'syncronized\n'],tag);
             % Try switching color of the gui element to orange
-            warning_color = [0.93, 0.69, 0.13];
             try
-                elem.BackgroundColor = warning_color;
+                elem.BackgroundColor = MyAppColors.warning;
             catch
                 try
-                    elem.FontColor = warning_color;
+                    elem.FontColor = MyAppColors.warning;
                 catch
                 end
             end
@@ -139,11 +207,11 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         % Auto initialization of entries, for dropdown menus only
         if p.Results.init_val_list && isequal(elem.Type, 'uidropdown')
             try
-                cmd_val_list = Instr.CommandList.(cmd).val_list;
+                cmd_val_list = Instr.CommandList.(tag).val_list;
                 if all(cellfun(@ischar, cmd_val_list))
                     % If the command has only string values, get the list of
                     % values ignoring abbreviations
-                    cmd_val_list = stdValueList(Instr, cmd);
+                    cmd_val_list = stdValueList(Instr, tag);
                     % Capitalized the displayed values
                     elem.Items = cellfun(@(x)[upper(x(1)),lower(x(2:end))],...
                         cmd_val_list,'UniformOutput',false);
@@ -162,14 +230,9 @@ function linkGuiElement(app, elem, prop_tag, varargin)
                 elem.ItemsData = cmd_val_list;
             catch
                 warning(['Could not automatically assign values',...
-                    ' when linking ',cmd,' property']);
+                    ' when linking ',tag,' property']);
             end
         end
     end
-    
-    % The property-control link is established by assigning the tag
-    % and adding the control to the list of linked elements
-    elem.Tag = prop_tag;
-    app.linked_elem_list = [app.linked_elem_list, elem];
 end
 

@@ -1,6 +1,9 @@
 % Class for XY data representation with labelling, plotting and
 % saving/loading functionality
-classdef MyTrace < handle & matlab.mixin.Copyable
+% If instantiated as MyTrace(load_path) then 
+% the content is loaded from file
+
+classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     properties (Access=public)
         x=[];
         y=[];
@@ -10,108 +13,91 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         unit_y='';
         % MyMetadata storing information about how the trace was taken
         MeasHeaders
-        load_path='';
+        file_name='';
+        
+        % Data column and line separators
+        column_sep = '\t'
+        line_sep='\r\n'
+        
         %Cell that contains handles the trace is plotted in
         hlines={};
-        uid='';
     end
     
-    properties (Access=private)
-        Parser
-    end
-    
-    properties (Dependent=true)
-        %MyMetadata containing the MeasHeaders and 
-        %information about the trace
-        Metadata
-        
+    properties (Dependent=true)        
         label_x
         label_y
     end
     
-    methods (Access=private)
-        %Creates the input parser for the class. Includes default values
-        %for all optional parameters.
-        function createParser(this)
-            p=inputParser;
-            addParameter(p,'x',[]);
-            addParameter(p,'y',[]);
-            addParameter(p,'unit_x','x',@ischar);
-            addParameter(p,'unit_y','y',@ischar);
-            addParameter(p,'name_x','x',@ischar);
-            addParameter(p,'name_y','y',@ischar);
-            addParameter(p,'load_path','',@ischar);
-            addParameter(p,'uid','',@ischar);
-            addParameter(p,'MeasHeaders',MyMetadata(),...
-                @(x) isa(x,'MyMetadata'));
-            this.Parser=p;
-        end
-        
-        %Sets the class variables to the inputs from the inputParser. Can
-        %be used to reset class to default values if default_flag=true.
-        function parseInputs(this, inputs, default_flag)
-            parse(this.Parser,inputs{:});
-            for i=1:length(this.Parser.Parameters)
-                %Sets the value if there was an input or if the default
-                %flag is on. The default flag is used to reset the class to
-                %its default values.
-                if default_flag || ~any(ismember(this.Parser.Parameters{i},...
-                        this.Parser.UsingDefaults))
-                    this.(this.Parser.Parameters{i})=...
-                        this.Parser.Results.(this.Parser.Parameters{i});
-                end
-            end
-        end
-    end
-    
     methods (Access=public)
         function this=MyTrace(varargin)
-            createParser(this);
-            parseInputs(this,varargin,true);
+            P=MyClassParser(this);
+            % options for MeasHeaders
+            addParameter(P, 'metadata_opts',{},@iscell);
             
-            if ~ismember('load_path',this.Parser.UsingDefaults)
-                loadTrace(this,this.load_path);
+            if mod(length(varargin),2)==1
+                % odd number of elements in varargin - interpret the first
+                % element as file name and the rest as name-value pairs
+                load_path=varargin{1};
+                assert(ischar(load_path)&&isvector(load_path),...
+                    '''file_name'' must be a vector of characters');
+                processInputs(P, this, varargin{2:end});
+                this.file_name=load_path;
+            else
+                % Parse varargin as a list of name-value pairs 
+                processInputs(P, this, varargin{:});
+                load_path=[];
+            end
+            
+            this.MeasHeaders=MyMetadata(P.Results.metadata_opts{:});
+            
+            if ~isempty(load_path)
+                load(this, load_path);
             end
         end
         
         %Defines the save function for the class. Note that this is only
         %used when we want to write only the data with its associated
         %trace, rather than just the trace. To write just the trace with
-        %fewer input checks, use the writeTrace function.
-        function save(this,varargin)
+        %fewer input checks, use the writeData function.
+        function save(this, varargin)
             %Parse inputs for saving
             p=inputParser;
-            addParameter(p,'filename','placeholder',@ischar);
-            addParameter(p,'save_dir',pwd,@ischar);
             addParameter(p,'save_prec',15);
-            addParameter(p,'overwrite_flag',false);
-            parse(p,varargin{:});
+            addParameter(p,'overwrite',false);
             
-            %Assign shorter names
-            filename=p.Results.filename;
-            save_dir=p.Results.save_dir;
-            save_prec=p.Results.save_prec;
-            overwrite_flag=p.Results.overwrite_flag;
-            %Puts together the full file name
-            fullfilename=fullfile([save_dir,filename,'.txt']);
-            
-            %Creates the file in the given folder
-            stat=createFile(fullfilename,'overwrite',overwrite_flag);
-            
-            %Returns if the file is not created for some reason 
-            if ~stat 
-                error('File not created, returned write_flag %i',stat);
+            if mod(length(varargin),2)==1
+                % odd number of elements in varargin - interpret the first
+                % element as file name and the rest as name-value pairs
+                fname=varargin{1};
+                assert(ischar(fname)&&isvector(fname),...
+                    '''filename'' must be a vector of characters');
+                this.file_name=fname;
+                parse(p,varargin{2:end});
+            else
+                % Parse varargin as a list of name-value pairs and take
+                % file name from the class property
+                fname=this.file_name;
+                parse(p,varargin{:});
             end
             
-            %We now write the data to the file
-            writeData(this, fullfilename,'save_prec',save_prec);
+            %Creates the file in the given folder
+            stat=createFile(fname, 'overwrite', p.Results.overwrite);
+            
+            %Returns if the file is not created for some reason 
+            if stat
+                %We now write the data to the file
+                writeData(this, fname, 'save_prec', p.Results.save_prec);
+            else
+                warning('File not created, returned write_flag %i',stat);
+            end
+            
         end
         
         %Writes the data to a file. This is separated so that other
         %programs can write to the file from the outside. We circumvent the
         %checks for the existence of the file here, assuming it is done
         %outside.
-        function writeData(this,fullfilename, varargin)
+        function writeData(this, fullfilename, varargin)
             p=inputParser;
             addRequired(p,'fullfilename',@ischar);
             addParameter(p,'save_prec',15);
@@ -119,15 +105,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             fullfilename=p.Results.fullfilename;
             save_prec=p.Results.save_prec;
-            
-            fileID=fopen(fullfilename,'a');
 
             %Writes the metadata header
-            printAllHeaders(this.Metadata,fullfilename);
-            %Puts in header title for the data
-            fprintf(fileID,...
-                [this.Metadata.hdr_spec,'Data',this.Metadata.hdr_spec,'\r\n']);
+            Mdt=makeMetadata(this);
+            save(Mdt, fullfilename);
             
+            fileID=fopen(fullfilename,'a');
             %Pads the vectors if they are not equal length
             diff=length(this.x)-length(this.y);
             if diff<0
@@ -143,11 +126,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             %Save in the more compact of fixed point and scientific 
             %notation with trailing zeros removed
             %If save_prec=15, we get %.15g\t%.15g\r\n
-            %Formatting without column padding may look ugly, but it makes
-            %files quite a bit smaller
-            data_format_str=sprintf('%%.%ig\t%%.%ig\r\n',...
-                save_prec,save_prec);
-            fprintf(fileID,data_format_str,[this.x, this.y]');
+            %Formatting without column padding may look ugly but makes
+            %files significantly smaller
+            data_format_str=sprintf(['%%.%ig',this.column_sep,'%%.%ig',...
+                this.line_sep],save_prec,save_prec);
+            fprintf(fileID, data_format_str,[this.x, this.y]');
             fclose(fileID);
         end
         
@@ -156,7 +139,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.y=[];
         end
         
-        function loadTrace(this, file_path, varargin)
+        function load(this, file_path, varargin)
             p=inputParser;
             addParameter(p,'hdr_spec',...
                 this.MeasHeaders.hdr_spec,@ischar);
@@ -164,64 +147,91 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 this.MeasHeaders.end_header,@ischar);
             parse(p,varargin{:});
             
-            hdr_spec=p.Results.hdr_spec;
-            end_header=p.Results.end_header;
+            this.MeasHeaders.hdr_spec=p.Results.hdr_spec;
+            this.MeasHeaders.end_header=p.Results.end_header;
             
             if ~exist(file_path,'file')
                 error('File does not exist, please choose a different load path')
             end
             
-            %Instantiate a header object from the file you are loading. We
-            %get the line number we want to read from as an output.
-            [this.MeasHeaders,end_line_no]=MyMetadata(...
-                'load_path',file_path,...
-                'hdr_spec',hdr_spec,...
-                'end_header',end_header);
+            %Read metadata. We get the line number we want to read
+            %the main data from as an output.
+            end_line_no=load(this.MeasHeaders, file_path);
             
             %Tries to assign units and names and then delete the Info field
             %from MeasHeaders
             try
-                this.unit_x=this.MeasHeaders.Info.Unit1.value;
-                this.unit_y=this.MeasHeaders.Info.Unit2.value;
-                this.name_x=this.MeasHeaders.Info.Name1.value;
-                this.name_y=this.MeasHeaders.Info.Name2.value;
+                setFromMetadata(this, this.MeasHeaders);
                 deleteField(this.MeasHeaders,'Info');
             catch
-                warning(['No metadata found. No units or labels assigned',...
-                    ' when loading trace from %s'],file_path)
+                warning(['No trace metadata found. No units or labels ',...
+                    'assigned when loading trace from %s'],file_path)
                 this.name_x='x';
                 this.name_y='y';
-                this.unit_x='x';
-                this.unit_y='y';
+                this.unit_x='';
+                this.unit_y='';
             end
             
             %Reads x and y data
-            data_array=dlmread(file_path,'\t',end_line_no,0);
+            data_array=dlmread(file_path, this.column_sep, ...
+                end_line_no,0);
             this.x=data_array(:,1);
             this.y=data_array(:,2);
             
-            this.load_path=file_path;
+            this.file_name=file_path;
         end
         
-        %Allows setting of multiple properties in one command.
-        function setTrace(this, varargin)
-            parseInputs(this, varargin, false);
+        % Generate metadata that includes measurement headers and
+        % information about trace. This function is used in place of 'get'
+        % method so it can be overloaded in a subclass.
+        function Mdt=makeMetadata(this)
+            %First we update the trace information
+            Mdt=MyMetadata();
+            addField(Mdt,'Info');
+            addParam(Mdt,'Info','Name1',this.name_x);
+            addParam(Mdt,'Info','Name2',this.name_y);
+            addParam(Mdt,'Info','Unit1',this.unit_x);
+            addParam(Mdt,'Info','Unit2',this.unit_y);
+            
+            addMetadata(Mdt,this.MeasHeaders);
         end
+        % Assign trace parameters from metadata
+        function setFromMetadata(this, Mdt)
+            if isfield(Mdt.Info, 'Unit1')
+                this.unit_x=Mdt.Info.Unit1.value;
+            end
+            if isfield(Mdt.Info, 'Unit2')
+                this.unit_y=Mdt.Info.Unit2.value;
+            end
+            if isfield(Mdt.Info, 'Name1')
+                this.name_x=Mdt.Info.Name1.value;
+            end
+            if isfield(Mdt.Info, 'Name2')
+                this.name_y=Mdt.Info.Name2.value;
+            end
+        end
+        
 
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
-        function plotTrace(this,plot_axes,varargin)
-            %Checks that there are axes to plot
-            assert(exist('plot_axes','var') && ...
-                (isa(plot_axes,'matlab.graphics.axis.Axes')||...
-                isa(plot_axes,'matlab.ui.control.UIAxes')),...
-                'Please input axes to plot in.')
+        function plot(this, varargin)
+            % Do nothing if there is no data in the trace
+            if isempty(this)
+                return
+            end
+            
             %Checks that x and y are the same size
             assert(validatePlot(this),...
                 'The length of x and y must be identical to make a plot')
             %Parses inputs 
             p=inputParser();
+            
+            % Axes in which log should be plotted
+            addOptional(p, 'plot_axes', [], @(x)assert( ...
+                isa(x,'matlab.graphics.axis.Axes')||...
+                isa(x,'matlab.ui.control.UIAxes'),...
+                'Argument must be axes or uiaxes.'));
             
             validateColor=@(x) assert(iscolor(x),...
                 'Input must be a valid color. See iscolor function');
@@ -237,6 +247,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             
             addParameter(p,'MarkerSize',6,...
                 @(x) validateattributes(x,{'numeric'},{'positive'}));
+            
             addParameter(p,'make_labels',false,@islogical);
             
             interpreters={'none','tex','latex'};
@@ -244,6 +255,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable
                 'Interpreter must be none, tex or latex');
             addParameter(p,'Interpreter','latex',validateInterpreter);
             parse(p,varargin{:});
+            
+            %If axes are not supplied get current
+            if ~isempty(p.Results.plot_axes)
+                plot_axes=p.Results.plot_axes;
+            else
+                plot_axes=gca();
+            end
             
             ind=findLineInd(this, plot_axes);
             if ~isempty(ind) && any(ind)
@@ -282,19 +300,21 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         end
         
         %Defines addition of two MyTrace objects
-        function sum=plus(a,b)
-            checkArithmetic(a,b);
+        function sum=plus(this,b)
+            checkArithmetic(this,b);
             
-            sum=MyTrace('x',a.x,'y',a.y+b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+            sum=MyTrace('x',this.x,'y',this.y+b.y, ...
+                'unit_x',this.unit_x,'unit_y',this.unit_y, ...
+                'name_x',this.name_x,'name_y',this.name_y);
         end
         
         %Defines subtraction of two MyTrace objects
-        function sum=minus(a,b)
-            checkArithmetic(a,b);
+        function diff=minus(this,b)
+            checkArithmetic(this,b);
             
-            sum=MyTrace('x',a.x,'y',a.y-b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+            diff=MyTrace('x',this.x,'y',this.y-b.y, ...
+                'unit_x',this.unit_x,'unit_y',this.unit_y, ...
+                'name_x',this.name_x,'name_y',this.name_y);
         end
         
         function [max_val,max_x]=max(this)
@@ -326,6 +346,25 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             area=trapz(this.x(ind),this.y(ind));
         end
         
+        % Picks every n-th element from the trace,
+        % performing a running average first if opt=='avg'
+        function downsample(this, n, opt)
+            n0=ceil(n/2);
+            if nargin()==3 && (strcmpi(opt,'average') || strcmpi(opt,'vg'))
+                % Compute moving average with 'shrink' option so that the
+                % total number of samples is preserved. Endpoints will be
+                % discarded by starting the indexing from n0.
+                tmpy=movmean(this.y, 'Endpoints', 'shrink');
+                
+                this.x=this.x(n0:n:end);
+                this.y=tmpy(n0:n:end);
+            else
+                % Downsample without averaging
+                this.x=this.x(n0:n:end);
+                this.y=this.y(n0:n:end);
+            end
+        end
+        
         %Checks if the object is empty
         function bool=isempty(this)
             bool=isempty(this.x) && isempty(this.y);
@@ -349,15 +388,17 @@ classdef MyTrace < handle & matlab.mixin.Copyable
     
     methods (Access=private)
         %Checks if arithmetic can be done with MyTrace objects.
-        function checkArithmetic(a,b)
-            assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
+        function checkArithmetic(this, b)
+            assert(isa(this,'MyTrace') && isa(b,'MyTrace'),...
                 ['Both objects must be of type MyTrace to add,',...
-                'here they are type %s and %s'],class(a),class(b));
-            assert(strcmp(a.unit_x, b.unit_x) && strcmp(a.unit_y,b.unit_y),...
-                'The MyTrace classes must have the same units for arithmetic');
-            assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
+                'here they are type %s and %s'],class(this),class(b));
+            assert(strcmp(this.unit_x, b.unit_x) && ...
+                strcmp(this.unit_y,b.unit_y),...
+                'The MyTrace classes must have the same units for arithmetic')
+            assert(length(this.x)==length(this.y)==...
+                length(this.x)==length(this.y),...
                 'The length of x and y must be equal for arithmetic');
-            assert(all(a.x==b.x),...
+            assert(all(this.x==b.x),...
                 'The MyTrace objects must have identical x-axis for arithmetic')
         end
         
@@ -382,7 +423,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.MeasHeaders=MeasHeaders;
         end
         
-        %Set function for x, checks if it is a vector of doubles.
+        %Set function for x, checks if it is a vector of doubles and
+        %reshapes into a column vector
         function set.x(this, x)
             assert(isnumeric(x),...
                 'Data must be of class double');
@@ -390,12 +432,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         end
         
         %Set function for y, checks if it is a vector of doubles and
-        %generates a new UID for the trace
+        %reshapes into a column vector
         function set.y(this, y)
             assert(isnumeric(y),...
                 'Data must be of class double');
             this.y=y(:);
-            this.uid=genUid(); %#ok<MCSUP>
         end
         
         %Set function for unit_x, checks if input is a string.
@@ -426,17 +467,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable
             this.name_y=name_y;
         end
         
-        function set.load_path(this, load_path)
-            assert(ischar(load_path),'File path must be a char, not a %s',...
-                class(load_path));
-            this.load_path=load_path;
+        function set.file_name(this, file_name)
+            assert(ischar(file_name),'File path must be a char, not a %s',...
+                class(file_name));
+            this.file_name=file_name;
         end
         
-        function set.uid(this, uid)
-            assert(ischar(uid),'UID must be a char, not a %s',...
-                class(uid));
-            this.uid=uid;
-        end
         %Get function for label_x, creates label from name_x and unit_x.
         function label_x=get.label_x(this)
             label_x=sprintf('%s (%s)', this.name_x, this.unit_x);
@@ -445,20 +481,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable
         %Get function for label_y, creates label from name_y and unit_y.
         function label_y=get.label_y(this)
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
-        end
-        
-        %Generates the full metadata of the trace
-        function Metadata=get.Metadata(this)
-            %First we update the trace information
-            Metadata=MyMetadata();
-            addField(Metadata,'Info');
-            addParam(Metadata,'Info','uid',this.uid);
-            addParam(Metadata,'Info','Name1',this.name_x);
-            addParam(Metadata,'Info','Name2',this.name_y);
-            addParam(Metadata,'Info','Unit1',this.unit_x);
-            addParam(Metadata,'Info','Unit2',this.unit_y);
-            
-            addMetadata(Metadata,this.MeasHeaders);
         end
     end
 end
