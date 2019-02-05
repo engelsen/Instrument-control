@@ -2,12 +2,23 @@
 clear
 x_vec=linspace(0,200,1000);
 
-testFit=MyFit('fit_name','lorentzian','enable_gui',1);
+testFit=MyFit('fit_name','exponential','enable_gui',1);
 params=cell(1,testFit.n_params);
-for i=1:testFit.n_params
-    params{i}=5*rand;
+switch testFit.fit_name
+    case 'Lorentzian'
+        for i=1:testFit.n_params
+            params{i}=5*rand;
+            params{3}=200*rand;
+        end
+    case 'Exponential'
+        params{1}=5*rand;
+        params{2}=-0.1*rand;
+        params{3}=0.01*rand;
+    otherwise
+        for i=1:testFit.n_params
+            params{i}=5*rand;
+        end
 end
-params{3}=200*rand;
 
 params
 y_vec=testFit.FitStruct.(testFit.fit_name).anon_fit_fun(x_vec,params{:}).*normrnd(1,0.04,size(x_vec));

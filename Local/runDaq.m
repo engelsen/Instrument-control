@@ -1,7 +1,8 @@
 % General Plot
-function name = runDaq()
+function runDaq()
     name = 'Daq';
-    if ~isValidBaseVar('Collector'); runCollector; end
-    evalin('base',[name,'=MyDaq(''collector_handle'',Collector);']);
+    C = MyCollector.instance();
+    Daq = MyDaq('collector_handle',C,'global_name',name);
+    assignin('base',name,Daq);
 end
 

@@ -8,6 +8,11 @@ function [p_in,lim_lower,lim_upper]=initParamExponential(x,y)
 lim_upper=[Inf,Inf,Inf];
 lim_lower=-lim_upper;
 
+%Fix to avoid unphysical offsets on data where all y values exceed 0.
+if all(y>0)
+    lim_lower(3)=0;
+end
+
 if abs(amp_max)>abs(amp_min)
     lim_upper(1)=Inf;
     lim_lower(1)=0;
@@ -39,7 +44,7 @@ if all(y>0)
     r2=sum(x .* y2);
     p_in(2)=(n * r2 - k * j)/(n * l - j^2);
     p_in(1)=exp((k-p_in(2)*j)/n);
-    y=y+amp_min;
+    y=y+amp_min-eps;
 elseif abs(amp_max)>abs(amp_min) && amp_max>0
     p_in(1)=amp_max;
     p_in(2)=-1;

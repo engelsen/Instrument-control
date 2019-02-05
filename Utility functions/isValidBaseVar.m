@@ -1,6 +1,6 @@
 function bool = isValidBaseVar(name)
     % Check if the name exists and valid in the global numspace
-    name_exist = ~exist(name, 'var');
+    name_exist = evalin('base',['exist(''',name,''', ''var'')']);
     if name_exist
         % Check if the variable is a valid object
         try

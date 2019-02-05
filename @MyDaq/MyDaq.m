@@ -1,113 +1,116 @@
+% Acquisition and analysis program that receives data from Collector. Can
+% also be used for analysis of previously acquired traces.
 classdef MyDaq < handle
     properties
+        %Global variable with Daq name is cleared on exit.
+        global_name
         %Contains GUI handles
-        Gui;
+        Gui
         %Contains Reference trace (MyTrace object)
-        Ref;
+        Ref
         %Contains Data trace (MyTrace object)
-        Data;
+        Data
         %Contains Background trace (MyTrace object)
-        Background;
+        Background
 
         %List of all the programs with run files
-        ProgramList=struct();
+        ProgramList=struct()
         %Struct containing Cursor objects
-        Cursors=struct();
+        Cursors=struct()
         %Struct containing Cursor labels
-        CrsLabels=struct();
+        CrsLabels=struct()
         %Struct containing MyFit objects
-        Fits=struct();
+        Fits=struct()
         %Input parser for class constructor
-        ConstructionParser;
+        ConstructionParser
         %Struct for listeners
-        Listeners=struct();
+        Listeners=struct()
 
         %Sets the colors of fits, data and reference
-        fit_color='k';
-        data_color='b';
-        ref_color='r';
-        bg_color='c';
+        fit_color='k'
+        data_color='b'
+        ref_color='r'
+        bg_color='c'
         
-        %Flag for enabling the GUI
-        enable_gui;
+        default_ext='.txt' % default data file extension
     end
     
     properties (Dependent=true)
-        save_dir;
-        main_plot;
-        open_fits;
-        open_crs;
-        running_progs;
+        save_dir
+        main_plot
+        open_fits
+        open_crs
     end
     
-    properties (Dependent=true, SetAccess=private)
+    properties (Dependent=true, SetAccess=private, GetAccess=public)
         %Properties for saving files
-        base_dir;
-        session_name;
-        filename;
+        base_dir
+        session_name
+        filename % File name is always returned with extension
     end
     
     methods (Access=public)
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
+            % Parse inputs
             p=inputParser;
-            addParameter(p,'enable_gui',1);
-            addParameter(p,'collector_handle',[])
+            addParameter(p,'global_name','',@ischar);
+            addParameter(p,'collector_handle',[]);
             this.ConstructionParser=p;
             parse(p, varargin{:});
             
-            %Sets the class variables to the inputs from the inputParser.
-            for i=1:length(p.Parameters)
-                %Takes the value from the inputParser to the appropriate
-                %property.
-                if isprop(this, p.Parameters{i})
-                    this.(p.Parameters{i})= p.Results.(p.Parameters{i});
-                end
-            end
-
-            %The list of instruments is automatically populated from the
-            %run files
-            this.ProgramList = readRunFiles();
-            
-            if this.enable_gui
-                %We grab the guihandles from a GUI made in Guide.
-                this.Gui=guihandles(eval('GuiDaq'));
-                %This function sets all the callbacks for the GUI. If a new
-                %button is made, the associated callback must be put in the
-                %initGui function
-                initGui(this);
-                % Initialize the menu based on the available run files
-                content = menuFromRunFiles(this.ProgramList,...
-                    'show_in_daq',true);
-                set(this.Gui.InstrMenu,'String',[{'Select the application'};...
-                    content.titles]);
-                % Add a property to the menu for storing the program file
-                % names
-                if ~isprop(this.Gui.InstrMenu, 'ItemsData')
-                    addprop(this.Gui.InstrMenu, 'ItemsData');
-                end
-                set(this.Gui.InstrMenu,'ItemsData',[{''};...
-                    content.tags]);
-                hold(this.main_plot,'on');
-            end
+            this.global_name = p.Results.global_name;
             
             %Sets a listener to the collector
             if ~isempty(p.Results.collector_handle)
-                this.Listeners.Collector.NewDataCollected=...
+                this.Listeners.Collector.NewDataWithHeaders=...
                     addlistener(p.Results.collector_handle,...
-                    'NewDataCollected',...
-                    @(src,event) acquireNewData(this,src,event));
+                    'NewDataWithHeaders',...
+                    @(~,eventdata) acquireNewData(this,eventdata));
             else
                 errordlg(['No collector handle was supplied. ',...
                     'DAQ will be unable to acquire data'],...
                     'Error: No collector');
             end
             
-            %Initializes empty trace objects
+            % Initialize traces
             this.Ref=MyTrace();
             this.Data=MyTrace();
             this.Background=MyTrace();
+
+            %The list of instruments is automatically populated from the
+            %run files
+            this.ProgramList = readRunFiles();
+            
+            %We grab the guihandles from a GUI made in Guide.
+            this.Gui=guihandles(eval('GuiDaq'));
+            %This function sets all the callbacks for the GUI. If a new
+            %button is made, the associated callback must be put in the
+            %initGui function
+            initGui(this);
+            % Initialize the menu based on the available run files
+            content = menuFromRunFiles(this.ProgramList,...
+                'show_in_daq',true);
+            set(this.Gui.InstrMenu,'String',[{'Select the application'};...
+                content.titles]);
+            % Add a property to the menu for storing the program file
+            % names
+            if ~isprop(this.Gui.InstrMenu, 'ItemsData')
+                addprop(this.Gui.InstrMenu, 'ItemsData');
+            end
+            set(this.Gui.InstrMenu,'ItemsData',[{''};...
+                content.tags]);
+            
+            % Add Data, Ref and Bg traces in the proper order on the plot
+            % as empty lines.
+            hold(this.main_plot,'on');
+            this.Background.hlines{1}=line(this.main_plot, ...
+                'XData',[],'YData',[],'Color',this.bg_color);
+            this.Ref.hlines{1}=line(this.main_plot, ...
+                'XData',[],'YData',[],'Color',this.ref_color);
+            this.Data.hlines{1}=line(this.main_plot, ...
+                'XData',[],'YData',[],'Color',this.data_color);
             
             %Initializes saving locations
             this.base_dir=getLocalSettings('measurement_base_dir');
@@ -126,13 +129,19 @@ classdef MyDaq < handle
                     fieldnames(this.Listeners));
             end
             
-            if this.enable_gui
+            % clear global variable, to which Daq handle is assigned
+            evalin('base', sprintf('clear(''%s'')', this.global_name));
+            
+            %A class destructor should never through errors, so enclose the
+            %attempt to close figure into try-catch structure
+            try
                 this.Gui.figure1.CloseRequestFcn='';
                 %Deletes the figure
                 delete(this.Gui.figure1);
                 %Removes the figure handle to prevent memory leaks
                 this.Gui=[];
-            end         
+            catch
+            end
         end
     end
     
@@ -468,16 +477,12 @@ classdef MyDaq < handle
             else
                 tag = hObject.ItemsData{val};
             end
-            
 
             try
-                [~, fname, ~] =...
-                    fileparts(this.ProgramList.(tag).fullname);
-                prog = feval(fname);
-                evalin('base', prog);
+                eval(this.ProgramList.(tag).run_expr);
             catch
                 errordlg(sprintf('An error occured while running %s',...
-                    this.ProgramList.(tag).fullname))
+                    this.ProgramList.(tag).name))
             end
 
         end
@@ -498,18 +503,55 @@ classdef MyDaq < handle
             end
         end
         
-        function saveTrace(this, trace_tag)         
+        function saveTrace(this, trace_tag, varargin) 
+            p=inputParser();
+            % If file already exists, generate a uinique name rather than
+            % show user the overwrite dialog.
+            addParameter(p, 'make_unique_name', false, @islogical);
+            parse(p,varargin{:});
+            
             %Check if the trace is valid (i.e. x and y are equal length)
             %before saving
             if ~this.(trace_tag).validatePlot
-                errordlg(sprintf('%s trace was empty, could not save',trace_tag));
+                errordlg(sprintf('%s trace was empty, could not save',...
+                    trace_tag));
                 return
             end
             
-            %Uses the protected save function of MyTrace
-            save(this.(trace_tag),...
-                'save_dir',this.save_dir,...
-                'filename',this.filename)
+            fullfilename=fullfile(this.save_dir,this.filename);
+            
+            if p.Results.make_unique_name && exist(fullfilename, 'file')~=0
+                fullfilename=makeUniqueFileName(this); 
+            end
+            
+            %Save in readable format using the method of MyTrace
+            save(this.(trace_tag), fullfilename)
+        end
+        
+        % Make the filename unique within the measurement folder
+        % by appending _n. This function does not make sure that the 
+        % filename is valid - i.e. does not contain symbols forbidden by 
+        % the file system.   
+        function fullfilename=makeUniqueFileName(this)
+            [~, fn, ext]=fileparts(this.filename);
+            % List all the existing files in the measurement directory
+            % that have the same extension as our filename
+            DirCont=dir(fullfile(this.save_dir,['*', ext]));
+            file_ind=~[DirCont.isdir];
+            existing_fns={DirCont(file_ind).name};
+
+            % Remove extensions
+            [~,existing_fns,~]=cellfun(@fileparts, existing_fns, ...
+                'UniformOutput',false);
+
+            % Generate a new file name
+            if ~isempty(fn)
+                fn=matlab.lang.makeUniqueStrings(fn, existing_fns);
+            else
+                fn=matlab.lang.makeUniqueStrings('placeholder', ...
+                    existing_fns);
+            end
+            fullfilename=fullfile(this.save_dir,[fn, ext]); 
         end
         
         %Toggle button callback for showing the data trace.
@@ -541,22 +583,17 @@ classdef MyDaq < handle
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
             if this.Data.validatePlot
-                setTrace(this.Ref,...
-                    'x',this.Data.x,...
-                    'y',this.Data.y,...
-                    'name_x',this.Data.name_x,...
-                    'name_y',this.Data.name_y,...
-                    'unit_x',this.Data.unit_x,...
-                    'unit_y',this.Data.unit_y)
-                
-                %Since UID is automatically reset when y is changed, we now
-                %change it back to be the same as the Data.
-                this.Ref.uid=this.Data.uid;
-                
+                % Copy Data to Reference and pass Reference the handle to 
+                % the line in the main plot
+                hline=getLineHandle(this.Ref, this.main_plot);
+                this.Ref=copy(this.Data);
+                if ~isempty(hline)
+                    this.Ref.hlines{1}=hline;
+                end
                 %Plot the reference trace and make it visible
-                this.Ref.plotTrace(this.main_plot,'Color',this.ref_color,...
+                plot(this.Ref, this.main_plot, 'Color',this.ref_color,...
                     'make_labels',true);
-                this.Ref.setVisible(this.main_plot,1);
+                setVisible(this.Ref, this.main_plot,1);
                 %Update the fit objects
                 updateFits(this);
                 %Change button color
@@ -571,9 +608,12 @@ classdef MyDaq < handle
         %Callback for ref to bg button. Sends the reference to background
         function refToBgCallback(this, ~, ~)
             if this.Ref.validatePlot
-                this.Background.x=this.Ref.x;
-                this.Background.y=this.Ref.y;
-                this.Background.plotTrace(this.main_plot,...
+                hline=getLineHandle(this.Background, this.main_plot);
+                this.Background=copy(this.Ref);
+                if ~isempty(hline)
+                    this.Background.hlines{1}=hline;
+                end
+                this.Background.plot(this.main_plot,...
                     'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
             else
@@ -584,9 +624,12 @@ classdef MyDaq < handle
         %Callback for data to bg button. Sends the data to background
         function dataToBgCallback(this, ~, ~)
             if this.Data.validatePlot
-                this.Background.x=this.Data.x;
-                this.Background.y=this.Data.y;
-                this.Background.plotTrace(this.main_plot,...
+                hline=getLineHandle(this.Background, this.main_plot);
+                this.Background=copy(this.Data);
+                if ~isempty(hline)
+                    this.Background.hlines{1}=hline;
+                end
+                this.Background.plot(this.main_plot,...
                     'Color',this.bg_color,'make_labels',true);
                 this.Background.setVisible(this.main_plot,1);
             else
@@ -761,8 +804,8 @@ classdef MyDaq < handle
                 this.base_dir=pwd;
             end
 
-            [load_name,path_name]=uigetfile('.txt','Select the trace',...
-                this.base_dir);
+            [load_name,path_name]=uigetfile(this.this.default_ext, ...
+                'Select the trace', this.base_dir);
             if load_name==0
                 warning('No file was selected');
                 return
@@ -771,15 +814,38 @@ classdef MyDaq < handle
             load_path=[path_name,load_name];
             %Finds the destination trace from the GUI
             dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
-            %Call the load trace function on the right trace
-            loadTrace(this.(dest_trc),load_path);
+            
+            %Get the line handle from the trace to not create a new line
+            hline=getLineHandle(this.(dest_trc), this.main_plot);
+                
+            %Reset and load the destination trace
+            this.(dest_trc)=MyTrace();
+            load(this.(dest_trc), load_path);
+            
+            % Assign existing line handle to the trace
+            if ~isempty(hline)
+                this.(dest_trc).hlines{1}=hline;
+            end
+            
             %Color and plot the right trace.
-            this.(dest_trc).plotTrace(this.main_plot,...
+            plot(this.(dest_trc), this.main_plot,...
                 'Color',this.(sprintf('%s_color',lower(dest_trc))),...
                 'make_labels',true);
             %Update axis and cursors
             updateAxis(this);
             updateCursors(this);
+        end
+        
+        % Callback for open folder button
+        function openFolderCallback(this, hObject, eventdata)
+            dir=uigetdir(this.Gui.BaseDir.String);
+            if ~isempty(dir)
+                this.Gui.BaseDir.String=dir;
+            end
+            
+            % Execute the same callback as if the base directory edit 
+            % field was manually updated 
+            baseDirCallback(this, hObject, eventdata);
         end
     end
     
@@ -794,25 +860,46 @@ classdef MyDaq < handle
         end
         
         %Callback function for the NewData listener
-        function acquireNewData(this, src, event)
+        function acquireNewData(this, EventData)
             %Get the currently selected instrument
             val=this.Gui.InstrMenu.Value;
-            curr_instr_tag=this.Gui.InstrMenu.ItemsData{val};
+            curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
             
             %Check if the data originates from the currently selected
             %instrument
-            if strcmp(event.src_tag,curr_instr_tag)
+            if strcmp(EventData.src_name, curr_instr_name)
                 hline=getLineHandle(this.Data,this.main_plot);
-                %Copy the data from the collector
-                this.Data=copy(src.Data);
+                %Copy the data from the source instrument
+                this.Data=copy(EventData.Trace);
                 %We give the new trace object the right line handle to plot in
-                if ~isempty(hline); this.Data.hlines{1}=hline; end
-                this.Data.plotTrace(this.main_plot,...
+                if ~isempty(hline)
+                    this.Data.hlines{1}=hline;
+                end
+                plot(this.Data, this.main_plot,...
                     'Color',this.data_color,...
                     'make_labels',true)
                 updateAxis(this);
                 updateCursors(this);
                 updateFits(this);
+                
+                % If the save flag is on in EventData, save the new trace
+                % making sure that a unique filename is generated to not
+                % prompt the owerwrite dialog
+                if isprop(EventData, 'save') && EventData.save
+                    if isprop(EventData, 'filename_ending')
+                        % If present, use the file name ending supplied 
+                        % externally. By default filename_ending is empty.
+                        [~,fn,ext]=fileparts(this.filename);
+                        this.filename=[fn, EventData.filename_ending, ext];
+                        
+                        saveTrace(this, 'Data', 'make_unique_name', true);
+                        
+                        % Return the file name to its original value
+                        this.filename=[fn, ext];
+                    else
+                        saveTrace(this, 'Data', 'make_unique_name', true);
+                    end
+                end
             end
         end
         
@@ -894,11 +981,7 @@ classdef MyDaq < handle
         
         %Get function for the plot handles
         function main_plot=get.main_plot(this)
-            if this.enable_gui
-                main_plot=this.Gui.figure1.CurrentAxes; 
-            else
-                main_plot=[];
-            end
+            main_plot=this.Gui.figure1.CurrentAxes; 
         end
         
         %Get function for open fits
@@ -938,18 +1021,35 @@ classdef MyDaq < handle
             this.Gui.SessionName.String=session_name;
         end
         
+        % Always return filename with extension
         function filename=get.filename(this)
             try
                 filename=this.Gui.FileName.String;
+                [~,~,ext]=fileparts(filename);
+                if isempty(ext)
+                    % Add default file extension
+                    filename=[filename, this.default_ext];
+                end
             catch
-                filename='placeholder';
+                filename=['placeholder', this.default_ext];
             end
         end
         
-        function set.filename(this,filename)
-            this.Gui.FileName.String=filename;
+        function set.filename(this, str)
+            [~,fn,ext]=fileparts(str);
+            if strcmpi(ext, this.default_ext)
+                % By default display filename without extension
+                this.Gui.FileName.String=fn;
+            else
+                this.Gui.FileName.String=[fn,ext];
+            end
         end
         
-            
+        function set.default_ext(this, str)
+            assert(ischar(str)&&(str(1)=='.'), ['Default file ' ...
+                'extension must be a character string startign ' ...
+                'with ''.'''])
+            this.default_ext=str;
+        end
     end
 end
