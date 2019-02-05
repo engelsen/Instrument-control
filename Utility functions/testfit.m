@@ -2,7 +2,7 @@
 clear
 x_vec=linspace(0,200,1000);
 
-testFit=MyFit('fit_name','exponential','enable_gui',1);
+testFit=MyFit('fit_name','Lorentzian','enable_gui',1);
 params=cell(1,testFit.n_params);
 switch testFit.fit_name
     case 'Lorentzian'
@@ -11,7 +11,7 @@ switch testFit.fit_name
             params{3}=200*rand;
         end
     case 'Exponential'
-        params{1}=5*rand;
+        params{1}=-5*rand;
         params{2}=-0.1*rand;
         params{3}=0.01*rand;
     otherwise

@@ -38,6 +38,7 @@ classdef MyFit < dynamicprops
         %Private struct used for saving file information when there is no
         %gui
         SaveInfo
+        slider_scale_vecs; %Vectors for varying the range of the sliders for different fits
     end
     
     %Dependent variables with no set methods
@@ -132,6 +133,9 @@ classdef MyFit < dynamicprops
             this.init_params=ones(1,this.n_params);
             this.lim_lower=-Inf(1,this.n_params);
             this.lim_upper=Inf(1,this.n_params);
+            
+            %Generates the slider scale variables
+            genSliderScaleVecs(this);
             
             %Creates the structure that contains variables for calibration
             %of fit results
@@ -323,7 +327,10 @@ classdef MyFit < dynamicprops
             %Resets the scale variables for the GUI
             this.scale_init=ones(1,this.n_params);
             %Updates the gui if it is enabled
-            if this.enable_gui; updateGui(this); end
+            if this.enable_gui
+                updateGui(this);
+                genSliderScaleVecs(this);
+            end
             %Plots the fit if the flag is on
             if this.enable_plot; plotFit(this); end
             %Triggers new fit event
@@ -543,7 +550,12 @@ classdef MyFit < dynamicprops
             this.scale_init=ones(1,this.n_params);
             %Plots the fit function with the new initial parameters
             if this.enable_plot; plotInitFun(this); end
-            if this.enable_gui; updateGui(this); end
+            %Updates the GUI and creates new lookup tables for the init
+            %param sliders
+            if this.enable_gui
+                updateGui(this); 
+                genSliderScaleVecs(this);
+            end
         end
         
         %Calculates the trace object for the fit
@@ -610,14 +622,32 @@ classdef MyFit < dynamicprops
             saveParams(this);
         end
         
+        function genSliderScaleVecs(this)
+            %Return values of the slider
+            slider_vals=1:101;
+            %Default scaling vector
+            scale_vec=10.^((slider_vals-50)/50);
+            %Sets the cell to the defualt value
+            this.slider_scale_vecs=cell(1,this.n_params);
+            this.slider_scale_vecs(1,:)={scale_vec};
+            if validateData(this)
+                switch this.fit_name
+                    case 'Lorentzian'
+                        this.slider_scale_vecs{3}=...
+                            linspace(this.x_vec(1),this.x_vec(end),101)...
+                            /this.init_params(3);
+                end
+            end
+        end
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
         %speed up the callback.
         function sliderCallback(this, param_ind, hObject, ~)
             %Gets the value from the slider
             scale=get(hObject,'Value');
-            %Updates the scale with a new value
-            this.scale_init(param_ind)=10^((scale-50)/50);
+            %Updates the scale with a new value from the lookup table
+            this.scale_init(param_ind)=...
+                this.slider_scale_vecs{param_ind}(scale+1);
             %Updates the edit box with the new value from the slider
             set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
                 'String',sprintf('%3.3e',this.scaled_params(param_ind)));
