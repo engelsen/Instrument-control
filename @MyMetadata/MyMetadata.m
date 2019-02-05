@@ -19,7 +19,7 @@ classdef MyMetadata < dynamicprops
         line_sep='\r\n'
         % Limit for column padding. Variables which take more space than
         % this limit are ignored when calculating the padding length.
-        pad_lim=12
+        pad_lim=15
     end
     
     properties (Access=private)
@@ -156,6 +156,17 @@ classdef MyMetadata < dynamicprops
             this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
         end
         
+        % The function below is useful to ensure the correspondence between 
+        % metadata parameter names and object property names. It spares 
+        % some lines of code. Works only with single-field metadata.
+        function addObjProp(this, Obj, tag, varargin)
+            assert(length(this.field_names)==1, ['Metadata has to ' ...
+                'contain a single field in order to add object property.']);
+            fn=this.field_names{1};
+            addParam(this, fn, tag, Obj.(tag), varargin{:});
+        end
+        
+        % Save in a readable format
         function save(this, filename, varargin)
             createFile(filename, varargin{:});
             for i=1:length(this.field_names)
@@ -240,7 +251,7 @@ classdef MyMetadata < dynamicprops
                     % Find maximum length to determine the colum width, 
                     % but, for beauty, do not account for variables with 
                     % excessively long value strings
-                    tmplen=length(par_strs{i});
+                    tmplen=length(par_strs{i}{j});
                     if (val_pad_length<tmplen)&&(tmplen<=this.pad_lim)
                         val_pad_length=tmplen;
                     end

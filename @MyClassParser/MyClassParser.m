@@ -87,9 +87,10 @@ classdef MyClassParser < inputParser
                 if ~ismember(par, this.UsingDefaults) && isprop(obj, par)
                     try
                         obj.(par) = this.Results.(par);
-                    catch
-                        warning(['Value of the input parameter ''',...
-                            par,''' could not be assigned to property'])
+                    catch ME
+                        warning(['Value of the input parameter ''' par ...
+                            ''' could not be assigned to property. ' ...
+                            ME.message])
                     end 
                 end
             end 

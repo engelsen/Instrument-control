@@ -14,7 +14,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         % MyMetadata storing information about how the trace was taken
         MeasHeaders
         file_name='';
-        uid='';
         
         % Data column and line separators
         column_sep = '\t'
@@ -24,11 +23,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         hlines={};
     end
     
-    properties (Dependent=true)
-        %MyMetadata containing the MeasHeaders and 
-        %information about the trace
-        Metadata
-        
+    properties (Dependent=true)        
         label_x
         label_y
     end
@@ -89,12 +84,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             stat=createFile(fname, 'overwrite', p.Results.overwrite);
             
             %Returns if the file is not created for some reason 
-            if ~stat 
-                error('File not created, returned write_flag %i',stat);
+            if stat
+                %We now write the data to the file
+                writeData(this, fname, 'save_prec', p.Results.save_prec);
+            else
+                warning('File not created, returned write_flag %i',stat);
             end
             
-            %We now write the data to the file
-            writeData(this, fname, 'save_prec', p.Results.save_prec);
         end
         
         %Writes the data to a file. This is separated so that other
@@ -111,7 +107,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             save_prec=p.Results.save_prec;
 
             %Writes the metadata header
-            save(this.Metadata,fullfilename);
+            Mdt=makeMetadata(this);
+            save(Mdt, fullfilename);
             
             fileID=fopen(fullfilename,'a');
             %Pads the vectors if they are not equal length
@@ -129,7 +126,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             %Save in the more compact of fixed point and scientific 
             %notation with trailing zeros removed
             %If save_prec=15, we get %.15g\t%.15g\r\n
-            %Formatting without column padding may looks ugly but makes
+            %Formatting without column padding may look ugly but makes
             %files significantly smaller
             data_format_str=sprintf(['%%.%ig',this.column_sep,'%%.%ig',...
                 this.line_sep],save_prec,save_prec);
@@ -164,18 +161,15 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             %Tries to assign units and names and then delete the Info field
             %from MeasHeaders
             try
-                this.unit_x=this.MeasHeaders.Info.Unit1.value;
-                this.unit_y=this.MeasHeaders.Info.Unit2.value;
-                this.name_x=this.MeasHeaders.Info.Name1.value;
-                this.name_y=this.MeasHeaders.Info.Name2.value;
+                setFromMetadata(this, this.MeasHeaders);
                 deleteField(this.MeasHeaders,'Info');
             catch
-                warning(['No metadata found. No units or labels assigned',...
-                    ' when loading trace from %s'],file_path)
+                warning(['No trace metadata found. No units or labels ',...
+                    'assigned when loading trace from %s'],file_path)
                 this.name_x='x';
                 this.name_y='y';
-                this.unit_x='x';
-                this.unit_y='y';
+                this.unit_x='';
+                this.unit_y='';
             end
             
             %Reads x and y data
@@ -187,11 +181,46 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.file_name=file_path;
         end
         
+        % Generate metadata that includes measurement headers and
+        % information about trace. This function is used in place of 'get'
+        % method so it can be overloaded in a subclass.
+        function Mdt=makeMetadata(this)
+            %First we update the trace information
+            Mdt=MyMetadata();
+            addField(Mdt,'Info');
+            addParam(Mdt,'Info','Name1',this.name_x);
+            addParam(Mdt,'Info','Name2',this.name_y);
+            addParam(Mdt,'Info','Unit1',this.unit_x);
+            addParam(Mdt,'Info','Unit2',this.unit_y);
+            
+            addMetadata(Mdt,this.MeasHeaders);
+        end
+        % Assign trace parameters from metadata
+        function setFromMetadata(this, Mdt)
+            if isfield(Mdt.Info, 'Unit1')
+                this.unit_x=Mdt.Info.Unit1.value;
+            end
+            if isfield(Mdt.Info, 'Unit2')
+                this.unit_y=Mdt.Info.Unit2.value;
+            end
+            if isfield(Mdt.Info, 'Name1')
+                this.name_x=Mdt.Info.Name1.value;
+            end
+            if isfield(Mdt.Info, 'Name2')
+                this.name_y=Mdt.Info.Name2.value;
+            end
+        end
+        
 
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
         function plot(this, varargin)
+            % Do nothing if there is no data in the trace
+            if isempty(this)
+                return
+            end
+            
             %Checks that x and y are the same size
             assert(validatePlot(this),...
                 'The length of x and y must be identical to make a plot')
@@ -218,6 +247,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             addParameter(p,'MarkerSize',6,...
                 @(x) validateattributes(x,{'numeric'},{'positive'}));
+            
             addParameter(p,'make_labels',false,@islogical);
             
             interpreters={'none','tex','latex'};
@@ -270,19 +300,21 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         end
         
         %Defines addition of two MyTrace objects
-        function sum=plus(a,b)
-            checkArithmetic(a,b);
+        function sum=plus(this,b)
+            checkArithmetic(this,b);
             
-            sum=MyTrace('x',a.x,'y',a.y+b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+            sum=MyTrace('x',this.x,'y',this.y+b.y, ...
+                'unit_x',this.unit_x,'unit_y',this.unit_y, ...
+                'name_x',this.name_x,'name_y',this.name_y);
         end
         
         %Defines subtraction of two MyTrace objects
-        function sum=minus(a,b)
-            checkArithmetic(a,b);
+        function diff=minus(this,b)
+            checkArithmetic(this,b);
             
-            sum=MyTrace('x',a.x,'y',a.y-b.y,'unit_x',a.unit_x,...
-                'unit_y',a.unit_y,'name_x',a.name_x,'name_y',a.name_y);
+            diff=MyTrace('x',this.x,'y',this.y-b.y, ...
+                'unit_x',this.unit_x,'unit_y',this.unit_y, ...
+                'name_x',this.name_x,'name_y',this.name_y);
         end
         
         function [max_val,max_x]=max(this)
@@ -314,6 +346,25 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             area=trapz(this.x(ind),this.y(ind));
         end
         
+        % Picks every n-th element from the trace,
+        % performing a running average first if opt=='avg'
+        function downsample(this, n, opt)
+            n0=ceil(n/2);
+            if nargin()==3 && (strcmpi(opt,'average') || strcmpi(opt,'vg'))
+                % Compute moving average with 'shrink' option so that the
+                % total number of samples is preserved. Endpoints will be
+                % discarded by starting the indexing from n0.
+                tmpy=movmean(this.y, 'Endpoints', 'shrink');
+                
+                this.x=this.x(n0:n:end);
+                this.y=tmpy(n0:n:end);
+            else
+                % Downsample without averaging
+                this.x=this.x(n0:n:end);
+                this.y=this.y(n0:n:end);
+            end
+        end
+        
         %Checks if the object is empty
         function bool=isempty(this)
             bool=isempty(this.x) && isempty(this.y);
@@ -337,15 +388,17 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     
     methods (Access=private)
         %Checks if arithmetic can be done with MyTrace objects.
-        function checkArithmetic(a,b)
-            assert(isa(a,'MyTrace') && isa(b,'MyTrace'),...
+        function checkArithmetic(this, b)
+            assert(isa(this,'MyTrace') && isa(b,'MyTrace'),...
                 ['Both objects must be of type MyTrace to add,',...
-                'here they are type %s and %s'],class(a),class(b));
-            assert(strcmp(a.unit_x, b.unit_x) && strcmp(a.unit_y,b.unit_y),...
-                'The MyTrace classes must have the same units for arithmetic');
-            assert(length(a.x)==length(a.y) && length(a.x)==length(a.y),...
+                'here they are type %s and %s'],class(this),class(b));
+            assert(strcmp(this.unit_x, b.unit_x) && ...
+                strcmp(this.unit_y,b.unit_y),...
+                'The MyTrace classes must have the same units for arithmetic')
+            assert(length(this.x)==length(this.y)==...
+                length(this.x)==length(this.y),...
                 'The length of x and y must be equal for arithmetic');
-            assert(all(a.x==b.x),...
+            assert(all(this.x==b.x),...
                 'The MyTrace objects must have identical x-axis for arithmetic')
         end
         
@@ -370,7 +423,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.MeasHeaders=MeasHeaders;
         end
         
-        %Set function for x, checks if it is a vector of doubles.
+        %Set function for x, checks if it is a vector of doubles and
+        %reshapes into a column vector
         function set.x(this, x)
             assert(isnumeric(x),...
                 'Data must be of class double');
@@ -378,12 +432,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         end
         
         %Set function for y, checks if it is a vector of doubles and
-        %generates a new UID for the trace
+        %reshapes into a column vector
         function set.y(this, y)
             assert(isnumeric(y),...
                 'Data must be of class double');
             this.y=y(:);
-            this.uid=genUid(); %#ok<MCSUP>
         end
         
         %Set function for unit_x, checks if input is a string.
@@ -420,11 +473,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.file_name=file_name;
         end
         
-        function set.uid(this, uid)
-            assert(ischar(uid),'UID must be a char, not a %s',...
-                class(uid));
-            this.uid=uid;
-        end
         %Get function for label_x, creates label from name_x and unit_x.
         function label_x=get.label_x(this)
             label_x=sprintf('%s (%s)', this.name_x, this.unit_x);
@@ -433,20 +481,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %Get function for label_y, creates label from name_y and unit_y.
         function label_y=get.label_y(this)
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
-        end
-        
-        %Generates the full metadata of the trace
-        function Metadata=get.Metadata(this)
-            %First we update the trace information
-            Metadata=MyMetadata();
-            addField(Metadata,'Info');
-            addParam(Metadata,'Info','uid',this.uid);
-            addParam(Metadata,'Info','Name1',this.name_x);
-            addParam(Metadata,'Info','Name2',this.name_y);
-            addParam(Metadata,'Info','Unit1',this.unit_x);
-            addParam(Metadata,'Info','Unit2',this.unit_y);
-            
-            addMetadata(Metadata,this.MeasHeaders);
         end
     end
 end

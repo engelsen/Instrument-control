@@ -1,4 +1,4 @@
-classdef MyCollector < handle & matlab.mixin.Copyable
+classdef MyCollector < MySingleton & matlab.mixin.Copyable
     properties (Access=public, SetObservable=true)
         InstrList % Structure accomodating instruments 
         InstrProps % Properties of instruments
@@ -18,7 +18,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         NewDataWithHeaders
     end
     
-    methods (Access=public)
+    methods (Access=private)
+        % Constructor of a singleton class must be private
         function this=MyCollector(varargin)
             p=inputParser;
             addParameter(p,'InstrHandles',{});
@@ -35,6 +36,9 @@ classdef MyCollector < handle & matlab.mixin.Copyable
             this.InstrProps=struct(); 
             this.Listeners=struct();
         end
+    end
+    
+    methods (Access=public)
         
         function delete(this)
             cellfun(@(x) deleteListeners(this,x), this.running_instruments);
@@ -80,33 +84,39 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function acquireData(this,InstrEventData)
+        function acquireData(this, InstrEventData)
             src=InstrEventData.Source;
             
             % Check that event data object is MyNewDataEvent,
             % and fix otherwise
             if ~isa(InstrEventData,'MyNewDataEvent')
                 InstrEventData=MyNewDataEvent();
-                InstrEventData.no_new_header=false;
-                InstrEventData.Instr=src;
+                InstrEventData.new_header=true;
+                InstrEventData.Trace=copy(src.Trace);
+                try
+                    InstrEventData.src_name=src.name;
+                catch
+                    InstrEventData.src_name='UnknownDevice';
+                end
             end
             
             % Collect the headers if the flag is on and if the triggering 
             % instrument does not request suppression of header collection
-            if this.collect_flag && ~InstrEventData.no_new_header
+            if this.collect_flag && InstrEventData.new_header
                 this.MeasHeaders=MyMetadata();
-                addField(this.MeasHeaders,'AcquiringInstrument')
-                if isprop(src,'name')
-                    name=src.name;
-                else
-                    name='Not Accessible';
-                end
-                addParam(this.MeasHeaders,'AcquiringInstrument',...
-                    'Name',name);
                 %Add field indicating the time when the trace was acquired
                 addTimeField(this.MeasHeaders, 'AcquisitionTime')
+                addField(this.MeasHeaders,'AcquiringInstrument')
+                %src_name is a valid matlab variable name as ensured by 
+                %its set method
+                addParam(this.MeasHeaders,'AcquiringInstrument',...
+                    'Name', InstrEventData.src_name);
                 acquireHeaders(this);
-                %We copy the MeasHeaders to the trace.
+                
+                %We copy the MeasHeaders to both copies of the trace - the
+                %one that is with the source and the one that is forwarded
+                %to Daq.
+                InstrEventData.Trace.MeasHeaders=copy(this.MeasHeaders);
                 src.Trace.MeasHeaders=copy(this.MeasHeaders);
             end
             
@@ -123,8 +133,8 @@ classdef MyCollector < handle & matlab.mixin.Copyable
                         TmpMetadata=readHeader(this.InstrList.(name));
                         addMetadata(this.MeasHeaders, TmpMetadata);
                     catch
-                        warning(['Error while reading metadata from %s.',...
-                            'Measurement header collection is switched ',...
+                        warning(['Error while reading metadata from %s. '...
+                            'Measurement header collection is switched '...
                             'off for this instrument.'],name)
                         this.InstrProps.(name).header_flag=false;
                     end
@@ -139,10 +149,35 @@ classdef MyCollector < handle & matlab.mixin.Copyable
         
         function bool=isrunning(this,name)
             assert(~isempty(name),'Instrument name must be specified')
-            assert(ischar(name),...
-                'Instrument name must be a character, not %s',...
+            assert(ischar(name)&&isvector(name),...
+                'Instrument name must be a character vector, not %s',...
             class(name));
-            bool=ismember(this.running_instruments,name);
+            bool=ismember(name,this.running_instruments);
+        end
+        
+        function deleteInstrument(this,name)
+            if isrunning(this,name)
+                %We remove the instrument
+                this.InstrList=rmfield(this.InstrList,name);
+                this.InstrProps=rmfield(this.InstrProps,name);
+                deleteListeners(this,name);
+            end
+        end
+        
+    end
+    
+    methods(Static)
+        % Concrete implementation of the singletone constructor.
+        function this = instance()
+            persistent UniqueInstance
+
+            if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
+                disp('Creating new instance of MyCollector')
+                this = MyCollector();
+                UniqueInstance = this;
+            else
+                this = UniqueInstance;
+            end
         end
     end
     
@@ -153,13 +188,6 @@ classdef MyCollector < handle & matlab.mixin.Copyable
 
         %deleteListeners is in a separate file
         deleteListeners(this, obj_name);
-        
-        function deleteInstrument(this,name)
-            %We remove the instrument
-            this.InstrList=rmfield(this.InstrList,name);
-            this.InstrProps=rmfield(this.InstrProps,name);
-            deleteListeners(this,name);
-        end
     end
     
     methods

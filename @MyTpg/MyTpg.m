@@ -49,9 +49,12 @@ classdef MyTpg < MyInstrument
         % Delete method that cleans up logger. Superclass delete method as
         % usual is executed after this one.
         function delete(this)
-            % Stop and delete logger
-            stop(this.Lg)
-            delete(this.Lg);
+            % Stop and delete logger. Destructor should never throw errors.
+            try
+                stop(this.Lg)
+                delete(this.Lg);
+            catch
+            end
         end  
         
         %% Communication commands
@@ -107,7 +110,9 @@ classdef MyTpg < MyInstrument
         
         function p_arr = readAllHedged(this)
             was_open = isopen(this);
-            openDevice(this);
+            if ~was_open
+                openDevice(this);
+            end
             try
                 p_arr = readPressure(this);
                 readPressureUnit(this);
@@ -196,10 +201,10 @@ classdef MyTpg < MyInstrument
             end
             
             if isa(this.Lg, 'MyLogger')&&isvalid(this.Lg)
-                time_arr=posixtime(this.Lg.timestamps);
+                time_arr=this.Lg.Record.timestamps_num;
                 % Shift time origin to 0
                 this.Trace.x=time_arr-time_arr(1);
-                this.Trace.y=cellfun(@(x)(x(n_ch)),this.Lg.data);
+                this.Trace.y=this.Lg.Record.data(:,n_ch);
                 this.Trace.name_y=sprintf('P Ch%i',n_ch);
                 this.Trace.unit_y=this.pressure_unit;
                 triggerNewData(this);
