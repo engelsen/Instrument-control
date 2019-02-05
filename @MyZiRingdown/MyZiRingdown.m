@@ -388,6 +388,11 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                         % Switch the oscillator
                         this.current_osc=this.meas_osc;
                         
+                        % Clear the buffer on ZI data server from existing   
+                        % demodulator samples, as these samples were 
+                        % recorded with drive on 
+                        ziDAQ('poll',this.poll_duration,this.poll_timeout);
+                        
                         % Optionally start the auxiliary output timers
                         if this.enable_aux_out
                             % Configure measurement periods and delays
