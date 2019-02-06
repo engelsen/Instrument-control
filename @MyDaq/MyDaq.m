@@ -804,7 +804,7 @@ classdef MyDaq < handle
                 this.base_dir=pwd;
             end
 
-            [load_name,path_name]=uigetfile(this.this.default_ext, ...
+            [load_name,path_name]=uigetfile(this.default_ext, ...
                 'Select the trace', this.base_dir);
             if load_name==0
                 warning('No file was selected');
