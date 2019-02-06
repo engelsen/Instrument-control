@@ -3,7 +3,6 @@ classdef MyFit < dynamicprops
     properties (Access=public)
         Data; %MyTrace object contains the data to be fitted to
         init_params=[]; %Contains the initial parameters
-        scale_init=[]; %Contains the scale variables for the initial parameters, used for GUI purposes
         lim_lower; %Lower limits for fit parameters
         lim_upper; %Upper limits for fit parameters
         enable_plot; %If enabled, plots initial parameters in the plot_handle
@@ -38,7 +37,7 @@ classdef MyFit < dynamicprops
         %Private struct used for saving file information when there is no
         %gui
         SaveInfo
-        slider_scale_vecs; %Vectors for varying the range of the sliders for different fits
+        slider_vecs; %Vectors for varying the range of the sliders for different fits
     end
     
     %Dependent variables with no set methods
@@ -51,8 +50,6 @@ classdef MyFit < dynamicprops
         fit_param_names;
         valid_fit_names;
         n_params;
-        %Initial parameters scaled according to the GUI
-        scaled_params;
         %These are used to create the usergui
         n_user_fields;
         user_field_tags;
@@ -72,6 +69,7 @@ classdef MyFit < dynamicprops
         session_name;
     end
     
+    %Events for communicating with outside entities
     events
         NewFit;
         NewInitVal;
@@ -129,13 +127,9 @@ classdef MyFit < dynamicprops
             end
             
             %Sets dummy values for the GUI
-            this.scale_init=ones(1,this.n_params);
             this.init_params=ones(1,this.n_params);
             this.lim_lower=-Inf(1,this.n_params);
             this.lim_upper=Inf(1,this.n_params);
-            
-            %Generates the slider scale variables
-            genSliderScaleVecs(this);
             
             %Creates the structure that contains variables for calibration
             %of fit results
@@ -143,7 +137,11 @@ classdef MyFit < dynamicprops
             
             %Creates the gui if the flag is enabled. This function is in a
             %separate file.
-            if this.enable_gui; createGui(this); end
+            if this.enable_gui
+                createGui(this)
+                %Generates the slider lookup table
+                genSliderVecs(this);
+            end
             
             %If the data is appropriate, generates initial
             %parameters 
@@ -324,12 +322,10 @@ classdef MyFit < dynamicprops
             calcUserParams(this);
             %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
-            %Resets the scale variables for the GUI
-            this.scale_init=ones(1,this.n_params);
             %Updates the gui if it is enabled
             if this.enable_gui
+                genSliderVecs(this);
                 updateGui(this);
-                genSliderScaleVecs(this);
             end
             %Plots the fit if the flag is on
             if this.enable_plot; plotFit(this); end
@@ -546,15 +542,13 @@ classdef MyFit < dynamicprops
             this.lim_lower=p.Results.lower;
             this.lim_upper=p.Results.upper;
             
-            %Resets scale init variables
-            this.scale_init=ones(1,this.n_params);
             %Plots the fit function with the new initial parameters
             if this.enable_plot; plotInitFun(this); end
             %Updates the GUI and creates new lookup tables for the init
             %param sliders
             if this.enable_gui
-                updateGui(this); 
-                genSliderScaleVecs(this);
+                genSliderVecs(this);
+                updateGui(this);                 
             end
         end
         
@@ -592,7 +586,7 @@ classdef MyFit < dynamicprops
             %Substantially faster than any alternative - generating
             %anonymous functions is very cpu intensive.
             
-            input_cell=num2cell(this.scaled_params);
+            input_cell=num2cell(this.init_params);
             y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,...
                 this.x_vec,input_cell{:});
             if isempty(this.hline_init)
@@ -622,43 +616,69 @@ classdef MyFit < dynamicprops
             saveParams(this);
         end
         
-        function genSliderScaleVecs(this)
+        function genSliderVecs(this)
             %Return values of the slider
             slider_vals=1:101;
             %Default scaling vector
-            scale_vec=10.^((slider_vals-50)/50);
-            %Sets the cell to the defualt value
-            this.slider_scale_vecs=cell(1,this.n_params);
-            this.slider_scale_vecs(1,:)={scale_vec};
+            def_vec=10.^((slider_vals-51)/50);
+            %Sets the cell to the default value
+            for i=1:this.n_params
+                this.slider_vecs{i}=def_vec*this.init_params(i);
+                set(this.Gui.(sprintf('Slider_%s',this.fit_params{i})),...
+                    'Value',50);
+            end
+            
+            %Here we can put special cases such that the sliders can behave
+            %differently for different fits. 
             if validateData(this)
                 switch this.fit_name
                     case 'Lorentzian'
-                        this.slider_scale_vecs{3}=...
-                            linspace(this.x_vec(1),this.x_vec(end),101)...
-                            /this.init_params(3);
+                        %We choose to have the slider go over the range of
+                        %the x-values of the plot for the center of the
+                        %Lorentzian.
+                        this.slider_vecs{3}=...
+                            linspace(this.x_vec(1),this.x_vec(end),101);
+                        %Find the index closest to the init parameter
+                        [~,ind]=...
+                            min(abs(this.init_params(3)-this.slider_vecs{3}));
+                        %Set to ind-1 as the slider goes from 0 to 100
+                        set(this.Gui.(sprintf('Slider_%s',...
+                            this.fit_params{3})),'Value',ind-1);
                 end
             end
         end
+        
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
-        %speed up the callback.
+        %speed up the callback. Note that this gets triggered whenever the
+        %value of the slider is changed.
         function sliderCallback(this, param_ind, hObject, ~)
             %Gets the value from the slider
-            scale=get(hObject,'Value');
-            %Updates the scale with a new value from the lookup table
-            this.scale_init(param_ind)=...
-                this.slider_scale_vecs{param_ind}(scale+1);
-            %Updates the edit box with the new value from the slider
-            set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
-                'String',sprintf('%3.3e',this.scaled_params(param_ind)));
-            if this.enable_plot; plotInitFun(this); end
+            val=get(hObject,'Value');
+            
+            %Find out if the current slider value is correct for the
+            %current init param value. If so, do not change anything. This
+            %is required as the callback also gets called when the slider
+            %values are changed programmatically
+            [~,ind]=...
+                min(abs(this.init_params(param_ind)-this.slider_vecs{param_ind}));           
+            if ind~=(val+1)
+                %Updates the scale with a new value from the lookup table
+                this.init_params(param_ind)=...
+                    this.slider_vecs{param_ind}(val+1);
+                %Updates the edit box with the new value from the slider
+                set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
+                    'String',sprintf('%3.3e',this.init_params(param_ind)));
+                if this.enable_plot; plotInitFun(this); end
+            end
         end
+        
          %Callback function for edit boxes in GUI
         function editCallback(this, hObject, ~)
             init_param=str2double(hObject.String);
             param_ind=str2double(hObject.Tag);
 
-            %Updates the slider to be such that the scaling is 1
+            %Centers the slider 
             set(this.Gui.(sprintf('Slider_%s',this.fit_params{param_ind})),...
                 'Value',50);
             %Updates the correct initial parameter
@@ -666,6 +686,8 @@ classdef MyFit < dynamicprops
             if this.enable_plot; plotInitFun(this); end
             %Triggers event for new init values
             triggerNewInitVal(this);
+            %Generate the new slider vectors
+            genSliderVecs(this);
         end
         
         %Callback function for editing limits in the GUI
@@ -698,11 +720,9 @@ classdef MyFit < dynamicprops
             clearFit(this);
         end
         
-        %Callback function for generate init parameters button. Updates GUI
-        %afterwards
+        %Callback function for generate init parameters button. 
         function initParamCallback(this,~,~)
             genInitParams(this);
-            updateGui(this);
         end
     end
     
@@ -718,12 +738,10 @@ classdef MyFit < dynamicprops
         %quantities
         createUnitBox(this, bg_color, h_parent, name);
         
-        %Creates edit box inside a UnitDisp for showing label and value of
+        %Creates an edit box inside a UnitDisp for showing label and value of
         %a quantity. Used in conjunction with createUnitBox
         createUnitDisp(this,varargin);
-        
-        
-        
+                
         %Sets the class variables to the inputs from the inputParser.
         function parseInputs(this)
             for i=1:length(this.Parser.Parameters)
@@ -742,7 +760,7 @@ classdef MyFit < dynamicprops
             opts=fitoptions('Method','NonLinearLeastSquares',...
                 'Lower',this.lim_lower,...
                 'Upper',this.lim_upper,...
-                'StartPoint',this.scaled_params,...
+                'StartPoint',this.init_params,...
                 'MaxFunEvals',2000,...
                 'MaxIter',2000,...
                 'TolFun',1e-9,...
@@ -808,14 +826,6 @@ classdef MyFit < dynamicprops
                 { 'a','b','c','gamma','k0', 'kex'},...
                 {'Background','Center','BG Slope','Mode splitting',...
                 'Intrinsic','Extrinsic'});
-%             addFit(this,'Gorodetsky2000plus',...
-%                 ['(a+c*x)*abs( (k0^2/4 - kex^2/4 + gamma^2/4 - (x-b).^2 + i*k0.*(x-b))',...
-%                 './( (k0 + kex)^2/4 + gamma^2/4 - (x-b).^2 + i.*(x-b)*(k0 + kex) )).^2+d'],...
-%                 ['$$\left[a+cx+dx^2\right]\left|\frac{\kappa_0^2/4-\kappa_{ex}^2/4+\gamma^2/4-(x-b)^2+i\kappa_0(x-b)/2}',...
-%                 '{(\kappa_0+\kappa_{ex})^2/4+\gamma^2/4-(x-b)^2+i(x-b)(\kappa_0+\kappa_{ex})}\right|^2$$'],...
-%                 { 'a','b','c','d','gamma','k0', 'kex'},...
-%                 {'Baseline','Center','Lin. Coeff',...
-%                 'Background','Mode splitting','Intrinsic','Extrinsic'});
             addFit(this,'Gorodetsky2000plus',...
                 ['(a+c*x+d*x.^2+e*x.^2)*abs( (k0^2/4 - kex^2/4 + gamma^2/4 - (x-b).^2 + i*k0.*(x-b))',...
                 './( (k0 + kex)^2/4 + gamma^2/4 - (x-b).^2 + i.*(x-b)*(k0 + kex) )).^2+f'],...
@@ -847,15 +857,10 @@ classdef MyFit < dynamicprops
         %Updates the GUI if the edit or slider boxes are changed from
         %elsewhere.
         function updateGui(this)
-            %Converts the scale variable to the value between 0 and 100
-            %necessary for the slider
-            slider_vals=50*log10(this.scale_init)+50;
             for i=1:this.n_params
                 str=this.fit_params{i};
                 set(this.Gui.(sprintf('Edit_%s',str)),...
-                    'String',sprintf('%3.3e',this.scaled_params(i)));
-                set(this.Gui.(sprintf('Slider_%s',str)),...
-                    'Value',slider_vals(i));
+                    'String',sprintf('%3.3e',this.init_params(i)));
                 set(this.Gui.(sprintf('Lim_%s_upper',str)),...
                     'String',sprintf('%3.3e',this.lim_upper(i)))
                 set(this.Gui.(sprintf('Lim_%s_lower',str)),...
@@ -918,12 +923,7 @@ classdef MyFit < dynamicprops
         function fit_param_names=get.fit_param_names(this)
             fit_param_names=this.FitStruct.(this.fit_name).fit_param_names;
         end
-        
-        %Calculates the scaled initial parameters
-        function scaled_params=get.scaled_params(this)
-            scaled_params=this.scale_init.*this.init_params;
-        end
-        
+
         %Calculates the number of parameters in the fit function
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);
@@ -931,7 +931,7 @@ classdef MyFit < dynamicprops
         
         %Generates a vector of x values for plotting
         function x_vec=get.x_vec(this)
-            x_vec=linspace(min(this.Data.x),max(this.Data.x),1000);
+            x_vec=linspace(min(this.Data.x),max(this.Data.x),1e3);
         end
         
         %Used when creating the UserGUI, finds the number of user fields.
