@@ -350,8 +350,10 @@ classdef MyFit < dynamicprops
                     splitting=abs(this.coeffs(6)-this.coeffs(3));
                     this.mode_split=convOptFreq(this,splitting); %#ok<MCNPR>
                 case 'Exponential'
-                    this.tau=abs(1/this.coeffs(2)); %#ok<MCNPR>
-                    this.lw=abs(this.coeffs(2)/pi); %#ok<MCNPR>
+                    if ~isempty(this.coeffs)
+                        this.tau=abs(1/this.coeffs(2)); %#ok<MCNPR>
+                        this.lw=abs(this.coeffs(2)/pi); %#ok<MCNPR>
+                    end
                     this.Q=pi*this.freq*this.tau; %#ok<MCNPR>
                     this.Qf=this.Q*this.freq; %#ok<MCNPR>
                 otherwise
@@ -423,7 +425,8 @@ classdef MyFit < dynamicprops
                         'Qualify Factor (x10^6)',1e6,...
                         'enable_flag','off','conv_factor',1e6)
                     addUserField(this,'Q','freq','Frequency (MHz)',1e6,...
-                        'conv_factor',1e6, 'enable_flag','on')
+                        'conv_factor',1e6, 'enable_flag','on',...
+                        'Callback',@(~,~) calcUserParams(this));
                     addUserField(this,'Q','Qf','Q\times f (10^{14} Hz)',1e14,...
                         'conv_factor',1e14,'enable_flag','off');
                 otherwise
