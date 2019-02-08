@@ -19,8 +19,8 @@ function OutS = tabledlg(InS, varargin)
     tbl_w=262;
     tbl_h=204;
     
-    btn_w=50;
-    btn_h=20;
+    btn_w=56;
+    btn_h=22;
     
     sps=10; % space between elements
     

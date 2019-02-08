@@ -17,17 +17,17 @@ function file_created=createFile(fullfilename,varargin)
     if exist(fullfilename,'file') && ~p.Results.overwrite
         finfo=dir(fullfilename);
         if finfo.bytes~=0
-            % File is not empty
-            switch questdlg(...
+            % File is not empty. Ask user what to do next.
+            resp = yesnodlg( ...
                     'File already exists. Would you like to overwrite?',...
-                    'File already exists', 'Yes', 'No', 'No')
-                case 'Yes'
-                    fprintf('Overwriting file at %s\n',fullfilename);
-                otherwise
-                    warning('No file written as %s already exists',...
+                    'File already exists', false);
+            if resp
+                fprintf('Overwriting file at %s\n',fullfilename);
+            else
+                warning('No file written as %s already exists',...
                         fullfilename);
-                    file_created=false;
-                    return
+                file_created=false;
+                return
             end
         end
     end
