@@ -1,11 +1,7 @@
 classdef MyClassWithGui < handle
     
     properties (GetAccess=public, SetAccess=private)
-        App
-    end
-    
-    properties (Access=private)
-        GuiDestListener
+        Gui
     end
     
     events 
@@ -13,14 +9,6 @@ classdef MyClassWithGui < handle
     end
     
     methods
-        
-        function assignGui(this, App)
-            this.App=App;
-            % Set listeners so that the destruction of Gui destroys the
-            % object and the destruction of object closes the Gui
-            this.GuiDestListener=...
-                addlistener(this.App,'ObjectBeingDestroyed',@(~,~)delete(this.App));
-        end
         
         function triggerNewSetting(this, varargin)
             p=inputParser;
@@ -32,12 +20,16 @@ classdef MyClassWithGui < handle
             notify(this, 'NewSetting', EventData);
         end
         
-        function guiDeletedCallback(this)
-            delete(this.Listeners)
-            delete(this)
+    end
+    
+    methods 
+        
+        function set.Gui(this, Val)
+            assert(isa(Val, 'matlab.apps.AppBase'), ...
+                'Gui must be a Matlab app.');
+            this.Gui=Val;
         end
         
     end
-    
 end
 
