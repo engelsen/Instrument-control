@@ -111,6 +111,7 @@ classdef MyRsa < MyScpiInstrument
                 this.point_no);
             %Calculates the power spectrum from the data, which is in dBm.
             %Output is in V^2/Hz
+            readProperty(this,'rbw');
             power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
             %Trace object is created containing the data and its units
             this.Trace.x = x_vec;
