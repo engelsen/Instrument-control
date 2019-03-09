@@ -12,34 +12,34 @@ classdef MyAppSync < handle
         % There properties are stored for cleanup purposes and not to be
         % used from the outside
         App = [];
-        CoreObj = []
+        KernelObj = []
     end
     
     methods
         
-        function this=MyAppSync(App, CoreObj)
+        function this=MyAppSync(App, KernelObj)
             this.App=App;
             this.Listeners.AppDeleted=addlistener(App, ...
                 'ObjectBeingDeleted', @(~, ~)delete(this));
             
             if nargin()==2
                 
-                this.CoreObj=CoreObj;
+                this.KernelObj=KernelObj;
                 
                 try
-                    this.Listeners.NewSetting=addlistener(CoreObj, ...
+                    this.Listeners.NewSetting=addlistener(KernelObj, ...
                         'NewSetting', @(Src, EventData)newSettingCallback(this, ...
                         Src, EventData));
                 catch
                 end
                 
                 try
-                    this.Listeners.NewSetting=addlistener(CoreObj, ...
+                    this.Listeners.NewSetting=addlistener(KernelObj, ...
                         'NewData', @(~, ~)updatePlot(App));
                 catch
                 end
                 
-                this.Listeners.CoreObjDeleted=addlistener(CoreObj, ...
+                this.Listeners.KernelObjDeleted=addlistener(KernelObj, ...
                     'ObjectBeingDeleted', @(~, ~)coreObjDeletedCallback(this));
             end
         end
@@ -61,17 +61,17 @@ classdef MyAppSync < handle
             end
             
             % Delete the core object if present
-            if ~isempty(this.CoreObj)
+            if ~isempty(this.KernelObj)
                 try
                     % Check if the instrument object has appropriate method. This
                     % is a safety measure to never delete a file by accident if 
                     % app.Instr happens to be a valid file name.
-                    if ismethod(this.CoreObj, 'delete')
-                        delete(this.CoreObj);
+                    if ismethod(this.KernelObj, 'delete')
+                        delete(this.KernelObj);
                     else
                         fprintf(['App core object of class ''%s'' does ' ...
                             'not have ''delete'' method.\n'], ...
-                            class(this.CoreObj))
+                            class(this.KernelObj))
                     end
                 catch
                     fprintf('Could not delete the core object.\n')
