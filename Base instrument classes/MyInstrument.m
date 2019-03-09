@@ -20,7 +20,12 @@ classdef MyInstrument < dynamicprops
     
     methods (Access = public)
         function obj = MyInstrument(varargin)
-            
+            createCommandList(this);
+        end
+        
+        % Dummy function that is redefined in subclasses to
+        % incorporate addCommand statements
+        function createCommandList(~)
         end
         
         % Read all parameters of the physical device
@@ -71,6 +76,7 @@ classdef MyInstrument < dynamicprops
             end
         end
         
+        % Set method shared by all the commands
         function setCommand(this, tag, val, enable_write)
             if enable_write
                 % Write and confirm the new value by reading
