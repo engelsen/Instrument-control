@@ -101,13 +101,7 @@ classdef MyClassParser < inputParser
   
     methods 
         function unmatched_nv=get.unmatched_nv(this)
-            fns=fieldnames(this.Unmatched);
-            vals=struct2cell(this.Unmatched);
-            unmatched_nv=cell(1,2*length(fns));
-            for i=1:length(fns)
-                unmatched_nv{2*i-1}=fns{i};
-                unmatched_nv{2*i}=vals{i};
-            end
+            unmatched_nv=struct2namevalue(this.Unmatched);
         end
     end
     

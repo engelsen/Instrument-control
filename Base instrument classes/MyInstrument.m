@@ -38,9 +38,7 @@ classdef MyInstrument < dynamicprops
                 setCommand(this, tag, val, false);
             end
         end
-    end
-    
-    methods (Access = protected)
+        
         function addCommand(this, tag, varargin)
             p=inputParser();
             addRequired(p,'tag', @(x)isvarname(x));
@@ -49,6 +47,7 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'valudation_fcn',[], ...
                 @(x)isa(x, 'function_handle'));
             addParameter(p,'value_list',{}, @iscell);
+            addParameter(p,'default',[]);
             addParameter(p,'info','', @ischar);
             parse(p,tag,varargin{:});
             
@@ -66,7 +65,9 @@ classdef MyInstrument < dynamicprops
             assert(~isprop(this,tag), ['Property named ' tag ...
                 ' already exists in the class.']);
             
-            H = addprop(this,tag);
+            H = addprop(this, tag);
+            
+            H.GetAccess = 'public';
             
             if ~isempty(this.CommandList.(tag).write_fcn)
                 H.SetAccess = 'public';
@@ -74,8 +75,12 @@ classdef MyInstrument < dynamicprops
             else
                 H.SetAccess = 'protected';
             end
+            
+            this.(tag) = p.Results.default;
         end
-        
+    end
+    
+    methods (Access = protected)
         % Set method shared by all the commands
         function setCommand(this, tag, val, enable_write)
             if enable_write
