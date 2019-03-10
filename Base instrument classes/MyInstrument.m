@@ -19,7 +19,7 @@ classdef MyInstrument < dynamicprops
     end
     
     methods (Access = public)
-        function obj = MyInstrument(varargin)
+        function this = MyInstrument(varargin)
             createCommandList(this);
         end
         
@@ -34,7 +34,7 @@ classdef MyInstrument < dynamicprops
             
             for i=1:length(wc)
                 tag = wc{i};
-                val = this.CommandList.(tag).read_fcn();
+                val = this.CommandList.(tag).readFcn();
                 setCommand(this, tag, val, false);
             end
         end
@@ -42,9 +42,9 @@ classdef MyInstrument < dynamicprops
         function addCommand(this, tag, varargin)
             p=inputParser();
             addRequired(p,'tag', @(x)isvarname(x));
-            addParameter(p,'read_fcn',[], @(x)isa(x, 'function_handle'));
-            addParameter(p,'write_fcn',[], @(x)isa(x, 'function_handle'));
-            addParameter(p,'valudation_fcn',[], ...
+            addParameter(p,'readFcn',[], @(x)isa(x, 'function_handle'));
+            addParameter(p,'writeFcn',[], @(x)isa(x, 'function_handle'));
+            addParameter(p,'validationFcn',[], ...
                 @(x)isa(x, 'function_handle'));
             addParameter(p,'value_list',{}, @iscell);
             addParameter(p,'default',[]);
@@ -54,10 +54,10 @@ classdef MyInstrument < dynamicprops
             this.CommandList.(tag) = p.Results;
             
             if ~ismember('value_list', p.UsingDefaults)
-                assert(isempty(this.CommandList.(tag).validation_fcn), ...
-                    ['validation_fcn is already assigned, cannot ' ...
+                assert(isempty(this.CommandList.(tag).validationFcn), ...
+                    ['validationFcn is already assigned, cannot ' ...
                     'create a new one based on value_list']);
-                this.CommandList.(tag).valudation_fcn = ...
+                this.CommandList.(tag).validationFcn = ...
                     @(x) any(cellfun(@(y) isequal(y, x),...
                             this.CommandList.(tag).value_list));
             end
@@ -69,7 +69,7 @@ classdef MyInstrument < dynamicprops
             
             H.GetAccess = 'public';
             
-            if ~isempty(this.CommandList.(tag).write_fcn)
+            if ~isempty(this.CommandList.(tag).writeFcn)
                 H.SetAccess = 'public';
                 H.SetMethod = @(x,y)this.setCommand(x,y,true);
             else
@@ -81,16 +81,23 @@ classdef MyInstrument < dynamicprops
     end
     
     methods (Access = protected)
+        
         % Set method shared by all the commands
         function setCommand(this, tag, val, enable_write)
             if enable_write
+                
                 % Write and confirm the new value by reading
-                assert(this.CommandList.(tag).valudation_fcn(val));
-                this.CommandList.(tag).write_fcn(val);
+                assert(this.CommandList.(tag).validationFcn(val), ...
+                    ['Value assigned to property ''' tag ''' must ' ...
+                    'satisfy ' func2str(this.CommandList.(tag).validationFcn) '.']);
+                
+                this.CommandList.(tag).writeFcn(val);
+                
                 if this.auto_sync
                     sync(this);
                 end
-                if isempty(this.CommandList.(tag).read_fcn)
+                
+                if isempty(this.CommandList.(tag).readFcn)
                     % Assign the nominal value if it cannot be read
                     this.(tag) = val;
                 end
@@ -107,12 +114,12 @@ classdef MyInstrument < dynamicprops
         end
         
         function val=get.write_command_names(this)
-            ind_w=structfun(@(x) ~isempty(x.write_fcn), this.CommandList);
+            ind_w=structfun(@(x) ~isempty(x.writeFcn), this.CommandList);
             val=this.write_command_names(ind_w);
         end
         
         function val=get.read_command_names(this)
-            ind_r=structfun(@(x) ~isempty(x.write_fcn), this.CommandList);
+            ind_r=structfun(@(x) ~isempty(x.writeFcn), this.CommandList);
             val=this.command_names(ind_r);
         end
         

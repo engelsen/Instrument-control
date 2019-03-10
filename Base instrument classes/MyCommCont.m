@@ -127,7 +127,7 @@ classdef MyCommCont < handle
         %% Communication
         
         % Write textual command
-        function writeCommand(this, cmd)
+        function writeString(this, cmd)
             try
                 fprintf(this.Comm, cmd);
             catch ME
@@ -142,7 +142,7 @@ classdef MyCommCont < handle
         end
         
         % Query textual command
-        function result = queryCommand(this, cmd)
+        function result = queryString(this, cmd)
             try
                 result = query(this.Comm, cmd);
             catch ME
