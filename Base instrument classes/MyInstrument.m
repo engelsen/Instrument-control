@@ -1,4 +1,11 @@
 % Generic instrument superclass
+%
+% Undefined/dummy methods:
+%   queryString(this, cmd)
+%   createCommandList(this)
+% 
+% These methods are intentionally not introduced as abstract as under
+% some conditions they are not necessary or essential
 
 classdef MyInstrument < dynamicprops
     
@@ -98,6 +105,11 @@ classdef MyInstrument < dynamicprops
             this.(tag) = p.Results.default;
         end
         
+        % Dummy function that is redefined in subclasses to
+        % incorporate addCommand statements
+        function createCommandList(~)
+        end
+        
         % Identification
         function [str, msg]=idn(this)
             assert(ismethod(this, 'queryString'), ['The instrument ' ...
@@ -156,13 +168,6 @@ classdef MyInstrument < dynamicprops
                 this.(tag) = val;
             end
         end
-    end
-    
-    methods (Abstract = true, Access = protected)
-        queryString(this, cmd)
-        writeString(this, cmd)
-        
-        createCommandList(this)
     end
     
     %% Set and Get methods
