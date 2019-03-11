@@ -55,7 +55,8 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandList.(tag).format = p.Results.format;
         end
         
-        % Redefine the base class method for faster performance
+        % Redefine the base class method to use a single read operation for
+        % faster communication
         function sync(this)
             cns = this.command_names;
             ind_r = structfun(@(x) ~isempty(x.read_command), ...
@@ -141,6 +142,35 @@ classdef MyScpiInstrument < MyInstrument
                 end
             end
             ext_vl=[vl, short_vl];
+        end
+        
+        % Extend the property value based on val_list 
+        function std_val = toStandardForm(this, cmd, val)
+            assert(ismember(cmd, this.command_names), ['''' cmd ...
+                ''' is not an instrument command.'])
+
+            val_list = this.CommandList.(cmd).val_list;
+            
+            % Standardization is applicable to char-valued properties which
+            % have value list
+            if isempty(val_list) || ~ischar(val)
+                std_val = val;
+                return
+            end
+
+            % find matching values
+            n = length(val);
+            ismatch = cellfun( ...
+                @(x) strncmpi(val, x, min([n, length(x)])), val_list);
+            
+            assert(any(ismatch), ...
+                sprintf(['%s is not present in the list of values ' ...
+                'of command %s.'], val, cmd));
+
+            % out of the matching values pick the longest
+            mvals = val_list(ismatch);
+            n_el = cellfun(@(x) length(x), mvals);
+            std_val = mvals{n_el==max(n_el)};
         end
     end
     

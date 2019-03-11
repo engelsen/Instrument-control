@@ -99,7 +99,7 @@ classdef MyInstrument < dynamicprops
     
     methods (Access = protected)
         
-        % Set method shared by all the commands
+        % Set method shared by all commands
         function setCommand(this, tag, val, enable_write)
             if enable_write
                 
