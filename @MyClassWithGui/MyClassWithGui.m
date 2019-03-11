@@ -4,24 +4,6 @@ classdef MyClassWithGui < handle
         Gui
     end
     
-    events 
-        NewSetting
-    end
-    
-    methods
-        
-        function triggerNewSetting(this, varargin)
-            p=inputParser;
-            addParameter(p, 'setting_name', @iscellstr);
-            parse(p, varargin{:});
-            
-            EventData=MyNewSettingEvent();
-            
-            notify(this, 'NewSetting', EventData);
-        end
-        
-    end
-    
     methods 
         
         function set.Gui(this, Val)

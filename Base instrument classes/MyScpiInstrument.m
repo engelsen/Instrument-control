@@ -22,9 +22,15 @@ classdef MyScpiInstrument < MyInstrument
             unmatched_nv=struct2namevalue(p.Unmatched);
             addCommand@MyInstrument(this, tag, unmatched_nv{:});
             
-            % Add abbreviated forms to the list of values
-            this.CommandList.(tag).val_list = ...
-                extendValList(this, this.CommandList.(tag).val_list);
+            val_list = this.CommandList.(tag).val_list;
+            
+            % Make an extended list of values consisting of full and
+            % abbreviated forms
+            this.CommandList.(tag).ext_val_list = extendValList(this, tag);
+            
+            % Keep only unique full-name values in the main list and 
+            % convert to lowercase (as SCPI commands are case-insensitive)
+            this.CommandList.(tag).val_list = contractValList(this, tag);
             
             if contains(p.Results.access,'r')
                 if ismember('read_form', p.UsingDefaults)
@@ -128,28 +134,31 @@ classdef MyScpiInstrument < MyInstrument
         % Add the list of values, if needed extending it to include
         % short forms. For example, for the allowed value 'AVErage'
         % its short form 'AVE' also will be added.
-        function ext_vl = extendValList(~, vl)
-            short_vl={};
+        function [ext_vl, cont_vl] = extendValList(~, vl)
+            short_vl = {};
+            long_vl = {};
             for i=1:length(vl)
                 if ischar(vl{i})
                     idx = isstrprop(vl{i},'upper');
-                    short_form=vl{i}(idx);
+                    short_form = vl{i}(idx);
+                    
                     % Add the short form to the list of values if it was
                     % not included explicitly
                     if ~ismember(short_form, vl)
                         short_vl{end+1}=short_form; %#ok<AGROW>
                     end
+                    short_vl{end+1}=short_form; %#ok<AGROW>
                 end
             end
             ext_vl=[vl, short_vl];
         end
         
-        % Extend the property value based on val_list 
+        % Return the long form of value from val_list 
         function std_val = toStandardForm(this, cmd, val)
             assert(ismember(cmd, this.command_names), ['''' cmd ...
                 ''' is not an instrument command.'])
 
-            val_list = this.CommandList.(cmd).val_list;
+            val_list = this.CommandList.(cmd).ext_val_list;
             
             % Standardization is applicable to char-valued properties which
             % have value list
@@ -171,6 +180,20 @@ classdef MyScpiInstrument < MyInstrument
             mvals = val_list(ismatch);
             n_el = cellfun(@(x) length(x), mvals);
             std_val = mvals{n_el==max(n_el)};
+        end
+        
+        function std_list = listToStandardForm(this, cmd)
+            if ~ismember(cmd,this.command_names)
+                warning('%s is not a valid command',cmd);
+                std_list = {};
+                return
+            end
+            vlist = this.CommandList.(cmd).val_list;
+            % Select the commands, which appear only once in the beginnings 
+            % of the strings in val_list
+            long_val_ind = cellfun(...
+                @(x)(sum(startsWith(vlist,x,'IgnoreCase',true))==1),vlist);
+            std_list = vlist(long_val_ind); 
         end
     end
     
