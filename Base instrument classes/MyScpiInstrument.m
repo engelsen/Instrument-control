@@ -8,12 +8,15 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         % Extend the functionality of base class method
-        function addCommand(this, tag, varargin)
+        function addCommand(this, tag, command, varargin)
             p=inputParser();
             p.KeepUnmatched=true;
-            addParameter(p,'command','',@ischar);
+            addRequired(p,'command',@ischar);
             addParameter(p,'access','rw',@ischar);
-            parse(p, varargin{:});
+            addParameter(p,'format','%e',@ischar);
+            addParameter(p,'read_form','',@ischar);
+            addParameter(p,'write_form','',@ischar);
+            parse(p, command, varargin{:});
             
             % Supply the remaining parameters to the base function
             unmatched_nv=struct2namevalue(p.Unmatched);
@@ -23,15 +26,60 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandList.(tag).val_list = ...
                 extendValList(this, this.CommandList.(tag).val_list);
             
-            % Create read and write functions
-            if ~isempty(p.Results.command)
-                
+            if contains(p.Results.access,'r')
+                if ismember('read_form', p.UsingDefaults)
+                    read_command = [p.Results.command, '?'];
+                else
+                    read_command = [p.Results.command, p.Results.read_form];
+                end
+                this.CommandList.(tag).readFcn = ...
+                    @()sscanf(queryCommand(this, read_command), p.Results.format);
+            else
+                read_command = '';
             end
+            this.CommandList.(tag).read_command = read_command;
+            
+            if contains(p.Results.access,'w')
+                if ismember('write_form', p.UsingDefaults)
+                    write_command = [p.Results.command, ' ', p.Results.format];
+                else
+                    write_command = [p.Results.command, p.Results.write_form];
+                end
+                this.CommandList.(tag).writeFcn = ...
+                    @(x)writeCommand(this, sprintf(write_command, x));
+            else
+                write_command = '';
+            end
+            this.CommandList.(tag).write_command = write_command;
+            
+            this.CommandList.(tag).format = p.Results.format;
         end
         
-        % 
+        % Redefine the base class method for faster performance
         function sync(this)
-           
+            cns = this.command_names;
+            ind_r = structfun(@(x) ~isempty(x.read_command), ...
+                this.CommandList);
+            
+            read_cns = cns(ind_r); % List of names of readable commands
+            
+            read_commands = cellfun(...
+                @(x) this.CommandList.(x).read_command, read_cns,...
+                'UniformOutput',false);
+            
+            res_list = queryCommand(this, read_commands{:});
+            
+            query_successful=(length(read_cns)==length(res_list));
+            if query_successful
+                % Assign outputs to the class properties
+                for i=1:length(read_cns)
+                    this.(read_cns{i})=sscanf(res_list{i},...
+                        this.CommandList.(read_cns{i}).format);
+                end
+            else
+                warning(['Not all the properties could be read, ',...
+                    'instrument class values are not updated.']);
+            end
         end
     end
     
@@ -65,6 +113,8 @@ classdef MyScpiInstrument < MyInstrument
                 res_list={};
             end
         end
+        
+        %% Methods for command set and get callbacks
         
         function scpiWriteFcn(this, tag, val)
         end

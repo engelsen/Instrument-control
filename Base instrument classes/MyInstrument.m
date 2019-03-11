@@ -3,18 +3,19 @@
 classdef MyInstrument < dynamicprops
     
     properties (Access = public)
-        % Synchronize all properties after every new value
+        % Synchronize all properties after setting a new value to one
         auto_sync = true
     end
     
     properties (SetAccess = protected, GetAccess = public)
         CommandList = struct()
+        
+        % identification string
+        idn_str=''
     end
     
     properties (Dependent = true)
         command_names
-        write_command_names
-        read_command_names
         command_no
     end
     
@@ -30,12 +31,13 @@ classdef MyInstrument < dynamicprops
         
         % Read all parameters of the physical device
         function sync(this)
-            wc = this.read_command_names;
-            
-            for i=1:length(wc)
-                tag = wc{i};
-                val = this.CommandList.(tag).readFcn();
-                setCommand(this, tag, val, false);
+            cmds = this.command_names;
+            for i=1:length(cmds)
+                tag = cmds{i};
+                if ~isempty(this.CommandList.(tag).readFcn)
+                    val = this.CommandList.(tag).readFcn();
+                    setCommand(this, tag, val, false);
+                end
             end
         end
         
@@ -78,6 +80,21 @@ classdef MyInstrument < dynamicprops
             
             this.(tag) = p.Results.default;
         end
+        
+        %% Identification
+        function [str, msg]=idn(this)
+            assert(ismethod(this, 'queryString'), ['The instrument ' ...
+                'class must define queryString method in order to ' ...
+                'attempt identification.'])
+            
+            try
+                [str,~,msg]=queryString(this,'*IDN?');
+            catch ErrorMessage
+                str='';
+                msg=ErrorMessage.message;
+            end   
+            this.idn_str=str;
+        end
     end
     
     methods (Access = protected)
@@ -113,18 +130,12 @@ classdef MyInstrument < dynamicprops
             val=fieldnames(this.CommandList);
         end
         
-        function val=get.write_command_names(this)
-            ind_w=structfun(@(x) ~isempty(x.writeFcn), this.CommandList);
-            val=this.write_command_names(ind_w);
-        end
-        
-        function val=get.read_command_names(this)
-            ind_r=structfun(@(x) ~isempty(x.writeFcn), this.CommandList);
-            val=this.command_names(ind_r);
-        end
-        
         function command_no=get.command_no(this)
             command_no=length(this.command_names);
+        end
+        
+        function set.idn_str(this, str)
+            this.idn_str=toSingleLine(str);
         end
     end
 end
