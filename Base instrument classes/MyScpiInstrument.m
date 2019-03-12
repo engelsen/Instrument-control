@@ -1,4 +1,9 @@
-% Class featuring a specialized framework for instruments supporting SCPI 
+% Class featuring a specialized framework for instruments supporting SCPI
+%
+% Undefined/dummy methods:
+%   queryString(this, cmd)
+%   writeString(this, cmd)
+%   createCommandList(this)
 
 classdef MyScpiInstrument < MyInstrument
     
@@ -14,8 +19,12 @@ classdef MyScpiInstrument < MyInstrument
             addRequired(p,'command',@ischar);
             addParameter(p,'access','rw',@ischar);
             addParameter(p,'format','%e',@ischar);
-            addParameter(p,'read_form','',@ischar);
-            addParameter(p,'write_form','',@ischar);
+            
+            % Command ending for reading
+            addParameter(p,'read_ending','?',@ischar);
+            
+            % Command ending for writing, e.g. '%10e'
+            addParameter(p,'write_ending','',@ischar);
             parse(p, command, varargin{:});
             
             % Supply the remaining parameters to the base class method
@@ -39,24 +48,50 @@ classdef MyScpiInstrument < MyInstrument
                 this.CommandList.(tag).postSetFcn = @this.toStandardForm;
             end
             
-            if contains(p.Results.access,'r')
-                if ismember('read_form', p.UsingDefaults)
-                    read_command = [p.Results.command, '?'];
-                else
-                    read_command = [p.Results.command, p.Results.read_form];
+            % Introduce variables for brevity
+            format = p.Results.format;
+            write_ending = p.Results.write_ending;
+            
+            smb = findReadFormatSymbol(this, format);
+            if smb == 'b'
+                % '%b' is a non-MATLAB format specifier that is introduced
+                % to be used with logical variables
+                format = replace(format,'%b','%i');
+                write_ending = replace(write_ending,'%b','%i');
+            end
+            
+            % Assign a validation function based on the value format
+            if isempty(this.CommandList.(tag).validationFcn)
+                switch smb
+                    case {'d','f','e','g'}
+                        this.CommandList.(tag).validationFcn = @isnumeric;
+                    case 'i'
+                        this.CommandList.(tag).validationFcn = ...
+                            @(x)(floor(x)==x);
+                    case 's'
+                        this.CommandList.(tag).validationFcn = @ischar;
+                    case 'b'
+                        this.CommandList.(tag).validationFcn = ...
+                            @(x)(x==0 || x==1);
                 end
+            end
+            
+            % Add the full read form of the command, e.g. ':FREQ?'
+            if contains(p.Results.access,'r')
+                read_command = [p.Results.command, p.Results.read_ending];
                 this.CommandList.(tag).readFcn = ...
-                    @()sscanf(queryCommand(this, read_command), p.Results.format);
+                    @()sscanf(queryCommand(this, read_command), format);
             else
                 read_command = '';
             end
             this.CommandList.(tag).read_command = read_command;
             
+            % Add the full write form of the command, e.g. ':FREQ %e'
             if contains(p.Results.access,'w')
-                if ismember('write_form', p.UsingDefaults)
-                    write_command = [p.Results.command, ' ', p.Results.format];
+                if ismember('write_ending', p.UsingDefaults)
+                    write_command = [p.Results.command, ' ', format];
                 else
-                    write_command = [p.Results.command, p.Results.write_form];
+                    write_command = [p.Results.command, write_ending];
                 end
                 this.CommandList.(tag).writeFcn = ...
                     @(x)writeCommand(this, sprintf(write_command, x));
@@ -65,7 +100,8 @@ classdef MyScpiInstrument < MyInstrument
             end
             this.CommandList.(tag).write_command = write_command;
             
-            this.CommandList.(tag).format = p.Results.format;
+            % Store the format
+            this.CommandList.(tag).format = format;
         end
         
         % Redefine the base class method to use a single read operation for
@@ -185,7 +221,16 @@ classdef MyScpiInstrument < MyInstrument
             n_el = cellfun(@(x) length(x), mvals);
             std_val = mvals{n_el==max(n_el)};
         end
+        
+        % Find the format specifier symbol and options
+        function smb = findReadFormatSymbol(~, fmt_spec)
+            ind_p = strfind(fmt_spec,'%');
+            ind = ind_p+find(isletter(fmt_spec(ind_p:end)),1)-1;
+            smb = fmt_spec(ind);
+            
+            assert(ind_p+1 == ind, ['Correct reading format must not ' ...
+                'have characters between ''%'' and format symbol.'])
+        end
     end
-    
 end
 
