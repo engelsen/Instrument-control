@@ -9,8 +9,8 @@ classdef MyScpiInstrument < MyInstrument
         
         % Extend the functionality of base class method
         function addCommand(this, tag, command, varargin)
-            p=inputParser();
-            p.KeepUnmatched=true;
+            p = inputParser();
+            p.KeepUnmatched = true;
             addRequired(p,'command',@ischar);
             addParameter(p,'access','rw',@ischar);
             addParameter(p,'format','%e',@ischar);
@@ -18,19 +18,26 @@ classdef MyScpiInstrument < MyInstrument
             addParameter(p,'write_form','',@ischar);
             parse(p, command, varargin{:});
             
-            % Supply the remaining parameters to the base function
-            unmatched_nv=struct2namevalue(p.Unmatched);
+            % Supply the remaining parameters to the base class method
+            unmatched_nv = struct2namevalue(p.Unmatched);
             addCommand@MyInstrument(this, tag, unmatched_nv{:});
             
-            val_list = this.CommandList.(tag).val_list;
-            
-            % Make an extended list of values consisting of full and
-            % abbreviated forms
-            this.CommandList.(tag).ext_val_list = extendValList(this, tag);
-            
-            % Keep only unique full-name values in the main list and 
-            % convert to lowercase (as SCPI commands are case-insensitive)
-            this.CommandList.(tag).val_list = contractValList(this, tag);
+            if ~isempty(this.CommandList.(tag).val_list) && ...
+                any(cellfun(@ischar, this.CommandList.(tag).val_list))
+                
+                % Put only unique full-named values in the value list
+                [long_vl, short_vl] = splitValueList(this, ...
+                    this.CommandList.(tag).val_list);
+                this.CommandList.(tag).val_list = long_vl;
+
+                % For validation, use an extended list made of full and   
+                % abbreviated name forms and case-insensitive comparison
+                this.CommandList.(tag).validationFcn = ...
+                    @(x) any(cellfun(@(y) isequal(y, lower(x)), ...
+                    [long_vl, short_vl]));
+                
+                this.CommandList.(tag).postSetFcn = @this.toStandardForm;
+            end
             
             if contains(p.Results.access,'r')
                 if ismember('read_form', p.UsingDefaults)
@@ -63,7 +70,7 @@ classdef MyScpiInstrument < MyInstrument
         
         % Redefine the base class method to use a single read operation for
         % faster communication
-        function sync(this)
+        function read_cns = sync(this)
             cns = this.command_names;
             ind_r = structfun(@(x) ~isempty(x.read_command), ...
                 this.CommandList);
@@ -76,8 +83,7 @@ classdef MyScpiInstrument < MyInstrument
             
             res_list = queryCommand(this, read_commands{:});
             
-            query_successful=(length(read_cns)==length(res_list));
-            if query_successful
+            if length(read_cns)==length(res_list)
                 % Assign outputs to the class properties
                 for i=1:length(read_cns)
                     this.(read_cns{i})=sscanf(res_list{i},...
@@ -121,43 +127,41 @@ classdef MyScpiInstrument < MyInstrument
             end
         end
         
-        %% Methods for command set and get callbacks
-        
-        function scpiWriteFcn(this, tag, val)
-        end
-        
-        function val = scpiReadFcn(this, tag)
-        end
-        
         %% Misc utility methods
         
-        % Add the list of values, if needed extending it to include
-        % short forms. For example, for the allowed value 'AVErage'
-        % its short form 'AVE' also will be added.
-        function [ext_vl, cont_vl] = extendValList(~, vl)
-            short_vl = {};
-            long_vl = {};
+        % Split the list of string values into a full-form list and a
+        % list of abbreviations, where the abbreviated forms are inferred  
+        % based on case. For example, the value that has the full name 
+        % 'AVErage' has the short form 'AVE'.
+        function [long_vl, short_vl] = splitValueList(~, vl)
+            short_vl = cell(1, length(vl)); % Abbreviated forms
+            
+            % Iterate over the list of values
             for i=1:length(vl)
+                
+                % Short forms exist only for string values
                 if ischar(vl{i})
                     idx = isstrprop(vl{i},'upper');
                     short_form = vl{i}(idx);
-                    
-                    % Add the short form to the list of values if it was
-                    % not included explicitly
-                    if ~ismember(short_form, vl)
-                        short_vl{end+1}=short_form; %#ok<AGROW>
+                    if ~isequal(vl{i}, short_form)
+                        short_vl{i} = short_form;
                     end
-                    short_vl{end+1}=short_form; %#ok<AGROW>
                 end
             end
-            ext_vl=[vl, short_vl];
+            
+            % Remove duplicates
+            short_vl = unique(lower(short_vl));
+            
+            % Make the list of full forms
+            long_vl = setdiff(lower(vl), short_vl);  
         end
         
         % Return the long form of value from val_list 
-        function std_val = toStandardForm(this, cmd, val)
+        function std_val = toStandardForm(this, cmd)
             assert(ismember(cmd, this.command_names), ['''' cmd ...
                 ''' is not an instrument command.'])
 
+            val = this.(cmd);
             val_list = this.CommandList.(cmd).ext_val_list;
             
             % Standardization is applicable to char-valued properties which
@@ -180,20 +184,6 @@ classdef MyScpiInstrument < MyInstrument
             mvals = val_list(ismatch);
             n_el = cellfun(@(x) length(x), mvals);
             std_val = mvals{n_el==max(n_el)};
-        end
-        
-        function std_list = listToStandardForm(this, cmd)
-            if ~ismember(cmd,this.command_names)
-                warning('%s is not a valid command',cmd);
-                std_list = {};
-                return
-            end
-            vlist = this.CommandList.(cmd).val_list;
-            % Select the commands, which appear only once in the beginnings 
-            % of the strings in val_list
-            long_val_ind = cellfun(...
-                @(x)(sum(startsWith(vlist,x,'IgnoreCase',true))==1),vlist);
-            std_list = vlist(long_val_ind); 
         end
     end
     

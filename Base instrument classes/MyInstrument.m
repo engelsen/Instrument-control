@@ -36,18 +36,15 @@ classdef MyInstrument < dynamicprops
         end
         
         % Read all parameters of the physical device
-        function sync(this)
+        function read_cns = sync(this)
             read_ind = structfun(@(x) ~isempty(x.readFcn), ...
                 this.CommandList);
-            read_cmds = this.command_names(read_ind);
+            read_cns = this.command_names(read_ind);
             
-            for i=1:length(read_cmds)
-                tag = read_cmds{i};
+            for i=1:length(read_cns)
+                tag = read_cns{i};
                 setCommand(this, tag, val, true);
             end
-            
-            % Signal value change
-            triggerNewSetting(this, read_cmds);
         end
         
         function addCommand(this, tag, varargin)
@@ -67,9 +64,7 @@ classdef MyInstrument < dynamicprops
             
             % Function or list of functions executed after updating the
             % class property value
-            addParameter(p,'postSetFcn',[], ...
-                @(x)(isa(x, 'function_handle') || (iscell(x) && ...
-                all(cellfun(@(y)isa(y, 'function_handle'), x)))));
+            addParameter(p,'postSetFcn',[], @(x)isa(x, 'function_handle'));
             
             addParameter(p,'value_list',{}, @iscell);
             addParameter(p,'default',[]);
@@ -81,7 +76,7 @@ classdef MyInstrument < dynamicprops
             
             this.CommandList.(tag) = p.Results;
             
-            if ~ismember('value_list', p.UsingDefaults)
+            if ~isempty(this.CommandList.(tag).value_list)
                 assert(isempty(this.CommandList.(tag).validationFcn), ...
                     ['validationFcn is already assigned, cannot ' ...
                     'create a new one based on value_list']);
@@ -157,15 +152,26 @@ classdef MyInstrument < dynamicprops
                     % be read
                     this.(tag) = val;
                     
+                    if ~isempty(this.CommandList.(tag).postSetFcn)
+                        this.CommandList.(tag).postSetFcn(tag);
+                    end
+                    
                     % Signal value change
                     triggerNewSetting(this, {tag});
                 end
                 
                 if this.auto_sync
-                    sync(this);
+                    read_cns = sync(this);
+                    
+                    % Signal value change
+                    triggerNewSetting(this, read_cns);
                 end
             else
                 this.(tag) = val;
+                
+                if ~isempty(this.CommandList.(tag).postSetFcn)
+                    this.CommandList.(tag).postSetFcn(tag);
+                end
             end
         end
     end
