@@ -76,6 +76,9 @@ classdef MyInstrument < dynamicprops
             
             this.CommandList.(tag) = p.Results;
             
+            this.CommandList.(tag).info = ...
+                toSingleLine(this.CommandList.(tag).info);
+            
             if ~isempty(this.CommandList.(tag).value_list)
                 assert(isempty(this.CommandList.(tag).validationFcn), ...
                     ['validationFcn is already assigned, cannot ' ...
@@ -97,7 +100,9 @@ classdef MyInstrument < dynamicprops
                 H.SetAccess = 'protected';
             end
             
-            this.(tag) = p.Results.default;
+            % Assign the default value without communication with
+            % instrument
+            setCommand(this, tag, p.Results.default, true);
         end
         
         % Dummy function that is redefined in subclasses to
