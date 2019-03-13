@@ -1,29 +1,34 @@
-% Class that implements a mechanism to fascilitate synchronization of
-% app-based guis
+% A mechanism to fascilitate synchronization of app-based guis
 
-classdef MyAppSync < handle
+classdef MyGuiSync < handle
     
-    properties (GetAccess=public, SetAccess=private)
+    properties (GetAccess = public, SetAccess = private)
         Listeners
         LinkedElements % Array of graphics objects
     end
     
-    properties (Access=private)
+    properties (Access = protected)
+        
         % There properties are stored for cleanup purposes and not to be
         % used from the outside
         App = [];
         KernelObj = []
     end
     
-    methods
-        
-        function this=MyAppSync(App, KernelObj)
-            this.App=App;
-            this.Listeners.AppDeleted=addlistener(App, ...
+    methods (Access = public)     
+        function this = MyGuiSync(App, KernelObj)
+            p = inputParser();
+            addRequired(p, App);
+            addOptional(p, KernelObj, [], @ishandle);
+            parse(p, App, KernelObj);
+            
+            this.App = App;
+            this.Listeners.AppDeleted = addlistener(App, ...
                 'ObjectBeingDeleted', @(~, ~)delete(this));
             
-            if nargin()==2
+            if ~ismember('KernelObj', p.UsingDefaults)
                 
+                % Kernel object triggers events that update gui 
                 this.KernelObj=KernelObj;
                 
                 try
@@ -65,7 +70,7 @@ classdef MyAppSync < handle
                 try
                     % Check if the instrument object has appropriate method. This
                     % is a safety measure to never delete a file by accident if 
-                    % app.Instr happens to be a valid file name.
+                    % it happens to be a valid file name.
                     if ismethod(this.KernelObj, 'delete')
                         delete(this.KernelObj);
                     else
@@ -79,6 +84,11 @@ classdef MyAppSync < handle
             end
         end
         
+        function addLink()
+        end
+    end
+       
+    methods (Access = protected)  
         function coreObjDeletedCallback(this)
             % Switch off the AppBeingDeleted callback in order to prevent
             % an infinite loop
