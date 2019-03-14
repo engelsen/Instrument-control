@@ -120,10 +120,17 @@ classdef MyScpiInstrument < MyInstrument
             res_list = queryCommand(this, read_commands{:});
             
             if length(read_cns)==length(res_list)
+                
                 % Assign outputs to the class properties
                 for i=1:length(read_cns)
+                    
+                    % Assign value without writing to the instrument
+                    this.CommandList.(read_cns{i}).Psl.Enabled = false;
+                    
                     this.(read_cns{i})=sscanf(res_list{i},...
                         this.CommandList.(read_cns{i}).format);
+                    
+                    this.CommandList.(read_cns{i}).Psl.Enabled = true;
                 end
             else
                 warning(['Not all the properties could be read, ',...

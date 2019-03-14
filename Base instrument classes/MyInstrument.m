@@ -23,7 +23,6 @@ classdef MyInstrument < dynamicprops
     
     properties (Dependent = true)
         command_names
-        command_no
     end
     
     events 
@@ -43,7 +42,11 @@ classdef MyInstrument < dynamicprops
             
             for i=1:length(read_cns)
                 tag = read_cns{i};
-                setCommand(this, tag, val, true);
+                
+                % Assign value without writing to the instrument
+                this.CommandList.(tag).Psl.Enabled = false;
+                this.(tag) = this.CommandList.(tag).readFcn();
+                this.CommandList.(tag).Psl.Enabled = true;
             end
         end
         
@@ -95,19 +98,17 @@ classdef MyInstrument < dynamicprops
             
             if ~isempty(this.CommandList.(tag).writeFcn)
                 H.SetAccess = 'public';
-                H.SetMethod = @(x,y)this.setCommand(x,y,false);
+                H.SetObservable = true;
             else
                 H.SetAccess = 'protected';
             end
             
-            % Assign the default value without communication with
-            % instrument
-            setCommand(this, tag, p.Results.default, true);
-        end
-        
-        % Dummy function that is redefined in subclasses to
-        % incorporate addCommand statements
-        function createCommandList(~)
+            this.(tag) = p.Results.default;
+            
+            % Listener to PostSet event
+            this.CommandList.(tag).Psl = addlistener(this, tag, ...
+                'PostSet', @this.commandPostSetCallback);
+
         end
         
         % Identification
@@ -138,46 +139,33 @@ classdef MyInstrument < dynamicprops
     
     methods (Access = protected)
         
+        % Dummy function that is redefined in subclasses to
+        % incorporate addCommand statements
+        function createCommandList(~)
+        end
+        
         % Set method shared by all commands
-        function setCommand(this, tag, val, prop_only)
-            if ~prop_only
-                vFcn = this.CommandList.(tag).validationFcn;
-                if ~isempty(vFcn)
-                    assert(vFcn(val), ['Value assigned to property ''' ...
-                        tag ''' must satisfy ' func2str(vFcn) '.']);
-                end
-                
-                % Write and confirm the new value by reading
-                this.CommandList.(tag).writeFcn(val);
-                
-                if isempty(this.CommandList.(tag).readFcn) || ...
-                        ~this.auto_sync
-                    
-                    % Assign the nominal value if it cannot or should not 
-                    % be read
-                    this.(tag) = val;
-                    
-                    if ~isempty(this.CommandList.(tag).postSetFcn)
-                        this.CommandList.(tag).postSetFcn(tag);
-                    end
-                    
-                    % Signal value change
-                    triggerNewSetting(this, {tag});
-                end
-                
-                if this.auto_sync
-                    read_cns = sync(this);
-                    
-                    % Signal value change
-                    triggerNewSetting(this, read_cns);
-                end
-            else
-                this.(tag) = val;
-                
-                if ~isempty(this.CommandList.(tag).postSetFcn)
-                    this.CommandList.(tag).postSetFcn(tag);
-                end
+        function commandPostSetCallback(this, Src, ~)
+            tag = Src.Name;
+            val = this.(tag);
+            
+            vFcn = this.CommandList.(tag).validationFcn;
+            if ~isempty(vFcn)
+                assert(vFcn(val), ['Value assigned to property ''' ...
+                    tag ''' must satisfy ' func2str(vFcn) '.']);
             end
+
+            % Write and confirm the new value by reading
+            this.CommandList.(tag).writeFcn(val);
+
+            if this.auto_sync
+                read_cns = sync(this);
+            else
+                read_cns = {tag};
+            end
+            
+            % Signal value change
+            triggerNewSetting(this, read_cns);
         end
     end
     
@@ -185,10 +173,6 @@ classdef MyInstrument < dynamicprops
     methods
         function val=get.command_names(this)
             val=fieldnames(this.CommandList);
-        end
-        
-        function command_no=get.command_no(this)
-            command_no=length(this.command_names);
         end
         
         function set.idn_str(this, str)
