@@ -1,11 +1,16 @@
 classdef MyNewSettingEvent < event.EventData
    
     properties
-        prop_list
+        SettingList
     end
     
     methods
-        function this = MyNewSettingEvent(varargin)
+        function this = MyNewSettingEvent(SettingList)
+            p = inputParser();
+            addOptional(p, 'SettingList', struct(), @isstruct);
+            parse(p, SettingList);
+            
+            this.SettingList = p.Results.SettingList;
         end
     end
 end

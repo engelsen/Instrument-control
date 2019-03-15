@@ -5,12 +5,13 @@
 %   createCommandList(this)
 % 
 % These methods are intentionally not introduced as abstract as under
-% some conditions they are not necessary or essential
+% some conditions they are not necessary
 
 classdef MyInstrument < dynamicprops
     
     properties (Access = public)
-        % Synchronize all properties after setting a new value to one
+        
+        % Synchronize all properties after setting new value to one
         auto_sync = true
     end
     
@@ -128,10 +129,15 @@ classdef MyInstrument < dynamicprops
         
         function triggerNewSetting(this, varargin)
             p=inputParser;
-            addParameter(p, 'setting_name', @iscellstr);
+            addParameter(p, 'setting_names', {}, @iscellstr);
             parse(p, varargin{:});
             
-            EventData=MyNewSettingEvent();
+            % Convert to column
+            sns = p.Results.setting_names(:);
+            
+            vals = cellfun(@(x) this.(x), sns, 'UniformOutput', false);
+            
+            EventData = MyNewSettingEvent(cell2struct(vals, sns, 1));
             
             notify(this, 'NewSetting', EventData);
         end
@@ -165,7 +171,7 @@ classdef MyInstrument < dynamicprops
             end
             
             % Signal value change
-            triggerNewSetting(this, read_cns);
+            triggerNewSetting(this, 'setting_names', read_cns);
         end
     end
     
