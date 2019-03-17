@@ -1,4 +1,4 @@
-% Communication container.
+% Communicator container.
 % This class provides extended functionality for communication using VISA, 
 % tcpip and serial objects or any other objects with similar usage. 
 
@@ -19,11 +19,17 @@ classdef MyCommCont < handle
         
         %% Constructor and destructor
         
-        function this = MyCommCont()
+        function this = MyCommCont(interface, address, varargin)
+            P=MyClassParser();
+            addRequired(P,'interface',@ischar);
+            addRequired(P,'address',@ischar);
+            processInputs(P, this, interface, address, varargin{:});
+            
             try
                 connect(this);
             catch ME
                 warning(ME.message);
+                
                 % Create a dummy
                 this.Comm=serial('Dummy');
             end
@@ -31,13 +37,15 @@ classdef MyCommCont < handle
             configureCommDefault(this);
         end
         
-        function delete(this)         
+        function delete(this) 
+            
             % Close the connection to the device
             try 
                 closeComm(this);
             catch
                 warning('Connection could not be closed.');
             end
+            
             % Delete the device object
             try
                 delete(this.Comm);
@@ -51,18 +59,22 @@ classdef MyCommCont < handle
         % Create an interface object
         function connect(this)
             switch lower(this.interface)
+                
                 % Use 'constructor' interface to create an object with
                 % more that one parameter passed to the constructor
                 case 'constructor'
+                    
                     % In this case 'address' is a MATLAB command that  
                     % creates communication object when executed. 
                     % Such commands, for example, are returned by  
                     % instrhwinfo as ObjectConstructorName.
                     this.Comm=eval(this.address);
                 case 'visa'
+                    
                     % visa brand is 'ni' by default
                     this.Comm=visa('ni', this.address);
                 case 'tcpip'
+                    
                     % Works only with default socket. Use 'constructor'
                     % if socket or other options need to be specified
                     this.Comm=tcpip(this.address);
