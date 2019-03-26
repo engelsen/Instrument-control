@@ -14,6 +14,7 @@ classdef MyGuiSync < handle
         %   input_prescaler
         %   inputProcessingFcn
         %   outputProcessingFcn
+        %   update_event     'NewSetting', 'PostSet' or 'no'
         
         UpdateTimer
     end
@@ -107,8 +108,109 @@ classdef MyGuiSync < handle
             end
         end
         
+        % Operation of addLink
+        %
+        %   option: callback_update true/false
+        %
+        % obj = top handle object
+        % 
+        % If isevent(obj, 'NewSetting') && callback_update
+        %   ... define a callback using the framework of NewSetting
+        % elseif issetobservable(obj, prop) && callback_update
+        %   ... define a callback for PostSet
+        % else
+        %   ... add to the list which is updated manually, e.g. it is
+        %   updated each time one of such values is reset
+        %   (execute updateGui(app) if defined or updateLinks(app.Sync) otherwise)
         
-        function addLink(this, elem, prop_tag, varargin)
+        
+        % prop_tag is a reference to an element of app 
+        function addLink(this, Elem, prop_ref, varargin)
+            
+            % Make sure the reference starts with a dot and convert to
+            % subreference structure
+            if prop_ref(1)~='.'
+                PropSubs = str2substruct(['.',prop_ref]);
+            else
+                PropSubs = str2substruct(prop_ref);
+            end
+            
+            % Check if the specified reference is accessible
+            try
+                subsref(this.App, PropSubs);
+            catch
+                disp(['Property referenced by the tag ' prop_ref ...
+                    ' is not accessible, the corresponding GUI ' ...
+                    'element will be not linked and disabled.'])
+                Elem.Enable = 'off';
+                return
+            end
+            
+            % Find the handle object to which the end property belongs as
+            % well as the end property name
+            Hobj = this.App;
+            hobj_name = 'App';
+            
+            RelSubs = PropSubs;     % Subreference relative to Hobj
+            prop_name = subsref(this.App, PropSubs(1));
+            
+            for i=1:length(PropSubs)-1
+                testvar = subsref(this.App, PropSubs(1:end-i));
+                if isa(testvar, 'handle')
+                    Hobj = testvar;
+                    hobj_name = PropSubs(end-i).subs;
+ 
+                    RelSubs = PropSubs(end-i+1:end);
+                    prop_name = subsref(this.App,PropSubs(1:end-i+1));
+                    
+                    break
+                end
+            end
+            
+            % Determine the type of link to be created
+            if ismember('NewSetting', events(Hobj)) && is_event_update
+                
+                % Add a listener for the NewSetting event if it is not
+                % already present               
+                if ~hasListener(this, Hobj, 'NewSetting')
+                    l_name = [hobj_name, 'NewSetting']; 
+                    
+                    % Make sure the listener name is unique in the
+                    % structure
+                    l_name = matlab.lang.makeUniqueStrings(l_name, fieldnames(this.Listeners));
+                    
+                    this.Listeners.(l_name) = addlistener(Hobj, 'NewSetting', @updatenewsetting);
+                end
+                
+                % Add link and return
+                addLinkNs(this, Elem, Hobj, RelSubs, varargin);
+                
+                return
+            end
+            
+            if eventupdate
+                try
+                    addLinkPs(this, Elem, Hobj, RelSubs, varargin);
+                    
+                    l_name = [hobj_name, prop_name, 'PostSet']; 
+                    
+                    % Make sure the listener name is unique in the
+                    % structure
+                    l_name = matlab.lang.makeUniqueStrings(l_name, fieldnames(this.Listeners));
+                    
+                    this.Listeners.(l_name) = addlistener(Hobj, prop_name, 'PostSet', @updatepostset);
+                    
+                    return
+                catch
+                end
+            end
+            
+            % Create a non-event link
+            addLinkMu(this, Elem, PropSubs, varargin);
+        end
+        
+        % No update event
+        function addLinkMu(this, elem, prop_tag, varargin)
             p=inputParser();
 
             % GUI control element
@@ -284,9 +386,6 @@ classdef MyGuiSync < handle
             app.linked_elem_list = [app.linked_elem_list, elem];
         end
         
-        function updateGuiElement(this, LinkStruct)
-        
-        end
         
         function updateGui(this)
             arrayfun(@(x) updateGuiElement(this, x), this.LinkedElements);
@@ -307,6 +406,23 @@ classdef MyGuiSync < handle
         % Update 
         function newSettingCallback(this, Src, EventData)
             
+        end
+        
+        function postSetCallback(this, Hobj, S)
+            Elem.Value = ;
+        end
+        
+        % Check if a listener to an event already exists 
+        function bool = hasListener(this, Obj, event_name)
+            l_names = fieldbames(this.Listeners);
+            
+            bool = false;
+            for i=1:length(l_names)
+                L = this.Listeners.(l_names{i});
+                if isequal(L.EventName, event_name) && isequal(L.Source{1}, Obj)
+                    bool = true;
+                end
+            end
         end
     end
     
