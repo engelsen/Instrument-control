@@ -388,11 +388,6 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                         % Switch the oscillator
                         this.current_osc=this.meas_osc;
                         
-                        % Clear the buffer on ZI data server from existing   
-                        % demodulator samples, as these samples were 
-                        % recorded with drive on 
-                        ziDAQ('poll',this.poll_duration,this.poll_timeout);
-                        
                         % Optionally start the auxiliary output timers
                         if this.enable_aux_out
                             % Configure measurement periods and delays
@@ -410,14 +405,11 @@ classdef MyZiRingdown < MyZiLi & MyDataSource
                         end
                         
                         % Clear trace and append new data starting from the
-                        % index, at which triggering occurred
+                        % index, at which triggering occurred. 
+                        % Theoretically, a record can be finished with
+                        % this one portion if the record time is set small.
                         clearData(this.Trace);
                         
-                        % Append the first portion of samples to the
-                        % record, starting from the index at which 
-                        % triggering occurred. Theoretically, a record can
-                        % be finished with this one portion if the record
-                        % time is set small.
                         rec_finished = ...
                             appendSamplesToTrace(this, DemodSample, ind0);
                         

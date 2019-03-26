@@ -306,7 +306,16 @@ classdef MyFit < dynamicprops
                     %Fits polynomial of order 2
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case {'Lorentzian','LorentzianGrad','Gaussian',...
+                case 'Lorentzian'
+                    scale_factor=max(this.Data.y);
+                    this.Data.y=this.Data.y/scale_factor;
+                    this.init_params(1)=this.init_params(1)/scale_factor;
+                    this.init_params(4)=this.init_params(4)/scale_factor;
+                    doFit(this);
+                    this.coeffs(1)=this.coeffs(1)*scale_factor;
+                    this.coeffs(4)=this.coeffs(4)*scale_factor;
+                    this.Data.y=this.Data.y*scale_factor;
+                case {'LorentzianGrad','Gaussian',...
                         'DoubleLorentzian','DoubleLorentzianGrad',...
                         'Exponential','Gorodetsky2000',...
                         'Gorodetsky2000plus'}
