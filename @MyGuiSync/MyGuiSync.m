@@ -4,17 +4,32 @@ classdef MyGuiSync < handle
     
     properties (GetAccess = public, SetAccess = private)
         
-        Listeners
-        Links % Array of graphics objects
-        %   GuiElement
-        %   GuiElementProp
-        %   hObj
-        %   hObjProp
-        %   hObjSubstruct
-        %   input_prescaler
-        %   inputProcessingFcn
-        %   outputProcessingFcn
-        %   update_event     'NewSetting', 'PostSet' or 'no'
+        Listeners = struct()
+        
+        % Non-event links.
+        %
+        %   GuiElement          - graphics object
+        %   gui_element_prop    - property of graphics object to be updated
+        %   inputProcessingFcn  - function, applied after a value is
+        %                           inputed to GUI element
+        %   outputProcessingFcn - function, applied before a new value is 
+        %                           displayed in GUI element
+        %   getTargetFcn
+        %   setTargetFcn
+        LinksNe
+        
+        % Event-based links.
+        % Include the same fields as non-event links plus
+        %
+        %   Hobj                - handle object
+        %   HobjProp            - name of the property of 
+        %   HobjSubstruct
+        %   event_name
+        %   Listener            - listener handle
+        LinksE     % Updated by NewSetting
+        
+        % If App defines updateGui function
+        update_gui_defined = false
         
         UpdateTimer
     end
@@ -23,7 +38,7 @@ classdef MyGuiSync < handle
         
         % There properties are stored for cleanup purposes and not to be
         % used from the outside
-        App = [];
+        App = []
         KernelObj = []
     end
     
@@ -34,9 +49,18 @@ classdef MyGuiSync < handle
             addOptional(p, 'KernelObj', [], @(x)isa(x, 'handle'));
             parse(p, App, KernelObj);
             
+            assert(ismethod(App, 'publicCreateCallbackFcn'), ...
+                ['Matlab app must define a public wrapper for ' ...
+                'createCallbackFcn in order for GuiSync to be able to ' ...
+                'automatically assign ValueChanged callbacks. ' ...
+                'The wrapper method must have signature ' ...
+                'publicCreateCallbackFcn(app, callbackFunction).']);
+            
             this.App = App;
             this.Listeners.AppDeleted = addlistener(App, ...
                 'ObjectBeingDeleted', @(~, ~)delete(this));
+            
+            this.update_gui_defined = ismethod(this.App, 'updateGui');
             
             if ~ismember('KernelObj', p.UsingDefaults)
                 
@@ -206,11 +230,13 @@ classdef MyGuiSync < handle
             end
             
             % Create a non-event link
-            addLinkMu(this, Elem, PropSubs, varargin);
+            addLinkNe(this, Elem, PropSubs, varargin);
         end
         
+        %% Implementations of particular cases of addLink
+        
         % No update event
-        function addLinkMu(this, elem, prop_tag, varargin)
+        function addLinkNe(this, elem, prop_tag, varargin)
             p=inputParser();
 
             % GUI control element
@@ -386,10 +412,17 @@ classdef MyGuiSync < handle
             app.linked_elem_list = [app.linked_elem_list, elem];
         end
         
-        
-        function updateGui(this)
-            arrayfun(@(x) updateGuiElement(this, x), this.LinkedElements);
+        % NewSetting event
+        function addLinkNs(this)
         end
+        
+        % PostSet event
+        function addLinkNs(this)
+        end
+        
+%         function updateGui(this)
+%             arrayfun(@(x) updateGuiElement(this, x), this.LinkedElements);
+%         end
     end
        
     methods (Access = protected)  
@@ -405,11 +438,46 @@ classdef MyGuiSync < handle
         
         % Update 
         function newSettingCallback(this, Src, EventData)
+            setting_names = fieldnames(EventData.SettingList);
             
         end
         
-        function postSetCallback(this, Hobj, S)
-            Elem.Value = ;
+        function postSetCallback(this, LinkStruct)
+            val = LinkStruct.getTargetFcn();
+            
+            if ~isempty(LinkStruct.outputProcessingFcn)
+                val = LinkStruct.outputProcessingFcn(val);
+            end
+            
+            LinkStruct.GuiElement.(LinkStruct.gui_element_prop) = val;
+            
+            % Optionally execute the update function defined within the App
+            if this.update_gui_defined
+                updateGui(this.App);
+            end
+        end
+        
+        % Callback that is assigned to graphics elements as ValueChangedFcn
+        function valueChangedCallback(this, LinkStruct)           
+            val = LinkStruct.GuiElement.Value;
+            
+            if ~isempty(LinkStruct.inputProcessingFcn)
+                val = LinkStruct.inputProcessingFcn(val);
+            end
+            
+            LinkStruct.setTargetFcn(val);
+            
+            if ~isfield(LinkStruct, 'Listener')
+                
+                % Update non event based links
+                updateLinkedElements(this);
+                
+                % Optionally execute the update function defined within 
+                % the App
+                if this.update_gui_defined
+                    updateGui(this.App);
+                end
+            end
         end
         
         % Check if a listener to an event already exists 
