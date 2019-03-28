@@ -144,6 +144,13 @@ classdef MyInstrument < dynamicprops
         function f = createCommandSetFcn(~, tag)
             function commandSetFcn(this, val)
                 
+                % Validate new value
+                vFcn = this.CommandList.(tag).validationFcn;
+                if ~isempty(vFcn)
+                    assert(vFcn(val), ['Value assigned to property ''' ...
+                        tag ''' must satisfy ' func2str(vFcn) '.']);
+                end
+                
                 % Store unprocessed value for quick reference in the future 
                 % and change tracking
                 this.CommandList.(tag).last_value = val;
@@ -159,20 +166,13 @@ classdef MyInstrument < dynamicprops
             f = @commandSetFcn;
         end
         
-        % Post set function for dynamic properties - writing and 
-        % synchronization
+        % Post set function for dynamic properties - writing the new value  
+        % to the instrument and optionally reading it back to confirm the 
+        % change
         function commandPostSetCallback(this, Src, ~)
             tag = Src.Name;
-            val = this.(tag);
-            
-            vFcn = this.CommandList.(tag).validationFcn;
-            if ~isempty(vFcn)
-                assert(vFcn(val), ['Value assigned to property ''' ...
-                    tag ''' must satisfy ' func2str(vFcn) '.']);
-            end
 
-            % Write and confirm the new value by reading
-            this.CommandList.(tag).writeFcn(val);
+            this.CommandList.(tag).writeFcn(this.(tag));
 
             if this.auto_sync
                 sync(this);
