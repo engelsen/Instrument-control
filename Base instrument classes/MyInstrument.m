@@ -43,7 +43,7 @@ classdef MyInstrument < dynamicprops
                 
                 % Compare to the previous value and update if different.
                 % Comparison prevents overhead for objects that listen to 
-                % the changes of command values.
+                % the changes of property values.
                 if ~isequal(this.CommandList.(tag).last_value, read_value)
                     
                     % Assign value without writing to the instrument
@@ -108,7 +108,7 @@ classdef MyInstrument < dynamicprops
                 H.SetAccess = 'protected';
             end
             
-            H.SetMethod = @(x,y)commandSetMethod(x, y, tag);
+            H.SetMethod = createCommandSetFcn(this, tag);
             
             this.(tag) = p.Results.default;
             
@@ -140,22 +140,27 @@ classdef MyInstrument < dynamicprops
         function createCommandList(~)
         end
         
-        % Set method for commands
-        function commandSetMethod(this, val, cmd_name)
+        % Create set methods for dynamic properties
+        function f = createCommandSetFcn(~, tag)
+            function commandSetFcn(this, val)
+                
+                % Store unprocessed value for quick reference in the future 
+                % and change tracking
+                this.CommandList.(tag).last_value = val;
 
-            % Store unprocessed value for quick future reference and change
-            % tracking
-            this.CommandList.(cmd_name).last_value = val;
-            
-            pFcn = this.CommandList.(cmd_name).postSetFcn;
-            if ~isempty(pFcn)
-                val = pFcn(val);
+                pFcn = this.CommandList.(tag).postSetFcn;
+                if ~isempty(pFcn)
+                    val = pFcn(val);
+                end
+
+                this.(tag) = val;
             end
             
-            this.(cmd_name) = val;
+            f = @commandSetFcn;
         end
         
-        % Post set - writing ans synchronization
+        % Post set function for dynamic properties - writing and 
+        % synchronization
         function commandPostSetCallback(this, Src, ~)
             tag = Src.Name;
             val = this.(tag);
