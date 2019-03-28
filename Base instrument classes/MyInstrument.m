@@ -26,10 +26,6 @@ classdef MyInstrument < dynamicprops
         command_names
     end
     
-    events 
-        NewSetting
-    end
-    
     methods (Access = public)
         function this = MyInstrument(varargin)
             createCommandList(this);
@@ -43,11 +39,18 @@ classdef MyInstrument < dynamicprops
             
             for i=1:length(read_cns)
                 tag = read_cns{i};
+                read_value = this.CommandList.(tag).readFcn();
                 
-                % Assign value without writing to the instrument
-                this.CommandList.(tag).Psl.Enabled = false;
-                this.(tag) = this.CommandList.(tag).readFcn();
-                this.CommandList.(tag).Psl.Enabled = true;
+                % Compare to the previous value and update if different.
+                % Comparison prevents overhead for objects that listen to 
+                % the changes of command values.
+                if ~isequal(this.CommandList.(tag).last_value, read_value)
+                    
+                    % Assign value without writing to the instrument
+                    this.CommandList.(tag).Psl.Enabled = false;
+                    this.(tag) = read_value;
+                    this.CommandList.(tag).Psl.Enabled = true;
+                end
             end
         end
         
@@ -87,6 +90,7 @@ classdef MyInstrument < dynamicprops
                 assert(isempty(this.CommandList.(tag).validationFcn), ...
                     ['validationFcn is already assigned, cannot ' ...
                     'create a new one based on value_list']);
+                
                 this.CommandList.(tag).validationFcn = ...
                     @(x) any(cellfun(@(y) isequal(y, x),...
                     this.CommandList.(tag).value_list));
@@ -104,12 +108,13 @@ classdef MyInstrument < dynamicprops
                 H.SetAccess = 'protected';
             end
             
+            H.SetMethod = @(x,y)commandSetMethod(x, y, tag);
+            
             this.(tag) = p.Results.default;
             
             % Listener to PostSet event
             this.CommandList.(tag).Psl = addlistener(this, tag, ...
                 'PostSet', @this.commandPostSetCallback);
-
         end
         
         % Identification
@@ -126,21 +131,6 @@ classdef MyInstrument < dynamicprops
             end   
             this.idn_str=str;
         end
-        
-        function triggerNewSetting(this, varargin)
-            p=inputParser;
-            addParameter(p, 'setting_names', {}, @iscellstr);
-            parse(p, varargin{:});
-            
-            % Convert to column
-            sns = p.Results.setting_names(:);
-            
-            vals = cellfun(@(x) this.(x), sns, 'UniformOutput', false);
-            
-            EventData = MyNewSettingEvent(cell2struct(vals, sns, 1));
-            
-            notify(this, 'NewSetting', EventData);
-        end
     end
     
     methods (Access = protected)
@@ -150,7 +140,22 @@ classdef MyInstrument < dynamicprops
         function createCommandList(~)
         end
         
-        % Set method shared by all commands
+        % Set method for commands
+        function commandSetMethod(this, val, cmd_name)
+
+            % Store unprocessed value for quick future reference and change
+            % tracking
+            this.CommandList.(cmd_name).last_value = val;
+            
+            pFcn = this.CommandList.(cmd_name).postSetFcn;
+            if ~isempty(pFcn)
+                val = pFcn(val);
+            end
+            
+            this.(cmd_name) = val;
+        end
+        
+        % Post set - writing ans synchronization
         function commandPostSetCallback(this, Src, ~)
             tag = Src.Name;
             val = this.(tag);
@@ -165,13 +170,8 @@ classdef MyInstrument < dynamicprops
             this.CommandList.(tag).writeFcn(val);
 
             if this.auto_sync
-                read_cns = sync(this);
-            else
-                read_cns = {tag};
+                sync(this);
             end
-            
-            % Signal value change
-            triggerNewSetting(this, 'setting_names', read_cns);
         end
     end
     
