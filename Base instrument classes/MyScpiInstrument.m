@@ -123,14 +123,16 @@ classdef MyScpiInstrument < MyInstrument
                 
                 % Assign outputs to the class properties
                 for i=1:length(read_cns)
+                    val = sscanf(res_list{i},...
+                            this.CommandList.(read_cns{i}).format);
                     
-                    % Assign value without writing to the instrument
-                    this.CommandList.(read_cns{i}).Psl.Enabled = false;
-                    
-                    this.(read_cns{i})=sscanf(res_list{i},...
-                        this.CommandList.(read_cns{i}).format);
-                    
-                    this.CommandList.(read_cns{i}).Psl.Enabled = true;
+                    if ~isequal(this.CommandList.(tag).last_value, val)
+                        
+                        % Assign value without writing to the instrument
+                        this.CommandList.(read_cns{i}).Psl.Enabled = false;
+                        this.(read_cns{i}) = val;
+                        this.CommandList.(read_cns{i}).Psl.Enabled = true;
+                    end
                 end
             else
                 warning(['Not all the properties could be read, ',...
