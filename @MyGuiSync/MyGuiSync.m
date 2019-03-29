@@ -129,45 +129,14 @@ classdef MyGuiSync < handle
         function addLink(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
-            p=inputParser();
-
-            % GUI control element
-            addRequired(p, 'Elem');
-
-            % Target to which the value of GUI element will be linked 
-            % relative to the App itself
-            addRequired(p, 'prop_ref', @ischar);
-
-            % Linked property of the GUI element (can be e.g. 'Color')
-            addParameter(p, 'elem_prop', 'Value', @ischar);
-
-            % If input_prescaler is given, the value assigned to the instrument propery  
-            % is related to the value x displayed in GUI as x/input_presc.
-            addParameter(p, 'input_prescaler', 1, @isnumeric);
-
-            % Arbitrary processing functions can be specified for input and output.
-            % out_proc_fcn is applied to values before assigning them to gui
-            % elements and in_proc_fcn is applied before assigning
-            % to the linked properties
-            addParameter(p, 'outputProcessingFcn', @(x)x, ...
-                @(f)isa(f,'function_handle'));
-            addParameter(p, 'inputProcessingFcn', @(x)x, ...
-                @(f)isa(f,'function_handle'));
-
+            p = inputParser();
+            p.KeepUnmatched = true;
             addParameter(p, 'create_callback', true, @islogical);
-            
             addParameter(p, 'event_update', true, @islogical);
-
             parse(p, Elem, prop_tag, varargin{:});
-
-            create_callback = p.Results.create_callback;
-
-            if isempty(prop_tag)
-                warning('''prop_ref'' is empty, element is not linked')
-                return
-            end
             
-            %% 
+            % Make the list of unmatched name-value pairs for subroutine 
+            sub_varargin = struct2namevalue(p.Unmatched);
              
             % Make sure the reference starts with a dot and convert to
             % subreference structure
@@ -188,16 +157,9 @@ classdef MyGuiSync < handle
                 return
             end
             
-            % Create a link structure
-            Link = struct( ...
-                'GuiElement',           Elem, ...       
-                'gui_element_prop',     'Value', ...
-                'inputProcessingFcn',   [], ...
-                'outputProcessingFcn',  [], ...
-                'getTargetFcn',         [], ...
-                'setTargetFcn',         [], ...
-                'Listener',             [] ...           
-                );
+            % Create the basis of link structure (everything except for 
+            % set/get functions)
+            Link = makeLinkBasis(this, Elem, prop_ref, sub_varargin{:});
             
             % Find the handle object to which the end property belongs and
             % the end property name
@@ -225,7 +187,7 @@ classdef MyGuiSync < handle
                 hobj_prop, RelSubs);
             
             % Check if ValueChanged callback needs to be created
-            create_callback = ...
+            create_callback = p.Results.create_callback && ...
                 checkCreateVcf(this, Elem, elem_prop, Hobj, hobj_prop);
             
             if create_callback
@@ -248,185 +210,36 @@ classdef MyGuiSync < handle
                     Link.setTargetFcn);
             end
             
-            
-            % Check if the link is updated by PostSet event or manually
-            if eventupdate
+            % Attempt creating a callback to PostSet event for the target 
+            % property. If such callback is not created, the link needs to 
+            % be updated manually.
+            if p.Results.event_update
                 try
-                    addLinkPs(this, Elem, Hobj, RelSubs, varargin);
+                    Link.Listener = addlistener(Hobj, hobj_prop, ...
+                        'PostSet', createPostSetCallback(this, LinkStruct));
+                    
                     
                     l_name = [hobj_name, hobj_prop, 'PostSet']; 
                     
                     % Make sure the listener name is unique in the
                     % structure
-                    l_name = matlab.lang.makeUniqueStrings(l_name, fieldnames(this.Listeners));
+                    l_name = matlab.lang.makeUniqueStrings(l_name, ...
+                        fieldnames(this.Listeners));
                     
-                    this.Listeners.(l_name) = addlistener(Hobj, ...
-                        hobj_prop, 'PostSet', createPostSetCallback(this, LinkStruct));
+                    % Store listener handle also in the Listener structure
+                    % for deletion
+                    this.Listeners.(l_name) = Link.Listener;
                     
                     return
-                catch
+                catch 
                 end
             end
             
-            % Create a non-event link
-            addLinkNe(this, Elem, PropSubs, varargin);
+            % Store the link structure
+            this.Links = [this.Links, Link];
         end
         
         %% Implementations of particular cases of addLink
-        
-        % No update event
-        function addLinkNe(this, Elem, prop_tag, varargin)
-            p=inputParser();
-
-            % GUI control element
-            addRequired(p,'Elem');
-
-            % Instrument command to be linked to the GUI element
-            addRequired(p,'prop_tag',@ischar);
-
-            % A property of the GUI element that is updated according to the value
-            % under prop_tag can be other than 'Value' (e.g. 'Color' in the case of
-            % a lamp indicator)
-            addParameter(p,'elem_prop','Value',@ischar);
-
-            % If input_presc is given, the value assigned to the instrument propery  
-            % is related to the value x displayed in GUI as x/input_presc.
-            addParameter(p,'input_presc',1,@isnumeric);
-
-            % Arbitrary processing functions can be specified for input and output.
-            % out_proc_fcn is applied to values before assigning them to gui
-            % elements and in_proc_fcn is applied before assigning
-            % to the linked properties
-            addParameter(p,'outputProcessingFcn',@(x)x,@(f)isa(f,'function_handle'));
-            addParameter(p,'inputProcessingFcn',@(x)x,@(f)isa(f,'function_handle'));
-
-            addParameter(p,'create_callback', true, @islogical);
-
-            % For drop-down menues initializes entries automatically based on the 
-            % list of values. Ignored for all the other control elements. 
-            addParameter(p,'init_val_list',false,@islogical);
-
-            parse(p,Elem,prop_tag,varargin{:});
-
-            create_callback = p.Results.create_callback;
-
-            if isempty(prop_tag)
-                warning('''prop_tag'' is empty, element is not linked')
-                return
-            end
-
-            % Check if the tag refers to a property of an object, which also helps
-            % to determine is callback is to be created
-            if (length(PropSubref)>1) && isequal(PropSubref(end).type,'.')
-                % Potential MyInstrument object
-                Obj=subsref(app, PropSubref(1:end-1));
-                % Potential command name
-                tag=PropSubref(end).subs;
-                % Check if the property corresponds to an instrument command
-                try 
-                    is_cmd=ismember(tag, Obj.command_names);
-                catch
-                    % If anything goes wrong in the previous block the prop is not
-                    % a command
-                    is_cmd=false;
-                end
-                if is_cmd
-                    % Object is an instrument.
-                    Instr=Obj;
-                    % Never create callbacks for read-only properties.
-                    if ~contains(Instr.CommandList.(tag).access,'w')
-                        create_callback=false;
-                    end
-                % Then check if the tag corresponds to a simple object
-                % property (and not to a structure field)
-                elseif isprop(Obj, tag)
-                    try
-                        % indprop may sometimes throw errors, especially on Matlab 
-                        % below 2018a, therefore use try-catch
-                        mp = findprop(Obj, tag);
-                        % Newer create callbacks for the properties with
-                        % attributes listed below, as those cannot be set
-                        if mp.Constant||mp.Abstract||~strcmpi(mp.SetAccess,'public')
-                            create_callback=false;
-                        end
-                    catch
-                    end
-                end
-            else
-                is_cmd=false;
-            end
-
-            % Check if the gui element is editable - if it is not, then a callback 
-            % is not assigned. This is only meaningful for uieditfieds. Drop-downs
-            % also have 'Editable' property, but it corresponds to the editability
-            % of elements and does not have an effect on assigning callback.
-            if (strcmpi(Elem.Type, 'uinumericeditfield') || ...
-                    strcmpi(Elem.Type, 'uieditfield')) ...
-                    && strcmpi(Elem.Editable, 'off')
-                create_callback=false;
-            end
-
-            % If the gui element is disabled callback is not assigned
-            if isprop(Elem, 'Enable') && strcmpi(Elem.Enable, 'off')
-                create_callback=false;
-            end
-
-            % If create_callback is true and the element does not already have 
-            % a callback, assign genericValueChanged as ValueChangedFcn
-            if create_callback && isprop(Elem, 'ValueChangedFcn') && ...
-                    isempty(Elem.ValueChangedFcn)
-                % A public createGenericCallback method needs to intorduced in the
-                % app, as officially Matlab apps do not support an automatic
-                % callback assignment (as of the version of Matlab 2018a)
-                assert(ismethod(app,'createGenericCallback'), ['App needs to ',...
-                    'contain public createGenericCallback method to automatically'...
-                    'assign callbacks. Use ''create_callback'',false in order to '...
-                    'disable automatic callback']);
-                Elem.ValueChangedFcn = createGenericCallback(app);
-            end
-
-            % A step relevant for lamp indicators. It is often convenient to have a
-            % lamp as an indicator of on/off state. If a lamp is being linked to a 
-            % logical-type variable we therefore assign OutputProcessingFcn puts 
-            % logical values in corresponcence with colors 
-            if strcmpi(Elem.Type, 'uilamp') && ~iscolor(target_val)
-                % The property of lamp that is to be updated by updateGui is not
-                % Value but Color
-                Elem.UserData.elem_prop='Color';
-                % Select between the default on and off colors. Different colors
-                % can be indicated by explicitly setting OutputProcessingFcn that
-                % will overwrite the one assigned here.
-                Elem.UserData.OutputProcessingFcn = ...
-                    @(x)select(x, MyAppColors.lampOn(), MyAppColors.lampOff());
-            end
-
-            % If a prescaler, input processing function or output processing  
-            % function is specified, store it in UserData of the element
-            if p.Results.input_presc ~= 1
-                Elem.UserData.InputPrescaler = p.Results.input_presc;
-            end
-            if ~ismember('in_proc_fcn',p.UsingDefaults)
-                Elem.UserData.InputProcessingFcn = p.Results.in_proc_fcn;
-            end
-            if ~ismember('out_proc_fcn',p.UsingDefaults)
-                Elem.UserData.OutputProcessingFcn = p.Results.out_proc_fcn;
-            end
-
-            if ~ismember('elem_prop',p.UsingDefaults)
-                Elem.UserData.elem_prop = p.Results.out_proc_fcn;
-            end
-
-            %% Linking
-
-            % The link is established by storing the subreference structure
-            % in UserData and adding elem to the list of linked elements
-            Elem.UserData.LinkSubs = PropSubref;
-            app.linked_elem_list = [app.linked_elem_list, Elem];
-        end
-        
-        % PostSet event
-        function addLinkPs(this)
-        end
         
 %         function updateGui(this)
 %             arrayfun(@(x) updateGuiElement(this, x), this.LinkedElements);
@@ -542,7 +355,7 @@ classdef MyGuiSync < handle
         %% Subroutines of addLink
         
         % Parse input and create the base of Link structure
-        function Link = makeLinkStruct(this, Elem, prop_ref, varargin)
+        function Link = makeLinkBase(~, Elem, prop_ref, varargin)
             
             % Parse function inputs
             p=inputParser();
@@ -565,27 +378,54 @@ classdef MyGuiSync < handle
             % out_proc_fcn is applied to values before assigning them to gui
             % elements and in_proc_fcn is applied before assigning
             % to the linked properties
-            addParameter(p, 'outputProcessingFcn', @(x)x, ...
+            addParameter(p, 'outputProcessingFcn', [], ...
                 @(f)isa(f,'function_handle'));
-            addParameter(p, 'inputProcessingFcn', @(x)x, ...
+            addParameter(p, 'inputProcessingFcn', [], ...
                 @(f)isa(f,'function_handle'));
 
-            addParameter(p, 'create_callback', true, @islogical);
-            
-            addParameter(p, 'event_update', true, @islogical);
-
-            parse(p, Elem, prop_tag, varargin{:});
+            parse(p, Elem, prop_ref, varargin{:});
             
             % Create a link structure
             Link = struct( ...
-                'GuiElement',           Elem, ...       
-                'gui_element_prop',     'Value', ...
-                'inputProcessingFcn',   [], ...
-                'outputProcessingFcn',  [], ...
+                'GuiElement',           p.Results.Elem, ...       
+                'gui_element_prop',     p.Results.elem_prop, ...
+                'inputProcessingFcn',   p.Results.inputProcessingFcn, ...
+                'outputProcessingFcn',  p.Results.outputProcessingFcn, ...
                 'getTargetFcn',         [], ...
                 'setTargetFcn',         [], ...
                 'Listener',             [] ...           
                 );
+            
+            % Lamp indicators is a special case. It is often convenient to 
+            % make a lamp indicate on/off state. If a lamp is being linked  
+            % to a logical-type variable we therefore assign a dedicated 
+            % OutputProcessingFcn that puts logical values in 
+            % corresponcence with colors 
+            if strcmpi(Elem.Type, 'uilamp')
+                Link.gui_element_prop = 'Color';
+                
+                % Select between the default on and off colors. 
+                Link.outputProcessingFcn = @(x)select(x, ...
+                    MyAppColors.lampOn(), MyAppColors.lampOff());
+            end
+
+            % Simple scaling is a special case of value processing
+            % functions.
+            if ~ismember('input_prescaler', p.UsingDefaults)
+                if isempty(Link.inputProcessingFcn) && ...
+                        isempty(Link.outputProcessingFcn)
+                    
+                    Link.inputProcessingFcn = ...
+                        @(x) (x/p.Result.input_prescaler);
+                    Link.outputProcessingFcn = ...
+                        @(x) (x*p.Result.input_prescaler);
+                else
+                    warning(['input_prescaler is ignored for target ' ...
+                        prop_ref 'as inputProcessingFcn or ' ...
+                        'outputProcessingFcn has been already ' ...
+                        'assigned instead.']);
+                end
+            end
         end
         
         % Decide if getTargetFcn and, correpondingly, ValueChanged 
