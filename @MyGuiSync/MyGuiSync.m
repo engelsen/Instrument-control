@@ -16,16 +16,15 @@ classdef MyGuiSync < handle
         %                           displayed in GUI element
         %   getTargetFcn
         %   setTargetFcn
+        %   Listener            - PostSet listener handle
         LinksNe
         
         % Event-based links.
         % Include the same fields as non-event links plus
         %
         %   Hobj                - handle object
-        %   HobjProp            - name of the property of 
-        %   HobjSubstruct
-        %   event_name
-        %   Listener            - listener handle
+        %   hobj_prop           - name of the property that generates the update event 
+        %   HobjSubstruct       - reference to the target value via subsref(Hobj.(prop), S)
         LinksE     % Updated by NewSetting
         
         % If App defines updateGui function
@@ -48,13 +47,6 @@ classdef MyGuiSync < handle
             addRequired(p, 'App');
             addOptional(p, 'KernelObj', [], @(x)isa(x, 'handle'));
             parse(p, App, KernelObj);
-            
-            assert(ismethod(App, 'publicCreateCallbackFcn'), ...
-                ['Matlab app must define a public wrapper for ' ...
-                'createCallbackFcn in order for GuiSync to be able to ' ...
-                'automatically assign ValueChanged callbacks. ' ...
-                'The wrapper method must have signature ' ...
-                'publicCreateCallbackFcn(app, callbackFunction).']);
             
             this.App = App;
             this.Listeners.AppDeleted = addlistener(App, ...
@@ -132,25 +124,51 @@ classdef MyGuiSync < handle
             end
         end
         
-        % Operation of addLink
-        %
-        %   option: callback_update true/false
-        %
-        % obj = top handle object
-        % 
-        % If isevent(obj, 'NewSetting') && callback_update
-        %   ... define a callback using the framework of NewSetting
-        % elseif issetobservable(obj, prop) && callback_update
-        %   ... define a callback for PostSet
-        % else
-        %   ... add to the list which is updated manually, e.g. it is
-        %   updated each time one of such values is reset
-        %   (execute updateGui(app) if defined or updateLinks(app.Sync) otherwise)
-        
         
         % prop_tag is a reference to an element of app 
         function addLink(this, Elem, prop_ref, varargin)
             
+            % Parse function inputs
+            p=inputParser();
+
+            % GUI control element
+            addRequired(p, 'Elem');
+
+            % Target to which the value of GUI element will be linked 
+            % relative to the App itself
+            addRequired(p, 'prop_ref', @ischar);
+
+            % Linked property of the GUI element (can be e.g. 'Color')
+            addParameter(p, 'elem_prop', 'Value', @ischar);
+
+            % If input_prescaler is given, the value assigned to the instrument propery  
+            % is related to the value x displayed in GUI as x/input_presc.
+            addParameter(p, 'input_prescaler', 1, @isnumeric);
+
+            % Arbitrary processing functions can be specified for input and output.
+            % out_proc_fcn is applied to values before assigning them to gui
+            % elements and in_proc_fcn is applied before assigning
+            % to the linked properties
+            addParameter(p, 'outputProcessingFcn', @(x)x, ...
+                @(f)isa(f,'function_handle'));
+            addParameter(p, 'inputProcessingFcn', @(x)x, ...
+                @(f)isa(f,'function_handle'));
+
+            addParameter(p, 'create_callback', true, @islogical);
+            
+            addParameter(p, 'event_update', true, @islogical);
+
+            parse(p, Elem, prop_tag, varargin{:});
+
+            create_callback = p.Results.create_callback;
+
+            if isempty(prop_tag)
+                warning('''prop_ref'' is empty, element is not linked')
+                return
+            end
+            
+            %% 
+             
             % Make sure the reference starts with a dot and convert to
             % subreference structure
             if prop_ref(1)~='.'
@@ -159,7 +177,7 @@ classdef MyGuiSync < handle
                 PropSubs = str2substruct(prop_ref);
             end
             
-            % Check if the specified reference is accessible
+            % Check if the specified target is accessible for reading
             try
                 subsref(this.App, PropSubs);
             catch
@@ -170,13 +188,24 @@ classdef MyGuiSync < handle
                 return
             end
             
-            % Find the handle object to which the end property belongs as
-            % well as the end property name
+            % Create a link structure
+            Link = struct( ...
+                'GuiElement',           Elem, ...       
+                'gui_element_prop',     'Value', ...
+                'inputProcessingFcn',   [], ...
+                'outputProcessingFcn',  [], ...
+                'getTargetFcn',         [], ...
+                'setTargetFcn',         [], ...
+                'Listener',             [] ...           
+                );
+            
+            % Find the handle object to which the end property belongs and
+            % the end property name
             Hobj = this.App;
             hobj_name = 'App';
             
-            RelSubs = PropSubs;     % Subreference relative to Hobj
-            prop_name = subsref(this.App, PropSubs(1));
+            RelSubs = PropSubs;     % Subreference relative to Hobj.(prop)
+            hobj_prop = subsref(this.App, PropSubs(1));
             
             for i=1:length(PropSubs)-1
                 testvar = subsref(this.App, PropSubs(1:end-i));
@@ -184,45 +213,55 @@ classdef MyGuiSync < handle
                     Hobj = testvar;
                     hobj_name = PropSubs(end-i).subs;
  
-                    RelSubs = PropSubs(end-i+1:end);
-                    prop_name = subsref(this.App,PropSubs(1:end-i+1));
+                    RelSubs = PropSubs(end-i+2:end);
+                    hobj_prop = subsref(this.App,PropSubs(1:end-i+1));
                     
                     break
                 end
             end
             
-            % Determine the type of link to be created
-            if ismember('NewSetting', events(Hobj)) && is_event_update
+            % Assign the function that returns the value of reference
+            Link.getTargetFcn = createGetTargetFcn(this, Hobj, ...
+                hobj_prop, RelSubs);
+            
+            % Check if ValueChanged callback needs to be created
+            create_callback = ...
+                checkCreateVcf(this, Elem, elem_prop, Hobj, hobj_prop);
+            
+            if create_callback
                 
-                % Add a listener for the NewSetting event if it is not
-                % already present               
-                if ~hasListener(this, Hobj, 'NewSetting')
-                    l_name = [hobj_name, 'NewSetting']; 
-                    
-                    % Make sure the listener name is unique in the
-                    % structure
-                    l_name = matlab.lang.makeUniqueStrings(l_name, fieldnames(this.Listeners));
-                    
-                    this.Listeners.(l_name) = addlistener(Hobj, 'NewSetting', @updatenewsetting);
-                end
+                % A public CreateCallback method needs to intorduced in the
+                % app, as officially Matlab apps do not support external
+                % callback assignment (as of the version of Matlab 2019a)
+                assert(ismethod(this.App, 'publicCreateCallbackFcn'), ...
+                    ['Matlab app must define a public wrapper for ' ...
+                    'createCallbackFcn in order for GuiSync to be able to ' ...
+                    'automatically assign ValueChanged callbacks. ' ...
+                    'The wrapper method must have signature ' ...
+                    'publicCreateCallbackFcn(app, callbackFunction).']);
                 
-                % Add link and return
-                addLinkNs(this, Elem, Hobj, RelSubs, varargin);
+                % Assign the function that sets new value to reference
+                Link.setTargetFcn = createSetTargetFcn(this, Hobj, ...
+                    hobj_prop, RelSubs);
                 
-                return
+                Elem.ValueChangedFcn = publicCreateCallbackFcn(this.App, ...
+                    Link.setTargetFcn);
             end
             
+            
+            % Check if the link is updated by PostSet event or manually
             if eventupdate
                 try
                     addLinkPs(this, Elem, Hobj, RelSubs, varargin);
                     
-                    l_name = [hobj_name, prop_name, 'PostSet']; 
+                    l_name = [hobj_name, hobj_prop, 'PostSet']; 
                     
                     % Make sure the listener name is unique in the
                     % structure
                     l_name = matlab.lang.makeUniqueStrings(l_name, fieldnames(this.Listeners));
                     
-                    this.Listeners.(l_name) = addlistener(Hobj, prop_name, 'PostSet', @updatepostset);
+                    this.Listeners.(l_name) = addlistener(Hobj, ...
+                        hobj_prop, 'PostSet', createPostSetCallback(this, LinkStruct));
                     
                     return
                 catch
@@ -236,11 +275,11 @@ classdef MyGuiSync < handle
         %% Implementations of particular cases of addLink
         
         % No update event
-        function addLinkNe(this, elem, prop_tag, varargin)
+        function addLinkNe(this, Elem, prop_tag, varargin)
             p=inputParser();
 
             % GUI control element
-            addRequired(p,'elem');
+            addRequired(p,'Elem');
 
             % Instrument command to be linked to the GUI element
             addRequired(p,'prop_tag',@ischar);
@@ -258,39 +297,21 @@ classdef MyGuiSync < handle
             % out_proc_fcn is applied to values before assigning them to gui
             % elements and in_proc_fcn is applied before assigning
             % to the linked properties
-            addParameter(p,'out_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
-            addParameter(p,'in_proc_fcn',@(x)x,@(f)isa(f,'function_handle'));
+            addParameter(p,'outputProcessingFcn',@(x)x,@(f)isa(f,'function_handle'));
+            addParameter(p,'inputProcessingFcn',@(x)x,@(f)isa(f,'function_handle'));
 
-            addParameter(p,'create_callback',true,@islogical);
+            addParameter(p,'create_callback', true, @islogical);
 
             % For drop-down menues initializes entries automatically based on the 
             % list of values. Ignored for all the other control elements. 
             addParameter(p,'init_val_list',false,@islogical);
 
-            parse(p,elem,prop_tag,varargin{:});
+            parse(p,Elem,prop_tag,varargin{:});
 
             create_callback = p.Results.create_callback;
 
             if isempty(prop_tag)
                 warning('''prop_tag'' is empty, element is not linked')
-                return
-            end
-
-            % Make sure the property tag starts with a dot and convert to
-            % subreference structure
-            if prop_tag(1)~='.'
-                PropSubref=str2substruct(['.',prop_tag]);
-            else
-                PropSubref=str2substruct(prop_tag);
-            end
-
-            % Check if the referenced property is accessible
-            try
-                target_val=subsref(app, PropSubref);
-            catch
-                disp(['Property corresponding to tag ',prop_tag,...
-                    ' is not accessible, element is not linked and disabled.'])
-                elem.Enable='off';
                 return
             end
 
@@ -339,21 +360,21 @@ classdef MyGuiSync < handle
             % is not assigned. This is only meaningful for uieditfieds. Drop-downs
             % also have 'Editable' property, but it corresponds to the editability
             % of elements and does not have an effect on assigning callback.
-            if (strcmpi(elem.Type, 'uinumericeditfield') || ...
-                    strcmpi(elem.Type, 'uieditfield')) ...
-                    && strcmpi(elem.Editable, 'off')
+            if (strcmpi(Elem.Type, 'uinumericeditfield') || ...
+                    strcmpi(Elem.Type, 'uieditfield')) ...
+                    && strcmpi(Elem.Editable, 'off')
                 create_callback=false;
             end
 
             % If the gui element is disabled callback is not assigned
-            if isprop(elem, 'Enable') && strcmpi(elem.Enable, 'off')
+            if isprop(Elem, 'Enable') && strcmpi(Elem.Enable, 'off')
                 create_callback=false;
             end
 
             % If create_callback is true and the element does not already have 
             % a callback, assign genericValueChanged as ValueChangedFcn
-            if create_callback && isprop(elem, 'ValueChangedFcn') && ...
-                    isempty(elem.ValueChangedFcn)
+            if create_callback && isprop(Elem, 'ValueChangedFcn') && ...
+                    isempty(Elem.ValueChangedFcn)
                 % A public createGenericCallback method needs to intorduced in the
                 % app, as officially Matlab apps do not support an automatic
                 % callback assignment (as of the version of Matlab 2018a)
@@ -361,63 +382,50 @@ classdef MyGuiSync < handle
                     'contain public createGenericCallback method to automatically'...
                     'assign callbacks. Use ''create_callback'',false in order to '...
                     'disable automatic callback']);
-                elem.ValueChangedFcn = createGenericCallback(app);
-                % Make callbacks non-interruptible for other callbacks
-                % (but are still interruptible for timers)
-                try
-                    elem.Interruptible = 'off';
-                    elem.BusyAction = 'cancel';
-                catch
-                    warning('Could not make callback for %s non-interruptible',...
-                        prop_tag);
-                end
+                Elem.ValueChangedFcn = createGenericCallback(app);
             end
 
             % A step relevant for lamp indicators. It is often convenient to have a
             % lamp as an indicator of on/off state. If a lamp is being linked to a 
             % logical-type variable we therefore assign OutputProcessingFcn puts 
             % logical values in corresponcence with colors 
-            if strcmpi(elem.Type, 'uilamp') && ~iscolor(target_val)
+            if strcmpi(Elem.Type, 'uilamp') && ~iscolor(target_val)
                 % The property of lamp that is to be updated by updateGui is not
                 % Value but Color
-                elem.UserData.elem_prop='Color';
+                Elem.UserData.elem_prop='Color';
                 % Select between the default on and off colors. Different colors
                 % can be indicated by explicitly setting OutputProcessingFcn that
                 % will overwrite the one assigned here.
-                elem.UserData.OutputProcessingFcn = ...
+                Elem.UserData.OutputProcessingFcn = ...
                     @(x)select(x, MyAppColors.lampOn(), MyAppColors.lampOff());
             end
 
             % If a prescaler, input processing function or output processing  
             % function is specified, store it in UserData of the element
             if p.Results.input_presc ~= 1
-                elem.UserData.InputPrescaler = p.Results.input_presc;
+                Elem.UserData.InputPrescaler = p.Results.input_presc;
             end
             if ~ismember('in_proc_fcn',p.UsingDefaults)
-                elem.UserData.InputProcessingFcn = p.Results.in_proc_fcn;
+                Elem.UserData.InputProcessingFcn = p.Results.in_proc_fcn;
             end
             if ~ismember('out_proc_fcn',p.UsingDefaults)
-                elem.UserData.OutputProcessingFcn = p.Results.out_proc_fcn;
+                Elem.UserData.OutputProcessingFcn = p.Results.out_proc_fcn;
             end
 
             if ~ismember('elem_prop',p.UsingDefaults)
-                elem.UserData.elem_prop = p.Results.out_proc_fcn;
+                Elem.UserData.elem_prop = p.Results.out_proc_fcn;
             end
 
             %% Linking
 
             % The link is established by storing the subreference structure
             % in UserData and adding elem to the list of linked elements
-            elem.UserData.LinkSubs = PropSubref;
-            app.linked_elem_list = [app.linked_elem_list, elem];
-        end
-        
-        % NewSetting event
-        function addLinkNs(this)
+            Elem.UserData.LinkSubs = PropSubref;
+            app.linked_elem_list = [app.linked_elem_list, Elem];
         end
         
         % PostSet event
-        function addLinkNs(this)
+        function addLinkPs(this)
         end
         
 %         function updateGui(this)
@@ -436,25 +444,23 @@ classdef MyGuiSync < handle
             delete(this);
         end
         
-        % Update 
-        function newSettingCallback(this, Src, EventData)
-            setting_names = fieldnames(EventData.SettingList);
-            
-        end
-        
-        function postSetCallback(this, LinkStruct)
-            val = LinkStruct.getTargetFcn();
-            
-            if ~isempty(LinkStruct.outputProcessingFcn)
-                val = LinkStruct.outputProcessingFcn(val);
+        function f = createPostSetCallback(this, LinkStruct)
+            function postSetCallback(~,~)
+                val = LinkStruct.getTargetFcn();
+
+                if ~isempty(LinkStruct.outputProcessingFcn)
+                    val = LinkStruct.outputProcessingFcn(val);
+                end
+
+                LinkStruct.GuiElement.(LinkStruct.gui_element_prop) = val;
+
+                % Optionally execute the update function defined within the App
+                if this.update_gui_defined
+                    updateGui(this.App);
+                end
             end
             
-            LinkStruct.GuiElement.(LinkStruct.gui_element_prop) = val;
-            
-            % Optionally execute the update function defined within the App
-            if this.update_gui_defined
-                updateGui(this.App);
-            end
+            f = @postSetCallback;
         end
         
         % Callback that is assigned to graphics elements as ValueChangedFcn
@@ -480,6 +486,46 @@ classdef MyGuiSync < handle
             end
         end
         
+        function f = createGetTargetFcn(~, Obj, prop_name, S)
+            function val = refProp()
+                val = Obj.(prop_name);
+            end
+            
+            function val = subsrefProp(val)
+                val = subsref(Obj.(prop_name), S, val);
+            end
+            
+            if isempty(S)
+                
+                % Faster way to access property
+                f = @refProp;
+            else
+                
+                % More general way to access property
+                f = @subsrefProp;
+            end
+        end
+        
+        function f = createSetTargetFcn(~, Obj, prop_name, S)
+            function assignProp(val)
+                Obj.(prop_name) = val;
+            end
+            
+            function subsasgnProp(val)
+                Obj.(prop_name) = subsasgn(Obj.(prop_name), S, val);
+            end
+            
+            if isempty(S)
+                
+                % Faster way to assign property
+                f = @assignProp;
+            else
+                
+                % More general way to assign property
+                f = @subsasgnProp;
+            end
+        end
+        
         % Check if a listener to an event already exists 
         function bool = hasListener(this, Obj, event_name)
             l_names = fieldbames(this.Listeners);
@@ -491,6 +537,94 @@ classdef MyGuiSync < handle
                     bool = true;
                 end
             end
+        end
+        
+        %% Subroutines of addLink
+        
+        % Parse input and create the base of Link structure
+        function Link = makeLinkStruct(this, Elem, prop_ref, varargin)
+            
+            % Parse function inputs
+            p=inputParser();
+
+            % GUI control element
+            addRequired(p, 'Elem');
+
+            % Target to which the value of GUI element will be linked 
+            % relative to the App itself
+            addRequired(p, 'prop_ref', @ischar);
+
+            % Linked property of the GUI element (can be e.g. 'Color')
+            addParameter(p, 'elem_prop', 'Value', @ischar);
+
+            % If input_prescaler is given, the value assigned to the instrument propery  
+            % is related to the value x displayed in GUI as x/input_presc.
+            addParameter(p, 'input_prescaler', 1, @isnumeric);
+
+            % Arbitrary processing functions can be specified for input and output.
+            % out_proc_fcn is applied to values before assigning them to gui
+            % elements and in_proc_fcn is applied before assigning
+            % to the linked properties
+            addParameter(p, 'outputProcessingFcn', @(x)x, ...
+                @(f)isa(f,'function_handle'));
+            addParameter(p, 'inputProcessingFcn', @(x)x, ...
+                @(f)isa(f,'function_handle'));
+
+            addParameter(p, 'create_callback', true, @islogical);
+            
+            addParameter(p, 'event_update', true, @islogical);
+
+            parse(p, Elem, prop_tag, varargin{:});
+            
+            % Create a link structure
+            Link = struct( ...
+                'GuiElement',           Elem, ...       
+                'gui_element_prop',     'Value', ...
+                'inputProcessingFcn',   [], ...
+                'outputProcessingFcn',  [], ...
+                'getTargetFcn',         [], ...
+                'setTargetFcn',         [], ...
+                'Listener',             [] ...           
+                );
+        end
+        
+        % Decide if getTargetFcn and, correpondingly, ValueChanged 
+        % callback needs to be created
+        function bool = checkCreateVcf(~, Elem, elem_prop, Hobj, hobj_prop)
+            
+            if ~strcmp(elem_prop, 'Value')
+                bool = false;
+                return
+            end
+            
+            % Check property attributes
+            Mp = findprop(Hobj, hobj_prop);
+            prop_write_accessible = strcmpi(Mp.SetAccess,'public') && ...
+                (~Mp.Constant) && (~Mp.Abstract);
+            
+            % Check if the GUI element enabled and editable
+            try
+                gui_element_editable = strcmpi(Elem.Enable, 'on');
+            catch
+                gui_element_editable = true;
+            end
+            
+            % A check for editability is only meaningful for uieditfieds. 
+            % Drop-downs also have 'Editable' property, but it corresponds 
+            % to the editability of elements and should not have an effect 
+            % on assigning callbacks.
+            if (strcmpi(Elem.Type, 'uinumericeditfield') || ...
+                    strcmpi(Elem.Type, 'uieditfield')) ...
+                    && strcmpi(Elem.Editable, 'off')
+                gui_element_editable = false;
+            end
+            
+            bool = prop_write_accessible && gui_element_editable; 
+
+            % Do not create a new callback if one already exists (typically 
+            % it means that a callback was manually defined in AppDesigner) 
+            bool = bool && (isprop(Elem, 'ValueChangedFcn') && ...
+                isempty(Elem.ValueChangedFcn));
         end
     end
     
