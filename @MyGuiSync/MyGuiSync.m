@@ -1,4 +1,4 @@
-% A mechanism to fascilitate synchronization of app-based guis
+% A mechanism to implement the synchronization of app-based guis
 
 classdef MyGuiSync < handle
     
@@ -17,20 +17,10 @@ classdef MyGuiSync < handle
         %   getTargetFcn
         %   setTargetFcn
         %   Listener            - PostSet listener handle
-        LinksNe
-        
-        % Event-based links.
-        % Include the same fields as non-event links plus
-        %
-        %   Hobj                - handle object
-        %   hobj_prop           - name of the property that generates the update event 
-        %   HobjSubstruct       - reference to the target value via subsref(Hobj.(prop), S)
-        LinksE     % Updated by NewSetting
+        Links
         
         % If App defines updateGui function
         update_gui_defined = false
-        
-        UpdateTimer
     end
     
     properties (Access = protected)
@@ -238,12 +228,28 @@ classdef MyGuiSync < handle
             % Store the link structure
             this.Links = [this.Links, Link];
         end
+
+        function updateLinkedElements(this)
+            for i=1:length(this.Links)
+                Link = this.Links(i);
+                
+                if ~isempty(Link.Listener)
+                    continue
+                end
+                
+                val = Link.getTargetFcn();
+                if ~isempty(Link.outputProcessingFcn)
+                    val = Link.outputProcessingFcn(val);
+                end
+                
+                setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
+            end
+        end
         
-        %% Implementations of particular cases of addLink
-        
-%         function updateGui(this)
-%             arrayfun(@(x) updateGuiElement(this, x), this.LinkedElements);
-%         end
+        % Find and update a particular GUI element
+        function updateLinkedElement(this, Elem)
+            
+        end
     end
        
     methods (Access = protected)  
@@ -257,15 +263,15 @@ classdef MyGuiSync < handle
             delete(this);
         end
         
-        function f = createPostSetCallback(this, LinkStruct)
+        function f = createPostSetCallback(this, Link)
             function postSetCallback(~,~)
-                val = LinkStruct.getTargetFcn();
+                val = Link.getTargetFcn();
 
-                if ~isempty(LinkStruct.outputProcessingFcn)
-                    val = LinkStruct.outputProcessingFcn(val);
+                if ~isempty(Link.outputProcessingFcn)
+                    val = Link.outputProcessingFcn(val);
                 end
 
-                LinkStruct.GuiElement.(LinkStruct.gui_element_prop) = val;
+                setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
 
                 % Optionally execute the update function defined within 
                 % the App
@@ -278,17 +284,17 @@ classdef MyGuiSync < handle
         end
         
         % Callback that is assigned to graphics elements as ValueChangedFcn
-        function f = createValueChangedCallback(this, LinkStruct)
+        function f = createValueChangedCallback(this, Link)
             function valueChangedCallback(~, ~)           
-                val = LinkStruct.GuiElement.Value;
+                val = Link.GuiElement.Value;
 
-                if ~isempty(LinkStruct.inputProcessingFcn)
-                    val = LinkStruct.inputProcessingFcn(val);
+                if ~isempty(Link.inputProcessingFcn)
+                    val = Link.inputProcessingFcn(val);
                 end
 
-                LinkStruct.setTargetFcn(val);
+                Link.setTargetFcn(val);
 
-                if ~isfield(LinkStruct, 'Listener')
+                if ~isfield(Link, 'Listener')
 
                     % Update non event based links
                     updateLinkedElements(this);
