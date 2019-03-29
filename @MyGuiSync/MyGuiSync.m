@@ -207,7 +207,7 @@ classdef MyGuiSync < handle
                     hobj_prop, RelSubs);
                 
                 Elem.ValueChangedFcn = publicCreateCallbackFcn(this.App, ...
-                    Link.setTargetFcn);
+                    createValueChangedCallback(this, LinkStruct));
             end
             
             % Attempt creating a callback to PostSet event for the target 
@@ -267,7 +267,8 @@ classdef MyGuiSync < handle
 
                 LinkStruct.GuiElement.(LinkStruct.gui_element_prop) = val;
 
-                % Optionally execute the update function defined within the App
+                % Optionally execute the update function defined within 
+                % the App
                 if this.update_gui_defined
                     updateGui(this.App);
                 end
@@ -277,26 +278,30 @@ classdef MyGuiSync < handle
         end
         
         % Callback that is assigned to graphics elements as ValueChangedFcn
-        function valueChangedCallback(this, LinkStruct)           
-            val = LinkStruct.GuiElement.Value;
-            
-            if ~isempty(LinkStruct.inputProcessingFcn)
-                val = LinkStruct.inputProcessingFcn(val);
-            end
-            
-            LinkStruct.setTargetFcn(val);
-            
-            if ~isfield(LinkStruct, 'Listener')
-                
-                % Update non event based links
-                updateLinkedElements(this);
-                
-                % Optionally execute the update function defined within 
-                % the App
-                if this.update_gui_defined
-                    updateGui(this.App);
+        function f = createValueChangedCallback(this, LinkStruct)
+            function valueChangedCallback(~, ~)           
+                val = LinkStruct.GuiElement.Value;
+
+                if ~isempty(LinkStruct.inputProcessingFcn)
+                    val = LinkStruct.inputProcessingFcn(val);
+                end
+
+                LinkStruct.setTargetFcn(val);
+
+                if ~isfield(LinkStruct, 'Listener')
+
+                    % Update non event based links
+                    updateLinkedElements(this);
+
+                    % Optionally execute the update function defined within 
+                    % the App
+                    if this.update_gui_defined
+                        updateGui(this.App);
+                    end
                 end
             end
+            
+            f = @valueChangedCallback;
         end
         
         function f = createGetTargetFcn(~, Obj, prop_name, S)
