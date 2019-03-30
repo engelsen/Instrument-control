@@ -54,9 +54,8 @@ classdef MyGuiSync < handle
             this.update_plot_defined = ismethod(this.App, 'updatePlot');
             
             if ~ismember('KernelObj', p.UsingDefaults)
-                
-                % Kernel object triggers events that update gui 
-                this.KernelObj=KernelObj;
+
+                this.KernelObj = KernelObj;
                 
                 try
                     this.Listeners.NewData=addlistener(KernelObj, ...
@@ -89,6 +88,13 @@ classdef MyGuiSync < handle
                 end
             catch
                 fprintf('Could not delete listeners.\n');
+            end
+            
+            for i=1:length(this.Links)
+                try
+                    delete(this.Links(i).Listener);
+                catch
+                end
             end
             
             % Delete the update timer
@@ -124,62 +130,40 @@ classdef MyGuiSync < handle
             % Parse function inputs
             p = inputParser();
             p.KeepUnmatched = true;
-            addParameter(p, 'create_callback', true, @islogical);
+            addParameter(p, 'create_value_changed_fcn', true, @islogical);
             addParameter(p, 'event_update', true, @islogical);
             parse(p, Elem, prop_tag, varargin{:});
             
             % Make the list of unmatched name-value pairs for subroutine 
             sub_varargin = struct2namevalue(p.Unmatched);
-             
-            % Make sure the reference starts with a dot and convert to
-            % subreference structure
-            if prop_ref(1)~='.'
-                PropSubs = str2substruct(['.',prop_ref]);
-            else
-                PropSubs = str2substruct(prop_ref);
-            end
+            
+            % Find the handle object which the end property belongs to, 
+            % the end property name and, possibly, further subscripts 
+            [Hobj, hobj_prop, RelSubs] = parseReference(this, prop_ref);
             
             % Check if the specified target is accessible for reading
             try
-                subsref(this.App, PropSubs);
+                if isempty(RelSubs)
+                    Hobj.(hobj_prop);
+                else
+                    subsref(Hobj.(hobj_prop), RelSubs);
+                end
             catch
                 disp(['Property referenced by ' prop_ref ...
                     ' is not accessible, the corresponding GUI ' ...
-                    'element will be not linked and disabled.'])
+                    'element will be not linked and will be disabled.'])
                 Elem.Enable = 'off';
                 return
             end
             
-            % Find the handle object to which the end property belongs and
-            % the end property name
-            Hobj = this.App;
-            hobj_name = 'App';
-            
-            RelSubs = PropSubs;     % Subreference relative to Hobj.(prop)
-            hobj_prop = subsref(this.App, PropSubs(1));
-            
-            for i=1:length(PropSubs)-1
-                testvar = subsref(this.App, PropSubs(1:end-i));
-                if isa(testvar, 'handle')
-                    Hobj = testvar;
-                    hobj_name = PropSubs(end-i).subs;
- 
-                    RelSubs = PropSubs(end-i+2:end);
-                    hobj_prop = subsref(this.App,PropSubs(1:end-i+1));
-                    
-                    break
-                end
-            end
-            
             % Create the basis of link structure (everything except for 
             % set/get functions)
-            Link = makeLinkBasis(this, Elem, prop_ref, sub_varargin{:});
+            Link = makeLinkBase(this, Elem, prop_ref, sub_varargin{:});
             
-            % Do additional processing in the case of MyInstrument commands
-            if isa(Hobj, 'MyInstrument') && ismember(hobj_prop, Hobj.command_names)
-                %% Add handling of auto list initiation for MyInstrument commands
-                isequal(1);
-                
+            % Do additional link processing in the case of 
+            % MyInstrument commands
+            if isa(Hobj, 'MyInstrument') && ...
+                    ismember(hobj_prop, Hobj.command_names)
                 Link = extendMyInstrumentLink(this, Link, Hobj, hobj_prop);
             end
             
@@ -188,10 +172,10 @@ classdef MyGuiSync < handle
                 hobj_prop, RelSubs);
             
             % Check if ValueChanged callback needs to be created
-            create_callback = p.Results.create_callback && ...
+            create_vcf = p.Results.create_value_changed_fcn && ...
                 checkCreateVcf(this, Elem, elem_prop, Hobj, hobj_prop);
             
-            if create_callback
+            if create_vcf
                 
                 % A public CreateCallback method needs to intorduced in the
                 % app, as officially Matlab apps do not support external
@@ -218,28 +202,61 @@ classdef MyGuiSync < handle
                 try
                     Link.Listener = addlistener(Hobj, hobj_prop, ...
                         'PostSet', createPostSetCallback(this, LinkStruct));
-                    
-                    
-                    l_name = [hobj_name, hobj_prop, 'PostSet']; 
-                    
-                    % Make sure the listener name is unique in the
-                    % structure
-                    l_name = matlab.lang.makeUniqueStrings(l_name, ...
-                        fieldnames(this.Listeners));
-                    
-                    % Store listener handle also in the Listener structure
-                    % for deletion
-                    this.Listeners.(l_name) = Link.Listener;
-                    
-                    return
                 catch 
                 end
             end
+            
+            % Update the value of GUI element 
+            updateLinkedElement(this, Link);
             
             % Store the link structure
             this.Links = [this.Links, Link];
         end
 
+        
+        function reLink(this, Elem, prop_ref)
+            
+            % Find the link structure corresponding to Elem
+            ind = find(arrayfun( @(x)isequal(x.GuiElement, Elem), ...
+                this.Links));
+            
+            assert(length(ind) == 1, ['No or multiple existing links ' ...
+                'found during a relinking attempt.'])
+            
+            % Delete and clear the existing listener
+            if ~isempty(this.Links(ind).Listener)
+                delete(this.Links(ind).Listener);
+                this.Links(ind).Listener = [];
+            end
+            
+            [Hobj, hobj_prop, RelSubs] = parseReference(this, prop_ref);
+            
+            this.Links(ind).getTargetFcn = createGetTargetFcn(this, ...
+                Hobj, hobj_prop, RelSubs);
+            
+            if ~isempty(this.Links(ind).setTargetFcn)
+                
+                % Create a new ValueChanged callback 
+                this.Links(ind).setTargetFcn = createSetTargetFcn(this, ...
+                    Hobj, hobj_prop, RelSubs);
+                
+                this.Links(ind).Elem.ValueChangedFcn = ...
+                    publicCreateCallbackFcn(this.App, ...
+                    createValueChangedCallback(this, LinkStruct));
+            end
+            
+            % Attempt creating a new listener
+            try
+                this.Links(ind).Listener = addlistener(Hobj, hobj_prop, ...
+                    'PostSet', createPostSetCallback(this, LinkStruct));
+            catch 
+            end
+                
+            % Update the value of GUI element according to the new
+            % reference
+            updateLinkedElement(this, this.Links(ind));
+        end
+        
         function updateLinkedElements(this)
             for i=1:length(this.Links)
                 
@@ -249,6 +266,12 @@ classdef MyGuiSync < handle
                     updateLinkedElement(this, this.Links(i));
                 end
             end
+            
+            % Optionally execute the update function defined within 
+            % the App
+            if this.update_gui_defined
+                updateGui(this.App);
+            end
         end
         
         % Find and update a particular GUI element
@@ -257,11 +280,6 @@ classdef MyGuiSync < handle
         function updateLinkedElement(this, Arg2)
             if isstruct(Arg2)
                 Link = Arg2;
-                
-                if ~isempty(Link.Listener)
-                    warning(['Elements updated by callbacks should ' ...
-                        'not be updated manually.'])
-                end
                 
                 val = Link.getTargetFcn();
                 if ~isempty(Link.outputProcessingFcn)
@@ -531,7 +549,7 @@ classdef MyGuiSync < handle
                     Link.GuiElement.Items = str_value_list;
                 end
 
-                % Assign raw values list as ItemsData
+                % Assign the list of unprocessed values as ItemsData
                 Link.GuiElement.ItemsData = Cmd.value_list;
             end
         end
@@ -573,6 +591,38 @@ classdef MyGuiSync < handle
             % it means that a callback was manually defined in AppDesigner) 
             bool = bool && (isprop(Elem, 'ValueChangedFcn') && ...
                 isempty(Elem.ValueChangedFcn));
+        end
+        
+        % Extract the top-most handle object in the reference, the end
+        % property name and any further subreference
+        function [Hobj, prop, Subs] = parseReference(this, prop_ref)
+            
+            % Make sure the reference starts with a dot and convert to
+            % subreference structure
+            if prop_ref(1)~='.'
+                PropSubs = str2substruct(['.',prop_ref]);
+            else
+                PropSubs = str2substruct(prop_ref);
+            end
+            
+            % Find the handle object to which the end property belongs as
+            % well as the end property name
+            Hobj = this.App;
+            
+            Subs = PropSubs;     % Subreference relative to Hobj.(prop)
+            prop = subsref(this.App, PropSubs(1));
+            
+            for i=1:length(PropSubs)-1
+                testvar = subsref(this.App, PropSubs(1:end-i));
+                if isa(testvar, 'handle')
+                    Hobj = testvar;
+ 
+                    Subs = PropSubs(end-i+2:end);
+                    prop = subsref(this.App,PropSubs(1:end-i+1));
+                    
+                    break
+                end
+            end
         end
     end
     
