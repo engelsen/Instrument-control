@@ -579,6 +579,7 @@ classdef MyGuiSync < handle
     %% Set and Get methods
     methods
         function set.App(this, Val)
+            isequal(1)
             assert(isa(Val, 'matlab.apps.AppBase'), ...
                 'App must be a Matlab app.');
             this.App=Val;

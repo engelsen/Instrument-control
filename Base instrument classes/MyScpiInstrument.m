@@ -31,13 +31,12 @@ classdef MyScpiInstrument < MyInstrument
             unmatched_nv = struct2namevalue(p.Unmatched);
             addCommand@MyInstrument(this, tag, unmatched_nv{:});
             
-            if ~isempty(this.CommandList.(tag).val_list) && ...
-                any(cellfun(@ischar, this.CommandList.(tag).val_list))
+            vl = this.CommandList.(tag).value_list;
+            if ~isempty(vl) && any(cellfun(@ischar, vl))
                 
                 % Put only unique full-named values in the value list
-                [long_vl, short_vl] = splitValueList(this, ...
-                    this.CommandList.(tag).val_list);
-                this.CommandList.(tag).val_list = long_vl;
+                [long_vl, short_vl] = splitValueList(this, vl);
+                this.CommandList.(tag).value_list = long_vl;
 
                 % For validation, use an extended list made of full and   
                 % abbreviated name forms and case-insensitive comparison
@@ -201,17 +200,17 @@ classdef MyScpiInstrument < MyInstrument
             long_vl = setdiff(lower(vl), short_vl);  
         end
         
-        % Return the long form of value from val_list 
+        % Return the long form of value from value_list 
         function std_val = toStandardForm(this, cmd)
             assert(ismember(cmd, this.command_names), ['''' cmd ...
                 ''' is not an instrument command.'])
 
             val = this.(cmd);
-            val_list = this.CommandList.(cmd).ext_val_list;
+            value_list = this.CommandList.(cmd).ext_value_list;
             
             % Standardization is applicable to char-valued properties which
             % have value list
-            if isempty(val_list) || ~ischar(val)
+            if isempty(value_list) || ~ischar(val)
                 std_val = val;
                 return
             end
@@ -219,14 +218,14 @@ classdef MyScpiInstrument < MyInstrument
             % find matching values
             n = length(val);
             ismatch = cellfun( ...
-                @(x) strncmpi(val, x, min([n, length(x)])), val_list);
+                @(x) strncmpi(val, x, min([n, length(x)])), value_list);
             
             assert(any(ismatch), ...
                 sprintf(['%s is not present in the list of values ' ...
                 'of command %s.'], val, cmd));
 
             % out of the matching values pick the longest
-            mvals = val_list(ismatch);
+            mvals = value_list(ismatch);
             n_el = cellfun(@(x) length(x), mvals);
             std_val = mvals{n_el==max(n_el)};
         end
