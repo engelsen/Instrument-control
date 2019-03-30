@@ -19,8 +19,11 @@ classdef MyGuiSync < handle
         %   Listener            - PostSet listener handle
         Links
         
-        % If App defines updateGui function
+        % If App defines updateGui method
         update_gui_defined = false
+        
+        % If App defines updatePlot method
+        update_plot_defined = false
     end
     
     properties (Access = protected)
@@ -34,8 +37,13 @@ classdef MyGuiSync < handle
     methods (Access = public)     
         function this = MyGuiSync(App, KernelObj)
             p = inputParser();
-            addRequired(p, 'App');
+            
+            addRequired(p, 'App', ...
+                @(x)assert(isa(x, 'matlab.apps.AppBase'), ...
+                'App must be a Matlab app.'));
+            
             addOptional(p, 'KernelObj', [], @(x)isa(x, 'handle'));
+            
             parse(p, App, KernelObj);
             
             this.App = App;
@@ -43,17 +51,12 @@ classdef MyGuiSync < handle
                 'ObjectBeingDeleted', @(~, ~)delete(this));
             
             this.update_gui_defined = ismethod(this.App, 'updateGui');
+            this.update_plot_defined = ismethod(this.App, 'updatePlot');
             
             if ~ismember('KernelObj', p.UsingDefaults)
                 
                 % Kernel object triggers events that update gui 
                 this.KernelObj=KernelObj;
-                
-                try
-                    this.Listeners.NewSetting=addlistener(KernelObj, ...
-                        'NewSetting', @this.newSettingCallback);
-                catch
-                end
                 
                 try
                     this.Listeners.NewData=addlistener(KernelObj, ...
@@ -65,10 +68,10 @@ classdef MyGuiSync < handle
                     'ObjectBeingDeleted', @this.kernelDeletedCallback);
             end
             
-            % Set up a timer that can be used to periodically update the
-            % gui
-            this.UpdateTimer = timer('ExecutionMode', 'fixedDelay', ...
-                'TimerFcn', @(~,~)updateGui(this.App));
+            % Set up a timer to periodically update the instrument object
+            this.UpdateTimer = timer( ...
+                'ExecutionMode',    'fixedDelay', ...
+                'TimerFcn',         @(~,~)(sync(this.Instr); updateLinkedElements));
         end
         
         function delete(this)
@@ -147,10 +150,6 @@ classdef MyGuiSync < handle
                 return
             end
             
-            % Create the basis of link structure (everything except for 
-            % set/get functions)
-            Link = makeLinkBasis(this, Elem, prop_ref, sub_varargin{:});
-            
             % Find the handle object to which the end property belongs and
             % the end property name
             Hobj = this.App;
@@ -170,6 +169,18 @@ classdef MyGuiSync < handle
                     
                     break
                 end
+            end
+            
+            % Create the basis of link structure (everything except for 
+            % set/get functions)
+            Link = makeLinkBasis(this, Elem, prop_ref, sub_varargin{:});
+            
+            % Do additional processing in the case of MyInstrument commands
+            if isa(Hobj, 'MyInstrument') && ismember(hobj_prop, Hobj.command_names)
+                %% Add handling of auto list initiation for MyInstrument commands
+                isequal(1);
+                
+                Link = extendMyInstrumentLink(this, Link, Hobj, hobj_prop);
             end
             
             % Assign the function that returns the value of reference
@@ -247,10 +258,9 @@ classdef MyGuiSync < handle
             if isstruct(Arg2)
                 Link = Arg2;
                 
-                % Elements updated by callbacks should not be updated
-                % manually
                 if ~isempty(Link.Listener)
-                    return
+                    warning(['Elements updated by callbacks should ' ...
+                        'not be updated manually.'])
                 end
                 
                 val = Link.getTargetFcn();
@@ -258,6 +268,8 @@ classdef MyGuiSync < handle
                     val = Link.outputProcessingFcn(val);
                 end
                 
+                % Setting value to a matlab app elemen is time consuming, 
+                % so first check if the value has actually changed
                 setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
             else
                 Elem = Arg2;
@@ -473,6 +485,54 @@ classdef MyGuiSync < handle
                         'outputProcessingFcn has been already ' ...
                         'assigned instead.']);
                 end
+            end
+        end
+        
+        function extendMyInstrumentLink(~, Link, Instrument, tag)
+            Cmd = Instrument.CommandList.(tag);
+            
+            % If supplied command does not have read permission, issue a 
+            % warning.
+            if isempty(Cmd.readFcn)
+                fprintf('Instrument property ''%s'' is nor readable\n', ...
+                    tag);
+                
+                % Try switching the color of the gui element to orange
+                try
+                    Link.GuiElement.BackgroundColor = MyAppColors.warning();
+                catch
+                    try
+                        Link.GuiElement.FontColor = MyAppColors.warning();
+                    catch
+                    end
+                end
+            end
+
+            % Auto initialize the content of dropdown menues
+            if isequal(Link.GuiElement.Type, 'uidropdown')
+                if all(cellfun(@ischar, Cmd.value_list))
+
+                    % Capitalized displayed names for beauty
+                    Link.GuiElement.Items = cellfun( ...
+                        @(x)[upper(x(1)),lower(x(2:end))],...
+                        Cmd.value_list, 'UniformOutput', false);
+                else
+
+                    % Items in a dropdown should be strings, so convert if
+                    % necessary
+                    str_value_list = cell(length(Cmd.value_list), 1);
+                    
+                    for i=1:length(Cmd.value_list)
+                        if ~ischar(Cmd.value_list{i})
+                            str_value_list{i} = num2str(Cmd.value_list{i});
+                        end
+                    end
+                    
+                    Link.GuiElement.Items = str_value_list;
+                end
+
+                % Assign raw values list as ItemsData
+                Link.GuiElement.ItemsData = Cmd.value_list;
             end
         end
         
