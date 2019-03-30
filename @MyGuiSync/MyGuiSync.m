@@ -140,7 +140,7 @@ classdef MyGuiSync < handle
             try
                 subsref(this.App, PropSubs);
             catch
-                disp(['Property referenced by the tag ' prop_ref ...
+                disp(['Property referenced by ' prop_ref ...
                     ' is not accessible, the corresponding GUI ' ...
                     'element will be not linked and disabled.'])
                 Elem.Enable = 'off';
@@ -231,10 +231,26 @@ classdef MyGuiSync < handle
 
         function updateLinkedElements(this)
             for i=1:length(this.Links)
-                Link = this.Links(i);
                 
+                % Elements updated by callbacks should not be updated
+                % manually
+                if isempty(this.Links(i).Listener)
+                    updateLinkedElement(this, this.Links(i));
+                end
+            end
+        end
+        
+        % Find and update a particular GUI element
+        % Arg2 can be a link structure of a GUI element for which the
+        % corresponding link structure needs to be found.
+        function updateLinkedElement(this, Arg2)
+            if isstruct(Arg2)
+                Link = Arg2;
+                
+                % Elements updated by callbacks should not be updated
+                % manually
                 if ~isempty(Link.Listener)
-                    continue
+                    return
                 end
                 
                 val = Link.getTargetFcn();
@@ -243,12 +259,27 @@ classdef MyGuiSync < handle
                 end
                 
                 setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
+            else
+                Elem = Arg2;
+                
+                % Find the link structure corresponding to Elem
+                ind = arrayfun( @(x)isequal(x.GuiElement, Elem), ...
+                    this.Links);
+
+                Link = this.Links(ind);
+
+                if length(Link) == 1
+                    updateLinkedElement(this, Link);
+                elseif isempty(Link)
+                    warning(['The value of GUI element below cannot ' ...
+                        'be updated as no link for it is found.']);
+                    disp(Elem);
+                else
+                    warning(['The value of GUI element below cannot ' ...
+                        'be updated, multiple link structures exist.']);
+                    disp(Elem);
+                end
             end
-        end
-        
-        % Find and update a particular GUI element
-        function updateLinkedElement(this, Elem)
-            
         end
     end
        
@@ -396,7 +427,13 @@ classdef MyGuiSync < handle
 
             parse(p, Elem, prop_ref, varargin{:});
             
-            % Create a link structure
+            assert(isempty( ...
+                arrfun(@(x) isequal(p.Results.Elem, x.GuiElement), ...
+                this.Links)), ['Another link for the same GUI element ' ...
+                'that is attempted to be linked to ' prop_ref ...
+                ' already exists.'])
+            
+            % Create a new link structure
             Link = struct( ...
                 'GuiElement',           p.Results.Elem, ...       
                 'gui_element_prop',     p.Results.elem_prop, ...
