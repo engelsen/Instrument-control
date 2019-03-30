@@ -10,13 +10,13 @@ classdef MyGuiSync < handle
         Links = struct( ...            
             'GuiElement',           {}, ... % graphics object      
             'gui_element_prop',     {}, ...
-            'inputProcessingFcn',   {}, ... % function, applied after 
-            ... % a value is inputed to GUI element
-            'outputProcessingFcn',  {}, ... % function, applied before 
-            ... % a new value is displayed in GUI element 
+            'inputProcessingFcn',   {}, ... % applied after a value is 
+            ... % inputed to GUI
+            'outputProcessingFcn',  {}, ... % applied before a new value is
+            ... % displayed in GUI 
             'getTargetFcn',         {}, ...
             'setTargetFcn',         {}, ...
-            'Listener',             {} ...  % PostSet listener handle         
+            'Listener',             {} ...  % PostSet listener (optional)        
             );
             
         
