@@ -6,18 +6,19 @@ classdef MyGuiSync < handle
         
         Listeners = struct()
         
-        % Non-event links.
-        %
-        %   GuiElement          - graphics object
-        %   gui_element_prop    - property of graphics object to be updated
-        %   inputProcessingFcn  - function, applied after a value is
-        %                           inputed to GUI element
-        %   outputProcessingFcn - function, applied before a new value is 
-        %                           displayed in GUI element
-        %   getTargetFcn
-        %   setTargetFcn
-        %   Listener            - PostSet listener handle
-        Links
+        % Link structures
+        Links = struct( ...            
+            'GuiElement',           {}, ... % graphics object      
+            'gui_element_prop',     {}, ...
+            'inputProcessingFcn',   {}, ... % function, applied after 
+            ... % a value is inputed to GUI element
+            'outputProcessingFcn',  {}, ... % function, applied before 
+            ... % a new value is displayed in GUI element 
+            'getTargetFcn',         {}, ...
+            'setTargetFcn',         {}, ...
+            'Listener',             {} ...  % PostSet listener handle         
+            );
+            
         
         % If App defines updateGui method
         update_gui_defined = false
@@ -210,7 +211,7 @@ classdef MyGuiSync < handle
             updateLinkedElement(this, Link);
             
             % Store the link structure
-            this.Links = [this.Links, Link];
+            this.Links(end+1) = Link;
         end
 
         
@@ -408,19 +409,6 @@ classdef MyGuiSync < handle
                 
                 % More general way to assign property
                 f = @subsasgnProp;
-            end
-        end
-        
-        % Check if a listener to an event already exists 
-        function bool = hasListener(this, Obj, event_name)
-            l_names = fieldbames(this.Listeners);
-            
-            bool = false;
-            for i=1:length(l_names)
-                L = this.Listeners.(l_names{i});
-                if isequal(L.EventName, event_name) && isequal(L.Source{1}, Obj)
-                    bool = true;
-                end
             end
         end
         
