@@ -1,8 +1,9 @@
-% A mechanism to implement the synchronization of app-based guis
+% A mechanism to implement synchronization between parameters and GUI 
+% elements in app-based GUIs
 
 classdef MyGuiSync < handle
     
-    properties (GetAccess = public, SetAccess = private)
+    properties (GetAccess = public, SetAccess = protected)
         
         Listeners = struct()
         
@@ -18,65 +19,61 @@ classdef MyGuiSync < handle
             'setTargetFcn',         {}, ...
             'Listener',             {} ...  % PostSet listener (optional)        
             );
-            
         
-        % If App defines updateGui method
-        update_gui_defined = false
-        
-        % If App defines updatePlot method
-        update_plot_defined = false
+        % List of objects to be deleted when App is deleted
+        cleanup_list = {}
     end
     
     properties (Access = protected)
-        
-        % There properties are stored for cleanup purposes and not to be
-        % used from the outside
         App = []
-        KernelObj = []
+        updateGuiFcn
+        createCallbackFcn
     end
     
     methods (Access = public)     
-        function this = MyGuiSync(App, KernelObj)
+        function this = MyGuiSync(App, varargin)
             p = inputParser();
             
             addRequired(p, 'App', ...
                 @(x)assert(isa(x, 'matlab.apps.AppBase'), ...
                 'App must be a Matlab app.'));
             
-            addOptional(p, 'KernelObj', [], @(x)isa(x, 'handle'));
+            % Deletion of kernel object triggers the delition of app
+            addParameter(p, 'KernelObj', [], @(x)assert( ...
+                ismember('ObjectBeingDeleted', events(x)), ...
+                ['Object must define ''ObjectBeingDeleted'' to be an ' ...
+                'app kernel.']));
             
-            parse(p, App, KernelObj);
+            % Optional function, executed after an app parameter has been
+            % updated (either externally of internally)
+            addParameter(p, 'updateGuiFcn', [], ...
+                @(x)isa(x, 'function_handle'));
+            
+            addParameter(p, 'createCallbackFcn', [], ...
+                @(x)isa(x, 'function_handle'));
+            
+            parse(p, App, varargin{:});
+            
+            this.updateGuiFcn = p.Results.updateGuiFcn;
+            this.createCallbackFcn = p.Results.createCallbackFcn;
             
             this.App = App;
             this.Listeners.AppDeleted = addlistener(App, ...
                 'ObjectBeingDeleted', @(~, ~)delete(this));
             
-            this.update_gui_defined = ismethod(this.App, 'updateGui');
-            this.update_plot_defined = ismethod(this.App, 'updatePlot');
-            
             if ~ismember('KernelObj', p.UsingDefaults)
 
-                this.KernelObj = KernelObj;
+                addToCleanup(this, KernelObj);
                 
-                try
-                    this.Listeners.NewData=addlistener(KernelObj, ...
-                        'NewData', @(~, ~)updatePlot(App));
-                catch
-                end
-                
-                this.Listeners.KernelObjDeleted=addlistener(KernelObj, ...
+                this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
                     'ObjectBeingDeleted', @this.kernelDeletedCallback);
             end
-            
-            % Set up a timer to periodically update the instrument object
-            this.UpdateTimer = timer( ...
-                'ExecutionMode',    'fixedDelay', ...
-                'TimerFcn',         @(~,~)(sync(this.Instr); updateLinkedElements));
         end
+        
         
         function delete(this)
             
-            % Delete listeners
+            % Delete general listeners
             try
                 lnames=fieldnames(this.Listeners);
                 for i=1:length(lnames)
@@ -91,6 +88,7 @@ classdef MyGuiSync < handle
                 fprintf('Could not delete listeners.\n');
             end
             
+            % Delete link listeners
             for i=1:length(this.Links)
                 try
                     delete(this.Links(i).Listener);
@@ -98,41 +96,47 @@ classdef MyGuiSync < handle
                 end
             end
             
-            % Delete the update timer
-            try
-                delete(this.UpdateTimer);
-            catch
-                fprintf('Could not delete the update timer.\n')
-            end
-            
-            % Delete the core object if present
-            if ~isempty(this.KernelObj)
+            % Delete the content of cleanup list
+            for i = 1:length(this.cleanup_list)
+                Obj = this.cleanup_list{i};
                 try
-                    % Check if the instrument object has appropriate method. This
-                    % is a safety measure to never delete a file by accident if 
-                    % it happens to be a valid file name.
-                    if ismethod(this.KernelObj, 'delete')
-                        delete(this.KernelObj);
+                    
+                    % Check if the object has an appropriate delete method. 
+                    % This is a safety measure to never delete a file by 
+                    % accident.
+                    if ismethod(Obj, 'delete')
+                        delete(Obj);
                     else
-                        fprintf(['App kernel object of class ''%s'' ' ...
+                        fprintf(['Object of class ''%s'' ' ...
                             'does not have ''delete'' method.\n'], ...
-                            class(this.KernelObj))
+                            class(Obj))
                     end
                 catch
-                    fprintf('Could not delete the core object.\n')
+                    fprintf(['Could not delete an object of class ' ...
+                        '''%s'' from the cleanup list.\n'], class(Obj))
                 end
             end
         end
         
         
-        % prop_tag is a reference to an element of app 
+        % Establish a correspondence between the value of a GUI element and
+        % some other property of the app
+        % 
+        % Elem      - graphics object 
+        % prop_tag  - reference to a content of app 
         function addLink(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
             p = inputParser();
             p.KeepUnmatched = true;
+            
+            % The decision whether to create ValueChangedFcn and  
+            % a PostSet callback is made automatically by this function, 
+            % but the parameters below enforce these functions to be *not*
+            % created.
             addParameter(p, 'create_value_changed_fcn', true, @islogical);
             addParameter(p, 'event_update', true, @islogical);
+            
             parse(p, Elem, prop_tag, varargin{:});
             
             % Make the list of unmatched name-value pairs for subroutine 
@@ -181,7 +185,7 @@ classdef MyGuiSync < handle
                 % A public CreateCallback method needs to intorduced in the
                 % app, as officially Matlab apps do not support external
                 % callback assignment (as of the version of Matlab 2019a)
-                assert(ismethod(this.App, 'publicCreateCallbackFcn'), ...
+                assert(~isempty(this.createCallbackFcn), ...
                     ['Matlab app must define a public wrapper for ' ...
                     'createCallbackFcn in order for GuiSync to be able to ' ...
                     'automatically assign ValueChanged callbacks. ' ...
@@ -192,8 +196,8 @@ classdef MyGuiSync < handle
                 Link.setTargetFcn = createSetTargetFcn(this, Hobj, ...
                     hobj_prop, RelSubs);
                 
-                Elem.ValueChangedFcn = publicCreateCallbackFcn(this.App, ...
-                    createValueChangedCallback(this, LinkStruct));
+                Elem.ValueChangedFcn = createValueChangedCallback(this, ...
+                    LinkStruct);
             end
             
             % Attempt creating a callback to PostSet event for the target 
@@ -214,7 +218,6 @@ classdef MyGuiSync < handle
             this.Links(end+1) = Link;
         end
 
-        
         function reLink(this, Elem, prop_ref)
             
             % Find the link structure corresponding to Elem
@@ -242,8 +245,7 @@ classdef MyGuiSync < handle
                     Hobj, hobj_prop, RelSubs);
                 
                 this.Links(ind).Elem.ValueChangedFcn = ...
-                    publicCreateCallbackFcn(this.App, ...
-                    createValueChangedCallback(this, LinkStruct));
+                    createValueChangedCallback(this, LinkStruct);
             end
             
             % Attempt creating a new listener
@@ -270,13 +272,13 @@ classdef MyGuiSync < handle
             
             % Optionally execute the update function defined within 
             % the App
-            if this.update_gui_defined
-                updateGui(this.App);
+            if ~isempty(this.updateGuiFcn)
+                this.updateGuiFcn();
             end
         end
         
-        % Find and update a particular GUI element
-        % Arg2 can be a link structure of a GUI element for which the
+        % Update the value of one linked GUI element.
+        % Arg2 can be a link structure or a GUI element for which the
         % corresponding link structure needs to be found.
         function updateLinkedElement(this, Arg2)
             if isstruct(Arg2)
@@ -312,6 +314,10 @@ classdef MyGuiSync < handle
                 end
             end
         end
+        
+        function addToCleanup(this, Obj)
+            this.cleanup_list{end+1} = Obj;
+        end
     end
        
     methods (Access = protected)  
@@ -337,8 +343,8 @@ classdef MyGuiSync < handle
 
                 % Optionally execute the update function defined within 
                 % the App
-                if this.update_gui_defined
-                    updateGui(this.App);
+                if ~isempty(this.updateGuiFcn)
+                    this.updateGuiFcn();
                 end
             end
             
@@ -363,13 +369,13 @@ classdef MyGuiSync < handle
 
                     % Optionally execute the update function defined within 
                     % the App
-                    if this.update_gui_defined
-                        updateGui(this.App);
+                    if ~isempty(this.updateGuiFcn)
+                        this.updateGuiFcn();
                     end
                 end
             end
             
-            f = @valueChangedCallback;
+            f = this.createCallbackFcn(@valueChangedCallback);
         end
         
         function f = createGetTargetFcn(~, Obj, prop_name, S)
@@ -611,16 +617,6 @@ classdef MyGuiSync < handle
                     break
                 end
             end
-        end
-    end
-    
-    %% Set and Get methods
-    methods
-        function set.App(this, Val)
-            isequal(1)
-            assert(isa(Val, 'matlab.apps.AppBase'), ...
-                'App must be a Matlab app.');
-            this.App=Val;
         end
     end
 end
