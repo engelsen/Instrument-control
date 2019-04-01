@@ -687,14 +687,6 @@ classdef MyDaq < handle
             end
         end
         
-        %Callback for filename edit box. Sets the file name. Also
-        %updates fit objects with the new file name.
-        function fileNameCallback(this, ~,~)
-            for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).filename=this.filename;
-            end
-        end
-       
         %Callback for the analyze menu (popup menu for selecting fits).
         %Opens the correct MyFit object.
         function analyzeMenuCallback(this, hObject, ~)
