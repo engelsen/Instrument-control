@@ -8,9 +8,6 @@
 classdef MyScpiInstrument < MyInstrument
     
     methods (Access = public)
-        function this = MyScpiInstrument()
-            
-        end
         
         % Extend the functionality of base class method
         function addCommand(this, tag, command, varargin)

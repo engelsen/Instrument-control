@@ -1,17 +1,17 @@
 % Communicator container.
 % This class provides extended functionality for communication using VISA, 
-% tcpip and serial objects or any other objects with similar usage. 
+% tcpip and serial objects or any other objects that have a similar usage. 
 
 classdef MyCommCont < handle
     
     % Giving explicit set access to this class makes properties protected 
     % instead of private
     properties (GetAccess=public, SetAccess={?MyClassParser,?MyCommCont})     
-        interface='';
-        address=''; 
+        interface = 'serial'
+        address = 'placeholder' 
     end
     
-    properties (Access = public)
+    properties (GetAccess = public, SetAccess = protected)
         Comm % Communication object    
     end
     
@@ -19,11 +19,9 @@ classdef MyCommCont < handle
         
         %% Constructor and destructor
         
-        function this = MyCommCont(interface, address, varargin)
-            P=MyClassParser();
-            addRequired(P,'interface',@ischar);
-            addRequired(P,'address',@ischar);
-            processInputs(P, this, interface, address, varargin{:});
+        function this = MyCommCont(varargin)
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
             
             try
                 connect(this);
@@ -31,7 +29,7 @@ classdef MyCommCont < handle
                 warning(ME.message);
                 
                 % Create a dummy
-                this.Comm=serial('Dummy');
+                this.Comm = serial('placeholder');
             end
             
             configureCommDefault(this);
@@ -88,7 +86,7 @@ classdef MyCommCont < handle
             end
         end
         
-        % Set by default larger buffer sizes and longer timeout than MATLAB
+        % Set larger buffer sizes and longer timeout than the MATLAB default
         function configureCommDefault(this)
             comm_props = properties(this.Comm);
             if ismember('OutputBufferSize',comm_props)
@@ -102,12 +100,12 @@ classdef MyCommCont < handle
             end
         end
         
-        function bool=isopen(this)
+        function bool = isopen(this)
             try
-                bool=strcmp(this.Comm.Status, 'open');
+                bool = strcmp(this.Comm.Status, 'open');
             catch
-                warning('Cannot access communicator Status property');
-                bool=false;
+                warning('Cannot access the communicator Status property');
+                bool = false;
             end
         end
         
@@ -118,17 +116,14 @@ classdef MyCommCont < handle
             try
                 fopen(this.Comm);
             catch
+                
                 % try to find and close all the devices with the same
                 % VISA resource name
-                try
-                    instr_list=instrfind('RsrcName',this.Comm.RsrcName);
-                    fclose(instr_list);
-                    fopen(this.Comm);
-                    warning(['Multiple instrument objects of ' ...
-                        'address %s exist'], this.address);
-                catch
-                    error('Could not open device')
-                end
+                instr_list=instrfind('RsrcName',this.Comm.RsrcName);
+                fclose(instr_list);
+                fopen(this.Comm);
+                warning(['Multiple instrument objects of ' ...
+                    'address %s exist'], this.address);
             end
         end
         
@@ -167,7 +162,6 @@ classdef MyCommCont < handle
                 end
             end
         end
-        
     end
 end
 

@@ -105,7 +105,7 @@ classdef MyInstrument < dynamicprops
                 H.SetAccess = 'public';
                 H.SetObservable = true;
             else
-                H.SetAccess = 'protected';
+                H.SetAccess = {?MyInstrument};
             end
             
             H.SetMethod = createCommandSetFcn(this, tag);
