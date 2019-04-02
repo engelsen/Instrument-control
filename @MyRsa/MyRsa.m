@@ -145,13 +145,21 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
         end
         
         % Abort data acquisition        
-        function abort(this)
+        function abortAcq(this)
             writeCommand(this, ':ABORt');
         end
         
         % Initiate data acquisition
-        function init(this)
+        function initAcq(this)
             writeCommand(this, ':INIT');
+        end
+        
+        % Wait for the current operation to be completed
+        function val = opc(this)
+            val = queryCommand(this, '*OPC?');
+            if ~isempty(val)
+                val = val{1};
+            end
         end
         
         % Extend readHeader function

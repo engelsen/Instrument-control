@@ -4,7 +4,6 @@
 classdef MyGuiSync < handle
     
     properties (GetAccess = public, SetAccess = protected)
-        
         Listeners = struct()
         
         % Link structures

@@ -120,18 +120,18 @@ classdef MyInstrument < dynamicprops
         end
         
         % Identification
-        function [str, msg]=idn(this)
+        function [str, msg] = idn(this)
             assert(ismethod(this, 'queryString'), ['The instrument ' ...
                 'class must define queryString method in order to ' ...
                 'attempt identification.'])
             
             try
-                [str,~,msg]=queryString(this,'*IDN?');
+                [str,~,msg] = queryString(this,'*IDN?');
             catch ErrorMessage
-                str='';
-                msg=ErrorMessage.message;
+                str = '';
+                msg = ErrorMessage.message;
             end   
-            this.idn_str=str;
+            this.idn_str = str;
         end
         
         % Measurement header
