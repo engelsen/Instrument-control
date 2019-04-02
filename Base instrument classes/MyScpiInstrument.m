@@ -24,10 +24,55 @@ classdef MyScpiInstrument < MyInstrument
             addParameter(p,'write_ending','',@ischar);
             parse(p, command, varargin{:});
             
-            % Supply the remaining parameters to the base class method
-            unmatched_nv = struct2namevalue(p.Unmatched);
-            addCommand@MyInstrument(this, tag, unmatched_nv{:});
+            % Create a list of remaining parameters to be supplied to
+            % the base class method
+            sub_varargin = struct2namevalue(p.Unmatched);
             
+            % Introduce variables for brevity
+            format = p.Results.format;
+            write_ending = p.Results.write_ending;
+            
+            smb = findReadFormatSymbol(this, format);
+            if smb == 'b'
+                
+                % '%b' is a non-MATLAB format specifier that is introduced
+                % to be used with logical variables
+                format = replace(format,'%b','%i');
+                write_ending = replace(write_ending,'%b','%i');
+            end
+            this.CommandList.(tag).format = format;
+            
+            % Add the full read form of the command, e.g. ':FREQ?'
+            if contains(p.Results.access,'r')
+                read_command = [p.Results.command, p.Results.read_ending];
+                readFcn = ...
+                    @()sscanf(queryCommand(this, read_command), format);
+                sub_varargin = [sub_varargin, {'readFcn', readFcn}];
+            else
+                read_command = '';
+            end
+            this.CommandList.(tag).read_command = read_command;
+            
+            % Add the full write form of the command, e.g. ':FREQ %e'
+            if contains(p.Results.access,'w')
+                if ismember('write_ending', p.UsingDefaults)
+                    write_command = [p.Results.command, ' ', format];
+                else
+                    write_command = [p.Results.command, write_ending];
+                end
+                writeFcn = ...
+                    @(x)writeCommand(this, sprintf(write_command, x));
+                sub_varargin = [sub_varargin, {'writeFcn', writeFcn}];
+            else
+                write_command = '';
+            end
+            this.CommandList.(tag).write_command = write_command;
+            
+            % Execute the base class method
+            addCommand@MyInstrument(this, tag, sub_varargin{:});
+            
+            % If the value list contains textual values, extend it with
+            % short forms and add a postprocessing function
             vl = this.CommandList.(tag).value_list;
             if ~isempty(vl) && any(cellfun(@ischar, vl))
                 
@@ -44,19 +89,7 @@ classdef MyScpiInstrument < MyInstrument
                 this.CommandList.(tag).postSetFcn = @this.toStandardForm;
             end
             
-            % Introduce variables for brevity
-            format = p.Results.format;
-            write_ending = p.Results.write_ending;
-            
-            smb = findReadFormatSymbol(this, format);
-            if smb == 'b'
-                % '%b' is a non-MATLAB format specifier that is introduced
-                % to be used with logical variables
-                format = replace(format,'%b','%i');
-                write_ending = replace(write_ending,'%b','%i');
-            end
-            
-            % Assign a validation function based on the value format
+            % Assign validation function based on the value format
             if isempty(this.CommandList.(tag).validationFcn)
                 switch smb
                     case {'d','f','e','g'}
@@ -71,33 +104,6 @@ classdef MyScpiInstrument < MyInstrument
                             @(x)(x==0 || x==1);
                 end
             end
-            
-            % Add the full read form of the command, e.g. ':FREQ?'
-            if contains(p.Results.access,'r')
-                read_command = [p.Results.command, p.Results.read_ending];
-                this.CommandList.(tag).readFcn = ...
-                    @()sscanf(queryCommand(this, read_command), format);
-            else
-                read_command = '';
-            end
-            this.CommandList.(tag).read_command = read_command;
-            
-            % Add the full write form of the command, e.g. ':FREQ %e'
-            if contains(p.Results.access,'w')
-                if ismember('write_ending', p.UsingDefaults)
-                    write_command = [p.Results.command, ' ', format];
-                else
-                    write_command = [p.Results.command, write_ending];
-                end
-                this.CommandList.(tag).writeFcn = ...
-                    @(x)writeCommand(this, sprintf(write_command, x));
-            else
-                write_command = '';
-            end
-            this.CommandList.(tag).write_command = write_command;
-            
-            % Store the format
-            this.CommandList.(tag).format = format;
         end
         
         % Redefine the base class method to use a single read operation for
@@ -175,7 +181,7 @@ classdef MyScpiInstrument < MyInstrument
         % based on case. For example, the value that has the full name 
         % 'AVErage' has the short form 'AVE'.
         function [long_vl, short_vl] = splitValueList(~, vl)
-            short_vl = cell(1, length(vl)); % Abbreviated forms
+            short_vl = {}; % Abbreviated forms
             
             % Iterate over the list of values
             for i=1:length(vl)
@@ -184,8 +190,8 @@ classdef MyScpiInstrument < MyInstrument
                 if ischar(vl{i})
                     idx = isstrprop(vl{i},'upper');
                     short_form = vl{i}(idx);
-                    if ~isequal(vl{i}, short_form)
-                        short_vl{i} = short_form;
+                    if ~isequal(vl{i}, short_form) && ~isempty(short_form)
+                        short_vl{end+1} = short_form; %#ok<AGROW>
                     end
                 end
             end

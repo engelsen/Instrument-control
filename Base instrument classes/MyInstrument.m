@@ -76,12 +76,15 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'value_list',{}, @iscell);
             addParameter(p,'default',[]);
             addParameter(p,'info','', @ischar);
+            
             parse(p,tag,varargin{:});
             
             assert(~isprop(this, tag), ['Property named ' tag ...
                 ' already exists in the class.']);
             
-            this.CommandList.(tag) = p.Results;
+            for fn = fieldnames(p.Results)'
+                this.CommandList.(tag).(fn{1}) = p.Results.(fn{1});
+            end
             
             this.CommandList.(tag).info = ...
                 toSingleLine(this.CommandList.(tag).info);
@@ -99,18 +102,17 @@ classdef MyInstrument < dynamicprops
             % Create and configure a dynamic property
             H = addprop(this, tag);
             
+            this.(tag) = p.Results.default;
+            
             H.GetAccess = 'public';
+            H.SetObservable = true;
+            H.SetMethod = createCommandSetFcn(this, tag);
             
             if ~isempty(this.CommandList.(tag).writeFcn)
                 H.SetAccess = 'public';
-                H.SetObservable = true;
             else
-                H.SetAccess = {?MyInstrument};
+                H.SetAccess = {'MyInstrument'};
             end
-            
-            H.SetMethod = createCommandSetFcn(this, tag);
-            
-            this.(tag) = p.Results.default;
             
             % Listener to PostSet event
             this.CommandList.(tag).Psl = addlistener(this, tag, ...
@@ -182,12 +184,12 @@ classdef MyInstrument < dynamicprops
     
     %% Set and Get methods
     methods
-        function val=get.command_names(this)
-            val=fieldnames(this.CommandList);
+        function val = get.command_names(this)
+            val = fieldnames(this.CommandList);
         end
         
         function set.idn_str(this, str)
-            this.idn_str=toSingleLine(str);
+            this.idn_str = toSingleLine(str);
         end
     end
 end

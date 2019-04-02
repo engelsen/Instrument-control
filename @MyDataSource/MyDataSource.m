@@ -13,13 +13,13 @@ classdef MyDataSource < handle
         % Explicitly granting access to MyDataSource makes setting this  
         % property to be accessible to subclasses (i.e. protected and not 
         % private). 
-        name = 'MyDataSource'
+        name
     end
     
-    % There does not seem to be a way to have a read-only protected access
-    % for a handle variable, so keep it public
     properties (Access = public)
-        Trace % An object derived from MyTrace
+        
+        % An object derived from MyTrace
+        Trace 
     end
     
     events
@@ -31,6 +31,9 @@ classdef MyDataSource < handle
         function this = MyDataSource(varargin)
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
+            
+            this.name = class(this);
+            this.Trace = MyTrace();
         end
         
         %Trigger event signaling the acquisition of a new trace. 
@@ -64,17 +67,17 @@ classdef MyDataSource < handle
             assert(ischar(str), ['The value assigned to ''name'' ' ...
                 'property must be char'])
             if ~isempty(str)
-                str=matlab.lang.makeValidName(str);
+                str = matlab.lang.makeValidName(str);
             else
-                str=class(this);
+                str = class(this);
             end
-            this.name=str;
+            this.name = str;
         end
         
         function set.Trace(this, Val)
             assert(isa(Val, 'MyTrace'), ['Trace must be a derivative ' ...
                 'of MyTrace class.'])
-            this.Trace=Val;
+            this.Trace = Val;
         end
     end
 end
