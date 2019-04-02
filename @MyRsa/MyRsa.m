@@ -51,13 +51,6 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
                 'info',     '(Hz)', ...
                 'default',  1.5e6);
             
-%             % Initiate and abort data acquisition, don't take arguments
-%             addCommand(this, 'abort_acq', ':ABORt', 'access','w',...
-%                 'format','');
-%             
-%             addCommand(this, 'init_acq',':INIT', 'access','w',...
-%                 'format','');
-            
             % Continuous triggering
             addCommand(this, 'init_cont', ':INIT:CONT', ...
                 'format',   '%b',...
@@ -131,7 +124,6 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
     
     
     methods (Access = public)
-        
         function readSingle(this, n_trace)
             fetch_cmd = sprintf('fetch:dpsa:res:trace%i?', n_trace);  
             fwrite(this.Device, fetch_cmd);
@@ -150,6 +142,16 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
 
             %Trigger acquired data event (inherited from MyInstrument)
             triggerNewData(this);
+        end
+        
+        % Abort data acquisition        
+        function abort(this)
+            writeCommand(this, ':ABORt');
+        end
+        
+        % Initiate data acquisition
+        function init(this)
+            writeCommand(this, ':INIT');
         end
         
         % Extend readHeader function
