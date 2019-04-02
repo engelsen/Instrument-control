@@ -133,6 +133,26 @@ classdef MyInstrument < dynamicprops
             end   
             this.idn_str=str;
         end
+        
+        % Measurement header
+        function Hdr = readHeader(this)
+            sync(this);
+            
+            Hdr = MyMetadata();
+            
+            % Instrument name is a valid Matalb identifier as ensured by
+            % its set method (see the superclass)
+            addField(Hdr, this.name);
+            
+            % Add identification string as parameter
+            addParam(Hdr, this.name, 'idn', this.idn_str);
+
+            for i=1:length(this.command_names)
+                cmd = this.command_names{i};
+                addParam(Hdr, Hdr.field_names{1}, cmd, this.(cmd), ...
+                    'comment', this.CommandList.(cmd).info);
+            end
+        end
     end
     
     methods (Access = protected)
