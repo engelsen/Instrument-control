@@ -119,7 +119,7 @@ classdef MyCommCont < handle
                 
                 % try to find and close all the devices with the same
                 % VISA resource name
-                instr_list=instrfind('RsrcName',this.Comm.RsrcName);
+                instr_list = instrfind('RsrcName',this.Comm.RsrcName);
                 fclose(instr_list);
                 fopen(this.Comm);
                 warning(['Multiple instrument objects of ' ...
