@@ -135,7 +135,7 @@ classdef MyInstrument < dynamicprops
         end
         
         % Measurement header
-        function Hdr = readHeader(this)
+        function Hdr = readSettings(this)
             sync(this);
             
             Hdr = MyMetadata();
@@ -152,6 +152,10 @@ classdef MyInstrument < dynamicprops
                 addParam(Hdr, Hdr.field_names{1}, cmd, this.(cmd), ...
                     'comment', this.CommandList.(cmd).info);
             end
+        end
+        
+        % Write settings from structure
+        function writeSettings(this, Hdr)
         end
     end
     
