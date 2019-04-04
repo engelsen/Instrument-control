@@ -1,17 +1,65 @@
 classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
-    properties (SetAccess = protected, GetAccess = public)
+    properties (SetAccess = immutable, GetAccess = public)
+        
+        % number of channels
+        channel_no = 4
         
         % List of the physical knobs, which can be rotated programmatically
-        knob_list = {'GPKNOB1','GPKNOB2','HORZPos','HORZScale',...
-            'TRIGLevel','PANKNOB1','VERTPOS','VERTSCALE','ZOOM'};
-    end
-    
-    properties (SetAccess = immutable, GetAccess = public)
-        channel_no = 4; % number of channels
+        knob_list = {}
     end
     
     methods (Access = public)
         function this = MyTekScope(varargin)
+            this.Device.InputBufferSize = 4.1e7; %byte 
+            this.Comm.ByteOrder = 'bigEndian';
+        end
+        
+        function readTrace(this)
+            
+            % Configure data transfer: binary format and two bytes per 
+            % point. Then query the trace. 
+            writeCommand(this, ...
+                ':WFMInpre:ENCdg BINary', ...
+                ':DATA:WIDTH 2', ...
+                ':DATA:STARt 1', ...
+                sprintf(':DATA:STOP %i', this.point_no), ...
+                ':CURVE?');
+            
+            y_data = int16(binblockread(this.Comm, 'int16'));
+            
+            if this.Comm.BytesAvailable~=0
+                % read the terminating character
+                fscanf(this.Comm, '%s');
+            end
+            
+            % Read units, offsets and steps for the scales
+            parms = queryCommand(this, ...
+                ':WFMOutpre:XUNit?', ...
+                ':WFMOutpre:YUNit?', ...
+                ':WFMOutpre:YMUlt', ...
+                ':WFMOutpre:XINcr', ...
+                ':WFMOutpre:XZEro', ...
+                ':WFMOutpre:YZEro', ...
+                ':WFMOutpre:YOFf');
+            
+           [unit_y, unit_x, step_x, step_y, x_zero, ...
+               y_zero, y_offset] = parms{:};
+                        
+            % Calculating the y data
+            y = (double(y_data)-y_offset)*step_y+y_zero; 
+            n_points = length(y);
+            
+            % Calculating the x data
+            x = linspace(x_zero, x_zero+step_x*(n_points-1), n_points);
+            
+            this.Trace.x = x;
+            this.Trace.y = y;
+            
+            % Discard "" when assiging the Trace labels
+            this.Trace.unit_x = unit_x(2:end-1);
+            this.Trace.unit_y = unit_y(2:end-1);
+            
+            triggerNewData(this);
         end
         
         function acquireContinuous(this)
