@@ -60,6 +60,7 @@ classdef MyFit < dynamicprops
         %Variables used for saving
         fullpath;
         save_path;
+        %Scaled x, y parameters for fitting
     end
     
     %Dependent variables with associated set methods
@@ -300,34 +301,42 @@ classdef MyFit < dynamicprops
             
             switch this.fit_name
                 case 'Linear'
-                    %Fits polynomial of order 1
-                    this.coeffs=polyfit(this.Data.x,this.Data.y,1);
+                    if this.Gui.ScaleButton.Value
+                        s_c=...
+                            polyfit(this.Data.scaled_x,this.Data.scaled_y,1);
+                        this.coeffs=convScaledToRealCoeffs(this,s_c);
+                    else
+                        %Fits polynomial of order 1
+                        this.coeffs=polyfit(this.Data.x,this.Data.y,1);
+                    end
                 case 'Quadratic'
                     %Fits polynomial of order 2
                     this.coeffs=polyfit(this.Data.x,this.Data.y,2);
                     this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case 'Lorentzian'
-                    scale_factor=max(this.Data.y);
-                    this.Data.y=this.Data.y/scale_factor;
-                    this.init_params(1)=this.init_params(1)/scale_factor;
-                    this.init_params(4)=this.init_params(4)/scale_factor;
-                    doFit(this);
-                    this.coeffs(1)=this.coeffs(1)*scale_factor;
-                    this.coeffs(4)=this.coeffs(4)*scale_factor;
-                    this.Data.y=this.Data.y*scale_factor;
-                case 'Exponential'
-                    x_tr=min(this.Data.x);
-                    this.Data.x=this.Data.x-x_tr;
-                    this.init_params(1)=...
-                        this.init_params(1)*exp(this.init_params(2)*x_tr);
-                    doFit(this);
-                    this.Data.x=this.Data.x+x_tr;
-                    this.coeffs(1)=...
-                        this.coeffs(1)*exp(-this.coeffs(2)*x_tr);
+                case {'Exponential','Lorentzian'}
+                    if this.Gui.ScaleButton.Value
+                        ft=fittype(this.fit_function,'coefficients',...
+                            this.fit_params);
+                        opts=fitoptions('Method','NonLinearLeastSquares',...
+                            'Lower',convRealToScaledCoeffs(this,this.lim_lower),...
+                            'Upper',convRealToScaledCoeffs(this,this.lim_upper),...
+                            'StartPoint',convRealToScaledCoeffs(this,this.init_params),...
+                            'MaxFunEvals',2000,...
+                            'MaxIter',2000,...
+                            'TolFun',1e-6,...
+                            'TolX',1e-6);
+                        %Fits with the below properties. Chosen for maximum accuracy.
+                        [this.Fitdata,this.Gof,this.FitInfo]=...
+                            fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
+                        %Puts the coeffs into the class variable.
+                        this.coeffs=convScaledToRealCoeffs(this,...
+                            coeffvalues(this.Fitdata));
+                    else
+                        doFit(this);
+                    end
                 case {'LorentzianGrad','Gaussian',...
                         'DoubleLorentzian','DoubleLorentzianGrad',...
-                        'Exponential','Gorodetsky2000',...
-                        'Gorodetsky2000plus'}
+                        'Gorodetsky2000','Gorodetsky2000plus'}
                     doFit(this)
                 otherwise
                     error('Selected fit is invalid');
@@ -747,6 +756,15 @@ classdef MyFit < dynamicprops
         function initParamCallback(this,~,~)
             genInitParams(this);
         end
+        
+        %Callback function for scaleData button
+        function scaleDataCallback(~,hObject)
+            if hObject.Value
+                hObject.BackgroundColor=0.9*[1,1,1];
+            else
+                hObject.BackgroundColor=[1,1,1];
+            end
+        end
     end
     
     %Private methods
@@ -795,6 +813,43 @@ classdef MyFit < dynamicprops
             this.coeffs=coeffvalues(this.Fitdata);
         end
         
+        %Converts scaled coefficients to real coefficients
+        function r_c=convScaledToRealCoeffs(this,s_c)
+            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
+            switch this.fit_name
+                case 'Linear'
+                    r_c(1)=std_y/std_x*s_c(1);
+                    r_c(2)=(s_c(2)-s_c(1)*mean_x/std_x)*std_y+mean_y;
+                case 'Exponential'
+                    r_c(1)=exp(-s_c(2)*mean_x/std_x)*s_c(1)*std_y;
+                    r_c(2)=s_c(2)/std_x;
+                    r_c(3)=std_y*s_c(3)+mean_y;
+                case 'Lorentzian'
+                    r_c(1)=s_c(1)*std_y*std_x;
+                    r_c(2)=s_c(2)*std_x;
+                    r_c(3)=s_c(3)*std_x+mean_x;
+                    r_c(4)=s_c(4)*std_y+mean_y;
+            end
+        end
+        
+        function s_c=convRealToScaledCoeffs(this,r_c)
+            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
+            
+            switch this.fit_name
+                case 'Linear'
+                    s_c(1)=std_x/std_y*r_c(1);
+                    s_c(2)=(r_c(2)-mean_y)/std_y+s_c(1)*mean_x/std_x;
+                case 'Exponential'
+                    s_c(2)=r_c(2)*std_x;
+                    s_c(1)=r_c(1)*exp(s_c(2)*mean_x/std_x)/std_y;
+                    s_c(3)=(r_c(3)-mean_y)/std_y;
+                case 'Lorentzian'
+                    s_c(1)=r_c(1)/(std_y*std_x);
+                    s_c(2)=r_c(2)/std_x;
+                    s_c(3)=(r_c(3)-mean_x)/std_x;
+                    s_c(4)=(r_c(4)-mean_y)/std_y;
+            end
+        end
         %Triggers the NewFit event such that other objects can use this to
         %e.g. plot new fits
         function triggerNewFit(this)

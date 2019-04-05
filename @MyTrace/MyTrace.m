@@ -24,8 +24,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     end
     
     properties (Dependent=true)        
-        label_x
-        label_y
+        label_x;
+        label_y;
+        %Z-scored variables (scaled to have mean of 0 and std of 1)
+        scaled_x;
+        scaled_y;
+        
     end
     
     methods (Access=public)
@@ -330,6 +334,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             [~,~,fwhm,~]=findpeaks(this.y,this.x,'NPeaks',1);
         end
         
+        function [mean_x,std_x,mean_y,std_y]=calcZScore(this)
+            mean_x=mean(this.x);
+            std_x=std(this.x);
+            mean_y=mean(this.y);
+            std_y=std(this.y);
+        end
+        
         %Integrates the trace numerically
         function area=integrate(this,varargin)
             assert(validatePlot(this),['MyTrace object must contain',...
@@ -482,5 +493,16 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function label_y=get.label_y(this)
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
         end
+        
+        %Get function for scaled_x, zscores x
+        function scaled_x=get.scaled_x(this)
+            scaled_x=zscore(this.x);
+        end
+        
+        %Get function for scaled_x, zscores x
+        function scaled_y=get.scaled_y(this)
+            scaled_y=zscore(this.y);
+        end
+        
     end
 end

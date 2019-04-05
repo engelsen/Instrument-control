@@ -11,9 +11,12 @@ switch testFit.fit_name
             params{3}=200*rand;
         end
     case 'Exponential'
-        params{1}=-5*rand;
+        params{1}=+5*rand;
         params{2}=-0.1*rand;
         params{3}=0.01*rand;
+    case 'Linear'
+        params{1}=10*rand;
+        params{2}=-50*rand+25;
     otherwise
         for i=1:testFit.n_params
             params{i}=5*rand;
