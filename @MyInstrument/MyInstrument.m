@@ -28,6 +28,9 @@ classdef MyInstrument < dynamicprops
     
     methods (Access = public)
         function this = MyInstrument(varargin)
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
+            
             createCommandList(this);
         end
         
