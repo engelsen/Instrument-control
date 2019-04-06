@@ -59,7 +59,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 % it can still be added to the collector and transfer data
                 % to Daq
                 this.InstrProps.(name).header_flag = false;
-                warning(['%s does not have a readHeader function, ',...
+                warning(['%s does not have a readSettings function, ',...
                     'measurement headers will not be collected from ',...
                     'this instrument.'],name)
             end
@@ -123,7 +123,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 
                 if this.InstrProps.(name).header_flag
                     try
-                        TmpMetadata=readHeader(this.InstrList.(name));
+                        TmpMetadata=readSettings(this.InstrList.(name));
                         addMetadata(this.MeasHeaders, TmpMetadata);
                     catch
                         warning(['Error while reading metadata from %s. '...
