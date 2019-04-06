@@ -1,16 +1,16 @@
 classdef MyCollector < MySingleton & matlab.mixin.Copyable
-    properties (Access=public, SetObservable=true)
-        InstrList % Structure accomodating instruments 
-        InstrProps % Properties of instruments
+    properties (Access = public, SetObservable = true)
+        InstrList = struct()    % Structure accomodating instruments 
+        InstrProps = struct()   % Properties of instruments
         MeasHeaders
-        collect_flag
+        collect_flag = true
     end
     
-    properties (Access=private)
-        Listeners
+    properties (Access = private)
+        Listeners = struct()
     end
     
-    properties (Dependent=true)
+    properties (Dependent = true)
         running_instruments
     end
     
@@ -18,23 +18,19 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
         NewDataWithHeaders
     end
     
-    methods (Access=private)
+    methods (Access = private)
+        
         % Constructor of a singleton class must be private
-        function this=MyCollector(varargin)
-            p=inputParser;
+        function this = MyCollector(varargin)
+            p = inputParser;
             addParameter(p,'InstrHandles',{});
             parse(p,varargin{:});
-            
-            this.collect_flag=true;
             
             if ~isempty(p.Results.InstrHandles)
                 cellfun(@(x) addInstrument(this,x),p.Results.InstrHandles);
             end
             
-            this.MeasHeaders=MyMetadata();
-            this.InstrList=struct();  
-            this.InstrProps=struct(); 
-            this.Listeners=struct();
+            this.MeasHeaders = MyMetadata();
         end
     end
     
@@ -44,38 +40,37 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             cellfun(@(x) deleteListeners(this,x), this.running_instruments);
         end
         
-        function addInstrument(this,instr_handle,varargin)
-            p=inputParser;
-            addParameter(p,'name','UnknownDevice',@ischar)
-            parse(p,varargin{:});
-
-            %Find a name for the instrument
-            if ~ismember('name',p.UsingDefaults)
-                name=p.Results.name;
-            elseif isprop(instr_handle,'name') && ~isempty(instr_handle.name)
-                name=genvarname(instr_handle.name, this.running_instruments);
-            else
-                name=genvarname(p.Results.name, this.running_instruments);
-            end
+        function addInstrument(this, name, Instrument)
+            assert(isvarname(name), ['Instrument name must be a valid ' ...
+                'MATLAB variable name.'])
             
-            if ismethod(instr_handle, 'readHeader')
+            assert(~ismember(name, this.running_instruments), ...
+                ['Instrument ' name ' is already present in the ' ...
+                'collector. Delete the existing instrument before ' ...
+                'adding a new one with the same name.'])
+            
+            if ismethod(Instrument, 'readSettings')
+                
                 %Defaults to read header
-                this.InstrProps.(name).header_flag=true;
+                this.InstrProps.(name).header_flag = true;
             else
-                % If class does not have readHeader function, it can still
-                % be added to the collector to transfer trace to Daq
-                this.InstrProps.(name).header_flag=false;
+                
+                % If the class does not have a header generation function, 
+                % it can still be added to the collector and transfer data
+                % to Daq
+                this.InstrProps.(name).header_flag = false;
                 warning(['%s does not have a readHeader function, ',...
                     'measurement headers will not be collected from ',...
                     'this instrument.'],name)
             end
-            this.InstrList.(name)=instr_handle;
+            this.InstrList.(name) = instr_handle;
             
-            %If the added instrument has a newdata event, we add a listener for it.
-            if contains('NewData',events(this.InstrList.(name)))
+            % If the added instrument has a newdata event, we add a 
+            % listener for it.
+            if ismember('NewData', events(this.InstrList.(name)))
                 this.Listeners.(name).NewData=...
                     addlistener(this.InstrList.(name),'NewData',...
-                    @(~,InstrEventData) acquireData(this, InstrEventData));
+                    @(~, EventData) acquireData(this, name, EventData));
             end
             
             %Cleans up if the instrument is closed
@@ -84,21 +79,19 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 @(~,~) deleteInstrument(this,name));
         end
         
-        function acquireData(this, InstrEventData)
-            src=InstrEventData.Source;
+        function acquireData(this, name, InstrEventData)
+            src = InstrEventData.Source;
             
             % Check that event data object is MyNewDataEvent,
             % and fix otherwise
             if ~isa(InstrEventData,'MyNewDataEvent')
-                InstrEventData=MyNewDataEvent();
-                InstrEventData.new_header=true;
-                InstrEventData.Trace=copy(src.Trace);
-                try
-                    InstrEventData.src_name=src.name;
-                catch
-                    InstrEventData.src_name='UnknownDevice';
-                end
+                InstrEventData = MyNewDataEvent();
+                InstrEventData.new_header = true;
+                InstrEventData.Trace = copy(src.Trace);
             end
+            
+            % Add instrument name
+            InstrEventData.src_name = name;
             
             % Collect the headers if the flag is on and if the triggering 
             % instrument does not request suppression of header collection
@@ -157,6 +150,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
         
         function deleteInstrument(this,name)
             if isrunning(this,name)
+                
                 %We remove the instrument
                 this.InstrList=rmfield(this.InstrList,name);
                 this.InstrProps=rmfield(this.InstrProps,name);
@@ -191,8 +185,8 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
     end
     
     methods
-        function running_instruments=get.running_instruments(this)
-            running_instruments=fieldnames(this.InstrList);
+        function running_instruments = get.running_instruments(this)
+            running_instruments = fieldnames(this.InstrList);
         end
     end
 end

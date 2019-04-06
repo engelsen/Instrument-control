@@ -65,7 +65,7 @@ function Instr = runInstrument(name, instr_class, varargin)
 
     % Create an instrument instance and store it in Collector
     Instr = feval(instr_class, instr_args{:});
-    addInstrument(Collector, Instr, 'name', name);
+    addInstrument(Collector, name, Instr);
     
     try
         
