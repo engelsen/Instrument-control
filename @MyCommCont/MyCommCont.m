@@ -134,14 +134,14 @@ classdef MyCommCont < handle
         %% Communication
         
         % Write textual command
-        function writeString(this, cmd)
+        function writeString(this, str)
             try
-                fprintf(this.Comm, cmd);
+                fprintf(this.Comm, str);
             catch ME
                 try
                     % Attempt re-opening communication
                     openComm(this);
-                    fprintf(this.Comm, cmd);
+                    fprintf(this.Comm, str);
                 catch
                     rethrow(ME);
                 end
@@ -149,14 +149,14 @@ classdef MyCommCont < handle
         end
         
         % Query textual command
-        function result = queryString(this, cmd)
+        function result = queryString(this, str)
             try
-                result = query(this.Comm, cmd);
+                result = query(this.Comm, str);
             catch ME
                 try
                     % Attempt re-opening communication
                     openComm(this);
-                    result = query(this.Comm, cmd);
+                    result = query(this.Comm, str);
                 catch
                     rethrow(ME);
                 end

@@ -46,7 +46,7 @@ classdef MyScpiInstrument < MyInstrument
             if contains(p.Results.access,'r')
                 read_command = [p.Results.command, p.Results.read_ending];
                 readFcn = ...
-                    @()sscanf(queryCommand(this, read_command), format);
+                    @()sscanf(queryString(this, read_command), format);
                 sub_varargin = [sub_varargin, {'readFcn', readFcn}];
             else
                 read_command = '';
@@ -61,7 +61,7 @@ classdef MyScpiInstrument < MyInstrument
                     write_command = [p.Results.command, write_ending];
                 end
                 writeFcn = ...
-                    @(x)writeCommand(this, sprintf(write_command, x));
+                    @(x)writeString(this, sprintf(write_command, x));
                 sub_varargin = [sub_varargin, {'writeFcn', writeFcn}];
             else
                 write_command = '';
@@ -119,7 +119,7 @@ classdef MyScpiInstrument < MyInstrument
                 @(x) this.CommandList.(x).read_command, read_cns,...
                 'UniformOutput',false);
             
-            res_list = queryCommand(this, read_commands{:});
+            res_list = queryStrings(this, read_commands{:});
             
             if length(read_cns)==length(res_list)
                 
@@ -141,38 +141,42 @@ classdef MyScpiInstrument < MyInstrument
                     'instrument class values are not updated.']);
             end
         end
-    end
     
-    methods (Access = protected)
         %% Write/query
         % These methods implement handling multiple SCPI commands. Unless 
-        % overloaded, for communication with the device they rely on  
-        % write/readString methods, which particular subclasses must 
+        % overloaded, they rely on write/readString methods for   
+        % communication with the device, which particular subclasses must 
         % implement or inherit separately.
         
         % Write command strings listed in varargin
-        function writeCommand(this, varargin)
+        function writeStrings(this, varargin)
             if ~isempty(varargin)
+                
                 % Concatenate commands and send to the device
-                cmd_str=join(varargin,';');
-                cmd_str=cmd_str{1};
+                cmd_str = join(varargin,';');
+                cmd_str = cmd_str{1};
                 writeString(this, cmd_str);
             end
         end
         
         % Query commands and return the resut as cell array of strings
-        function res_list = queryCommand(this, varargin)
+        function res_list = queryStrings(this, varargin)
             if ~isempty(varargin)
+                
                 % Concatenate commands and send to the device
-                cmd_str=join(varargin,';');
-                cmd_str=cmd_str{1};
-                res_str=queryString(this, cmd_str);
+                cmd_str = join(varargin,';');
+                cmd_str = cmd_str{1};
+                res_str = queryString(this, cmd_str);
+                
                 % Drop the end-of-the-string symbol and split
-                res_list=split(deblank(res_str),';');
+                res_list = split(deblank(res_str),';');
             else
                 res_list={};
             end
         end
+    end
+    
+    methods (Access = protected)
         
         %% Misc utility methods
         
