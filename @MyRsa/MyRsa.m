@@ -124,42 +124,48 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
     
     
     methods (Access = public)
-        function readSingle(this, n_trace)
-            fetch_cmd = sprintf('fetch:dpsa:res:trace%i?', n_trace);  
-            fwrite(this.Device, fetch_cmd);
-            data = binblockread(this.Device,'float');
-            readProperty(this, 'start_freq','stop_freq','point_no');
-            x_vec=linspace(this.start_freq,this.stop_freq,...
+        function readTrace(this, varargin)
+            if ~isempty(varargin)
+                n_trace = varargin{1};
+            else
+                n_trace = this.acq_trace;
+            end
+            
+            % Ensure that device parameters, especially those that will be
+            % later used for the calculation of frequency axis, are up to
+            % date
+            sync(this);
+            
+            writeString(this, sprintf('fetch:dpsa:res:trace%i?', n_trace)); 
+            data = binblockread(this.Comm, 'float');
+            
+            % Calculate the frequency axis
+            this.Trace.x = linspace(this.start_freq, this.stop_freq,...
                 this.point_no);
-            %Calculates the power spectrum from the data, which is in dBm.
-            %Output is in V^2/Hz
-            power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
-            %Trace object is created containing the data and its units
-            this.Trace.x = x_vec;
-            this.Trace.y = power_spectrum;
+            
+            % Calculates the power spectrum from the data, which is in dBm.
+            % Output is in V^2/Hz
+            this.Trace.y = (10.^(data/10))/this.rbw*50*0.001;
             
             this.acq_trace = n_trace;
 
-            %Trigger acquired data event (inherited from MyInstrument)
+            % Trigger acquired data event 
             triggerNewData(this);
         end
         
         % Abort data acquisition        
         function abortAcq(this)
-            writeCommand(this, ':ABORt');
+            writeString(this, ':ABORt');
         end
         
         % Initiate data acquisition
         function initAcq(this)
-            writeCommand(this, ':INIT');
+            writeString(this, ':INIT');
         end
         
         % Wait for the current operation to be completed
         function val = opc(this)
-            val = queryCommand(this, '*OPC?');
-            if ~isempty(val)
-                val = val{1};
-            end
+            val = queryString(this, '*OPC?');
         end
         
         % Extend readHeader function
@@ -172,6 +178,14 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
             addParam(Hdr, Hdr.field_names{1}, ...
                 'acq_trace', this.acq_trace, ...
                 'comment', 'Last read trace');
+        end
+    end
+    
+    methods
+        function set.acq_trace(this, val)
+            assert((val==1 || val==2 || val==3), ...
+                'Acquisition trace number must be 1, 2 or 3.');
+            this.acq_trace = val;
         end
     end
 end
