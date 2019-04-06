@@ -79,6 +79,26 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 @(~,~) deleteInstrument(this,name));
         end
         
+        % Store instrument GUI
+        function addInstrumentGui(this, instr_name, Gui)
+            assert(ismember(instr_name, this.running_instruments), ...
+                'Name must correspond to one of the running instruments.')
+            this.InstrProps.(name).Gui = Gui;
+        end
+        
+        % Store instrument GUI
+        function Gui = getInstrumentGui(this, instr_name)
+            assert(ismember(instr_name, this.running_instruments), ...
+                'Name must correspond to one of the running instruments.')
+            
+            if isfield(this.InstrProps.(name), 'Gui') && ...
+                    isvalid(this.InstrProps.(name).Gui)
+                Gui = this.InstrProps.(name).Gui;
+            else
+                Gui = [];
+            end
+        end
+        
         function acquireData(this, name, InstrEventData)
             src = InstrEventData.Source;
             

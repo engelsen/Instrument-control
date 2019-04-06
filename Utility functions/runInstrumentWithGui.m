@@ -1,54 +1,50 @@
 % Create instrument instance with gui and add it to the collector
 
-function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, interface, address, gui)
-    % Run instrument
+function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, gui, varargin)
+
+    % Get the unique instance of Collector
+    Collector = MyCollector.instance();
+
+    % Run instrument first
     if nargin==1
+        
         % load parameters from InstrumentList
         InstrumentList = getLocalSettings('InstrumentList');
-        if ~isfield(InstrumentList, name)
-            error('%s is not a field of InstrumentList',...
-                name);
-        end
-        if ~isfield(InstrumentList.(name), 'gui')
-            error(['InstrumentList entry ', name,...
-                ' has no ''gui'' field']);
-        else
-            gui = InstrumentList.(name).gui;
-        end
         
+        assert(isfield(InstrumentList, name), [name ' must be a field ' ...
+            'of InstrumentList.'])
+        
+        assert(isfield(InstrumentList.(name), 'gui'), ...
+            ['InstrumentList entry ' name ' has no ''gui'' field.'])
+        
+        gui = InstrumentList.(name).gui;
         Instr = runInstrument(name);
-    elseif nargin==5
-        % Case when all the arguments are supplied explicitly
-        Instr = runInstrument(name, instr_class, interface, address);
     else
-        error(['Wrong number of input arguments. ',...
-            'Function can be called as f(name) or ',...
-            'f(name, instr_class, interface, address, gui)'])
+        
+        % All the arguments are supplied explicitly
+        Instr = runInstrument(name, instr_class, varargin{:});
     end
     
-    % Run gui and assign handles to variable in global workspace
-    gui_name = ['Gui',name];
-    if ~isValidBaseVar(gui_name)
-        % If gui is not present in the base workspace, create it
-        GuiInstr = feval(gui, Instr);
-        if isprop(GuiInstr,'name')
-            GuiInstr.name = gui_name;
-        end
-        % Store gui handle in a global variable
-        assignin('base', GuiInstr.name, GuiInstr);
-        % Display instrument's name if given
-        fig_handle=findfigure(GuiInstr);
-        if ~isempty(fig_handle)
-           fig_handle.Name=char(name);
+    % Check if the instrument already has GUI
+    Gui = getInstrumentGui(this, name);
+    if isempty(Gui)
+        
+        % Run a new GUI and store it in the collector
+        Gui = feval(gui, Instr);
+        addInstrumentGui(this, name, Gui);
+        
+        % Display the instrument's name 
+        Fig = findfigure(Gui);
+        if ~isempty(Fig)
+           Fig.Name = char(name);
         else
            warning('No UIFigure found to assign the name')
         end
     else
-        % Otherwise return gui from base workspace
-        GuiInstr = evalin('base',['Gui',name]);
+        
+        % Bring the window of existing GUI to the front
         try
-            % bring app figure on top of other windows
-            Fig = findfigure(GuiInstr);
+            Fig = findfigure(Gui);
             Fig.Visible = 'off';
             Fig.Visible = 'on';
         catch

@@ -67,6 +67,11 @@ function Instr = runInstrument(name, instr_class, varargin)
     Instr = feval(instr_class, instr_args{:});
     addInstrument(Collector, name, Instr);
     
+    % Assign instrument handles to a variable in global workspace
+    if ~isValidBaseVar(name)
+        assignin('base', name, Instr);
+    end
+    
     try
         
         % Open communication. Typically instrument commands will re-open 
