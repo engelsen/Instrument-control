@@ -1,6 +1,6 @@
-% Create instrument instance with gui and add it to the collector
+% Create an instrument instance with gui add them to the collector
 
-function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, gui, varargin)
+function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
 
     % Get the unique instance of Collector
     Collector = MyCollector.instance();
@@ -26,12 +26,12 @@ function [Instr, GuiInstr] = runInstrumentWithGui(name, instr_class, gui, vararg
     end
     
     % Check if the instrument already has GUI
-    Gui = getInstrumentGui(this, name);
+    Gui = getInstrumentGui(Collector, name);
     if isempty(Gui)
         
         % Run a new GUI and store it in the collector
         Gui = feval(gui, Instr);
-        addInstrumentGui(this, name, Gui);
+        addInstrumentGui(Collector, name, Gui);
         
         % Display the instrument's name 
         Fig = findfigure(Gui);
