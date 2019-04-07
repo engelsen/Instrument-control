@@ -290,17 +290,17 @@ classdef MyMetadata < handle
                 elseif ~isempty(curr_title)
                     
                     % First separate the comment if present
-                    tmp=regexp(curr_line,this.comment_sep,'split','once');
+                    tmp = regexp(curr_line, this.comment_sep, ...
+                        'split', 'once');
                     if length(tmp)>1
-                        % the line has comment
-                        comment_str=tmp{2};
+                        comment_str = tmp{2}; % There is a comment
                     else
-                        comment_str='';
+                        comment_str = '';     % There is no comment
                     end
                     
                     % Then process name-value pair. Regard everything after
                     % the first column separator as value.
-                    tmp=regexp(tmp{1},this.column_sep,'split','once');
+                    tmp = regexp(tmp{1}, this.column_sep, 'split', 'once');
                     
                     if length(tmp)<2
                         % Ignore the line if a name-value pair is not found
@@ -340,6 +340,55 @@ classdef MyMetadata < handle
             else
                 n_end_header=line_no;
             end
+        end
+    end
+    
+    methods (Access = protected)
+        
+        % Parse string and determine the type of string
+        function S = parseLine(this, str)
+            S = struct( ...
+                'type',     '', ...     % title, paramval, other
+                'match',    {});        % parsed output
+            
+            % Check if the line contains a parameter - value pair.
+            % First separate the comment if present
+            pv_token = regexp(str, this.comment_sep, 'split', 'once');
+             
+            if length(pv_token)>1
+                comment = pv_token{2};  % There is a comment
+            else
+                comment = '';           % There is no comment
+            end
+
+            % Then process name-value pair. Regard everything after
+            % the first column separator as value.
+            pv_token = regexp(pv_token{1}, this.column_sep, 'split', ...
+                'once');
+
+            if length(pv_token)>=2 && isvarname(pv_token{1})
+                
+                % A parameter-value pair is found
+                S.type = 'paramval';
+                S.match = {pv_token{1}, pv_token{2}, comment};
+                return
+            end
+            
+            % Check if the line contains a title 
+            title_exp = [this.hdr_spec, '(\w.*)', this.hdr_spec];
+            title_token = regexp(str, title_exp, 'once', 'tokens');
+            
+            if ~isempty(title_token)
+                
+                % Title expression found
+                S.type = 'title';
+                S.match = title_token{1};
+                return
+            end
+            
+            % No match found
+            S.type = 'other';
+            S.match = {};
         end
     end
 end
