@@ -90,7 +90,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             else
                 warning('File not created, returned write_flag %i',stat);
             end
-            
         end
         
         %Writes the data to a file. This is separated so that other
@@ -195,6 +194,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             addMetadata(Mdt,this.MeasHeaders);
         end
+        
         % Assign trace parameters from metadata
         function setFromMetadata(this, Mdt)
             if isfield(Mdt.Info, 'Unit1')
@@ -286,14 +286,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         %If there is a line object from the trace in the figure, this sets
         %it to the appropriate visible setting.
-        function setVisible(this, plot_axes, bool)
+        function setVisible(this, Axes, bool)
             if bool
                 vis='on';
             else
                 vis='off';
             end
             
-            ind=findLineInd(this, plot_axes);
+            ind=findLineInd(this, Axes);
             if ~isempty(ind) && any(ind)
                 set(this.hlines{ind},'Visible',vis)
             end
@@ -349,30 +349,33 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         % Picks every n-th element from the trace,
         % performing a running average first if opt=='avg'
         function downsample(this, n, opt)
-            n0=ceil(n/2);
-            if nargin()==3 && (strcmpi(opt,'average') || strcmpi(opt,'vg'))
+            n0 = ceil(n/2);
+            
+            if nargin()==3 && (strcmpi(opt,'average')||strcmpi(opt,'avg'))
+                
                 % Compute moving average with 'shrink' option so that the
                 % total number of samples is preserved. Endpoints will be
                 % discarded by starting the indexing from n0.
-                tmpy=movmean(this.y, 'Endpoints', 'shrink');
+                tmpy = movmean(this.y, 'Endpoints', 'shrink');
                 
-                this.x=this.x(n0:n:end);
-                this.y=tmpy(n0:n:end);
+                this.x = this.x(n0:n:end);
+                this.y = tmpy(n0:n:end);
             else
+                
                 % Downsample without averaging
-                this.x=this.x(n0:n:end);
-                this.y=this.y(n0:n:end);
+                this.x = this.x(n0:n:end);
+                this.y = this.y(n0:n:end);
             end
         end
         
         %Checks if the object is empty
-        function bool=isempty(this)
-            bool=isempty(this.x) && isempty(this.y);
+        function bool = isDataEmpty(this)
+            bool = isempty(this.x) && isempty(this.y);
         end
         
         %Checks if the data can be plotted
-        function bool=validatePlot(this)
-            bool=~isempty(this.x) && ~isempty(this.y)...
+        function bool = validatePlot(this)
+            bool =~isempty(this.x) && ~isempty(this.y)...
                 && length(this.x)==length(this.y);
         end
         
@@ -386,29 +389,33 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         end
     end
     
-    methods (Access=private)
+    methods (Access = protected)
+        
         %Checks if arithmetic can be done with MyTrace objects.
         function checkArithmetic(this, b)
             assert(isa(this,'MyTrace') && isa(b,'MyTrace'),...
                 ['Both objects must be of type MyTrace to add,',...
                 'here they are type %s and %s'],class(this),class(b));
+            
             assert(strcmp(this.unit_x, b.unit_x) && ...
                 strcmp(this.unit_y,b.unit_y),...
                 'The MyTrace classes must have the same units for arithmetic')
+            
             assert(length(this.x)==length(this.y)==...
                 length(this.x)==length(this.y),...
                 'The length of x and y must be equal for arithmetic');
+            
             assert(all(this.x==b.x),...
                 'The MyTrace objects must have identical x-axis for arithmetic')
         end
         
         %Finds the hline handle that is plotted in the specified axes
-        function ind=findLineInd(this, plot_axes)
+        function ind = findLineInd(this, Axes)
             if ~isempty(this.hlines)
-                ind=cellfun(@(x) ismember(x,findall(plot_axes,...
-                    'Type','Line')),this.hlines);
+                ind = cellfun(@(x) ismember(x, findall(Axes, ...
+                    'Type','Line')), this.hlines);
             else
-                ind=[];
+                ind = [];
             end
         end
     end
