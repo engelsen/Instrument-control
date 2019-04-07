@@ -6,11 +6,11 @@ classdef testClass < MyInstrument & MyCommCont
     end
     
     properties (GetAccess = public, SetAccess=public, SetObservable=true)
-        prop1
+        prop1 = 1
     end
     
-    properties (GetAccess = public, SetAccess=public, SetObservable=true)
-        prop2
+    properties (GetAccess = public, SetAccess=immutable)
+        prop2 =0
     end
     
     properties (GetAccess = public, SetAccess=public)
@@ -18,10 +18,9 @@ classdef testClass < MyInstrument & MyCommCont
     end
     
     methods (Access = public)
-        function this = testClass(r)
-            
-            %this.Listeners.L1 = addlistener(this, 'prop1', 'PreSet', @(~,~)this.preSetCallback);
-            %this.Listeners.L2 = addlistener(this, 'prop1', 'PostSet', @(~,~)this.postSetCallback);
+        function this = testClass(varargin)
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
         end
         
         function delete(this)
