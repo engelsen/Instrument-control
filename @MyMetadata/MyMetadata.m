@@ -43,17 +43,24 @@ classdef MyMetadata < handle
             addParameter(p, 'comment', '', @ischar);
             addParameter(p, 'SubStruct', struct('type',{},'subs',{}),...
                 @isstruct)
-            parse(p,varargin{:});
+            parse(p, varargin{:});
             
-            % Make sure that the comment does not contain new line or 
-            % carriage return characters, which would mess up formating 
-            % when saving the metadata
-            [comment, is_mod] = toSingleLine(p.Results.comment);
-            this.ParamList.(param_name).comment = comment;
-
-            if is_mod
-                warning(['Comment string for ''%s'' has been ' ...
-                    'converted to single line.'], param_name);
+            % Store the comment and format specifier. This is done only for
+            % a newly added parameter.
+            if ~isfield(param_name, this.ParamList)
+                
+                % Make sure that the comment does not contain new line or 
+                % carriage return characters, which would mess up formating 
+                % when saving the metadata
+                [comment, is_mod] = toSingleLine(p.Results.comment);
+                this.ParamList.(param_name).comment = comment;
+                
+                if is_mod
+                    warning(['Comment string for ''%s'' has been ' ...
+                        'converted to single line.'], param_name);
+                end
+                
+                this.ParamList.(param_name).fmt_spec = p.Results.fmt_spec;
             end
             
             S = p.Results.SubStruct;
@@ -64,11 +71,17 @@ classdef MyMetadata < handle
             else
                 
                 % Assign using subref structure
-                tmp = feval([class(value),'.empty']);
+                if isfield(this.ParamList.(param_name), 'value')
+                    
+                    % Adding a new subscript to existing parameter
+                    tmp = this.ParamList.(param_name).value;
+                else
+                    
+                    % Creating the value for a new parameter
+                    tmp = feval([class(value),'.empty']);
+                end
                 this.ParamList.(param_name).value = subsasgn(tmp,S,value);
             end
-            
-            this.ParamList.(param_name).fmt_spec = p.Results.fmt_spec;
         end
         
         % The function below is useful to ensure the correspondence between 
@@ -238,108 +251,63 @@ classdef MyMetadata < handle
         
         % Load metadata from file. Return all the entries found and  
         % the number of the last line read.
-        function [MdtArr, n_end_line] = load(filename, varargin)
+        function [MdtList, n_end_line] = load(filename, varargin)
             fileID = fopen(filename,'r');
             
-            TmpMdt = MyMetadata(varargin{:});
-            title_exp = [TmpMdt.hdr_spec, '(\w.*)', TmpMdt.hdr_spec];
+            MasterMdt = MyMetadata(varargin{:});
             
-            %Loop initialization
-            line_no=0;
-            curr_title='';
+            % Loop initialization
+            MdtList = struct();
+            line_no = 0;
             
-            %Loop continues until we reach the next header or we reach
-            %the end of the file
+            % Loop continues until we reach the next header or we reach
+            % the end of the file
             while ~feof(fileID)
-                line_no=line_no+1;
                 
                 % Grabs the current line
                 curr_line = fgetl(fileID);
                 
-                % Gives an error if the file is empty, i.e. if fgetl 
+                % Give a warning if the file is empty, i.e. if fgetl 
                 % returns -1
                 if curr_line == -1 
-                    error('Tried to read empty file. Aborting.')
+                    disp(['Read empty file ', filename, '.']);
+                    break
                 end
                 
-                % Skips if current line is empty
-                if isempty(curr_line)
+                % Skips if the current line is empty
+                if isempty(deblank(curr_line))
                     continue
                 end
                 
-                title_token = regexp(curr_line, title_exp,'once','tokens');
+                S = parseLine(MasterMdt, curr_line);
                 
-                % If we find a title, first check if it is the specified
-                % end header. Then change the title if a title was found, 
-                % then if no title was found, put the data under the current 
-                % current title.
-                if ismember(this.end_header, title_token)
-                    break
-                elseif ~isempty(title_token)
-                    
-                    % Apply genvarname for sefety in case the title string 
-                    % is not a proper variable name 
-                    curr_title=genvarname(title_token{1});
-                    addField(this, curr_title);
-                    
-                %This runs if there was no match for the header regular
-                %expression, i.e. the current line is not a filed 
-                %separator, and the current line is not empty. We then 
-                %add this line to the current field (curr_title), possibly
-                %iterating over the parameter subscripts.
-                elseif ~isempty(curr_title)
-                    
-                    % First separate the comment if present
-                    tmp = regexp(curr_line, this.comment_sep, ...
-                        'split', 'once');
-                    if length(tmp)>1
-                        comment_str = tmp{2}; % There is a comment
-                    else
-                        comment_str = '';     % There is no comment
-                    end
-                    
-                    % Then process name-value pair. Regard everything after
-                    % the first column separator as value.
-                    tmp = regexp(tmp{1}, this.column_sep, 'split', 'once');
-                    
-                    if length(tmp)<2
-                        % Ignore the line if a name-value pair is not found
-                        continue
-                    else
-                        % Attempt convertion of value to number
-                        val = str2doubleHedged(strtrim(tmp{2}));
-                    end
-                    
-                    % Infer the variable name and subscript reference
-                    try
-                        [S, name] = str2substruct(strtrim(tmp{1}));
-                    catch
-                        name = '';
-                    end
-                    
-                    if isempty(name)
-                        % Ignore the line if variable name is not missing
-                        continue
-                    elseif ismember(name, fieldnames(this.(curr_title)))
-                        % If the variable name already presents among
-                        % parameters, add new subscript value
-                        this.(curr_title).(name).value= ...
-                            subsasgn(this.(curr_title).(name).value,S,val);
-                    else
-                        % Add new parameter with comment
-                        addParam(this, curr_title, name, val,...
-                            'SubStruct', S, 'comment', comment_str);
-                    end
+                switch S.type
+                    case 'title'
+                        
+                        % Generate a valid identifier and add new metadata 
+                        % to the output list
+                        TmpMdt = MyMetadata(varargin{:}, 'title', S.match);
+                        fn = matlab.lang.makeValidName(S.match);
+                        MdtList.(fn) = TmpMdt;
+                    case 'paramval'
+                        
+                        % Add a new parameter-value pair to the current 
+                        % metadata
+                        [name, val, comment, Subs] = S.match{:};
+                        addParam(TmpMdt, name, val, 'SubStruct', Subs, ...
+                            'comment', comment);
+                    otherwise
+                        
+                        % Exit
+                        break
                 end
+                
+                % Increment the counter
+                line_no = line_no+1;
             end
-            fclose(fileID);
             
-            if isempty(this.field_names)
-                warning('No metadata found, continuing without metadata.')
-                n_end_header=1;
-            else
-                n_end_header=line_no;
-            end
+            n_end_line = line_no;
+            fclose(fileID);
         end
     end
     
@@ -349,7 +317,7 @@ classdef MyMetadata < handle
         function S = parseLine(this, str)
             S = struct( ...
                 'type',     '', ...     % title, paramval, other
-                'match',    {});        % parsed output
+                'match',    []);        % parsed output
             
             % Check if the line contains a parameter - value pair.
             % First separate the comment if present
@@ -365,13 +333,25 @@ classdef MyMetadata < handle
             % the first column separator as value.
             pv_token = regexp(pv_token{1}, this.column_sep, 'split', ...
                 'once');
+            
+            % Remove leading and trailing blanks
+            pv_token = strtrim(pv_token);
 
-            if length(pv_token)>=2 && isvarname(pv_token{1})
+            if length(pv_token)>=2
                 
-                % A parameter-value pair is found
-                S.type = 'paramval';
-                S.match = {pv_token{1}, pv_token{2}, comment};
-                return
+                % A candidate for parameter-value pair is found. Infer 
+                % the variable name and subscript reference.
+                [Subs, name] = str2substruct(pv_token{1});
+                
+                if isvarname(name)
+                    
+                    % Attempt converting the value to a number
+                    value = str2doubleHedged(pv_token{2});
+
+                    S.type = 'paramval';
+                    S.match = {name, value, comment, Subs};
+                    return
+                end
             end
             
             % Check if the line contains a title 
