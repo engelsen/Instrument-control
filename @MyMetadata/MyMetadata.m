@@ -5,7 +5,7 @@
 % any arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
 
-classdef MyMetadata < handle
+classdef MyMetadata < handle & matlab.mixin.CustomDisplay
     
     properties (Access = public)
         
@@ -376,6 +376,13 @@ classdef MyMetadata < handle
             % No match found
             S.type = 'other';
             S.match = {};
+        end
+        
+        % Make custom footer for command line display 
+        % (see matlab.mixin.CustomDisplay)        
+        function str = getFooter(this)
+            str = ['Content:', newline, newline, ...
+                replace(print(this), sprintf(this.line_sep), newline)];
         end
     end
 end
