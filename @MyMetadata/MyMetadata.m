@@ -1,3 +1,10 @@
+% MyMetadata stores parameter-value pairs and can be saved in a readable 
+% format.
+%
+% Metadata parameters can be strings, numerical values or cells, as well as  
+% any arrays and structures of such with arbitrary nesting. Sub-indices are 
+% automatically expanded when saving.
+
 classdef MyMetadata < handle
     
     properties (Access = public)
