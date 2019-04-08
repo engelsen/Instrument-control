@@ -13,7 +13,7 @@ classdef MyCeCryo < MyScpiInstrument
         
         % Time for the recirculator to pump down helium from the capillary 
         % before closing it off
-        tr = 20
+        tr = 600
     end
     
     properties (Access = protected)
