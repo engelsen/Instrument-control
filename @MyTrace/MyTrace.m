@@ -366,30 +366,45 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         % method so it can be overloaded in a subclass.
         function saveMetadata(this, filename)
             
-            % Add a field with
+            % Add a field with the information about the trace
             Mdt = MyMetadata('title', 'Info');
-            addParam(Mdt,'Name1',this.name_x);
-            addParam(Mdt,'Name2',this.name_y);
-            addParam(Mdt,'Unit1',this.unit_x);
-            addParam(Mdt,'Unit2',this.unit_y);
+            addParam(Mdt, 'Type',   class(this));
+            addParam(Mdt, 'Name1',  this.name_x);
+            addParam(Mdt, 'Name2',  this.name_y);
+            addParam(Mdt, 'Unit1',  this.unit_x);
+            addParam(Mdt, 'Unit2',  this.unit_y);
             
-            addMetadata(Mdt,this.MeasHeaders);
+            % Convert the metadata to array and save 
+            MhArr = structfun(@(x)x, ms);
+            save([Mdt, MhArr], filename);
         end
         
-        % Assign trace parameters from metadata
-        function loadMetadata(this, Mdt)
-            if isfield(Mdt.Info, 'Unit1')
-                this.unit_x=Mdt.Info.Unit1.value;
+        % Load metadata and assign trace parameters from metadata
+        function n_end_line = loadMetadata(this, filename)
+            
+            % Load metadata and convert from array to structure
+            [Mdt, n_end_line] = MyMetadata.load(filename);
+            MdtS = arrToStruct(Mdt);
+            
+            if isfield(MdtS, 'Info')
+                if isparam(MdtS.Info, 'Unit1')
+                    this.unit_x = getParam(MdtS.Info, 'Unit1');
+                end
+                if isparam(MdtS.Info, 'Unit2')
+                    this.unit_y = getParam(MdtS.Info, 'Unit2');
+                end
+                if isparam(MdtS.Info, 'Name1')
+                    this.name_x = getParam(MdtS.Info, 'Name1');
+                end
+                if isparam(MdtS.Info, 'Name2')
+                    this.name_y = getParam(MdtS.Info, 'Name2');
+                end
+                
+                % Remove the trace metadata 
+                MdtS = rmfield(MdtS, 'Info');
             end
-            if isfield(Mdt.Info, 'Unit2')
-                this.unit_y=Mdt.Info.Unit2.value;
-            end
-            if isfield(Mdt.Info, 'Name1')
-                this.name_x=Mdt.Info.Name1.value;
-            end
-            if isfield(Mdt.Info, 'Name2')
-                this.name_y=Mdt.Info.Name2.value;
-            end
+            
+            this.MeasHeaders = MdtS;
         end
         
         %Checks if arithmetic can be done with MyTrace objects.

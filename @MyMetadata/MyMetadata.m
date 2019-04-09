@@ -36,7 +36,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
             processInputs(P, this, varargin{:});
         end
         
-        %Adds a new metadata parameter. 
+        % Adds a new metadata parameter. 
         function addParam(this, param_name, value, varargin)
             assert(isvarname(param_name), ['Parameter name must be a ' ...
                 'valid variable name.']);
@@ -54,7 +54,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
             
             % Store the comment and format specifier. This is done only for
             % a newly added parameter.
-            if ~isfield(param_name, this.ParamList)
+            if ~isparam(this, param_name)
                 
                 % Make sure that the comment does not contain new line or 
                 % carriage return characters, which would mess up formating 
@@ -91,22 +91,32 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
             end
         end
         
-        % The function below is useful to ensure the correspondence between 
-        % metadata parameter names and object property names. It spares 
-        % some lines of code. 
+        % Get the value of an existing parameter
+        function value = getParam(this, param_name)
+            assert(isparam(this, param_name), [param_name ...
+                ' must correspond to one of the metadata parameters.']);
+            value = this.ParamList.(param_name).value;
+        end
+        
+        function bool = isparam(this, param_name)
+            bool = isfield(param_name, this.ParamList);
+        end
+        
+        % Alias for addParam that is useful to ensure the correspondence  
+        % between metadata parameter names and object property names. 
         function addObjProp(this, Obj, tag, varargin)
             addParam(this, tag, Obj.(tag), varargin{:});
         end
         
         % Print metadata in a readable form
-        function str = print(this)
+        function str = mdt2str(this)
             
             % Make the function spannable over arrays
             if isempty(this)
                 str = '';
                 return
             elseif length(this) > 1
-                str_arr = arrayfun(@(x)print(x), this, ...
+                str_arr = arrayfun(@(x)mdt2str(x), this, ...
                     'UniformOutput', false);
                 str = [str_arr{:}];
                 return
@@ -237,7 +247,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
         % Save metadata to a file
         function save(this, filename)
             fileID = fopen(filename,'a');
-            fprintf(fileID, print(this));
+            fprintf(fileID, mdt2str(this));
             fclose(fileID);
         end
         
@@ -405,7 +415,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
                 
                 % For a single object display its properties
                 str = ['Content:', newline, newline, ...
-                    replace(print(this), sprintf(this.line_sep), newline)];
+                    replace(mdt2str(this), sprintf(this.line_sep), newline)];
             elseif length(this) > 1
                 
                 % For a non-empty array of objects display titles
