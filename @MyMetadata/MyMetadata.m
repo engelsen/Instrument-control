@@ -101,6 +101,17 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
         % Print metadata in a readable form
         function str = print(this)
             
+            % Make the function spannable over arrays
+            if isempty(this)
+                str = '';
+                return
+            elseif length(this) > 1
+                str_arr = arrayfun(@(x)print(x), this, ...
+                    'UniformOutput', false);
+                str = [str_arr{:}];
+                return
+            end
+            
             % Compose the list of parameter names expanded over subscripts
             % except for those which are already character arrays
             par_names = fieldnames(this.ParamList);
@@ -229,6 +240,16 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
             fprintf(fileID, print(this));
             fclose(fileID);
         end
+        
+        % Create a structure from metadata array
+        function MdtList = arrToStruct(this)
+            MdtList = struct();
+            
+            for i = 1:length(this)
+                fn = matlab.lang.makeValidName(this(i).title);
+                MdtList.(fn) = this(i);
+            end
+        end
     end
     
     methods (Access = public, Static = true)
@@ -258,13 +279,13 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
         
         % Load metadata from file. Return all the entries found and  
         % the number of the last line read.
-        function [MdtList, n_end_line] = load(filename, varargin)
+        function [MdtArr, n_end_line] = load(filename, varargin)
             fileID = fopen(filename,'r');
             
             MasterMdt = MyMetadata(varargin{:});
             
             % Loop initialization
-            MdtList = struct();
+            MdtArr = MyMetadata.empty();
             line_no = 0;
             
             % Loop continues until we reach the next header or we reach
@@ -294,8 +315,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
                         % Generate a valid identifier and add new metadata 
                         % to the output list
                         TmpMdt = MyMetadata(varargin{:}, 'title', S.match);
-                        fn = matlab.lang.makeValidName(S.match);
-                        MdtList.(fn) = TmpMdt;
+                        MdtArr = [MdtArr, TmpMdt]; %#ok<AGROW>
                     case 'paramval'
                         
                         % Add a new parameter-value pair to the current 
@@ -381,8 +401,26 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
         % Make custom footer for command line display 
         % (see matlab.mixin.CustomDisplay)        
         function str = getFooter(this)
-            str = ['Content:', newline, newline, ...
-                replace(print(this), sprintf(this.line_sep), newline)];
+            if length(this) == 1
+                
+                % For a single object display its properties
+                str = ['Content:', newline, newline, ...
+                    replace(print(this), sprintf(this.line_sep), newline)];
+            elseif length(this) > 1
+                
+                % For a non-empty array of objects display titles
+                str = sprintf('\tTitles:\n\n');
+                
+                for i = 1:length(this)
+                    str = [str, sprintf('%i\t%s\n', i, this(i).title)]; %#ok<AGROW>
+                end
+                
+                str = [str, newline];
+            else
+                
+                % For an empty array display nothing
+                str = '';
+            end
         end
     end
 end

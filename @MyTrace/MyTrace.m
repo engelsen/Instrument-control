@@ -4,33 +4,35 @@
 % the content is loaded from file
 
 classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
-    properties (Access=public)
-        x=[];
-        y=[];
-        name_x='x';
-        name_y='y';
-        unit_x='';
-        unit_y='';
+    properties (Access = public)
+        x = [];
+        y = [];
+        name_x = 'x';
+        name_y = 'y';
+        unit_x = '';
+        unit_y = '';
+        
         % MyMetadata storing information about how the trace was taken
         MeasHeaders
-        file_name='';
+        file_name = '';
         
         % Data column and line separators
         column_sep = '\t'
-        line_sep='\r\n'
+        line_sep = '\r\n'
         
         %Cell that contains handles the trace is plotted in
-        hlines={};
+        hlines = {};
     end
     
-    properties (Dependent=true)        
+    properties (Dependent = true)        
         label_x
         label_y
     end
     
-    methods (Access=public)
-        function this=MyTrace(varargin)
-            P=MyClassParser(this);
+    methods (Access = public)
+        function this = MyTrace(varargin)
+            P = MyClassParser(this);
+            
             % options for MeasHeaders
             addParameter(P, 'metadata_opts',{},@iscell);
             
@@ -179,38 +181,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             this.file_name=file_path;
         end
-        
-        % Generate metadata that includes measurement headers and
-        % information about trace. This function is used in place of 'get'
-        % method so it can be overloaded in a subclass.
-        function Mdt=makeMetadata(this)
-            %First we update the trace information
-            Mdt=MyMetadata();
-            addField(Mdt,'Info');
-            addParam(Mdt,'Info','Name1',this.name_x);
-            addParam(Mdt,'Info','Name2',this.name_y);
-            addParam(Mdt,'Info','Unit1',this.unit_x);
-            addParam(Mdt,'Info','Unit2',this.unit_y);
-            
-            addMetadata(Mdt,this.MeasHeaders);
-        end
-        
-        % Assign trace parameters from metadata
-        function setFromMetadata(this, Mdt)
-            if isfield(Mdt.Info, 'Unit1')
-                this.unit_x=Mdt.Info.Unit1.value;
-            end
-            if isfield(Mdt.Info, 'Unit2')
-                this.unit_y=Mdt.Info.Unit2.value;
-            end
-            if isfield(Mdt.Info, 'Name1')
-                this.name_x=Mdt.Info.Name1.value;
-            end
-            if isfield(Mdt.Info, 'Name2')
-                this.name_y=Mdt.Info.Name2.value;
-            end
-        end
-        
 
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
@@ -390,6 +360,37 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     end
     
     methods (Access = protected)
+        
+        % Generate metadata that includes measurement headers and
+        % information about trace. This function is used in place of 'get'
+        % method so it can be overloaded in a subclass.
+        function saveMetadata(this, filename)
+            
+            % Add a field with
+            Mdt = MyMetadata('title', 'Info');
+            addParam(Mdt,'Name1',this.name_x);
+            addParam(Mdt,'Name2',this.name_y);
+            addParam(Mdt,'Unit1',this.unit_x);
+            addParam(Mdt,'Unit2',this.unit_y);
+            
+            addMetadata(Mdt,this.MeasHeaders);
+        end
+        
+        % Assign trace parameters from metadata
+        function loadMetadata(this, Mdt)
+            if isfield(Mdt.Info, 'Unit1')
+                this.unit_x=Mdt.Info.Unit1.value;
+            end
+            if isfield(Mdt.Info, 'Unit2')
+                this.unit_y=Mdt.Info.Unit2.value;
+            end
+            if isfield(Mdt.Info, 'Name1')
+                this.name_x=Mdt.Info.Name1.value;
+            end
+            if isfield(Mdt.Info, 'Name2')
+                this.name_y=Mdt.Info.Name2.value;
+            end
+        end
         
         %Checks if arithmetic can be done with MyTrace objects.
         function checkArithmetic(this, b)
