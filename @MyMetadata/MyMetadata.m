@@ -5,7 +5,7 @@
 % any arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
 
-classdef MyMetadata < handle & matlab.mixin.CustomDisplay
+classdef MyMetadata < handle & matlab.mixin.CustomDisplay & matlab.mixin.SetGet
     
     properties (Access = public)
         
@@ -175,7 +175,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay
                         tmpval = tmpval(:);
                     end
                     
-                    %Check for new line symbols in strings
+                    % Check for new line symbols in strings
                     if (ischar(tmpval)||isstring(tmpval)) && ...
                             any(ismember({newline,sprintf('\r')},tmpval))
                         warning(['String value must not contain ',...

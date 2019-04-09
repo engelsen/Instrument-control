@@ -5,23 +5,31 @@
 
 classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     properties (Access = public)
-        x = [];
-        y = [];
-        name_x = 'x';
-        name_y = 'y';
-        unit_x = '';
-        unit_y = '';
+        x = []
+        y = []
         
-        % MyMetadata storing information about how the trace was taken
-        MeasHeaders
-        file_name = '';
+        name_x = 'x'
+        name_y = 'y'
+        unit_x = ''
+        unit_y = ''
         
-        % Data column and line separators
-        column_sep = '\t'
-        line_sep = '\r\n'
+        file_name = ''
         
-        %Cell that contains handles the trace is plotted in
-        hlines = {};
+        % Structure storing MyMetadata objects with information about the 
+        % trace was taken
+        MeasHeaders = struct()
+        
+        % Formatting options for the metadata
+        metadata_opts = {} 
+        
+        % Data formatting options
+        column_sep  = '\t'      % Data column separator
+        line_sep    = '\r\n'    % Data line separator
+        data_sep    = 'Data'    % Separator between metadata and data
+        save_prec   = 15        % Maximum digits of precision in saved data 
+        
+        % Cell that contains handles the trace is plotted in
+        hlines = {}
     end
     
     properties (Dependent = true)        
@@ -32,154 +40,64 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     methods (Access = public)
         function this = MyTrace(varargin)
             P = MyClassParser(this);
-            
-            % options for MeasHeaders
-            addParameter(P, 'metadata_opts',{},@iscell);
-            
-            if mod(length(varargin),2)==1
-                % odd number of elements in varargin - interpret the first
-                % element as file name and the rest as name-value pairs
-                load_path=varargin{1};
-                assert(ischar(load_path)&&isvector(load_path),...
-                    '''file_name'' must be a vector of characters');
-                processInputs(P, this, varargin{2:end});
-                this.file_name=load_path;
-            else
-                % Parse varargin as a list of name-value pairs 
-                processInputs(P, this, varargin{:});
-                load_path=[];
-            end
-            
-            this.MeasHeaders=MyMetadata(P.Results.metadata_opts{:});
-            
-            if ~isempty(load_path)
-                load(this, load_path);
-            end
+            processInputs(P, this, varargin{:});
         end
         
-        %Defines the save function for the class. Note that this is only
-        %used when we want to write only the data with its associated
-        %trace, rather than just the trace. To write just the trace with
-        %fewer input checks, use the writeData function.
-        function save(this, varargin)
-            %Parse inputs for saving
-            p=inputParser;
-            addParameter(p,'save_prec',15);
-            addParameter(p,'overwrite',false);
+        %Defines the save function for the class.
+        function save(this, filename, varargin)
             
-            if mod(length(varargin),2)==1
-                % odd number of elements in varargin - interpret the first
-                % element as file name and the rest as name-value pairs
-                fname=varargin{1};
-                assert(ischar(fname)&&isvector(fname),...
-                    '''filename'' must be a vector of characters');
-                this.file_name=fname;
-                parse(p,varargin{2:end});
-            else
-                % Parse varargin as a list of name-value pairs and take
-                % file name from the class property
-                fname=this.file_name;
-                parse(p,varargin{:});
+            % Parse inputs for saving
+            p = inputParser;
+            addParameter(p, 'overwrite', false);
+            parse(p, varargin{:});
+            
+            assert(ischar(filename) && isvector(filename), ...
+                    '''filename'' must be a character vector.')
+            this.file_name = filename;
+            
+            % Create the file in the given folder
+            stat = createFile(filename, 'overwrite', p.Results.overwrite);
+            
+            % Returns if the file is not created for some reason 
+            if ~stat
+                warning('File not created, returned write_flag %i.', stat);
+                return
             end
-            
-            %Creates the file in the given folder
-            stat=createFile(fname, 'overwrite', p.Results.overwrite);
-            
-            %Returns if the file is not created for some reason 
-            if stat
-                %We now write the data to the file
-                writeData(this, fname, 'save_prec', p.Results.save_prec);
-            else
-                warning('File not created, returned write_flag %i',stat);
-            end
-        end
-        
-        %Writes the data to a file. This is separated so that other
-        %programs can write to the file from the outside. We circumvent the
-        %checks for the existence of the file here, assuming it is done
-        %outside.
-        function writeData(this, fullfilename, varargin)
-            p=inputParser;
-            addRequired(p,'fullfilename',@ischar);
-            addParameter(p,'save_prec',15);
-            parse(p,fullfilename,varargin{:});
-            
-            fullfilename=p.Results.fullfilename;
-            save_prec=p.Results.save_prec;
 
-            %Writes the metadata header
-            Mdt=makeMetadata(this);
-            save(Mdt, fullfilename);
+            % Write the metadata header
+            saveMetadata(this, filename);
             
-            fileID=fopen(fullfilename,'a');
-            %Pads the vectors if they are not equal length
-            diff=length(this.x)-length(this.y);
+            % Write the data
+            fileID = fopen(filename,'a');
+            
+            % Pads the vectors if they are not equal length
+            diff = length(this.x)-length(this.y);
             if diff<0
-                this.x=[this.x;zeros(-diff,1)];
-                warning(['Zero padded x vector as the saved vectors are',...
-                    ' not of the same length']);
+                this.x = [this.x; zeros(-diff,1)];
+                warning(['Zero padded x vector as the saved vectors ' ...
+                    'are not of the same length']);
             elseif diff>0
-                this.y=[this.y;zeros(diff,1)];
-                warning(['Zero padded y vector as the saved vectors are',...
-                    ' not of the same length']);
+                this.y = [this.y; zeros(diff,1)];
+                warning(['Zero padded y vector as the saved vectors ' ...
+                    'are not of the same length']);
             end
             
-            %Save in the more compact of fixed point and scientific 
-            %notation with trailing zeros removed
-            %If save_prec=15, we get %.15g\t%.15g\r\n
-            %Formatting without column padding may look ugly but makes
-            %files significantly smaller
-            data_format_str=sprintf(['%%.%ig',this.column_sep,'%%.%ig',...
-                this.line_sep],save_prec,save_prec);
-            fprintf(fileID, data_format_str,[this.x, this.y]');
+            % Save data in the more compact of fixed point and scientific 
+            % notation with trailing zeros removed.
+            % If save_prec=15, we get %.15g\t%.15g\r\n
+            % Formatting without column padding may look ugly but it 
+            % signigicantly reduces the file size.
+            data_format_str = ...
+                sprintf(['%%.%ig', this.column_sep, '%%.%ig', ...
+                this.line_sep], this.save_prec, this.save_prec);
+            
+            fprintf(fileID, data_format_str, [this.x, this.y]');
             fclose(fileID);
         end
         
         function clearData(this)
-            this.x=[];
-            this.y=[];
-        end
-        
-        function load(this, file_path, varargin)
-            p=inputParser;
-            addParameter(p,'hdr_spec',...
-                this.MeasHeaders.hdr_spec,@ischar);
-            addParameter(p,'end_header',...
-                this.MeasHeaders.end_header,@ischar);
-            parse(p,varargin{:});
-            
-            this.MeasHeaders.hdr_spec=p.Results.hdr_spec;
-            this.MeasHeaders.end_header=p.Results.end_header;
-            
-            if ~exist(file_path,'file')
-                error('File does not exist, please choose a different load path')
-            end
-            
-            %Read metadata. We get the line number we want to read
-            %the main data from as an output.
-            end_line_no=load(this.MeasHeaders, file_path);
-            
-            %Tries to assign units and names and then delete the Info field
-            %from MeasHeaders
-            try
-                setFromMetadata(this, this.MeasHeaders);
-                deleteField(this.MeasHeaders,'Info');
-            catch
-                warning(['No trace metadata found. No units or labels ',...
-                    'assigned when loading trace from %s'],file_path)
-                this.name_x='x';
-                this.name_y='y';
-                this.unit_x='';
-                this.unit_y='';
-            end
-            
-            %Reads x and y data
-            data_array=dlmread(file_path, this.column_sep, ...
-                end_line_no,0);
-            this.x=data_array(:,1);
-            this.y=data_array(:,2);
-            
-            this.file_name=file_path;
+            this.x = [];
+            this.y = [];
         end
 
         %Plots the trace on the given axes, using the class variables to
@@ -349,13 +267,69 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 && length(this.x)==length(this.y);
         end
         
-        function hline=getLineHandle(this,ax)
+        function hline = getLineHandle(this,ax)
             ind=findLineInd(this,ax);
             if ~isempty(ind)
                 hline=this.hlines{ind}; 
             else
                 hline=[];
             end
+        end
+    end
+    
+    methods (Access = public, Static = true)
+        
+        % Load trace from file
+        function Trace = load(filename, varargin)
+            assert(exist(filename, 'file'), ['File does not exist, ' ...
+                'please choose a different load path.'])
+            
+            % Extract data formatting 
+            p = inputParser();
+            p.KeepUnmatched = true;
+            addParameter(p, 'FormatSource', {}, @(x) isa(x,'MyTrace'));
+            addParameter(p, 'metadata_opts', {}, @iscell);
+            parse(p, varargin{:});
+            
+            if ~ismember('FormatSource', p.UsingDefaults)
+                Fs = p.Results.FormatSource;
+                
+                % Take formatting from the source object
+                mdt_opts = Fs.metadata_opts;
+                trace_opts = { ...
+                    'column_sep',    Fs.column_sep, ...
+                    'line_sep',      Fs.line_sep, ...
+                    'data_sep',      Fs.data_sep, ...
+                    'save_prec',     Fs.save_prec, ...
+                    'metadata_opts', Fs.metadata_opts};
+            else
+                
+                % Formatting is either default or was suppled explicitly
+                mdt_opts = p.Results.metadata_opts;
+                trace_opts = varargin;
+            end
+            
+            % Load metadata and convert from array to structure
+            [Mdt, n_end_line] = MyMetadata.load(filename, mdt_opts{:});
+            MdtS = arrToStruct(Mdt);
+            
+            if isfield(MdtS, 'Info') && isparam(MdtS.Info, 'Type')
+                class_name = getParam(MdtS.Info, 'Type');
+            else
+                class_name = 'MyTrace';
+            end
+            
+            % Instantiate an appropriate type of Trace
+            Trace = feval(class_name, trace_opts{:});
+            
+            loadMetadata(Trace, MdtS);
+            
+            % Reads x and y data
+            data_array = dlmread(filename, Trace.column_sep, n_end_line,0);
+            Trace.x = data_array(:,1);
+            Trace.y = data_array(:,2);
+            
+            Trace.file_name = filename;
         end
     end
     
@@ -367,25 +341,28 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function saveMetadata(this, filename)
             
             % Add a field with the information about the trace
-            Mdt = MyMetadata('title', 'Info');
-            addParam(Mdt, 'Type',   class(this));
-            addParam(Mdt, 'Name1',  this.name_x);
-            addParam(Mdt, 'Name2',  this.name_y);
-            addParam(Mdt, 'Unit1',  this.unit_x);
-            addParam(Mdt, 'Unit2',  this.unit_y);
+            Info = MyMetadata('title', 'Info');
+            addParam(Info, 'Type',   class(this));
+            addParam(Info, 'Name1',  this.name_x);
+            addParam(Info, 'Name2',  this.name_y);
+            addParam(Info, 'Unit1',  this.unit_x);
+            addParam(Info, 'Unit2',  this.unit_y);
             
-            % Convert the metadata to array and save 
-            MhArr = structfun(@(x)x, ms);
-            save([Mdt, MhArr], filename);
+            % Add a separator for the bulk of trace data
+            DataSep = MyMetadata('title', this.data_sep);
+            
+            % Convert the measurement headers metadata to array and save 
+            MdtArr = [Info, structfun(@(x)x, this.MeasHeaders), DataSep];
+            
+            % Set unified formatting and save
+            if ~isempty(this.metadata_fmt)
+                set(MdtArr, this.metadata_fmt{:});
+            end
+            save(MdtArr, filename);
         end
         
         % Load metadata and assign trace parameters from metadata
-        function n_end_line = loadMetadata(this, filename)
-            
-            % Load metadata and convert from array to structure
-            [Mdt, n_end_line] = MyMetadata.load(filename);
-            MdtS = arrToStruct(Mdt);
-            
+        function loadMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'Unit1')
                     this.unit_x = getParam(MdtS.Info, 'Unit1');
@@ -400,8 +377,17 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                     this.name_y = getParam(MdtS.Info, 'Name2');
                 end
                 
-                % Remove the trace metadata 
+                % Remove the metadata containing trace properties 
                 MdtS = rmfield(MdtS, 'Info');
+            else
+                warning(['No trace metadata found. No units or labels ' ...
+                    'assigned when loading trace from %s.'], filename);
+            end
+            
+            if isfield(MdtS, this.data_sep)
+                
+                % Remove the empty data separator field
+                MdtS = rmfield(MdtS, this.data_sep);
             end
             
             this.MeasHeaders = MdtS;
@@ -439,11 +425,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     %Set and get methods
     methods
         %Set function for MeasHeaders
-        function set.MeasHeaders(this, MeasHeaders)
-            assert(isa(MeasHeaders,'MyMetadata'),...
-                ['MeasHeaders must be an instance of MyMetadata, ',...
-                'it is %s'],class(MeasHeaders));
-            this.MeasHeaders=MeasHeaders;
+        function set.MeasHeaders(this, Val)
+            assert(isstruct(Val),...
+                'MeasHeaders must be a structure of MyMetadata objects');
+            this.MeasHeaders = Val;
         end
         
         %Set function for x, checks if it is a vector of doubles and
