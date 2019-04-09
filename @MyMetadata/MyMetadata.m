@@ -5,7 +5,7 @@
 % any arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
 
-classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.SetGet
+classdef MyMetadata < handle & matlab.mixin.CustomDisplay & matlab.mixin.SetGet
     
     properties (Access = public)
         
@@ -52,19 +52,10 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                 @isstruct)
             parse(p, varargin{:});
             
+            % Store the comment and format specifier. This is done only for
+            % a newly added parameter.
             if ~isparam(this, param_name)
                 
-                % Add a dynamic property for referencing the parameter
-                H = addprop(this, param_name);
-                H.GetAccess = 'public';
-                H.SetAccess = 'private';
-                H.GetMethod = @(x)x.ParamList.(param_name).value;
-                
-                % Hide the dynamic property from the output of display() 
-                % for beauty
-                H.Hidden = true;
-                
-                % Store the comment and format specifier. 
                 % Make sure that the comment does not contain new line or 
                 % carriage return characters, which would mess up formating 
                 % when saving the metadata
@@ -98,6 +89,13 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                 end
                 this.ParamList.(param_name).value = subsasgn(tmp,S,value);
             end
+        end
+        
+        % Get the value of an existing parameter
+        function value = getParam(this, param_name)
+            assert(isparam(this, param_name), [param_name ...
+                ' must correspond to one of the metadata parameters.']);
+            value = this.ParamList.(param_name).value;
         end
         
         function bool = isparam(this, param_name)
