@@ -116,13 +116,13 @@ classdef MyAvgTrace < MyTrace
         function setMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'avg_type')
-                    this.avg_type = getParam(MdtS.Info, 'avg_type');
+                    this.avg_type = MdtS.Info.avg_type;
                 end
                 if isparam(MdtS.Info, 'n_avg')
-                    this.n_avg = getParam(MdtS.Info, 'n_avg');
+                    this.n_avg = MdtS.Info.n_avg;
                 end
                 if isparam(MdtS.Info, 'avg_count')
-                    this.avg_count = getParam(MdtS.Info, 'avg_count');
+                    this.avg_count = MdtS.Info.avg_count;
                 end
             end
             
