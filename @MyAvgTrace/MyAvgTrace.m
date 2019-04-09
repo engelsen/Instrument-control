@@ -8,17 +8,19 @@
 
 classdef MyAvgTrace < MyTrace
     
-    properties (Access=public)
+    properties (Access = public)
+        
         % Target number of averages, when it is reached or exceeded 
         % AveragingDone event is triggered
-        n_avg=1 
+        n_avg = 1 
         
-        avg_type='lin'
+        avg_type = 'lin'
     end
     
-    properties (GetAccess=public, SetAccess=protected)
+    properties (GetAccess = public, SetAccess = protected)
+        
         % Counter for the averaging function, can be reset by clearData
-        avg_count=0
+        avg_count = 0
     end
     
     methods (Access=public)
@@ -84,14 +86,14 @@ classdef MyAvgTrace < MyTrace
         
         % Provide restricted access to the trace averaging counter
         function resetCounter(this)
-            this.avg_count=0;
+            this.avg_count = 0;
         end
         
         % Overload clearData so that it reset the averaging counter in
         % addition to clearing the x and y values
         function clearData(this)
-            this.x=[];
-            this.y=[];
+            this.x = [];
+            this.y = [];
             resetCounter(this);
         end
         
@@ -106,17 +108,21 @@ classdef MyAvgTrace < MyTrace
                 ['Target number of averages (lin) or exponential ' ...
                 'averaging constant (exp)']);
         end
-        function setFromMetadata(this, Mdt)
-            setFromMetadata@MyTrace(this, Mdt)
-            if isfield(Mdt.Info, 'avg_type')
-                this.avg_type=Mdt.Info.avg_type.value;
+        
+        function setFromMetadata(this, MdtS)
+            if isfield(MdtS, 'Info')
+                if isparam(MdtS.Info, 'avg_type')
+                    this.avg_type = getParam(MdtS.Info, 'avg_type');
+                end
+                if isparam(MdtS.Info, 'n_avg')
+                    this.n_avg = getParam(MdtS.Info, 'n_avg');
+                end
+                if isparam(MdtS.Info, 'avg_count')
+                    this.avg_count = getParam(MdtS.Info, 'avg_count');
+                end
             end
-            if isfield(Mdt.Info, 'n_avg')
-                this.n_avg=Mdt.Info.n_avg.value;
-            end
-            if isfield(Mdt.Info, 'avg_count')
-                this.avg_count=Mdt.Info.avg_count.value;
-            end
+            
+            setFromMetadata@MyTrace(this, MdtS);
         end
     end
     

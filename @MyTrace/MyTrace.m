@@ -361,18 +361,21 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             save(MdtArr, filename);
         end
         
-        % Load metadata and assign trace parameters from metadata
+        % Load metadata into the trace
         function loadMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'Unit1')
                     this.unit_x = getParam(MdtS.Info, 'Unit1');
                 end
+                
                 if isparam(MdtS.Info, 'Unit2')
                     this.unit_y = getParam(MdtS.Info, 'Unit2');
                 end
+                
                 if isparam(MdtS.Info, 'Name1')
                     this.name_x = getParam(MdtS.Info, 'Name1');
                 end
+                
                 if isparam(MdtS.Info, 'Name2')
                     this.name_y = getParam(MdtS.Info, 'Name2');
                 end
