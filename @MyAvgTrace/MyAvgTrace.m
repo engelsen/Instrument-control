@@ -23,7 +23,7 @@ classdef MyAvgTrace < MyTrace
         avg_count = 0
     end
     
-    methods (Access=public)
+    methods (Access = public)
         
         % Adds data to the average accumulator. When the averaging counter
         % reaches n_avg (or exceeds it in the exponential case), completed
@@ -96,20 +96,24 @@ classdef MyAvgTrace < MyTrace
             this.y = [];
             resetCounter(this);
         end
+    end
+    
+    methods (Access = protected)
         
         % Extend the info stored in trace metadata compare to MyTrace 
-        function Mdt=makeMetadata(this)
-            Mdt=makeMetadata@MyTrace(this);
-            addParam(Mdt,'Info','avg_type',this.avg_type, ...
-                'comment','Averaging type, linear or exponential');
-            addParam(Mdt,'Info','avg_count',this.avg_count, 'comment', ...
+        function MdtS = getMetadata(this)
+            MdtS = getMetadata@MyTrace(this);
+            
+            addParam(MdtS.Info, 'avg_type', this.avg_type, ...
+                'comment', 'Averaging type, linear or exponential');
+            addParam(MdtS.Info, 'avg_count', this.avg_count, 'comment', ...
                 'Number of accomplished averages');
-            addParam(Mdt,'Info','n_avg',this.n_avg, 'comment', ...
+            addParam(MdtS.Info, 'n_avg', this.n_avg, 'comment', ...
                 ['Target number of averages (lin) or exponential ' ...
                 'averaging constant (exp)']);
         end
         
-        function setFromMetadata(this, MdtS)
+        function setMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'avg_type')
                     this.avg_type = getParam(MdtS.Info, 'avg_type');
@@ -122,7 +126,7 @@ classdef MyAvgTrace < MyTrace
                 end
             end
             
-            setFromMetadata@MyTrace(this, MdtS);
+            setMetadata@MyTrace(this, MdtS);
         end
     end
     

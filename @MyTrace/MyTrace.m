@@ -64,8 +64,16 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 return
             end
 
-            % Write the metadata header
-            saveMetadata(this, filename);
+            % Create metadata header
+            MdtS = getMetadata(this);
+            
+            % Convert to array, set unified formatting and save 
+            Mdt = structfun(@(x)x, MdtS);
+            
+            if ~isempty(this.metadata_fmt)
+                set(Mdt, this.metadata_fmt{:});
+            end
+            save(Mdt, filename);
             
             % Write the data
             fileID = fopen(filename,'a');
@@ -322,7 +330,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             % Instantiate an appropriate type of Trace
             Trace = feval(class_name, trace_opts{:});
             
-            loadMetadata(Trace, MdtS);
+            setMetadata(Trace, MdtS);
             
             % Reads x and y data
             data_array = dlmread(filename, Trace.column_sep, n_end_line,0);
@@ -338,7 +346,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         % Generate metadata that includes measurement headers and
         % information about trace. This function is used in place of 'get'
         % method so it can be overloaded in a subclass.
-        function saveMetadata(this, filename)
+        function MdtS = getMetadata(this)
+            MdtS = this.MeasHeaders;
             
             % Add a field with the information about the trace
             Info = MyMetadata('title', 'Info');
@@ -348,21 +357,16 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             addParam(Info, 'Unit1',  this.unit_x);
             addParam(Info, 'Unit2',  this.unit_y);
             
+            MdtS.Info = Info;
+            
             % Add a separator for the bulk of trace data
             DataSep = MyMetadata('title', this.data_sep);
             
-            % Convert the measurement headers metadata to array and save 
-            MdtArr = [Info, structfun(@(x)x, this.MeasHeaders), DataSep];
-            
-            % Set unified formatting and save
-            if ~isempty(this.metadata_fmt)
-                set(MdtArr, this.metadata_fmt{:});
-            end
-            save(MdtArr, filename);
+            MdtS.DataSep = DataSep;
         end
         
         % Load metadata into the trace
-        function loadMetadata(this, MdtS)
+        function setMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'Unit1')
                     this.unit_x = getParam(MdtS.Info, 'Unit1');
@@ -393,6 +397,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 MdtS = rmfield(MdtS, this.data_sep);
             end
             
+            % Store the remainder under measurement headers
             this.MeasHeaders = MdtS;
         end
         
