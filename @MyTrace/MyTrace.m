@@ -322,7 +322,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             MdtS = arrToStruct(Mdt);
             
             if isfield(MdtS, 'Info') && isparam(MdtS.Info, 'Type')
-                class_name = getParam(MdtS.Info, 'Type');
+                class_name = MdtS.Info.Type;
             else
                 class_name = 'MyTrace';
             end
@@ -369,19 +369,19 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function setMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'Unit1')
-                    this.unit_x = getParam(MdtS.Info, 'Unit1');
+                    this.unit_x = MdtS.Info.Unit1;
                 end
                 
                 if isparam(MdtS.Info, 'Unit2')
-                    this.unit_y = getParam(MdtS.Info, 'Unit2');
+                    this.unit_y = MdtS.Info.Unit2;
                 end
                 
                 if isparam(MdtS.Info, 'Name1')
-                    this.name_x = getParam(MdtS.Info, 'Name1');
+                    this.name_x = MdtS.Info.Name1;
                 end
                 
                 if isparam(MdtS.Info, 'Name2')
-                    this.name_y = getParam(MdtS.Info, 'Name2');
+                    this.name_y = MdtS.Info.Name2;
                 end
                 
                 % Remove the metadata containing trace properties 

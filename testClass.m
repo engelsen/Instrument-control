@@ -9,8 +9,8 @@ classdef testClass < MyInstrument & MyCommCont
         prop1 = 1
     end
     
-    properties (GetAccess = public, SetAccess=immutable)
-        prop2 =0
+    properties (GetAccess = public, Hidden = true)
+        prop2 = 0.3
     end
     
     properties (GetAccess = public, SetAccess=public)
