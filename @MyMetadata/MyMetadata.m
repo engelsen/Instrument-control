@@ -52,52 +52,37 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                 @isstruct)
             parse(p, varargin{:});
             
-            if ~isparam(this, param_name)
-                
-                % Add a dynamic property for referencing the parameter
-                H = addprop(this, param_name);
-                H.GetAccess = 'public';
-                H.SetAccess = 'private';
-                H.GetMethod = @(x)x.ParamList.(param_name).value;
-                
-                % Hide the dynamic property from the output of display() 
-                % for beauty
-                H.Hidden = true;
-                
-                % Store the comment and format specifier. 
-                % Make sure that the comment does not contain new line or 
-                % carriage return characters, which would mess up formating 
-                % when saving the metadata
-                [comment, is_mod] = toSingleLine(p.Results.comment);
-                this.ParamList.(param_name).comment = comment;
-                
-                if is_mod
-                    warning(['Comment string for ''%s'' has been ' ...
-                        'converted to single line.'], param_name);
-                end
-                
-                this.ParamList.(param_name).fmt_spec = p.Results.fmt_spec;
-            end
+            % Add a dynamic property to store the parameter value
+            H = addprop(this, param_name);
+            H.Access = 'public';
+
+            % Hide the dynamic property from the output of display() 
+            % for beauty
+            H.Hidden = true;
             
-            S = p.Results.SubStruct;
-            if isempty(S)
-                
-                % Assign value directly
-                this.ParamList.(param_name).value = value;
-            else
-                
-                % Assign using subref structure
-                if isfield(this.ParamList.(param_name), 'value')
-                    
-                    % Adding a new subscript to existing parameter
-                    tmp = this.ParamList.(param_name).value;
-                else
-                    
-                    % Creating the value for a new parameter
-                    tmp = feval([class(value),'.empty']);
-                end
-                this.ParamList.(param_name).value = subsasgn(tmp,S,value);
+            % Initialize property with an empty variable of the same class 
+            % as value, this is important if SubStruct is an array index. 
+            this.(param_name) = feval([class(value),'.empty']);
+ 
+            % Make sure that the comment does not contain new line or 
+            % carriage return characters, which would mess up formating 
+            % when saving the metadata
+            [comment, is_mod] = toSingleLine(p.Results.comment);
+            this.ParamList.(param_name).comment = comment;
+
+            if is_mod
+                warning(['Comment string for ''%s'' has been ' ...
+                    'converted to single line.'], param_name);
             end
+
+            this.ParamList.(param_name).fmt_spec = p.Results.fmt_spec;
+            
+            % Construct full subscript reference with respect to 'this' 
+            S = [struct('type', '.', 'subs', param_name), ...
+                p.Results.SubStruct];
+            
+            % Assign the value of parameter
+            this = subsasgn(this, S, value);                                %#ok<NASGU>
         end
         
         function bool = isparam(this, param_name)
@@ -134,7 +119,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
             maxnmarr = zeros(1, length(par_names));
             
             for i=1:length(par_names)
-                tmpval = this.ParamList.(par_names{i}).value;
+                tmpval = this.ParamList.(par_names{i});
                 exp_par_names{i} = printSubs(tmpval, ...
                     'own_name', par_names{i}, ...
                     'expansion_test',@(y) ~ischar(y));
@@ -159,6 +144,10 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                     tmpnm = exp_par_names{i}{j};
                     TmpS = str2substruct(tmpnm);
                     
+                    Subs = [struct('type','.','subs',name), Subs];  %#ok<AGROW>
+            
+                            % Assign the value of parameter
+                            this = subsasgn(this, Subs, value);
                     if isempty(TmpS)
                         tmpval = TmpPar.value;
                     else
@@ -171,7 +160,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                             'character array. It will be converted to ',...
                             'single string during saving. Use cell',...
                             'arrays to save data as a set of separate ',...
-                            'strings.'],tmpnm)
+                            'strings.'], tmpnm)
                         
                         % Flatten
                         tmpval = tmpval(:);
@@ -332,9 +321,17 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                         
                         % Add a new parameter-value pair to the current 
                         % metadata
-                        [name, val, comment, Subs] = S.match{:};
-                        addParam(TmpMdt, name, val, 'SubStruct', Subs, ...
-                            'comment', comment);
+                        [name, value, comment, Subs] = S.match{:};
+                        
+                        if ~isparam(TmpMdt, name)
+                            addParam(TmpMdt, name, value, ...
+                                'SubStruct', Subs, 'comment', comment);
+                        else
+                            Subs = [struct('type','.','subs',name), Subs];  %#ok<AGROW>
+            
+                            % Assign the value of parameter
+                            this = subsasgn(this, Subs, value);  
+                        end
                     otherwise
                         
                         % Exit
