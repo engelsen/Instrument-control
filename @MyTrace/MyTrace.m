@@ -27,6 +27,9 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         line_sep    = '\r\n'    % Data line separator
         data_sep    = 'Data'    % Separator between metadata and data
         save_prec   = 15        % Maximum digits of precision in saved data 
+    end
+    
+    properties (Access = public, NonCopyable = true)
         
         % Cell that contains handles the trace is plotted in
         hlines = {}
@@ -419,7 +422,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 'The MyTrace objects must have identical x-axis for arithmetic')
         end
         
-        %Finds the hline handle that is plotted in the specified axes
+        % Finds the hline handle that is plotted in the specified axes
         function ind = findLineInd(this, Axes)
             if ~isempty(this.hlines)
                 ind = cellfun(@(x) ismember(x, findall(Axes, ...
@@ -428,10 +431,24 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 ind = [];
             end
         end
+        
+        % Overload the standard copy() method to create a deep copy
+        function Copy = copyElement(this)
+            Copy = copyElement@matlab.mixin.Copyable(this);
+            
+            % Copy metadata
+            field_names = fieldnames(this.MeasHeaders);
+            for i = 1:length(field_names)
+                Copy.MeasHeaders.(field_names{i}) = ...
+                    copy(this.MeasHeaders.(field_names{i}));
+            end
+        end
     end
     
-    %Set and get methods
+    %% Set and get methods
+    
     methods
+        
         %Set function for MeasHeaders
         function set.MeasHeaders(this, Val)
             assert(isstruct(Val),...
