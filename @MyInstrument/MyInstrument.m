@@ -19,11 +19,15 @@ classdef MyInstrument < dynamicprops
         CommandList = struct()
         
         % identification string
-        idn_str=''
+        idn_str = ''
     end
     
     properties (Dependent = true)
         command_names
+    end
+    
+    properties (Access = protected)
+        Metadata
     end
     
     methods (Access = public)
@@ -32,6 +36,7 @@ classdef MyInstrument < dynamicprops
             processInputs(P, this, varargin{:});
             
             createCommandList(this);
+            createMetadata(this);
         end
         
         % Read all parameters of the physical device
@@ -138,27 +143,33 @@ classdef MyInstrument < dynamicprops
         end
         
         % Measurement header
-        function Hdr = readSettings(this)
+        function Mdt = readSettings(this)
+            
+            % Ensure that instrument parameters are up to data
             sync(this);
             
-            Hdr = MyMetadata();
-            
-            % Instrument name is a valid Matalb identifier as ensured by
-            % its set method (see the superclass)
-            addField(Hdr, this.name);
-            
-            % Add identification string as parameter
-            addParam(Hdr, this.name, 'idn', this.idn_str);
-
-            for i=1:length(this.command_names)
-                cmd = this.command_names{i};
-                addParam(Hdr, Hdr.field_names{1}, cmd, this.(cmd), ...
-                    'comment', this.CommandList.(cmd).info);
+            param_names = fieldnames(this.Metadata.ParamList);
+            for i = 1:length(param_names)
+                tag = param_names{i};
+                this.Metadata.(tag) = this.(tag);
             end
+            
+            % Copying existing metadata is faster than creating a new one
+            Mdt = copy(this.Metadata);
         end
         
         % Write settings from structure
-        function writeSettings(this, Hdr)
+        function writeSettings(this, Mdt)
+            assert(isa(Mdt, 'MyMetadata'), ...
+                'Mdt must be of MyMetadata class.');
+            
+            param_names = fieldnames(Mdt.ParamList);
+            for i=1:length(param_names)
+                tag = param_names{i};
+                if isprop(this, tag)
+                    this.(tag) = Mdt.(tag);
+                end
+            end
         end
     end
     
@@ -167,6 +178,18 @@ classdef MyInstrument < dynamicprops
         % Dummy function that is redefined in subclasses to
         % incorporate addCommand statements
         function createCommandList(~)
+        end
+        
+        function createMetadata(this)
+            
+            % Add identification string as parameter
+            this.Metadata.idn = this.idn_str;
+
+            for i = 1:length(this.command_names)
+                cmd = this.command_names{i};
+                addObjProp(this.Metadata, this, cmd, ...
+                    'comment', this.CommandList.(cmd).info);
+            end
         end
         
         % Create set methods for dynamic properties
