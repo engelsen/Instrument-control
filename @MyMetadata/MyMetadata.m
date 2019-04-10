@@ -431,6 +431,22 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
                 str = '';
             end
         end
+        
+        function Cpy = copyElement(this)
+            
+            % Copy static properties
+            Cpy = copyElement@matlab.mixin.Copyable(this);
+            
+            % Copy dynamic properties
+            param_names = fieldnames(this.ParamList);
+            for i = 1:length(param_names)
+                H = addprop(Cpy, param_names{i});
+                H.Access = 'public';
+                H.Hidden = true;
+                
+                Cpy.(param_names{i}) = this.(param_names{i});
+            end
+        end
     end
 end
 
