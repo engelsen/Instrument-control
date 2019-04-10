@@ -78,12 +78,18 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
 
             this.ParamList.(param_name).fmt_spec = p.Results.fmt_spec;
             
-            % Construct full subscript reference with respect to 'this' 
-            S = [struct('type', '.', 'subs', param_name), ...
-                p.Results.SubStruct];
-            
-            % Assign the value of parameter
-            this = subsasgn(this, S, value);                                %#ok<NASGU>
+            S = p.Results.SubStruct;
+            if isempty(S)
+                this.(param_name) = value;
+            else
+                
+                % Construct full subscript reference with respect to 'this' 
+                S = [struct('type', '.', 'subs', param_name), ...
+                    p.Results.SubStruct];
+
+                % Assign the value of parameter
+                this = subsasgn(this, S, value); %#ok<NASGU>
+            end
         end
         
         function bool = isparam(this, param_name)
