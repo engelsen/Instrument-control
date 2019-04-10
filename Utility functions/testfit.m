@@ -2,7 +2,8 @@
 clear
 x_vec=linspace(0,200,1000);
 
-testFit=MyFit('fit_name','Lorentzian','enable_gui',1);
+% testFit=MyFit('fit_name','Linear','enable_gui',1);
+testFit=MyLorentzianFit();
 params=cell(1,testFit.n_params);
 switch testFit.fit_name
     case 'Lorentzian'
@@ -24,7 +25,7 @@ switch testFit.fit_name
 end
 
 params
-y_vec=testFit.FitStruct.(testFit.fit_name).anon_fit_fun(x_vec,params{:}).*normrnd(1,0.04,size(x_vec));
+y_vec=testFit.anon_fit_fun(x_vec,params{:}).*normrnd(1,0.04,size(x_vec));
 figure(1)
 ax=gca;
 plot(x_vec,y_vec,'x');

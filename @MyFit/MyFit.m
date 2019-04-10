@@ -6,29 +6,29 @@ classdef MyFit < dynamicprops
         lim_lower; %Lower limits for fit parameters
         lim_upper; %Upper limits for fit parameters
         enable_plot; %If enabled, plots initial parameters in the plot_handle
-        plot_handle; %The handle which fits and init params are plotted in
-        
-        %Calibration values supplied externally
-        CalVals=struct();
-        
-        init_color='c';
+        plot_handle; %The handle which fits and init params are plotted in        
+        init_color='c'; %Color of plot of initial parameters
     end
     
-    properties (GetAccess=public, SetAccess=private)
+    properties (GetAccess=public, SetAccess=protected)
         Fit; %MyTrace object containing the fit
         Gui; %Gui handles
         %Output structures from fit:
         Fitdata;
         Gof;
         FitInfo;
-        %Contains information about all the fits and their parameters
-        FitStruct;
         coeffs;
-        %The name of the fit used.
-        fit_name='Linear'
+        
+        %Parameters of the specific fit.
+        fit_name;
+        fit_function;
+        fit_tex;
+        fit_params;
+        fit_param_names;
+        anon_fit_fun;
     end
     
-    properties (Access=private)
+    properties (Access=protected)
         %Structure used for initializing GUI of userpanel
         UserGui;
         Parser; %Input parser for constructor
@@ -41,26 +41,21 @@ classdef MyFit < dynamicprops
     end
     
     %Dependent variables with no set methods
-    properties (Dependent=true, SetAccess=private)
-        %These grab and set the appropriate field of the FitStruct
-        fit_function;
-        anon_fit_fun;
-        fit_tex;
-        fit_params;
-        fit_param_names;
-        valid_fit_names;
+    properties (Dependent=true, SetAccess=private)     
         n_params;
+        %Vector used for plotting, depends on the data trace
+        x_vec;
+        %Variables used for saving, linked to the GUI
+        fullpath;
+        save_path;
+    end
+    
+    properties (Dependent=true, Access=protected)
         %These are used to create the usergui
         n_user_fields;
         user_field_tags;
         user_field_names;
         user_field_vals;
-        %Vector used for plotting, depends on the data trace
-        x_vec;
-        %Variables used for saving
-        fullpath;
-        save_path;
-        %Scaled x, y parameters for fitting
     end
     
     %Dependent variables with associated set methods
@@ -75,13 +70,18 @@ classdef MyFit < dynamicprops
         NewFit;
         NewInitVal;
     end
-    
+
+
     %Parser function
     methods (Access=private)
         %Creates parser for constructor
         function createParser(this)
             p=inputParser;
-            addParameter(p,'fit_name','Linear',@ischar)
+            addParameter(p,'fit_name','')
+            addParameter(p,'fit_function','')
+            addParameter(p,'fit_tex','')
+            addParameter(p,'fit_params',{})
+            addParameter(p,'fit_param_names',{})
             addParameter(p,'Data',MyTrace());
             addParameter(p,'Fit',MyTrace());
             addParameter(p,'x',[]);
@@ -105,18 +105,23 @@ classdef MyFit < dynamicprops
             this.SaveInfo.session_name='placeholder';
             this.SaveInfo.base_dir=getLocalSettings('measurement_base_dir');
             
-            %We first create the FitStruct, which contains all the
-            %information about the available fits.
-            createFitStruct(this);
             %We now create the parser for parsing the arguments to the
             %constructor, and parse the variables.
             createParser(this);
             parse(this.Parser,varargin{:});
             parseInputs(this);
             
-            %Loads values into the CalVals struct depending on the type of
-            %fit
-            initCalVals(this);
+            %Generates the anonymous fit function from the input fit
+            %function. This is used for fast plotting of the initial
+            %values.
+            args=['@(x,', strjoin(this.fit_params,','),')'];
+            this.anon_fit_fun=...
+                str2func(vectorize([args,this.fit_function]));
+            
+            %Sets dummy values for the GUI
+            this.init_params=ones(1,this.n_params);
+            this.lim_lower=-Inf(1,this.n_params);
+            this.lim_upper=Inf(1,this.n_params);
             
             %Allows us to load either x/y data or a MyTrace object directly
             if ismember('Data',this.Parser.UsingDefaults) &&...
@@ -126,11 +131,6 @@ classdef MyFit < dynamicprops
                 this.Data.x=this.Parser.Results.x;
                 this.Data.y=this.Parser.Results.y;
             end
-            
-            %Sets dummy values for the GUI
-            this.init_params=ones(1,this.n_params);
-            this.lim_lower=-Inf(1,this.n_params);
-            this.lim_upper=Inf(1,this.n_params);
             
             %Creates the structure that contains variables for calibration
             %of fit results
@@ -145,7 +145,7 @@ classdef MyFit < dynamicprops
             end
             
             %If the data is appropriate, generates initial
-            %parameters 
+            %parameters
             if validateData(this); genInitParams(this); end
         end
         
@@ -269,18 +269,6 @@ classdef MyFit < dynamicprops
             this.coeffs=coeffs;
         end
         
-        %Initializes the CalVals structure.
-        function initCalVals(this)
-            switch this.fit_name
-                case 'Lorentzian'
-                    %Line spacing is the spacing between all the lines,
-                    %i.e. number of lines times the spacing between each
-                    %one
-                    this.CalVals.line_spacing=1;
-                case 'DoubleLorentzian'
-                    this.CalVals.line_spacing=1;
-            end
-        end
         
         %Fits the trace using currently set parameters, depending on the
         %model.
@@ -299,54 +287,13 @@ classdef MyFit < dynamicprops
                 'Check limit %i, fit parameter %s'],find(~lim_check,1),...
                 this.fit_params{find(~lim_check,1)}));
             
-            switch this.fit_name
-                case 'Linear'
-                    if this.Gui.ScaleButton.Value
-                        s_c=...
-                            polyfit(this.Data.scaled_x,this.Data.scaled_y,1);
-                        this.coeffs=convScaledToRealCoeffs(this,s_c);
-                    else
-                        %Fits polynomial of order 1
-                        this.coeffs=polyfit(this.Data.x,this.Data.y,1);
-                    end
-                case 'Quadratic'
-                    %Fits polynomial of order 2
-                    this.coeffs=polyfit(this.Data.x,this.Data.y,2);
-                    this.Fit.y=polyval(this.coeffs,this.Fit.x);
-                case {'Exponential','Lorentzian'}
-                    if this.Gui.ScaleButton.Value
-                        ft=fittype(this.fit_function,'coefficients',...
-                            this.fit_params);
-                        opts=fitoptions('Method','NonLinearLeastSquares',...
-                            'Lower',convRealToScaledCoeffs(this,this.lim_lower),...
-                            'Upper',convRealToScaledCoeffs(this,this.lim_upper),...
-                            'StartPoint',convRealToScaledCoeffs(this,this.init_params),...
-                            'MaxFunEvals',2000,...
-                            'MaxIter',2000,...
-                            'TolFun',1e-6,...
-                            'TolX',1e-6);
-                        %Fits with the below properties. Chosen for maximum accuracy.
-                        [this.Fitdata,this.Gof,this.FitInfo]=...
-                            fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
-                        %Puts the coeffs into the class variable.
-                        this.coeffs=convScaledToRealCoeffs(this,...
-                            coeffvalues(this.Fitdata));
-                    else
-                        doFit(this);
-                    end
-                case {'LorentzianGrad','Gaussian',...
-                        'DoubleLorentzian','DoubleLorentzianGrad',...
-                        'Gorodetsky2000','Gorodetsky2000plus'}
-                    doFit(this)
-                otherwise
-                    error('Selected fit is invalid');
-            end
+            %Perform the fit. 
+            doFit(this);
             
             %This function calculates the fit trace, using this.x_vec as
             %the x axis
             calcFit(this);
-            %This function calculates user-defined parameters
-            calcUserParams(this);
+
             %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
             %Updates the gui if it is enabled
@@ -360,38 +307,29 @@ classdef MyFit < dynamicprops
             triggerNewFit(this);
         end
         
-        %This function calculates all the user-defined parameters shown in
-        %the GUI. To add more parameters, add them in createUserGuiStruct,
-        %then add them here when you wish to calculate them.
-        function calcUserParams(this)
-            switch this.fit_name
-                case 'Lorentzian'
-                    this.mech_lw=this.coeffs(2); %#ok<MCNPR>
-                    this.mech_freq=this.coeffs(3); %#ok<MCNPR>
-                    this.Q=this.mech_freq/this.mech_lw; %#ok<MCNPR>
-                    this.opt_lw=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
-                    this.Qf=this.mech_freq*this.Q;  %#ok<MCNPR>
-                case 'DoubleLorentzian'
-                    this.opt_lw1=convOptFreq(this,this.coeffs(2)); %#ok<MCNPR>
-                    this.opt_lw2=convOptFreq(this,this.coeffs(5)); %#ok<MCNPR>
-                    splitting=abs(this.coeffs(6)-this.coeffs(3));
-                    this.mode_split=convOptFreq(this,splitting); %#ok<MCNPR>
-                case 'Exponential'
-                    if ~isempty(this.coeffs)
-                        this.tau=abs(1/this.coeffs(2)); %#ok<MCNPR>
-                        this.lw=abs(this.coeffs(2)/pi); %#ok<MCNPR>
-                    end
-                    this.Q=pi*this.freq*this.tau; %#ok<MCNPR>
-                    this.Qf=this.Q*this.freq; %#ok<MCNPR>
-                otherwise
-                    %If fit_name is not listed, do nothing
-            end
-            
-        end
-        
-        %This function is used to convert the x-axis to frequency.
-        function real_freq=convOptFreq(this,freq)
-            real_freq=freq*this.spacing*this.line_no/this.CalVals.line_spacing;
+
+    end
+    
+    methods (Access=protected)
+        %Creates the GUI of MyFit, in separate file.
+        createGui(this);
+         
+        %Does the fit with the currently set parameters
+        function doFit(this)
+            ft=fittype(this.fit_function,'coefficients',this.fit_params);
+            opts=fitoptions('Method','NonLinearLeastSquares',...
+                'Lower',this.lim_lower,...
+                'Upper',this.lim_upper,...
+                'StartPoint',this.init_params,...
+                'MaxFunEvals',2000,...
+                'MaxIter',2000,...
+                'TolFun',1e-6,...
+                'TolX',1e-6);
+            %Fits with the below properties. Chosen for maximum accuracy.
+            [this.Fitdata,this.Gof,this.FitInfo]=...
+                fit(this.Data.x,this.Data.y,ft,opts);
+            %Puts the coeffs into the class variable.
+            this.coeffs=coeffvalues(this.Fitdata);
         end
         
         %This struct is used to generate the UserGUI. Fields are seen under
@@ -400,67 +338,14 @@ classdef MyFit < dynamicprops
         %Children. To add a field, use the addUserField function.
         function createUserGuiStruct(this)
             this.UserGui=struct('Fields',struct(),'Tabs',struct());
-            switch this.fit_name
-                case 'Lorentzian'
-                    %Parameters for the tab relating to mechanics
-                    this.UserGui.Tabs.Mech.tab_title='Mech.';
-                    this.UserGui.Tabs.Mech.Children={};
-                    addUserField(this,'Mech','mech_lw','Linewidth (Hz)',1,...
-                        'enable_flag','off')
-                    addUserField(this,'Mech','Q',...
-                        'Qualify Factor (x10^6)',1e6,...
-                        'enable_flag','off','conv_factor',1e6)
-                    addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
-                        'conv_factor',1e6, 'enable_flag','off')
-                    addUserField(this,'Mech','Qf','Q\times f (10^{14} Hz)',1e14,...
-                        'conv_factor',1e14,'enable_flag','off');
-                    
-                    %Parameters for the tab relating to optics
-                    this.UserGui.Tabs.Opt.tab_title='Optical';
-                    this.UserGui.Tabs.Opt.Children={};
-                    addUserField(this,'Opt','spacing',...
-                        'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
-                        'Callback', @(~,~) calcUserParams(this));
-                    addUserField(this,'Opt','line_no','Number of lines',10,...
-                        'Callback', @(~,~) calcUserParams(this));
-                    addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
-                        'enable_flag','off','conv_factor',1e6);
-                    
-                case 'DoubleLorentzian'
-                    this.UserGui.Tabs.Opt.tab_title='Optical';
-                    this.UserGui.Tabs.Opt.Children={};
-                    addUserField(this,'Opt','spacing',...
-                        'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
-                        'Callback', @(~,~) calcUserParams(this));
-                    addUserField(this,'Opt','line_no','Number of lines',10,...
-                        'Callback', @(~,~) calcUserParams(this));
-                    addUserField(this,'Opt','opt_lw1','Linewidth 1 (MHz)',1e6,...
-                        'enable_flag','off','conv_factor',1e6);
-                    addUserField(this,'Opt','opt_lw2','Linewidth 2 (MHz)',1e6,...
-                        'enable_flag','off','conv_factor',1e6);
-                    addUserField(this,'Opt','mode_split',...
-                        'Modal splitting (MHz)',1e6,...
-                        'enable_flag','off','conv_factor',1e6);
-                case 'Exponential'
-                    this.UserGui.Tabs.Q.tab_title='Q';
-                    this.UserGui.Tabs.Q.Children={};
-                    addUserField(this,'Q','tau','\tau (s)',1,...
-                        'enable_flag','off')
-                    addUserField(this,'Q','lw','Linewidth (Hz)',1,...
-                        'enable_flag','off')
-                    addUserField(this,'Q','Q',...
-                        'Qualify Factor (x10^6)',1e6,...
-                        'enable_flag','off','conv_factor',1e6)
-                    addUserField(this,'Q','freq','Frequency (MHz)',1e6,...
-                        'conv_factor',1e6, 'enable_flag','on',...
-                        'Callback',@(~,~) calcUserParams(this));
-                    addUserField(this,'Q','Qf','Q\times f (10^{14} Hz)',1e14,...
-                        'conv_factor',1e14,'enable_flag','off');
-                    addUserField(this,'Q','tag','Tag (number)','',...
-                        'enable_flag','on')
-                otherwise
-                    %Do nothing if there is no defined user parameters
-            end
+        end
+        
+        %Default generation of initial parameters. This function should be
+        %overloaded in subclasses.
+        function [init_params,lim_lower,lim_upper]=calcInitParams(this)
+            init_params=ones(1,this.n_params);
+            lim_lower=-Inf(1,this.n_params);
+            lim_upper=Inf(1,this.n_params);
         end
         
         %Parent is the parent tab for the userfield, tag is the tag given
@@ -525,6 +410,9 @@ classdef MyFit < dynamicprops
             conv_factor=this.UserGui.Fields.(tag).conv_factor;
             this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
         end
+    end
+    
+    methods (Access=private)       
         %Generates model-dependent initial parameters, lower and upper
         %boundaries.
         function genInitParams(this)
@@ -533,38 +421,13 @@ classdef MyFit < dynamicprops
                 ' Currently the number of fit parameters is %d, the',...
                 ' length of x is %d and the length of y is %d'],...
                 this.n_params,length(this.Data.x),length(this.Data.y));
+            
             %Cell for putting parameters in to be interpreted in the
             %parser. Element 1 contains the init params, Element 2 contains
             %the lower limits and Element 3 contains the upper limits.
-            params={};
+            params=cell(1,3);
             
-            switch this.fit_name
-                case 'Exponential'
-                    [params{1},params{2},params{3}]=...
-                        initParamExponential(this.Data.x,this.Data.y);
-                case 'Gaussian'
-                    [params{1},params{2},params{3}]=...
-                        initParamGaussian(this.Data.x,this.Data.y);
-                case 'Lorentzian'
-                    [params{1},params{2},params{3}]=...
-                        initParamLorentzian(this.Data.x,this.Data.y);
-                case 'LorentzianGrad'
-                    [params{1},params{2},params{3}]=...
-                        initParamLorentzianGrad(this.Data.x,this.Data.y);
-                case 'DoubleLorentzian'
-                    [params{1},params{2},params{3}]=...
-                        initParamDblLorentzian(this.Data.x,this.Data.y);
-                case 'DoubleLorentzianGrad'
-                    [params{1},params{2},params{3}]=...
-                        initParamDblLorentzianGrad(this.Data.x,this.Data.y);
-                case 'Gorodetsky2000'
-                    [params{1},params{2},params{3}]=...
-                        initParamGorodetsky2000(this.Data.x,this.Data.y);
-                case 'Gorodetsky2000plus'
-                    [params{1},params{2},params{3}]=...
-                        initParamGorodetsky2000Plus(this.Data.x,this.Data.y);
-            end
-            
+            [params{1},params{2},params{3}]=calcInitParams(this);
             %Validates the initial parameters
             p=createFitParser(this.n_params);
             parse(p,params{:});
@@ -580,8 +443,26 @@ classdef MyFit < dynamicprops
             %param sliders
             if this.enable_gui
                 genSliderVecs(this);
-                updateGui(this);                 
+                updateGui(this);
             end
+        end
+        
+        %Creates an input parser for a fit function with n_arg arguments. Default
+        %values are ones for initial parameters and plus and minus inf for upper
+        %and lower limits respectively. Ensures that the length is equal to the
+        %number of arguments.
+        function p=createFitParser(n_arg)
+            p=inputParser;
+            validateStart=@(x) assert(isnumeric(x) && isvector(x) && length(x)==n_arg,...
+                'Starting points must be given as a vector of size %d',n_arg);
+            validateLower=@(x) assert(isnumeric(x) && isvector(x) && length(x)==n_arg,...
+                'Lower limits must be given as a vector of size %d',n_arg);
+            validateUpper=@(x) assert(isnumeric(x) && isvector(x) && length(x)==n_arg,...
+                'Upper limits must be given as a vector of size %d',n_arg);
+            
+            addOptional(p,'init_params',ones(1,n_arg),validateStart)
+            addOptional(p,'lower',-Inf(1,n_arg),validateLower)
+            addOptional(p,'upper',Inf(1,n_arg),validateUpper)
         end
         
         %Calculates the trace object for the fit
@@ -590,6 +471,7 @@ classdef MyFit < dynamicprops
             input_coeffs=num2cell(this.coeffs);
             this.Fit.y=this.anon_fit_fun(this.Fit.x,input_coeffs{:});
         end
+        
         %Plots the trace contained in the Fit MyTrace object after
         %calculating the new values
         function plotFit(this,varargin)
@@ -608,6 +490,7 @@ classdef MyFit < dynamicprops
             this.Fit.hlines={};
         end
         
+        %Clears the plot of the initial values
         function clearInitFun(this)
             delete(this.hline_init);
             this.hline_init=[];
@@ -619,7 +502,7 @@ classdef MyFit < dynamicprops
             %anonymous functions is very cpu intensive.
             
             input_cell=num2cell(this.init_params);
-            y_vec=feval(this.FitStruct.(this.fit_name).anon_fit_fun,...
+            y_vec=feval(this.anon_fit_fun,...
                 this.x_vec,input_cell{:});
             if isempty(this.hline_init)
                 this.hline_init=plot(this.plot_handle,this.x_vec,y_vec,...
@@ -659,25 +542,6 @@ classdef MyFit < dynamicprops
                 set(this.Gui.(sprintf('Slider_%s',this.fit_params{i})),...
                     'Value',50);
             end
-            
-            %Here we can put special cases such that the sliders can behave
-            %differently for different fits. 
-            if validateData(this)
-                switch this.fit_name
-                    case 'Lorentzian'
-                        %We choose to have the slider go over the range of
-                        %the x-values of the plot for the center of the
-                        %Lorentzian.
-                        this.slider_vecs{3}=...
-                            linspace(this.x_vec(1),this.x_vec(end),101);
-                        %Find the index closest to the init parameter
-                        [~,ind]=...
-                            min(abs(this.init_params(3)-this.slider_vecs{3}));
-                        %Set to ind-1 as the slider goes from 0 to 100
-                        set(this.Gui.(sprintf('Slider_%s',...
-                            this.fit_params{3})),'Value',ind-1);
-                end
-            end
         end
         
         %Callback functions for sliders in GUI. Uses param_ind to find out
@@ -693,7 +557,7 @@ classdef MyFit < dynamicprops
             %is required as the callback also gets called when the slider
             %values are changed programmatically
             [~,ind]=...
-                min(abs(this.init_params(param_ind)-this.slider_vecs{param_ind}));           
+                min(abs(this.init_params(param_ind)-this.slider_vecs{param_ind}));
             if ind~=(val+1)
                 %Updates the scale with a new value from the lookup table
                 this.init_params(param_ind)=...
@@ -705,12 +569,12 @@ classdef MyFit < dynamicprops
             end
         end
         
-         %Callback function for edit boxes in GUI
+        %Callback function for edit boxes in GUI
         function editCallback(this, hObject, ~)
             init_param=str2double(hObject.String);
             param_ind=str2double(hObject.Tag);
-
-            %Centers the slider 
+            
+            %Centers the slider
             set(this.Gui.(sprintf('Slider_%s',this.fit_params{param_ind})),...
                 'Value',50);
             %Updates the correct initial parameter
@@ -752,26 +616,26 @@ classdef MyFit < dynamicprops
             clearFit(this);
         end
         
-        %Callback function for generate init parameters button. 
+        %Callback function for generate init parameters button.
         function initParamCallback(this,~,~)
             genInitParams(this);
         end
         
         %Callback function for scaleData button
-        function scaleDataCallback(~,hObject)
+        function scaleDataCallback(this,hObject)
             if hObject.Value
                 hObject.BackgroundColor=0.9*[1,1,1];
+                this.scale_data=true;
             else
                 hObject.BackgroundColor=[1,1,1];
+                this.scale_data=false;
             end
         end
     end
     
     %Private methods
     methods(Access=private)
-        %Creates the GUI of MyFit, in separate file.
-        createGui(this);
-        
+
         %Creates a panel for the GUI, in separate file
         createTab(this, tab_tag, bg_color, button_h);
         
@@ -782,7 +646,7 @@ classdef MyFit < dynamicprops
         %Creates an edit box inside a UnitDisp for showing label and value of
         %a quantity. Used in conjunction with createUnitBox
         createUnitDisp(this,varargin);
-                
+        
         %Sets the class variables to the inputs from the inputParser.
         function parseInputs(this)
             for i=1:length(this.Parser.Parameters)
@@ -795,61 +659,6 @@ classdef MyFit < dynamicprops
             end
         end
         
-        %Does the fit with the currently set parameters
-        function doFit(this)
-            ft=fittype(this.fit_function,'coefficients',this.fit_params);
-            opts=fitoptions('Method','NonLinearLeastSquares',...
-                'Lower',this.lim_lower,...
-                'Upper',this.lim_upper,...
-                'StartPoint',this.init_params,...
-                'MaxFunEvals',2000,...
-                'MaxIter',2000,...
-                'TolFun',1e-6,...
-                'TolX',1e-6);
-            %Fits with the below properties. Chosen for maximum accuracy.
-            [this.Fitdata,this.Gof,this.FitInfo]=...
-                fit(this.Data.x,this.Data.y,ft,opts);
-            %Puts the coeffs into the class variable.
-            this.coeffs=coeffvalues(this.Fitdata);
-        end
-        
-        %Converts scaled coefficients to real coefficients
-        function r_c=convScaledToRealCoeffs(this,s_c)
-            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
-            switch this.fit_name
-                case 'Linear'
-                    r_c(1)=std_y/std_x*s_c(1);
-                    r_c(2)=(s_c(2)-s_c(1)*mean_x/std_x)*std_y+mean_y;
-                case 'Exponential'
-                    r_c(1)=exp(-s_c(2)*mean_x/std_x)*s_c(1)*std_y;
-                    r_c(2)=s_c(2)/std_x;
-                    r_c(3)=std_y*s_c(3)+mean_y;
-                case 'Lorentzian'
-                    r_c(1)=s_c(1)*std_y*std_x;
-                    r_c(2)=s_c(2)*std_x;
-                    r_c(3)=s_c(3)*std_x+mean_x;
-                    r_c(4)=s_c(4)*std_y+mean_y;
-            end
-        end
-        
-        function s_c=convRealToScaledCoeffs(this,r_c)
-            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
-            
-            switch this.fit_name
-                case 'Linear'
-                    s_c(1)=std_x/std_y*r_c(1);
-                    s_c(2)=(r_c(2)-mean_y)/std_y+s_c(1)*mean_x/std_x;
-                case 'Exponential'
-                    s_c(2)=r_c(2)*std_x;
-                    s_c(1)=r_c(1)*exp(s_c(2)*mean_x/std_x)/std_y;
-                    s_c(3)=(r_c(3)-mean_y)/std_y;
-                case 'Lorentzian'
-                    s_c(1)=r_c(1)/(std_y*std_x);
-                    s_c(2)=r_c(2)/std_x;
-                    s_c(3)=(r_c(3)-mean_x)/std_x;
-                    s_c(4)=(r_c(4)-mean_y)/std_y;
-            end
-        end
         %Triggers the NewFit event such that other objects can use this to
         %e.g. plot new fits
         function triggerNewFit(this)
@@ -860,78 +669,7 @@ classdef MyFit < dynamicprops
         function triggerNewInitVal(this)
             notify(this,'NewInitVal');
         end
-        
-        %Creates the struct used to get all things relevant to the fit
-        %model. Ensure that fit parameters are listed alphabetically, as
-        %otherwise the anon_fit_fun will not work properly.
-        function createFitStruct(this)
-            %Adds fits
-            addFit(this,'Linear','a*x+b','$$ax+b$$',{'a','b'},...
-                {'Gradient','Offset'})
-            addFit(this,'Quadratic','a*x^2+b*x+c','$$ax^2+bx+c$$',...
-                {'a','b','c'},{'Quadratic coeff.','Linear coeff.','Offset'});
-            addFit(this,'Gaussian','a*exp(-((x-c)/b)^2/2)+d',...
-                '$$ae^{-\frac{(x-c)^2}{2b^2}}+d$$',{'a','b','c','d'},...
-                {'Amplitude','Width','Center','Offset'});
-            addFit(this,'Lorentzian','1/pi*a*b/2/((x-c)^2+(b/2)^2)+d',...
-                '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$',...
-                {'a','b','c','d'},...
-                {'Amplitude','Width','Center','Offset'});
-            addFit(this,'LorentzianGrad','1/pi*a*b/2/((x-c)^2+(b/2)^2)+d*(x-c)+e',...
-                '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d*(x-b)+e$$',...
-                {'a','b','c','d','e'},...
-                {'Amplitude','Width','Center','Gradient','Offset'});
-            addFit(this,'Exponential','a*exp(b*x)+c',...
-                '$$ae^{bx}+c$$',{'a','b','c'},...
-                {'Amplitude','Rate','Offset'});
-            addFit(this,'DoubleLorentzian',...
-                '1/pi*b/2*a/((x-c)^2+(b/2)^2)+1/pi*e/2*d/((x-f)^2+(e/2)^2)+g',...
-                '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+\frac{d}{\pi}\frac{e/2}{(x-f)^2+(e/2)^2}+g$$',...
-                {'a','b','c','d','e','f','g'},...
-                {'Amplitude 1','Width 1','Center 1','Amplitude 2',...
-                'Width 2','Center 2','Offset'});
-            addFit(this,'DoubleLorentzianGrad',...
-                '1/pi*b/2*a/((x-c)^2+(b/2)^2)+1/pi*e/2*d/((x-f)^2+(e/2)^2)+g*(x-c)+h',...
-                '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+\frac{d}{\pi}\frac{e/2}{(x-f)^2+(e/2)^2}+g*x+h$$',...
-                {'a','b','c','d','e','f','g','h'},...
-                {'Amplitude 1','Width 1','Center 1','Amplitude 2',...
-                'Width 2','Center 2','Gradient','Offset'});
-             addFit(this,'Gorodetsky2000',...
-                ['a*abs( (k0^2/4 - kex^2/4 + gamma^2/4 - (x-b).^2 + i*k0.*(x-b))',...
-                './( (k0 + kex)^2/4 + gamma^2/4 - (x-b).^2 + i.*(x-b)*(k0 + kex) )).^2+c*(x-b)'],...
-                ['$$a\left|\frac{\kappa_0^2/4-\kappa_{ex}^2/4+\gamma^2/4-(x-b)^2+i\kappa_0(x-b)/2}',...
-                '{(\kappa_0+\kappa_{ex})^2/4+\gamma^2/4-(x-b)^2+i(x-b)(\kappa_0+\kappa_{ex})}\right|^2$$+c(x-b)'],...
-                { 'a','b','c','gamma','k0', 'kex'},...
-                {'Background','Center','BG Slope','Mode splitting',...
-                'Intrinsic','Extrinsic'});
-            addFit(this,'Gorodetsky2000plus',...
-                ['(a+c*x+d*x.^2+e*x.^2)*abs( (k0^2/4 - kex^2/4 + gamma^2/4 - (x-b).^2 + i*k0.*(x-b))',...
-                './( (k0 + kex)^2/4 + gamma^2/4 - (x-b).^2 + i.*(x-b)*(k0 + kex) )).^2+f'],...
-                ['$$\left[a+cx+dx^2\right]\left|\frac{\kappa_0^2/4-\kappa_{ex}^2/4+\gamma^2/4-(x-b)^2+i\kappa_0(x-b)/2}',...
-                '{(\kappa_0+\kappa_{ex})^2/4+\gamma^2/4-(x-b)^2+i(x-b)(\kappa_0+\kappa_{ex})}\right|^2$$'],...
-                { 'a','b','c','d','e','f','gamma','k0', 'kex'},...
-                {'Baseline','Center','Lin. Coeff','Quad. Coeff','Cubic Coeff.',...
-                'Background','Mode splitting','Intrinsic','Extrinsic'});
-            
-        end
-        
-        %Adds a fit to the list of fits. See above for real examples
-        %fit_function: the function used to fit to in MATLAB form
-        %fit_tex: the fit function written in tex for display in the GUI
-        %fit_params: the fit parameters
-        %fit_param_names: longer names of fit parameters for GUI
-        function addFit(this,fit_name,fit_function,fit_tex,fit_params,...
-                fit_param_names)
-            this.FitStruct.(fit_name).fit_function=fit_function;
-            this.FitStruct.(fit_name).fit_tex=fit_tex;
-            this.FitStruct.(fit_name).fit_params=fit_params;
-            this.FitStruct.(fit_name).fit_param_names=fit_param_names;
-            %Generates the anonymous fit function from the above
-            args=['@(x,', strjoin(fit_params,','),')'];
-            this.FitStruct.(fit_name).anon_fit_fun=...
-                str2func(vectorize([args,fit_function]));
-        end
-        
+
         %Updates the GUI if the edit or slider boxes are changed from
         %elsewhere.
         function updateGui(this)
@@ -954,54 +692,8 @@ classdef MyFit < dynamicprops
         end
     end
     
-    % Set function for nondependent variable
-    methods
-        %Set function for fit_name.
-        function set.fit_name(this,fit_name)
-            assert(ischar(fit_name),'The fit name must be a string');
-            %Capitalizes the first letter
-            fit_name=[upper(fit_name(1)),lower(fit_name(2:end))];
-            %Checks it is a valid fit name
-            ind=strcmpi(fit_name,this.valid_fit_names);%#ok<MCSUP>
-            assert(any(ind),'%s is not a supported fit name',fit_name);
-            
-            this.fit_name=this.valid_fit_names{ind}; %#ok<MCSUP>
-        end
-    end
-    
     % Get functions for dependent variables
-    methods
-        %Generates the valid fit names
-        function valid_fit_names=get.valid_fit_names(this)
-            valid_fit_names=fieldnames(this.FitStruct);
-        end
-        
-        %Grabs the correct fit function from FitStruct
-        function fit_function=get.fit_function(this)
-            fit_function=this.FitStruct.(this.fit_name).fit_function;
-        end
-        
-        %Grabs the correct tex string from FitStruct
-        function fit_tex=get.fit_tex(this)
-            fit_tex=this.FitStruct.(this.fit_name).fit_tex;
-        end
-        
-        %Grabs the correct anon fit function from FitStruct
-        function anon_fit_fun=get.anon_fit_fun(this)
-            anon_fit_fun=this.FitStruct.(this.fit_name).anon_fit_fun;
-        end
-        
-        
-        %Grabs the correct fit parameters from FitStruct
-        function fit_params=get.fit_params(this)
-            fit_params=this.FitStruct.(this.fit_name).fit_params;
-        end
-        
-        %Grabs the correct fit parameter names from FitStruct
-        function fit_param_names=get.fit_param_names(this)
-            fit_param_names=this.FitStruct.(this.fit_name).fit_param_names;
-        end
-
+    methods        
         %Calculates the number of parameters in the fit function
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);

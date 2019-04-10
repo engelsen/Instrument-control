@@ -1,0 +1,117 @@
+classdef MyLorentzianFit < MyFit
+    properties (Access=public)
+        %Logical value that determines whether the data should be scaled or
+        %not
+        scale_data;
+    end
+    
+    %Public methods
+    methods (Access=public)
+        %Constructor function
+        function this=MyLorentzianFit(varargin)
+            this@MyFit(...
+                'fit_name','Lorentzian',...
+                'fit_function','1/pi*a*b/2/((x-c)^2+(b/2)^2)+d',...
+                'fit_tex','$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$',...
+                'fit_params',  {'a','b','c','d'},...
+                'fit_param_names',{'Amplitude','Width','Center','Offset'},...
+                varargin{:});
+        end
+    end
+    
+    methods (Access=protected)
+        %Overload the doFit function to do scaled fits.
+        %We here have the choice of whether to scale the data or not.
+        function doFit(this)
+            if this.scale_data
+                ft=fittype(this.fit_function,'coefficients',...
+                    this.fit_params);
+                opts=fitoptions('Method','NonLinearLeastSquares',...
+                    'Lower',convRealToScaledCoeffs(this,this.lim_lower),...
+                    'Upper',convRealToScaledCoeffs(this,this.lim_upper),...
+                    'StartPoint',convRealToScaledCoeffs(this,this.init_params),...
+                    'MaxFunEvals',2000,...
+                    'MaxIter',2000,...
+                    'TolFun',1e-6,...
+                    'TolX',1e-6);
+                %Fits with the below properties. Chosen for maximum accuracy.
+                [this.Fitdata,this.Gof,this.FitInfo]=...
+                    fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
+                %Puts the coeffs into the class variable.
+                this.coeffs=convScaledToRealCoeffs(this,...
+                    coeffvalues(this.Fitdata));
+            else
+                %Do the default fitting if we are not scaling.
+                doFit@MyFit(this);
+            end
+            calcUserParams(this);
+        end
+        
+        function [init_params,lim_lower,lim_upper]=calcInitParams(this)
+            if this.scale_data
+                [init_params,lim_lower,lim_upper]=...
+                    initParamLorentzian(this.Data.scaled_x,this.Data.scaled_y);
+                init_params=convScaledToRealCoeffs(this,init_params);
+                lim_lower=convScaledToRealCoeffs(this,lim_lower);
+                lim_upper=convScaledToRealCoeffs(this,lim_upper);
+            else
+                [init_params,lim_lower,lim_upper]=...
+                    initParamLorentzian(this.Data.x,this.Data.y);
+            end
+        end
+        
+        function calcUserParams(this)
+            this.mech_lw=this.coeffs(2); 
+            this.mech_freq=this.coeffs(3); 
+            this.Q=this.mech_freq/this.mech_lw; 
+            this.opt_lw=convOptFreq(this,this.coeffs(2)); 
+            this.Qf=this.mech_freq*this.Q;
+        end
+        
+        function createUserGuiStruct(this)
+            %Parameters for the tab relating to mechanics
+            this.UserGui.Tabs.Mech.tab_title='Mech.';
+            this.UserGui.Tabs.Mech.Children={};
+            addUserField(this,'Mech','mech_lw','Linewidth (Hz)',1,...
+                'enable_flag','off')
+            addUserField(this,'Mech','Q',...
+                'Qualify Factor (x10^6)',1e6,...
+                'enable_flag','off','conv_factor',1e6)
+            addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
+                'conv_factor',1e6, 'enable_flag','off')
+            addUserField(this,'Mech','Qf','Q\times f (10^{14} Hz)',1e14,...
+                'conv_factor',1e14,'enable_flag','off');
+            
+            %Parameters for the tab relating to optics
+            this.UserGui.Tabs.Opt.tab_title='Optical';
+            this.UserGui.Tabs.Opt.Children={};
+            addUserField(this,'Opt','spacing',...
+                'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
+                'Callback', @(~,~) calcUserParams(this));
+            addUserField(this,'Opt','line_no','Number of lines',10,...
+                'Callback', @(~,~) calcUserParams(this));
+            addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
+                'enable_flag','off','conv_factor',1e6);
+        end
+    end
+    
+    methods (Access=private)
+        %Converts scaled coefficients to real coefficients
+        function r_c=convScaledToRealCoeffs(this,s_c)
+            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
+            r_c(1)=s_c(1)*std_y*std_x;
+            r_c(2)=s_c(2)*std_x;
+            r_c(3)=s_c(3)*std_x+mean_x;
+            r_c(4)=s_c(4)*std_y+mean_y;
+        end
+        
+        function s_c=convRealToScaledCoeffs(this,r_c)
+            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
+            s_c(1)=r_c(1)/(std_y*std_x);
+            s_c(2)=r_c(2)/std_x;
+            s_c(3)=(r_c(3)-mean_x)/std_x;
+            s_c(4)=(r_c(4)-mean_y)/std_y;
+        end
+    end
+    
+end
