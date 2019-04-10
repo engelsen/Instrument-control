@@ -113,81 +113,82 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
             % except for those which are already character arrays
             par_names = fieldnames(this.ParamList);
             
-            % Expand parameters over subscripts, except for the character
-            % arrays
+            % Expand parameters over subscripts, except for the arrays of 
+            % characters
             exp_par_names = cell(1, length(par_names));
-            maxnmarr = zeros(1, length(par_names));
+            max_nm_arr = zeros(1, length(par_names));
             
             for i=1:length(par_names)
-                tmpval = this.ParamList.(par_names{i});
-                exp_par_names{i} = printSubs(tmpval, ...
-                    'own_name', par_names{i}, ...
-                    'expansion_test',@(y) ~ischar(y));
+                
+                % Expand parameter subscripts
+                exp_par_names{i} = printSubs(this.(par_names{i}), ...
+                    'own_name',         par_names{i}, ...
+                    'expansion_test',   @(y) ~ischar(y));
                 
                 % Max name length for this parameter including subscripts
-                maxnmarr(i)=max(cellfun(@(x) length(x), exp_par_names{i}));
+                max_nm_arr(i) = max(cellfun(@(x) length(x), ...
+                    exp_par_names{i}));
             end
             
             % Calculate width of the name column
-            name_pad_length = min(max(maxnmarr), this.pad_lim);
+            name_pad_length = min(max(max_nm_arr), this.pad_lim);
             
-            % Compose list of parameter values converted to char strings
-            par_strs = cell(1, length(par_names));
+            % Compose a list of parameter values converted to char strings
+            val_strs = cell(1, length(par_names));
             
             % Width of the values column will be the maximum parameter
             % string width
             val_pad_length = 0;
             for i=1:length(par_names)
-                TmpPar = this.ParamList.(par_names{i});
+                tmp_nm = par_names{i};
                 
+                % Iterate over parameter indices
                 for j=1:length(exp_par_names{i})
-                    tmpnm = exp_par_names{i}{j};
-                    TmpS = str2substruct(tmpnm);
+                    tmp_exp_nm = exp_par_names{i}{j};
+                    TmpS = str2substruct(tmp_exp_nm);
                     
-                    Subs = [struct('type','.','subs',name), Subs];  %#ok<AGROW>
-            
-                            % Assign the value of parameter
-                            this = subsasgn(this, Subs, value);
-                    if isempty(TmpS)
-                        tmpval = TmpPar.value;
-                    else
-                        tmpval = subsref(TmpPar.value, TmpS);
-                    end
+                    % Get the indexed value of parameter
+                    TmpS = [struct('type','.','subs', tmp_nm), TmpS];       %#ok<AGROW>
+                    tmp_val = subsref(this, TmpS);
                     
                     %Do the check to detect unsupported data type
-                    if ischar(tmpval)&&~isvector(tmpval)&&~isempty(tmpval)
+                    if ischar(tmp_val) && ~isvector(tmp_val) && ...
+                            ~isempty(tmp_val)
                         warning(['Argument ''%s'' is a multi-dimensional ',...
                             'character array. It will be converted to ',...
                             'single string during saving. Use cell',...
                             'arrays to save data as a set of separate ',...
-                            'strings.'], tmpnm)
+                            'strings.'], tmp_exp_nm)
                         
                         % Flatten
-                        tmpval = tmpval(:);
+                        tmp_val = tmp_val(:);
                     end
                     
                     % Check for new line symbols in strings
-                    if (ischar(tmpval)||isstring(tmpval)) && ...
-                            any(ismember({newline,sprintf('\r')},tmpval))
-                        warning(['String value must not contain ',...
-                            '''\\n'' and ''\\r'' symbols, replacing ',...
+                    if (ischar(tmp_val) || isstring(tmp_val)) && ...
+                            any(ismember({newline, sprintf('\r')},tmp_val))
+                        warning(['String values must not contain ' ...
+                            '''\\n'' and ''\\r'' symbols, replacing ' ...
                             'them with '' ''.']);
-                        tmpval=replace(tmpval,{newline,sprintf('\r')},' ');
+                        
+                        tmp_val = replace(tmp_val, ...
+                            {newline, sprintf('\r')}, ' ');
                     end
                     
-                    if isempty(TmpPar.fmt_spec)
+                    fmt_spec = this.ParamList.(tmp_nm).fmt_spec;
+                    if isempty(fmt_spec)
                         
                         % Convert to string with format specifier
                         % extracted from the varaible calss
-                        par_strs{i}{j} = var2str(tmpval);
+                        val_strs{i}{j} = var2str(tmp_val);
                     else
-                        par_strs{i}{j} = sprintf(TmpPar.fmt_spec, tmpval);
+                        val_strs{i}{j} = sprintf(fmt_spec, tmp_val);
                     end
                     
                     % Find maximum length to determine the colum width, 
                     % but, for beauty, do not account for variables with 
                     % excessively long value strings
-                    tmplen = length(par_strs{i}{j});
+                    tmplen = length(val_strs{i}{j});
                     if (val_pad_length<tmplen) && (tmplen<=this.pad_lim)
                         val_pad_length = tmplen;
                     end
@@ -222,11 +223,11 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                         % Add the comment to first line 
                         str = [str, ...
                             sprintf([par_fmt_spec, cs, '%s', ls], ...
-                            exp_par_names{i}{j}, par_strs{i}{j}, ...
+                            exp_par_names{i}{j}, val_strs{i}{j}, ...
                             fmt_comment)];                                  %#ok<AGROW>
                     else
                         str = [str, sprintf([par_fmt_spec, ls],...
-                            exp_par_names{i}{j}, par_strs{i}{j})];          %#ok<AGROW>
+                            exp_par_names{i}{j}, val_strs{i}{j})];          %#ok<AGROW>
                     end
                 end
             end
@@ -313,8 +314,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                 switch S.type
                     case 'title'
                         
-                        % Generate a valid identifier and add new metadata 
-                        % to the output list
+                        % Add new a new metadata to the output list
                         TmpMdt = MyMetadata(varargin{:}, 'title', S.match);
                         MdtArr = [MdtArr, TmpMdt]; %#ok<AGROW>
                     case 'paramval'
@@ -324,12 +324,15 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
                         [name, value, comment, Subs] = S.match{:};
                         
                         if ~isparam(TmpMdt, name)
+                            
+                            % Add new parameter
                             addParam(TmpMdt, name, value, ...
                                 'SubStruct', Subs, 'comment', comment);
                         else
+                            
+                            % Assign the value to a new subscript of 
+                            % an existing parameter
                             Subs = [struct('type','.','subs',name), Subs];  %#ok<AGROW>
-            
-                            % Assign the value of parameter
                             this = subsasgn(this, Subs, value);  
                         end
                     otherwise
