@@ -257,16 +257,12 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.S
     methods (Access = public, Static = true)
         
         % Create metadata indicating the present moment of time
-        function TimeMdt = time(title)
-            if nargin()>0
-                assert(ischar(title)&&isvector(title),...
-                    'Time field name must be a character vector')
-            else
-                title = 'Time';
-            end
+        function TimeMdt = time(varargin)
+            TimeMdt = MyMetadata(varargin{:});
             
-            TimeMdt = MyMetadata();
-            TimeMdt.title = title;
+            if isempty(TimeMdt.title)
+                TimeMdt.title = 'Time';
+            end
             
             dv = datevec(datetime('now'));
             addParam(TimeMdt, 'Year',    dv(1), 'fmt_spec','%i');
