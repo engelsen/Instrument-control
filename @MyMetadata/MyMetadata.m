@@ -50,13 +50,10 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             
             % Comment to be added to the line
             addParameter(p, 'comment', '', @ischar);
+            
             addParameter(p, 'SubStruct', struct('type',{},'subs',{}),...
                 @isstruct)
             parse(p, varargin{:});
-            
-            % Initialize property with an empty variable of the same class 
-            % as value, this is important if SubStruct is an array index. 
-            this.ParamList.(param_name) = feval([class(value),'.empty']);
  
             % Make sure that the comment does not contain new line or 
             % carriage return characters, which would mess up formating 
@@ -75,6 +72,12 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             if isempty(S)
                 this.ParamList.(param_name) = value;
             else
+                
+                % Initialize property with an empty variable of the same  
+                % class as value, this is important if SubStruct is an 
+                % array index.
+                this.ParamList.(param_name) = ...
+                    feval([class(value),'.empty']);
                 
                 % Construct full subscript reference with respect to 'this' 
                 S = [struct('type', '.', 'subs', param_name), S];

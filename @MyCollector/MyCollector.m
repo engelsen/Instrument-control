@@ -124,7 +124,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 %We copy the MeasHeaders to both copies of the trace - the
                 %one that is with the source and the one that is forwarded
                 %to Daq.
-                InstrEventData.Trace.MeasHeaders = Mdt;
+                InstrEventData.Trace.MeasHeaders = copy(Mdt);
                 src.Trace.MeasHeaders = copy(Mdt);
             end
             

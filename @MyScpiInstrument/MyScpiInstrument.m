@@ -177,7 +177,6 @@ classdef MyScpiInstrument < MyInstrument
     end
     
     methods (Access = protected)
-        
         %% Misc utility methods
         
         % Split the list of string values into a full-form list and a
@@ -245,6 +244,19 @@ classdef MyScpiInstrument < MyInstrument
             
             assert(ind_p+1 == ind, ['Correct reading format must not ' ...
                 'have characters between ''%'' and format symbol.'])
+        end
+        
+        function createMetadata(this)
+            createMetadata@MyInstrument(this);
+            
+            % Re-iterate the creation of command parameters to add the
+            % format specifier
+            for i = 1:length(this.command_names)
+                cmd = this.command_names{i};
+                addObjProp(this.Metadata, this, cmd, ...
+                    'comment', this.CommandList.(cmd).info, ...
+                    'fmt_spec', this.CommandList.(cmd).format);
+            end
         end
     end
 end
