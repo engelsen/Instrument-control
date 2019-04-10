@@ -116,13 +116,13 @@ classdef MyAvgTrace < MyTrace
         function setMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'avg_type')
-                    this.avg_type = MdtS.Info.avg_type;
+                    this.avg_type = MdtS.Info.ParamList.avg_type;
                 end
                 if isparam(MdtS.Info, 'n_avg')
-                    this.n_avg = MdtS.Info.n_avg;
+                    this.n_avg = MdtS.Info.ParamList.n_avg;
                 end
                 if isparam(MdtS.Info, 'avg_count')
-                    this.avg_count = MdtS.Info.avg_count;
+                    this.avg_count = MdtS.Info.ParamList.avg_count;
                 end
             end
             
@@ -137,7 +137,7 @@ classdef MyAvgTrace < MyTrace
         % Ensure the supplied value for averaging mode is assigned in its
         % standard form - lowercase and abbreviated
         function set.avg_type(this, val)
-            old_val=this.avg_type;
+            old_val = this.avg_type;
             
             switch lower(val)
                 case {'lin', 'linear'}
@@ -148,15 +148,16 @@ classdef MyAvgTrace < MyTrace
                     error(['Averaging type must be ''lin'' ' ...
                         '(''linear'') or ''exp'' (''exponential'')'])
             end
+            
             % Clear data if the averaging type was changed
-            if this.avg_type~=old_val
+            if this.avg_type ~= old_val
                 clearData(this);
             end
         end
         
         function set.n_avg(this, val)
             % The number of averages should be integer not smaller than one
-            this.n_avg=max(1, round(val));
+            this.n_avg = max(1, round(val));
         end
         
     end

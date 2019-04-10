@@ -27,6 +27,8 @@ classdef MyInstrument < dynamicprops
     end
     
     properties (Access = protected)
+        
+        % Copying existing metadata is much faster than creating a new one
         Metadata
     end
     
@@ -151,10 +153,9 @@ classdef MyInstrument < dynamicprops
             param_names = fieldnames(this.Metadata.ParamList);
             for i = 1:length(param_names)
                 tag = param_names{i};
-                this.Metadata.(tag) = this.(tag);
+                this.Metadata.ParamList.(tag) = this.(tag);
             end
             
-            % Copying existing metadata is faster than creating a new one
             Mdt = copy(this.Metadata);
         end
         
@@ -166,8 +167,9 @@ classdef MyInstrument < dynamicprops
             param_names = fieldnames(Mdt.ParamList);
             for i=1:length(param_names)
                 tag = param_names{i};
+                
                 if isprop(this, tag)
-                    this.(tag) = Mdt.(tag);
+                    this.(tag) = Mdt.ParamList.(tag);
                 end
             end
         end

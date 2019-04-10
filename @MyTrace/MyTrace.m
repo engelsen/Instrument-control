@@ -325,7 +325,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             MdtS = arrToStruct(Mdt);
             
             if isfield(MdtS, 'Info') && isparam(MdtS.Info, 'Type')
-                class_name = MdtS.Info.Type;
+                class_name = MdtS.Info.ParamList.Type;
             else
                 class_name = 'MyTrace';
             end
@@ -350,41 +350,42 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         % information about trace. This function is used in place of 'get'
         % method so it can be overloaded in a subclass.
         function MdtS = getMetadata(this)
-            MdtS = this.MeasHeaders;
             
             % Add a field with the information about the trace
-            Info = MyMetadata('title', 'Info');
-            addParam(Info, 'Type',   class(this));
-            addParam(Info, 'Name1',  this.name_x);
-            addParam(Info, 'Name2',  this.name_y);
-            addParam(Info, 'Unit1',  this.unit_x);
-            addParam(Info, 'Unit2',  this.unit_y);
+            MdtS.Info = MyMetadata('title', 'Info');
+            addParam(MdtS.Info, 'Type',   class(this));
+            addParam(MdtS.Info, 'Name1',  this.name_x);
+            addParam(MdtS.Info, 'Name2',  this.name_y);
+            addParam(MdtS.Info, 'Unit1',  this.unit_x);
+            addParam(MdtS.Info, 'Unit2',  this.unit_y);
             
-            MdtS.Info = Info;
+            % Add measurement headers
+            fn = fieldnames(this.MeasHeaders);
+            for i = 1:length(fn)
+                MdtS.(fn{i}) = this.MeasHeaders.(fn{i});
+            end
             
             % Add a separator for the bulk of trace data
-            DataSep = MyMetadata('title', this.data_sep);
-            
-            MdtS.DataSep = DataSep;
+            MdtS.DataSep = MyMetadata('title', this.data_sep);
         end
         
         % Load metadata into the trace
         function setMetadata(this, MdtS)
             if isfield(MdtS, 'Info')
                 if isparam(MdtS.Info, 'Unit1')
-                    this.unit_x = MdtS.Info.Unit1;
+                    this.unit_x = MdtS.Info.ParamList.Unit1;
                 end
                 
                 if isparam(MdtS.Info, 'Unit2')
-                    this.unit_y = MdtS.Info.Unit2;
+                    this.unit_y = MdtS.Info.ParamList.Unit2;
                 end
                 
                 if isparam(MdtS.Info, 'Name1')
-                    this.name_x = MdtS.Info.Name1;
+                    this.name_x = MdtS.Info.ParamList.Name1;
                 end
                 
                 if isparam(MdtS.Info, 'Name2')
-                    this.name_y = MdtS.Info.Name2;
+                    this.name_y = MdtS.Info.ParamList.Name2;
                 end
                 
                 % Remove the metadata containing trace properties 

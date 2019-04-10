@@ -5,7 +5,7 @@
 % any arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
 
-classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
+classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
         matlab.mixin.SetGet & matlab.mixin.Copyable
     
     properties (Access = public)
@@ -27,7 +27,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
     end
     
     properties (GetAccess = public, SetAccess = protected)
-        ParamList = struct()
+        ParamList = struct()        % Values of parameters
+        ParamOptList = struct()     % Options for parameters
     end
     
     methods (Access = public)
@@ -53,41 +54,33 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
                 @isstruct)
             parse(p, varargin{:});
             
-            % Add a dynamic property to store the parameter value
-            H = addprop(this, param_name);
-            H.Access = 'public';
-
-            % Hide the dynamic property from the output of display() 
-            % for beauty
-            H.Hidden = true;
-            
             % Initialize property with an empty variable of the same class 
             % as value, this is important if SubStruct is an array index. 
-            this.(param_name) = feval([class(value),'.empty']);
+            this.ParamList.(param_name) = feval([class(value),'.empty']);
  
             % Make sure that the comment does not contain new line or 
             % carriage return characters, which would mess up formating 
             % when saving the metadata
             [comment, is_mod] = toSingleLine(p.Results.comment);
-            this.ParamList.(param_name).comment = comment;
+            this.ParamOptList.(param_name).comment = comment;
 
             if is_mod
                 warning(['Comment string for ''%s'' has been ' ...
                     'converted to single line.'], param_name);
             end
 
-            this.ParamList.(param_name).fmt_spec = p.Results.fmt_spec;
+            this.ParamOptList.(param_name).fmt_spec = p.Results.fmt_spec;
             
             S = p.Results.SubStruct;
             if isempty(S)
-                this.(param_name) = value;
+                this.ParamList.(param_name) = value;
             else
                 
                 % Construct full subscript reference with respect to 'this' 
                 S = [struct('type', '.', 'subs', param_name), S];
 
                 % Assign the value of parameter
-                this = subsasgn(this, S, value); %#ok<NASGU>
+                this.ParamList = subsasgn(this.ParamList, S, value); 
             end
         end
         
@@ -127,7 +120,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
             for i=1:length(par_names)
                 
                 % Expand parameter subscripts
-                exp_par_names{i} = printSubs(this.(par_names{i}), ...
+                exp_par_names{i} = printSubs( ...
+                    this.ParamList.(par_names{i}), ...
                     'own_name',         par_names{i}, ...
                     'expansion_test',   @(y) ~ischar(y));
                 
@@ -155,7 +149,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
                     
                     % Get the indexed value of parameter
                     TmpS = [struct('type','.','subs', tmp_nm), TmpS];       %#ok<AGROW>
-                    tmp_val = subsref(this, TmpS);
+                    tmp_val = subsref(this.ParamList, TmpS);
                     
                     %Do the check to detect unsupported data type
                     if ischar(tmp_val) && ~isvector(tmp_val) && ...
@@ -181,7 +175,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
                             {newline, sprintf('\r')}, ' ');
                     end
                     
-                    fmt_spec = this.ParamList.(tmp_nm).fmt_spec;
+                    fmt_spec = this.ParamOptList.(tmp_nm).fmt_spec;
                     if isempty(fmt_spec)
                         
                         % Convert to string with format specifier
@@ -214,7 +208,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
             for i=1:length(par_names)
                 
                 % Capitalize the first letter of comment
-                comment = this.ParamList.(par_names{i}).comment;
+                comment = this.ParamOptList.(par_names{i}).comment;
                 if ~isempty(comment)
                     fmt_comment = [this.comment_sep, ' '...
                         upper(comment(1)), comment(2:end)];
@@ -335,7 +329,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
                             % Assign the value to a new subscript of 
                             % an existing parameter
                             Subs = [struct('type','.','subs',name), Subs];  %#ok<AGROW>
-                            this = subsasgn(this, Subs, value);  
+                            this.ParamList = subsasgn(this.ParamList, ...
+                                Subs, value);  
                         end
                     otherwise
                         
@@ -419,7 +414,8 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
                 
                 % For a single object display its properties
                 str = ['Content:', newline, newline, ...
-                    replace(mdt2str(this), sprintf(this.line_sep), newline)];
+                    replace(mdt2str(this), sprintf(this.line_sep), ...
+                    newline)];
             elseif length(this) > 1
                 
                 % For a non-empty array of objects display titles
@@ -434,23 +430,6 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
                 
                 % For an empty array display nothing
                 str = '';
-            end
-        end
-        
-        % Extend copy() method to also copy dynamic properties
-        function Copy = copyElement(this)
-            
-            % Copy static properties
-            Copy = copyElement@matlab.mixin.Copyable(this);
-            
-            % Copy dynamic properties
-            param_names = fieldnames(this.ParamList);
-            for i = 1:length(param_names)
-                H = addprop(Copy, param_names{i});
-                H.Access = 'public';
-                H.Hidden = true;
-                
-                Copy.(param_names{i}) = this.(param_names{i});
             end
         end
     end
