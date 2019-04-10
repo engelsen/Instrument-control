@@ -5,7 +5,8 @@
 % any arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
 
-classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & matlab.mixin.SetGet
+classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
+        matlab.mixin.SetGet & matlab.mixin.Copyable
     
     properties (Access = public)
         
