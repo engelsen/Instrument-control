@@ -84,8 +84,7 @@ classdef MyMetadata < dynamicprops & matlab.mixin.CustomDisplay & ...
             else
                 
                 % Construct full subscript reference with respect to 'this' 
-                S = [struct('type', '.', 'subs', param_name), ...
-                    p.Results.SubStruct];
+                S = [struct('type', '.', 'subs', param_name), S];
 
                 % Assign the value of parameter
                 this = subsasgn(this, S, value); %#ok<NASGU>
