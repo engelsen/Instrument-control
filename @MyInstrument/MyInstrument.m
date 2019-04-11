@@ -113,6 +113,7 @@ classdef MyInstrument < dynamicprops
             H = addprop(this, tag);
             
             this.(tag) = p.Results.default;
+            this.CommandList.(tag).last_value = p.Results.default;
             
             H.GetAccess = 'public';
             H.SetObservable = true;
@@ -183,9 +184,10 @@ classdef MyInstrument < dynamicprops
         end
         
         function createMetadata(this)
+            this.Metadata = MyMetadata('title', class(this));
             
-            % Add identification string as parameter
-            this.Metadata.idn = this.idn_str;
+            % Add identification string 
+            addParam(this.Metadata, 'idn', this.idn_str);
 
             for i = 1:length(this.command_names)
                 cmd = this.command_names{i};
@@ -201,8 +203,10 @@ classdef MyInstrument < dynamicprops
                 % Validate new value
                 vFcn = this.CommandList.(tag).validationFcn;
                 if ~isempty(vFcn)
-                    assert(vFcn(val), ['Value assigned to property ''' ...
-                        tag ''' must satisfy ' func2str(vFcn) '.']);
+                    if ~vFcn(val)
+                    	error(['Value assigned to property ''' ...
+                            tag ''' must satisfy ' func2str(vFcn) '.']);
+                    end
                 end
                 
                 % Store unprocessed value for quick reference in the future 

@@ -86,7 +86,8 @@ classdef MyScpiInstrument < MyInstrument
                     @(x) any(cellfun(@(y) isequal(y, lower(x)), ...
                     [long_vl, short_vl]));
                 
-                this.CommandList.(tag).postSetFcn = @this.toStandardForm;
+                this.CommandList.(tag).postSetFcn = ...
+                    createToStdFormFcn(this, tag, long_vl);
             end
             
             % Assign validation function based on the value format
@@ -125,15 +126,17 @@ classdef MyScpiInstrument < MyInstrument
                 
                 % Assign outputs to the class properties
                 for i=1:length(read_cns)
-                    val = sscanf(res_list{i},...
-                            this.CommandList.(read_cns{i}).format);
+                    tag = read_cns{i};
+                    
+                    val = sscanf(res_list{i}, ...
+                            this.CommandList.(tag).format);
                     
                     if ~isequal(this.CommandList.(tag).last_value, val)
                         
                         % Assign value without writing to the instrument
-                        this.CommandList.(read_cns{i}).Psl.Enabled = false;
-                        this.(read_cns{i}) = val;
-                        this.CommandList.(read_cns{i}).Psl.Enabled = true;
+                        this.CommandList.(tag).Psl.Enabled = false;
+                        this.(tag) = val;
+                        this.CommandList.(tag).Psl.Enabled = true;
                     end
                 end
             else
@@ -206,34 +209,37 @@ classdef MyScpiInstrument < MyInstrument
             long_vl = setdiff(lower(vl), short_vl);  
         end
         
-        % Return the long form of value from value_list 
-        function std_val = toStandardForm(this, cmd)
-            assert(ismember(cmd, this.command_names), ['''' cmd ...
-                ''' is not an instrument command.'])
+        % Create a function that returns the long form of value from 
+        % value_list 
+        function f = createToStdFormFcn(this, cmd, value_list)
+            function std_val = toStdForm(val)
 
-            val = this.(cmd);
-            value_list = this.CommandList.(cmd).ext_value_list;
-            
-            % Standardization is applicable to char-valued properties which
-            % have value list
-            if isempty(value_list) || ~ischar(val)
-                std_val = val;
-                return
+                % Standardization is applicable to char-valued properties 
+                % which have value list
+                if isempty(value_list) || ~ischar(val)
+                    std_val = val;
+                    return
+                end
+
+                % find matching values
+                n = length(val);
+                ismatch = cellfun(@(x) strncmpi(val, x, ...
+                    min([n, length(x)])), value_list);
+
+                assert(any(ismatch), ...
+                    sprintf(['%s is not present in the list of values ' ...
+                    'of command %s.'], val, cmd));
+
+                % out of the matching values pick the longest
+                mvals = value_list(ismatch);
+                n_el = cellfun(@(x) length(x), mvals);
+                std_val = mvals{n_el==max(n_el)};
             end
-
-            % find matching values
-            n = length(val);
-            ismatch = cellfun( ...
-                @(x) strncmpi(val, x, min([n, length(x)])), value_list);
             
-            assert(any(ismatch), ...
-                sprintf(['%s is not present in the list of values ' ...
-                'of command %s.'], val, cmd));
-
-            % out of the matching values pick the longest
-            mvals = value_list(ismatch);
-            n_el = cellfun(@(x) length(x), mvals);
-            std_val = mvals{n_el==max(n_el)};
+            assert(ismember(cmd, this.command_names), ['''' cmd ...
+                    ''' is not an instrument command.'])
+                
+            f = @toStdForm;
         end
         
         % Find the format specifier symbol and options

@@ -7,8 +7,8 @@ classdef MyCommCont < handle
     % Giving explicit set access to this class makes properties protected 
     % instead of private
     properties (GetAccess=public, SetAccess={?MyClassParser,?MyCommCont})     
-        interface = 'serial'
-        address = 'placeholder' 
+        interface   = 'serial'
+        address     = 'placeholder' 
     end
     
     properties (GetAccess = public, SetAccess = protected)
@@ -21,6 +21,7 @@ classdef MyCommCont < handle
         
         function this = MyCommCont(varargin)
             P = MyClassParser(this);
+            P.KeepUnmatched = true;
             processInputs(P, this, varargin{:});
             
             try
@@ -66,18 +67,18 @@ classdef MyCommCont < handle
                     % creates communication object when executed. 
                     % Such commands, for example, are returned by  
                     % instrhwinfo as ObjectConstructorName.
-                    this.Comm=eval(this.address);
+                    this.Comm = eval(this.address);
                 case 'visa'
                     
                     % visa brand is 'ni' by default
-                    this.Comm=visa('ni', this.address);
+                    this.Comm = visa('ni', this.address);
                 case 'tcpip'
                     
                     % Works only with default socket. Use 'constructor'
                     % if socket or other options need to be specified
-                    this.Comm=tcpip(this.address);
+                    this.Comm = tcpip(this.address);
                 case 'serial'
-                    this.Comm=serial(this.address);
+                    this.Comm = serial(this.address);
                 otherwise
                     error(['Unknown interface ''' this.interface ...
                         ''', a communication object is not created.' ...
