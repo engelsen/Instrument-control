@@ -87,7 +87,7 @@ classdef MyFit < dynamicprops
             addParameter(p,'x',[]);
             addParameter(p,'y',[]);
             addParameter(p,'enable_gui',1);
-            addParameter(p,'enable_plot',0);
+            addParameter(p,'enable_plot',1);
             addParameter(p,'plot_handle',[]);
             addParameter(p,'base_dir',this.SaveInfo.filename);
             addParameter(p,'session_name',this.SaveInfo.session_name);
@@ -410,9 +410,44 @@ classdef MyFit < dynamicprops
             conv_factor=this.UserGui.Fields.(tag).conv_factor;
             this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
         end
-    end
-    
-    methods (Access=private)       
+        
+                    
+        %Creates the user values panel with associated tabs. The cellfun here
+        %creates the appropriately named tabs. To add a tab, add a new field to the
+        %UserGuiStruct using the class functions in MyFit. This function
+        %can be overloaded, though some care must be taken to not exceed
+        %the size given by the GUI
+        function createUserGui(this, bg_color, button_h)
+            usertabs=fieldnames(this.UserGui.Tabs);
+            if ~isempty(usertabs)
+                cellfun(@(x) createTab(this,x,bg_color,button_h),usertabs);
+                this.Gui.TabPanel.TabTitles=...
+                    cellfun(@(x) this.UserGui.Tabs.(x).tab_title, usertabs,...
+                    'UniformOutput',0);
+            end
+        end
+        
+        %Can be overloaded to have more convenient sliders 
+        function genSliderVecs(this)
+            %Return values of the slider
+            slider_vals=1:101;
+            %Default scaling vector
+            def_vec=10.^((slider_vals-51)/50);
+            %Sets the cell to the default value
+            for i=1:this.n_params
+                this.slider_vecs{i}=def_vec*this.init_params(i);
+                set(this.Gui.(sprintf('Slider_%s',this.fit_params{i})),...
+                    'Value',50);
+            end
+        end
+        
+        %Checks if the class is ready to perform a fit
+        function bool=validateData(this)
+            bool=~isempty(this.Data.x) && ~isempty(this.Data.y) && ...
+                length(this.Data.x)==length(this.Data.y) && ...
+                length(this.Data.x)>=this.n_params;
+        end
+        
         %Generates model-dependent initial parameters, lower and upper
         %boundaries.
         function genInitParams(this)
@@ -531,18 +566,7 @@ classdef MyFit < dynamicprops
             saveParams(this);
         end
         
-        function genSliderVecs(this)
-            %Return values of the slider
-            slider_vals=1:101;
-            %Default scaling vector
-            def_vec=10.^((slider_vals-51)/50);
-            %Sets the cell to the default value
-            for i=1:this.n_params
-                this.slider_vecs{i}=def_vec*this.init_params(i);
-                set(this.Gui.(sprintf('Slider_%s',this.fit_params{i})),...
-                    'Value',50);
-            end
-        end
+
         
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
@@ -682,13 +706,6 @@ classdef MyFit < dynamicprops
                 set(this.Gui.(sprintf('Lim_%s_lower',str)),...
                     'String',sprintf('%3.3e',this.lim_lower(i)))
             end
-        end
-        
-        %Checks if the class is ready to perform a fit
-        function bool=validateData(this)
-            bool=~isempty(this.Data.x) && ~isempty(this.Data.y) && ...
-                length(this.Data.x)==length(this.Data.y) && ...
-                length(this.Data.x)>=this.n_params;
         end
     end
     

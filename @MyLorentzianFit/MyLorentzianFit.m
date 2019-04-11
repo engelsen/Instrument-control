@@ -3,6 +3,9 @@ classdef MyLorentzianFit < MyFit
         %Logical value that determines whether the data should be scaled or
         %not
         scale_data;
+        %For calibration of optical frequencies using reference lines
+        tot_spacing=1;
+        
     end
     
     %Public methods
@@ -47,10 +50,12 @@ classdef MyLorentzianFit < MyFit
             calcUserParams(this);
         end
         
+        %Calculates the initial parameters using an external function.
         function [init_params,lim_lower,lim_upper]=calcInitParams(this)
             if this.scale_data
                 [init_params,lim_lower,lim_upper]=...
                     initParamLorentzian(this.Data.scaled_x,this.Data.scaled_y);
+                %Convertion back to real values for display.
                 init_params=convScaledToRealCoeffs(this,init_params);
                 lim_lower=convScaledToRealCoeffs(this,lim_lower);
                 lim_upper=convScaledToRealCoeffs(this,lim_upper);
@@ -60,6 +65,7 @@ classdef MyLorentzianFit < MyFit
             end
         end
         
+        %Function for calculating the parameters shown in the user panel
         function calcUserParams(this)
             this.mech_lw=this.coeffs(2); 
             this.mech_freq=this.coeffs(3); 
@@ -85,13 +91,36 @@ classdef MyLorentzianFit < MyFit
             %Parameters for the tab relating to optics
             this.UserGui.Tabs.Opt.tab_title='Optical';
             this.UserGui.Tabs.Opt.Children={};
-            addUserField(this,'Opt','spacing',...
+            addUserField(this,'Opt','line_spacing',...
                 'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
                 'Callback', @(~,~) calcUserParams(this));
             addUserField(this,'Opt','line_no','Number of lines',10,...
                 'Callback', @(~,~) calcUserParams(this));
             addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
                 'enable_flag','off','conv_factor',1e6);
+        end
+        
+        function genSliderVecs(this)
+            genSliderVecs@MyFit(this);
+            
+            if validateData(this)
+                %We choose to have the slider go over the range of
+                %the x-values of the plot for the center of the
+                %Lorentzian.
+                this.slider_vecs{3}=...
+                    linspace(this.x_vec(1),this.x_vec(end),101);
+                %Find the index closest to the init parameter
+                [~,ind]=...
+                    min(abs(this.init_params(3)-this.slider_vecs{3}));
+                %Set to ind-1 as the slider goes from 0 to 100
+                set(this.Gui.(sprintf('Slider_%s',...
+                    this.fit_params{3})),'Value',ind-1);
+            end
+        end
+        
+        %This function is used to convert the x-axis to frequency.
+        function real_freq=convOptFreq(this,freq)
+            real_freq=freq*this.line_spacing*this.line_no/this.tot_spacing;
         end
     end
     

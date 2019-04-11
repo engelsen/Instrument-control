@@ -122,17 +122,9 @@ set(this.Gui.FitVbox,...
 this.Gui.TabPanel=uix.TabPanel('Parent',this.Gui.UserPanel,...
     'BackgroundColor',rgb_white);
 
-%Creates the user values panel with associated tabs. The cellfun here
-%creates the appropriately named tabs. To add a tab, add a new field to the
-%UserGuiStruct using the class functions in MyFit.
-
-usertabs=fieldnames(this.UserGui.Tabs);
-if ~isempty(usertabs)
-    cellfun(@(x) createTab(this,x,rgb_white,button_h),usertabs);
-    this.Gui.TabPanel.TabTitles=...
-        cellfun(@(x) this.UserGui.Tabs.(x).tab_title, usertabs,...
-        'UniformOutput',0);
-end
+%Creates the user gui. Made into its own function such that it can be
+%overloaded for future customization
+createUserGui(this, rgb_white, button_h);
 
 
 %This creates the boxes for saving files and for specifying file saving
