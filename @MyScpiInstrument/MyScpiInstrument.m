@@ -83,8 +83,7 @@ classdef MyScpiInstrument < MyInstrument
                 % For validation, use an extended list made of full and   
                 % abbreviated name forms and case-insensitive comparison
                 this.CommandList.(tag).validationFcn = ...
-                    @(x) any(cellfun(@(y) isequal(y, lower(x)), ...
-                    [long_vl, short_vl]));
+                    createScpiListValidationFcn(this, [long_vl, short_vl]);
                 
                 this.CommandList.(tag).postSetFcn = ...
                     createToStdFormFcn(this, tag, long_vl);
@@ -94,22 +93,25 @@ classdef MyScpiInstrument < MyInstrument
             if isempty(this.CommandList.(tag).validationFcn)
                 switch smb
                     case {'d','f','e','g'}
-                        this.CommandList.(tag).validationFcn = @isnumeric;
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(isnumeric(x), 'Value must be numeric.');
                     case 'i'
-                        this.CommandList.(tag).validationFcn = ...
-                            @(x)(floor(x)==x);
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(floor(x)==x, 'Value must be integer.');
                     case 's'
-                        this.CommandList.(tag).validationFcn = @ischar;
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(ischar(x), ...
+                            'Value must be character string.');
                     case 'b'
-                        this.CommandList.(tag).validationFcn = ...
-                            @(x)(x==0 || x==1);
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(x==0 || x==1, 'Value must be logical.');
                 end
             end
         end
         
         % Redefine the base class method to use a single read operation for
         % faster communication
-        function read_cns = sync(this)
+        function sync(this)
             cns = this.command_names;
             ind_r = structfun(@(x) ~isempty(x.read_command), ...
                 this.CommandList);
@@ -263,6 +265,19 @@ classdef MyScpiInstrument < MyInstrument
                     'comment', this.CommandList.(cmd).info, ...
                     'fmt_spec', this.CommandList.(cmd).format);
             end
+        end
+        
+        % List validation function with case-insensitive comparison
+        function f = createScpiListValidationFcn(~, value_list)
+            function listValidationFcn(val)
+                val = lower(val);
+                assert( ...
+                    any(cellfun(@(y) isequal(val, y), value_list)), ...
+                    ['Value must be one from the following list:', ...
+                    newline, var2str(value_list)]);
+            end
+            
+            f = @listValidationFcn;
         end
     end
 end

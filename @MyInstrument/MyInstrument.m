@@ -42,7 +42,7 @@ classdef MyInstrument < dynamicprops
         end
         
         % Read all parameters of the physical device
-        function read_cns = sync(this)
+        function sync(this)
             read_ind = structfun(@(x) ~isempty(x.readFcn), ...
                 this.CommandList);
             read_cns = this.command_names(read_ind);
@@ -76,16 +76,17 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'writeFcn',[], @(x)isa(x, 'function_handle'));
             
             % Function applied before writeFcn
-            addParameter(p,'validationFcn',[], ...
+            addParameter(p,'validationFcn', [], ...
                 @(x)isa(x, 'function_handle'));
             
             % Function or list of functions executed after updating the
             % class property value
-            addParameter(p,'postSetFcn',[], @(x)isa(x, 'function_handle'));
+            addParameter(p,'postSetFcn', [], ...
+                @(x)isa(x, 'function_handle'));
             
-            addParameter(p,'value_list',{}, @iscell);
-            addParameter(p,'default',[]);
-            addParameter(p,'info','', @ischar);
+            addParameter(p,'value_list', {}, @iscell);
+            addParameter(p,'default', []);
+            addParameter(p,'info', '', @ischar);
             
             parse(p,tag,varargin{:});
             
@@ -99,14 +100,10 @@ classdef MyInstrument < dynamicprops
             this.CommandList.(tag).info = ...
                 toSingleLine(this.CommandList.(tag).info);
             
-            if ~isempty(this.CommandList.(tag).value_list)
-                assert(isempty(this.CommandList.(tag).validationFcn), ...
-                    ['validationFcn is already assigned, cannot ' ...
-                    'create a new one based on value_list']);
-                
+            vl = this.CommandList.(tag).value_list;
+            if ~isempty(vl) && ismember('validationFcn', p.UsingDefaults)
                 this.CommandList.(tag).validationFcn = ...
-                    @(x) any(cellfun(@(y) isequal(y, x),...
-                    this.CommandList.(tag).value_list));
+                    createListValidationFcn(this, vl);
             end
             
             % Create and configure a dynamic property
@@ -203,16 +200,14 @@ classdef MyInstrument < dynamicprops
                 % Validate new value
                 vFcn = this.CommandList.(tag).validationFcn;
                 if ~isempty(vFcn)
-                    if ~vFcn(val)
-                    	error(['Value assigned to property ''' ...
-                            tag ''' must satisfy ' func2str(vFcn) '.']);
-                    end
+                    vFcn(val);
                 end
                 
                 % Store unprocessed value for quick reference in the future 
                 % and change tracking
                 this.CommandList.(tag).last_value = val;
-
+                
+                % Assign the value with post processing
                 pFcn = this.CommandList.(tag).postSetFcn;
                 if ~isempty(pFcn)
                     val = pFcn(val);
@@ -222,6 +217,17 @@ classdef MyInstrument < dynamicprops
             end
             
             f = @commandSetFcn;
+        end
+        
+        function f = createListValidationFcn(~, value_list)
+            function listValidationFcn(val)
+                assert( ...
+                    any(cellfun(@(y) isequal(val, y), value_list)), ...
+                    ['Value must be one from the following list:', ...
+                    newline, var2str(value_list)]);
+            end
+            
+            f = @listValidationFcn;
         end
         
         % Post set function for dynamic properties - writing the new value  
