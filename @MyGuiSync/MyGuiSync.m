@@ -153,7 +153,7 @@ classdef MyGuiSync < handle
                 else
                     subsref(Hobj.(hobj_prop), RelSubs);
                 end
-            catch
+            catch 
                 disp(['Property referenced by ' prop_ref ...
                     ' is not accessible, the corresponding GUI ' ...
                     'element will be not linked and will be disabled.'])
@@ -177,6 +177,8 @@ classdef MyGuiSync < handle
                 hobj_prop, RelSubs);
             
             % Check if ValueChanged callback needs to be created
+            elem_prop = Link.gui_element_prop;
+            
             create_vcf = p.Results.create_value_changed_fcn && ...
                 checkCreateVcf(this, Elem, elem_prop, Hobj, hobj_prop);
             
@@ -197,7 +199,7 @@ classdef MyGuiSync < handle
                     hobj_prop, RelSubs);
                 
                 Elem.ValueChangedFcn = createValueChangedCallback(this, ...
-                    LinkStruct);
+                    Link);
             end
             
             % Attempt creating a callback to PostSet event for the target 
@@ -206,8 +208,9 @@ classdef MyGuiSync < handle
             if p.Results.event_update
                 try
                     Link.Listener = addlistener(Hobj, hobj_prop, ...
-                        'PostSet', createPostSetCallback(this, LinkStruct));
-                catch 
+                        'PostSet', createPostSetCallback(this, Link));
+                catch ME
+                    warning(ME.message); 
                 end
             end
             
@@ -244,14 +247,15 @@ classdef MyGuiSync < handle
                 this.Links(ind).setTargetFcn = createSetTargetFcn(this, ...
                     Hobj, hobj_prop, RelSubs);
                 
-                this.Links(ind).Elem.ValueChangedFcn = ...
-                    createValueChangedCallback(this, LinkStruct);
+                this.Links(ind).GuiElement.ValueChangedFcn = ...
+                    createValueChangedCallback(this, this.Links(ind));
             end
             
             % Attempt creating a new listener
             try
                 this.Links(ind).Listener = addlistener(Hobj, hobj_prop, ...
-                    'PostSet', createPostSetCallback(this, LinkStruct));
+                    'PostSet', createPostSetCallback(this, ...
+                    this.Links(ind)));
             catch 
             end
                 
@@ -404,7 +408,8 @@ classdef MyGuiSync < handle
             end
             
             function subsasgnProp(val)
-                Obj.(prop_name) = subsasgn(Obj.(prop_name), S, val);
+                Se = [struct('type', '.', 'subs', prop_name), S];
+                Obj = subsasgn(Obj, Se, val);
             end
             
             if isempty(S)
@@ -421,7 +426,7 @@ classdef MyGuiSync < handle
         %% Subroutines of addLink
         
         % Parse input and create the base of Link structure
-        function Link = makeLinkBase(~, Elem, prop_ref, varargin)
+        function Link = makeLinkBase(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
             p=inputParser();
@@ -451,8 +456,8 @@ classdef MyGuiSync < handle
 
             parse(p, Elem, prop_ref, varargin{:});
             
-            assert(isempty( ...
-                arrfun(@(x) isequal(p.Results.Elem, x.GuiElement), ...
+            assert(~any( ...
+                arrayfun(@(x) isequal(p.Results.Elem, x.GuiElement), ...
                 this.Links)), ['Another link for the same GUI element ' ...
                 'that is attempted to be linked to ' prop_ref ...
                 ' already exists.'])
@@ -500,7 +505,7 @@ classdef MyGuiSync < handle
             end
         end
         
-        function extendMyInstrumentLink(~, Link, Instrument, tag)
+        function Link = extendMyInstrumentLink(~, Link, Instrument, tag)
             Cmd = Instrument.CommandList.(tag);
             
             % If supplied command does not have read permission, issue a 
@@ -589,12 +594,12 @@ classdef MyGuiSync < handle
         
         % Extract the top-most handle object in the reference, the end
         % property name and any further subreference
-        function [Hobj, prop, Subs] = parseReference(this, prop_ref)
+        function [Hobj, prop_name, Subs] = parseReference(this, prop_ref)
             
             % Make sure the reference starts with a dot and convert to
             % subreference structure
             if prop_ref(1)~='.'
-                PropSubs = str2substruct(['.',prop_ref]);
+                PropSubs = str2substruct(['.', prop_ref]);
             else
                 PropSubs = str2substruct(prop_ref);
             end
@@ -604,7 +609,7 @@ classdef MyGuiSync < handle
             Hobj = this.App;
             
             Subs = PropSubs;     % Subreference relative to Hobj.(prop)
-            prop = subsref(this.App, PropSubs(1));
+            prop_name = PropSubs(1).subs;
             
             for i=1:length(PropSubs)-1
                 testvar = subsref(this.App, PropSubs(1:end-i));
@@ -612,7 +617,7 @@ classdef MyGuiSync < handle
                     Hobj = testvar;
  
                     Subs = PropSubs(end-i+2:end);
-                    prop = subsref(this.App,PropSubs(1:end-i+1));
+                    prop_name = PropSubs(end-i+1).subs;
                     
                     break
                 end
