@@ -39,9 +39,9 @@ classdef MyGuiSync < handle
             
             % Deletion of kernel object triggers the delition of app
             addParameter(p, 'KernelObj', [], @(x)assert( ...
-                ismember('ObjectBeingDeleted', events(x)), ...
-                ['Object must define ''ObjectBeingDeleted'' to be an ' ...
-                'app kernel.']));
+                ismember('ObjectBeingDestroyed', events(x)), ...
+                ['Object must define ''ObjectBeingDestroyed'' event ' ...
+                'to be an app kernel.']));
             
             % Optional function, executed after an app parameter has been
             % updated (either externally of internally)
@@ -58,14 +58,15 @@ classdef MyGuiSync < handle
             
             this.App = App;
             this.Listeners.AppDeleted = addlistener(App, ...
-                'ObjectBeingDeleted', @(~, ~)delete(this));
+                'ObjectBeingDestroyed', @(~, ~)delete(this));
             
             if ~ismember('KernelObj', p.UsingDefaults)
-
-                addToCleanup(this, KernelObj);
+                
+                KernelObj = p.Results.KernelObj;
+                addToCleanup(this, p.Results.KernelObj);
                 
                 this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
-                    'ObjectBeingDeleted', @this.kernelDeletedCallback);
+                    'ObjectBeingDestroyed', @this.kernelDeletedCallback);
             end
         end
         
@@ -136,7 +137,7 @@ classdef MyGuiSync < handle
             addParameter(p, 'create_value_changed_fcn', true, @islogical);
             addParameter(p, 'event_update', true, @islogical);
             
-            parse(p, Elem, prop_tag, varargin{:});
+            parse(p, varargin{:});
             
             % Make the list of unmatched name-value pairs for subroutine 
             sub_varargin = struct2namevalue(p.Unmatched);
