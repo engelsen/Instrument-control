@@ -11,12 +11,12 @@ classdef MyGuiSync < handle
             'GuiElement',           {}, ... % graphics object      
             'gui_element_prop',     {}, ...
             'inputProcessingFcn',   {}, ... % applied after a value is 
-            ... % inputed to GUI
+                                        ... % inputed to GUI
             'outputProcessingFcn',  {}, ... % applied before a new value is
-            ... % displayed in GUI 
+                                        ... % displayed in GUI 
             'getTargetFcn',         {}, ...
             'setTargetFcn',         {}, ...
-            'Listener',             {} ...  % PostSet listener (optional)        
+            'Listener',             {}  ...  % PostSet listener (optional)        
             );
         
         % List of objects to be deleted when App is deleted
@@ -24,7 +24,7 @@ classdef MyGuiSync < handle
     end
     
     properties (Access = protected)
-        App = []
+        App
         updateGuiFcn
         createCallbackFcn
     end
@@ -73,9 +73,9 @@ classdef MyGuiSync < handle
         
         function delete(this)
             
-            % Delete general listeners
+            % Delete generic listeners
             try
-                lnames=fieldnames(this.Listeners);
+                lnames = fieldnames(this.Listeners);
                 for i=1:length(lnames)
                     try
                         delete(this.Listeners.(lnames{i}));
@@ -92,7 +92,9 @@ classdef MyGuiSync < handle
             for i=1:length(this.Links)
                 try
                     delete(this.Links(i).Listener);
-                catch
+                catch ME
+                    warning(['Could not delete listener for a GUI ' ...
+                        'link. Error: ' ME.message])
                 end
             end
             
@@ -123,7 +125,7 @@ classdef MyGuiSync < handle
         % some other property of the app
         % 
         % Elem      - graphics object 
-        % prop_tag  - reference to a content of app 
+        % prop_ref  - reference to a content of app, e.g. 'var1.subprop(3)' 
         function addLink(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
