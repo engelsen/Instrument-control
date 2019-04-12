@@ -187,7 +187,7 @@ classdef MyPeakFinder < handle
             %We instantiate the MyFit objects used for the fitting
             Fits=struct();
             for i=1:length(fit_names)
-                Fits.(fit_names{i})=MyFit('fit_name',fit_names{i},...
+                Fits.(fit_names{i})=launchFit(fit_names{i},...
                     'enable_gui',0);
                 Fits.(fit_names{i}).base_dir=p.Results.base_dir;
                 Fits.(fit_names{i}).session_name=p.Results.session_name;

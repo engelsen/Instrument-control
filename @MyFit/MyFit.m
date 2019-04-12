@@ -6,7 +6,7 @@ classdef MyFit < dynamicprops
         lim_lower; %Lower limits for fit parameters
         lim_upper; %Upper limits for fit parameters
         enable_plot; %If enabled, plots initial parameters in the plot_handle
-        plot_handle; %The handle which fits and init params are plotted in        
+        plot_handle; %The handle which fits and init params are plotted in
         init_color='c'; %Color of plot of initial parameters
     end
     
@@ -41,7 +41,7 @@ classdef MyFit < dynamicprops
     end
     
     %Dependent variables with no set methods
-    properties (Dependent=true, SetAccess=private)     
+    properties (Dependent=true, SetAccess=private)
         n_params;
         %Vector used for plotting, depends on the data trace
         x_vec;
@@ -70,8 +70,8 @@ classdef MyFit < dynamicprops
         NewFit;
         NewInitVal;
     end
-
-
+    
+    
     %Parser function
     methods (Access=private)
         %Creates parser for constructor
@@ -287,13 +287,13 @@ classdef MyFit < dynamicprops
                 'Check limit %i, fit parameter %s'],find(~lim_check,1),...
                 this.fit_params{find(~lim_check,1)}));
             
-            %Perform the fit. 
+            %Perform the fit.
             doFit(this);
             
             %This function calculates the fit trace, using this.x_vec as
             %the x axis
             calcFit(this);
-
+            
             %Sets the new initial parameters to be the fitted parameters
             this.init_params=this.coeffs;
             %Updates the gui if it is enabled
@@ -307,13 +307,51 @@ classdef MyFit < dynamicprops
             triggerNewFit(this);
         end
         
-
+        %Clears the plots
+        function clearFit(this)
+            cellfun(@(x) delete(x), this.Fit.hlines);
+            clearInitFun(this);
+            this.Fit.hlines={};
+        end
+        
+        %Clears the plot of the initial values
+        function clearInitFun(this)
+            delete(this.hline_init);
+            this.hline_init=[];
+        end
+        
+        %Plots the trace contained in the Fit MyTrace object after
+        %calculating the new values
+        function plotFit(this,varargin)
+            calcFit(this);
+            assert((isa(this.plot_handle,'matlab.graphics.axis.Axes')||...
+                isa(this.plot_handle,'matlab.ui.control.UIAxes')),...
+                'plot_handle property must be defined to valid axis in order to plot')
+            this.Fit.plot(this.plot_handle,varargin{:});
+            clearInitFun(this);
+        end
+        
+        %Function for plotting fit model with current initial parameters.
+        function plotInitFun(this)
+            %Substantially faster than any alternative - generating
+            %anonymous functions is very cpu intensive.
+            
+            input_cell=num2cell(this.init_params);
+            y_vec=feval(this.anon_fit_fun,...
+                this.x_vec,input_cell{:});
+            if isempty(this.hline_init)
+                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec,...
+                    'Color',this.init_color);
+            else
+                set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
+            end
+        end
     end
     
     methods (Access=protected)
         %Creates the GUI of MyFit, in separate file.
         createGui(this);
-         
+        
         %Does the fit with the currently set parameters
         function doFit(this)
             ft=fittype(this.fit_function,'coefficients',this.fit_params);
@@ -411,7 +449,7 @@ classdef MyFit < dynamicprops
             this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
         end
         
-                    
+        
         %Creates the user values panel with associated tabs. The cellfun here
         %creates the appropriately named tabs. To add a tab, add a new field to the
         %UserGuiStruct using the class functions in MyFit. This function
@@ -427,7 +465,7 @@ classdef MyFit < dynamicprops
             end
         end
         
-        %Can be overloaded to have more convenient sliders 
+        %Can be overloaded to have more convenient sliders
         function genSliderVecs(this)
             %Return values of the slider
             slider_vals=1:101;
@@ -506,46 +544,6 @@ classdef MyFit < dynamicprops
             input_coeffs=num2cell(this.coeffs);
             this.Fit.y=this.anon_fit_fun(this.Fit.x,input_coeffs{:});
         end
-        
-        %Plots the trace contained in the Fit MyTrace object after
-        %calculating the new values
-        function plotFit(this,varargin)
-            calcFit(this);
-            assert((isa(this.plot_handle,'matlab.graphics.axis.Axes')||...
-                isa(this.plot_handle,'matlab.ui.control.UIAxes')),...
-                'plot_handle property must be defined to valid axis in order to plot')
-            this.Fit.plot(this.plot_handle,varargin{:});
-            clearInitFun(this);
-        end
-        
-        %Clears the plots
-        function clearFit(this)
-            cellfun(@(x) delete(x), this.Fit.hlines);
-            clearInitFun(this);
-            this.Fit.hlines={};
-        end
-        
-        %Clears the plot of the initial values
-        function clearInitFun(this)
-            delete(this.hline_init);
-            this.hline_init=[];
-        end
-        
-        %Function for plotting fit model with current initial parameters.
-        function plotInitFun(this)
-            %Substantially faster than any alternative - generating
-            %anonymous functions is very cpu intensive.
-            
-            input_cell=num2cell(this.init_params);
-            y_vec=feval(this.anon_fit_fun,...
-                this.x_vec,input_cell{:});
-            if isempty(this.hline_init)
-                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec,...
-                    'Color',this.init_color);
-            else
-                set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
-            end
-        end
     end
     
     %Callbacks
@@ -566,7 +564,7 @@ classdef MyFit < dynamicprops
             saveParams(this);
         end
         
-
+        
         
         %Callback functions for sliders in GUI. Uses param_ind to find out
         %which slider the call is coming from, this was implemented to
@@ -659,7 +657,7 @@ classdef MyFit < dynamicprops
     
     %Private methods
     methods(Access=private)
-
+        
         %Creates a panel for the GUI, in separate file
         createTab(this, tab_tag, bg_color, button_h);
         
@@ -693,7 +691,7 @@ classdef MyFit < dynamicprops
         function triggerNewInitVal(this)
             notify(this,'NewInitVal');
         end
-
+        
         %Updates the GUI if the edit or slider boxes are changed from
         %elsewhere.
         function updateGui(this)
@@ -710,7 +708,7 @@ classdef MyFit < dynamicprops
     end
     
     % Get functions for dependent variables
-    methods        
+    methods
         %Calculates the number of parameters in the fit function
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);
