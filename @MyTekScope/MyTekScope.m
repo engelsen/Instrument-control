@@ -48,9 +48,9 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
                 ':WFMOutpre:YZEro?', ...
                 ':WFMOutpre:YOFf?');
             
-           [unit_x, unit_y] = parms{1:2};
-           num_params = num2cell(str2double(parms(3:end)));
-           [step_x, step_y, x_zero, y_zero, y_offset] = num_params{:};
+           num_params = str2doubleHedged(parms);
+           [unit_x, unit_y, step_x, step_y, x_zero, ...
+               y_zero, y_offset] = num_params{:};
             
             % Calculating the y data
             y = (y_data-y_offset)*step_y+y_zero; 
