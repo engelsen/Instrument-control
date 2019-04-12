@@ -108,13 +108,12 @@ classdef MyInstrument < dynamicprops
             
             % Create and configure a dynamic property
             H = addprop(this, tag);
-            
-            this.(tag) = p.Results.default;
-            this.CommandList.(tag).last_value = p.Results.default;
-            
             H.GetAccess = 'public';
             H.SetObservable = true;
             H.SetMethod = createCommandSetFcn(this, tag);
+            
+            % Assign the value with post processing
+            this.(tag) = p.Results.default;
             
             if ~isempty(this.CommandList.(tag).writeFcn)
                 H.SetAccess = 'public';

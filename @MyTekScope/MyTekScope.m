@@ -10,6 +10,8 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
     
     methods (Access = public)
         function this = MyTekScope(varargin)
+            this@MyCommCont(varargin{:});
+            
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             
@@ -79,11 +81,10 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
         end
         
         function turnKnob(this, knob, nturns)
-            is_knob_valid = any(cellfun(@(x)strcmpi(x, knob), ...
-                this.knob_list));
+            is_knob_valid = ismember(lower(knob), lower(this.knob_list));
             
             assert(is_knob_valid, ['Knob must be a member of the ' ...
-                'scope knob list: ', sprintf('%s,', this.knob_list)])
+                'scope knob list: ', newline, var2str(this.knob_list)])
             
             writeCommand(this, ...
                 sprintf(':FPAnel:TURN %s,%i', knob, nturns));
@@ -92,9 +93,10 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
     
     methods (Access = protected)
         function createCommandList(this)
-            addCommand(this,'channel',':DATa:SOUrce',...
+            addCommand(this, 'channel',':DATa:SOUrce',...
                 'format',   'CH%i',...
                 'info',     'Channel from which the trace is transferred', ...
+                'value_list', {1, 2, 3, 4}, ...
                 'default',  1);
             
             addCommand(this, 'ctrl_channel', ':SELect:CONTROl',...

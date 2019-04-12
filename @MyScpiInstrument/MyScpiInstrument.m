@@ -16,6 +16,7 @@ classdef MyScpiInstrument < MyInstrument
             addRequired(p,'command',@ischar);
             addParameter(p,'access','rw',@ischar);
             addParameter(p,'format','%e',@ischar);
+            addParameter(p,'value_list',{},@iscell);
             
             % Command ending for reading
             addParameter(p,'read_ending','?',@ischar);
@@ -68,26 +69,37 @@ classdef MyScpiInstrument < MyInstrument
             end
             this.CommandList.(tag).write_command = write_command;
             
-            % Execute the base class method
-            addCommand@MyInstrument(this, tag, sub_varargin{:});
-            
             % If the value list contains textual values, extend it with
             % short forms and add a postprocessing function
-            vl = this.CommandList.(tag).value_list;
-            if ~isempty(vl) && any(cellfun(@ischar, vl))
+            value_list = p.Results.value_list;
+            if ~isempty(value_list)
+                if any(cellfun(@ischar, value_list))
                 
-                % Put only unique full-named values in the value list
-                [long_vl, short_vl] = splitValueList(this, vl);
-                this.CommandList.(tag).value_list = long_vl;
+                    % Put only unique full-named values in the value list
+                    [long_vl, short_vl] = splitValueList(this, value_list);
+                    value_list = long_vl;
 
-                % For validation, use an extended list made of full and   
-                % abbreviated name forms and case-insensitive comparison
-                this.CommandList.(tag).validationFcn = ...
-                    createScpiListValidationFcn(this, [long_vl, short_vl]);
-                
-                this.CommandList.(tag).postSetFcn = ...
-                    createToStdFormFcn(this, tag, long_vl);
+                    % For validation, use an extended list made of full and   
+                    % abbreviated name forms and case-insensitive comparison
+                    validationFcn = createScpiListValidationFcn(this, ...
+                        [long_vl, short_vl]);
+
+                    postSetFcn = createToStdFormFcn(this, tag, long_vl);
+
+                    sub_varargin = [sub_varargin, { ...
+                        'value_list',       value_list, ...
+                        'validationFcn',    validationFcn, ...
+                        'postSetFcn',       postSetFcn}];
+                else
+                    
+                    % Append the value list without modification
+                    sub_varargin = [sub_varargin, ...
+                        {'value_list', value_list}];
+                end
             end
+            
+            % Execute the base class method
+            addCommand@MyInstrument(this, tag, sub_varargin{:});
             
             % Assign validation function based on the value format
             if isempty(this.CommandList.(tag).validationFcn)
