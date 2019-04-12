@@ -174,6 +174,7 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
             end
         end
         
+        % The default version of this method works for DPO3034-4034 scopes
         function y_data = readY(this)
                 
             % Configure data transfer: binary format and two bytes per 
