@@ -1,5 +1,5 @@
 classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
-    properties (GetAccess=public, SetAccess={?MyClassParser,?MyTekScope})
+    properties (GetAccess = public, SetAccess={?MyClassParser,?MyTekScope})
         
         % number of channels
         channel_no = 4
@@ -12,31 +12,16 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
         function this = MyTekScope(varargin)
             this@MyCommCont(varargin{:});
             
-            P = MyClassParser(this);
-            processInputs(P, this, varargin{:});
+            this.Comm.InputBufferSize = 4.1e7; % byte 
             
-            this.Comm.InputBufferSize = 4.1e7; %byte 
-            this.Comm.ByteOrder = 'bigEndian';
+            this.Trace.name_x = 'Time';
+            this.Trace.name_y = 'Voltage';
         end
         
         function readTrace(this)
             
-            % Configure data transfer: binary format and two bytes per 
-            % point. Then query the trace. 
-            writeStrings(this, ...
-                ':WFMInpre:ENCdg BINary', ...
-                ':DATA:WIDTH 2', ...
-                ':DATA:STARt 1', ...
-                sprintf(':DATA:STOP %i', this.point_no), ...
-                ':CURVE?');
-            
-            y_data = double(binblockread(this.Comm, 'int16'));
-            
-            if this.Comm.BytesAvailable~=0
-                
-                % Read the terminating character
-                fscanf(this.Comm, '%s');
-            end
+            % Read raw y data
+            y_data = readY(this);
             
             % Read units, offsets and steps for the scales
             parms = queryStrings(this, ...
@@ -70,13 +55,13 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
         end
         
         function acquireContinuous(this)
-            writeCommand(this, ...
+            writeStrings(this, ...
                 ':ACQuire:STOPAfter RUNSTop', ...
                 ':ACQuire:STATE ON');
         end
         
         function acquireSingle(this)
-            writeCommand(this, ...
+            writeStrings(this, ...
                 ':ACQuire:STOPAfter SEQuence', ...
                 ':ACQuire:STATE ON');
         end
@@ -87,8 +72,7 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
             assert(is_knob_valid, ['Knob must be a member of the ' ...
                 'scope knob list: ', newline, var2str(this.knob_list)])
             
-            writeCommand(this, ...
-                sprintf(':FPAnel:TURN %s,%i', knob, nturns));
+            writeString(this, sprintf(':FPAnel:TURN %s,%i', knob, nturns));
         end
     end
     
@@ -188,6 +172,22 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
                     'info',     'Channel enabled', ...
                     'default',  true);
             end
+        end
+        
+        function y_data = readY(this)
+                
+            % Configure data transfer: binary format and two bytes per 
+            % point. Then query the trace. 
+            this.Comm.ByteOrder = 'bigEndian';
+
+            writeStrings(this, ...
+                ':DATA:ENCDG RPBinary', ...
+                ':DATA:WIDTH 2', ...
+                ':DATA:STARt 1', ...
+                sprintf(':DATA:STOP %i', this.point_no), ...
+                ':CURVE?');
+
+            y_data = double(binblockread(this.Comm, 'int16'));
         end
     end
     
