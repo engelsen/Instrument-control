@@ -246,14 +246,10 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             fclose(fileID);
         end
         
-        % Create a structure from metadata array
-        function MdtList = arrToStruct(this)
-            MdtList = struct();
-            
-            for i = 1:length(this)
-                fn = matlab.lang.makeValidName(this(i).title);
-                MdtList.(fn) = this(i);
-            end
+        % Select objects with given titles from an array of metadata
+        function varargout = titleref(this, varargin)
+            ind = ismember({this.title}, varargin);
+            [varargout{1:nargout}] = this(ind);
         end
     end
     

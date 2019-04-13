@@ -234,8 +234,8 @@ classdef MyLog < matlab.mixin.Copyable
             assert(isrow(val),'''val'' argument must be a row vector.');
             
             if ~isempty(this.data)
-                [~, ncols]=size(this.data);
-                assert(length(val)==ncols,['Length of ''val'' ' ...
+                [~, ncols] = size(this.data);
+                assert(length(val) == ncols,['Length of ''val'' ' ...
                     'does not match the number of data columns']);
             end
             
