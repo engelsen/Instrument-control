@@ -555,7 +555,8 @@ classdef MyGuiSync < handle
             end
             
             % Add tooltip
-            if isprop(Link.GuiElement, 'Tooltip')
+            if isprop(Link.GuiElement, 'Tooltip') && ...
+                    isempty(Link.GuiElement.Tooltip)
                 Link.GuiElement.Tooltip = Cmd.info;
             end
         end

@@ -7,8 +7,9 @@
 
 classdef MyLogger < handle
     
-    properties (Access=public)
-        % timer object
+    properties (Access = public)
+        
+        % Timer object
         MeasTimer
         
         % Function that provides data to be recorded
@@ -20,27 +21,30 @@ classdef MyLogger < handle
         Record
     end
     
-    properties (SetAccess=protected, GetAccess=public)
+    properties (SetAccess = protected, GetAccess = public)
+        
         % If last measurement was succesful
         % 0-false, 1-true, 2-never measured
         last_meas_stat = 2 
     end
     
     events
+        
         % Event that is triggered each time MeasFcn is successfully executed
         NewData
     end
     
-    methods (Access=public)
+    methods (Access = public)
         function this = MyLogger(varargin)
-            P=MyClassParser(this);
+            P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             
-            this.Record=MyLog(P.unmatched_nv{:});
+            this.Record = MyLog(P.unmatched_nv{:});
                  
             % Create and confitugure timer
             this.MeasTimer = timer();
             this.MeasTimer.BusyMode = 'drop';
+            
             % Fixed spacing mode of operation does not follow the
             % period very well, but is robust with respect to
             % function execution delays
@@ -48,10 +52,22 @@ classdef MyLogger < handle
             this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
         end
         
-        function delete(this)         
-            %stop and delete the timer
-            stop(this.MeasTimer);
-            delete(this.MeasTimer);
+        function delete(this)
+            
+            % Stop and delete the timer
+            try
+                stop(this.MeasTimer);
+            catch ME
+                warning(['Could not stop measurement timer. Error: ' ...
+                    ME.message]);
+            end
+            
+            try
+                delete(this.MeasTimer);
+            catch ME
+                warning(['Could not delete measurement timer. Error: ' ...
+                    ME.message]);
+            end
         end
         
         
@@ -63,10 +79,15 @@ classdef MyLogger < handle
         function stop(this)
             stop(this.MeasTimer);
         end
-    
+        
+        % Convert a part of log between Tmin and Tmax to MyTrace format and 
+        % trigger a NewData event 
+        function transferLog(this, Tmin, Tmax)
+        end
     end
     
-    methods (Access=protected)
+    methods (Access = protected)
+        
         % Perform measurement and append point to the log
         function LoggerFcn(this, event)
             time = datetime(event.Data.time);
@@ -79,8 +100,9 @@ classdef MyLogger < handle
                 this.last_meas_stat=0; % last measurement not ok
             end
             
-            if this.last_meas_stat==1 
-                % append measurement result together with time stamp
+            if this.last_meas_stat==1
+                
+                % Append measurement result together with time stamp
                 appendData(this.Record, time, meas_result,...
                     'save', this.save_cont);
                 triggerNewData(this);
