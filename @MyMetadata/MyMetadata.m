@@ -241,7 +241,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
         
         % Save metadata to a file
         function save(this, filename)
-            fileID = fopen(filename,'a');
+            fileID = fopen(filename, 'a');
             fprintf(fileID, mdt2str(this));
             fclose(fileID);
         end
