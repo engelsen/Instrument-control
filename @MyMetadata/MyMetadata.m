@@ -246,10 +246,16 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             fclose(fileID);
         end
         
-        % Select objects with given titles from an array of metadata
-        function varargout = titleref(this, varargin)
+        % Select objects with titles listed in varargin from the array 
+        function SubArr = titleref(this, varargin)
             ind = ismember({this.title}, varargin);
-            [varargout{1:nargout}] = this(ind);
+            SubArr = this(ind);
+        end
+        
+        % Remove objects with titles listed in varargin from the array 
+        function SubArr = rmtitle(this, varargin)
+            ind = ~ismember({this.title}, varargin);
+            SubArr = this(ind);
         end
     end
     

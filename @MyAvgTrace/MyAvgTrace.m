@@ -101,32 +101,34 @@ classdef MyAvgTrace < MyTrace
     methods (Access = protected)
         
         % Extend the info stored in trace metadata compare to MyTrace 
-        function MdtS = getMetadata(this)
-            MdtS = getMetadata@MyTrace(this);
+        function Mdt = getMetadata(this)
+            Mdt = getMetadata@MyTrace(this);
             
-            addParam(MdtS.Info, 'avg_type', this.avg_type, ...
+            Info = titleref(Mdt, 'Info');
+            addParam(Info, 'avg_type', this.avg_type, ...
                 'comment', 'Averaging type, linear or exponential');
-            addParam(MdtS.Info, 'avg_count', this.avg_count, 'comment', ...
+            addParam(Info, 'avg_count', this.avg_count, 'comment', ...
                 'Number of accomplished averages');
-            addParam(MdtS.Info, 'n_avg', this.n_avg, 'comment', ...
+            addParam(Info, 'n_avg', this.n_avg, 'comment', ...
                 ['Target number of averages (lin) or exponential ' ...
                 'averaging constant (exp)']);
         end
         
-        function setMetadata(this, MdtS)
-            if isfield(MdtS, 'Info')
-                if isparam(MdtS.Info, 'avg_type')
-                    this.avg_type = MdtS.Info.ParamList.avg_type;
+        function setMetadata(this, Mdt)
+            Info = titleref(Mdt, 'Info');
+            if ~isempty(Info)
+                if isparam(Info, 'avg_type')
+                    this.avg_type = Info.ParamList.avg_type;
                 end
-                if isparam(MdtS.Info, 'n_avg')
-                    this.n_avg = MdtS.Info.ParamList.n_avg;
+                if isparam(Info, 'n_avg')
+                    this.n_avg = Info.ParamList.n_avg;
                 end
-                if isparam(MdtS.Info, 'avg_count')
-                    this.avg_count = MdtS.Info.ParamList.avg_count;
+                if isparam(Info, 'avg_count')
+                    this.avg_count = Info.ParamList.avg_count;
                 end
             end
             
-            setMetadata@MyTrace(this, MdtS);
+            setMetadata@MyTrace(this, Mdt);
         end
     end
     

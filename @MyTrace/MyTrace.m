@@ -68,14 +68,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
 
             % Create metadata header
-            MdtS = getMetadata(this);
+            Mdt = getMetadata(this);
             
-            % Convert to array, set unified formatting and save 
-            Mdt = structfun(@(x)x, MdtS);
-            
-            if ~isempty(this.metadata_fmt)
-                set(Mdt, this.metadata_fmt{:});
-            end
             save(Mdt, filename);
             
             % Write the data
@@ -322,10 +316,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             % Load metadata and convert from array to structure
             [Mdt, n_end_line] = MyMetadata.load(filename, mdt_opts{:});
-            MdtS = arrToStruct(Mdt);
             
-            if isfield(MdtS, 'Info') && isparam(MdtS.Info, 'Type')
-                class_name = MdtS.Info.ParamList.Type;
+            Info = titleref(Mdt, 'Info');
+            if ~isempty(Info) && isparam(Info, 'Type')
+                class_name = Info.ParamList.Type;
             else
                 class_name = 'MyTrace';
             end
@@ -333,7 +327,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             % Instantiate an appropriate type of Trace
             Trace = feval(class_name, trace_opts{:});
             
-            setMetadata(Trace, MdtS);
+            setMetadata(Trace, Mdt);
             
             % Reads x and y data
             data_array = dlmread(filename, Trace.column_sep, n_end_line,0);
@@ -349,60 +343,60 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         % Generate metadata that includes measurement headers and
         % information about trace. This function is used in place of 'get'
         % method so it can be overloaded in a subclass.
-        function MdtS = getMetadata(this)
+        function Mdt = getMetadata(this)
             
-            % Add a field with the information about the trace
-            MdtS.Info = MyMetadata('title', 'Info');
-            addParam(MdtS.Info, 'Type',   class(this));
-            addParam(MdtS.Info, 'Name1',  this.name_x);
-            addParam(MdtS.Info, 'Name2',  this.name_y);
-            addParam(MdtS.Info, 'Unit1',  this.unit_x);
-            addParam(MdtS.Info, 'Unit2',  this.unit_y);
+            % Make a field with the information about the trace
+            Info = MyMetadata('title', 'Info');
+            addParam(Info, 'Type',   class(this));
+            addParam(Info, 'Name1',  this.name_x);
+            addParam(Info, 'Name2',  this.name_y);
+            addParam(Info, 'Unit1',  this.unit_x);
+            addParam(Info, 'Unit2',  this.unit_y);
             
-            % Add measurement headers
-            fn = fieldnames(this.MeasHeaders);
-            for i = 1:length(fn)
-                MdtS.(fn{i}) = this.MeasHeaders.(fn{i});
+            % Make a separator for the bulk of trace data
+            DataSep = MyMetadata('title', this.data_sep);
+            
+            Mdt = [Info, this.MeasHeaders, DataSep];
+            
+            % Ensure uniform formatting
+            if ~isempty(this.metadata_fmt)
+                set(Mdt, this.metadata_fmt{:});
             end
-            
-            % Add a separator for the bulk of trace data
-            MdtS.DataSep = MyMetadata('title', this.data_sep);
         end
         
         % Load metadata into the trace
-        function setMetadata(this, MdtS)
-            if isfield(MdtS, 'Info')
-                if isparam(MdtS.Info, 'Unit1')
-                    this.unit_x = MdtS.Info.ParamList.Unit1;
+        function setMetadata(this, Mdt)
+            
+            Info = titleref(Mdt, 'Info');
+            if ~isempty(Info)
+                if isparam(Info, 'Unit1')
+                    this.unit_x = Info.ParamList.Unit1;
                 end
                 
-                if isparam(MdtS.Info, 'Unit2')
-                    this.unit_y = MdtS.Info.ParamList.Unit2;
+                if isparam(Info, 'Unit2')
+                    this.unit_y = Info.ParamList.Unit2;
                 end
                 
-                if isparam(MdtS.Info, 'Name1')
-                    this.name_x = MdtS.Info.ParamList.Name1;
+                if isparam(Info, 'Name1')
+                    this.name_x = Info.ParamList.Name1;
                 end
                 
-                if isparam(MdtS.Info, 'Name2')
-                    this.name_y = MdtS.Info.ParamList.Name2;
+                if isparam(Info, 'Name2')
+                    this.name_y = Info.ParamList.Name2;
                 end
                 
                 % Remove the metadata containing trace properties 
-                MdtS = rmfield(MdtS, 'Info');
+                Mdt = rmtitle(Mdt, 'Info');
             else
                 warning(['No trace metadata found. No units or labels ' ...
                     'assigned when loading trace from %s.'], filename);
             end
             
-            if isfield(MdtS, this.data_sep)
-                
-                % Remove the empty data separator field
-                MdtS = rmfield(MdtS, this.data_sep);
-            end
+            % Remove the empty data separator field
+            Mdt = rmtitle(Mdt, this.data_sep);
             
             % Store the remainder under measurement headers
-            this.MeasHeaders = MdtS;
+            this.MeasHeaders = Mdt;
         end
         
         %Checks if arithmetic can be done with MyTrace objects.
