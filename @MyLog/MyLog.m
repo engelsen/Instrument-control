@@ -69,7 +69,13 @@ classdef MyLog < matlab.mixin.Copyable
         data_file_name % File name with extension for data saving
         meta_file_name % File name with extension for metadata saving
         
-        timestamps_num % timestamps converted to numeric format
+        timestamps_num % Timestamps converted to numeric format
+    end
+    
+    properties (Access = protected)
+        
+        % Variable used for tracking the modification of metadata 
+        LastSavedMetadata
     end
     
     methods (Access = public)
@@ -103,7 +109,7 @@ classdef MyLog < matlab.mixin.Copyable
             end
                 
             % Save time labels in a separate file
-            saveMetadata(this, Mdt);
+            saveMetadata(this);
 
             fid = fopen(datfname,'w');
 
@@ -273,8 +279,12 @@ classdef MyLog < matlab.mixin.Copyable
                     fprintf(fid, this.data_line_fmt, time_num, val);
                     fclose(fid);
                     
-                    if exist(this.meta_file_name, 'file') ~= 2
-                        saveMetadata(this);
+                    % Save metadata if it was modified since last saving 
+                    % or if the file is non-existent
+                    Mdt = getMetadata(this);
+                    mdt_mod = ~isequal(Mdt, this.LastSavedMetadata);
+                    if mdt_mod || exist(this.meta_file_name, 'file') ~= 2
+                        saveMetadata(this, Mdt);
                     end
                 catch
                     warning(['Logger cannot save data at time = ',...
@@ -622,7 +632,11 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         % Save log metadata, owerwriting existing
-        function saveMetadata(this)
+        function saveMetadata(this, Mdt)
+            if exist('Mdt', 'var') == 0
+                Mdt = getMetadata(this);
+            end
+            
             metfname = this.data_file_name;
             
             % Create or clear the file
@@ -631,8 +645,10 @@ classdef MyLog < matlab.mixin.Copyable
                 return
             end
             
-            Mdt = getMetadata(this);
             save(Mdt, metfilename);
+            
+            % Store the value for change tracking
+            this.LastSavedMetadata = Mdt;
         end
         
         % Process metadata
@@ -660,14 +676,13 @@ classdef MyLog < matlab.mixin.Copyable
         end
     end
     
-    %% set and get methods
+    %% Set and get methods
     methods
-        
         function set.length_lim(this, val)
             assert(isreal(val),'''length_lim'' must be a real number');
             
             % Make length_lim non-negative and integer
-            this.length_lim=max(0, round(val));
+            this.length_lim = max(0, round(val));
             
             % Apply the new length limit to log
             trim(this);
