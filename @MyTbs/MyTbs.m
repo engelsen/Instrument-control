@@ -12,7 +12,7 @@ classdef MyTbs < MyTekScope
             this.Comm.InputBufferSize = 4.1e7; %byte
             
             this.knob_list = lower({'GPKNOB','HORZPos','HORZScale', ...
-            'TRIGLevel','VERTPOS','VERTSCALE'});
+                'TRIGLevel','VERTPOS','VERTSCALE'});
         end
     end
     

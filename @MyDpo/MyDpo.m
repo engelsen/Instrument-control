@@ -9,7 +9,7 @@ classdef MyDpo < MyTekScope
             
             % 2e7 is the maximum trace size of DPO4034-3034 
             %(10 mln point of 2-byte integers)
-            this.Device.InputBufferSize = 2.1e7; %byte 
+            this.Comm.InputBufferSize = 2.1e7; %byte 
             
             this.knob_list = lower({'GPKNOB1','GPKNOB2','HORZPos', ...
                 'HORZScale, TRIGLevel','PANKNOB1','VERTPOS', ...

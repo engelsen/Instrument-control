@@ -240,8 +240,8 @@ classdef MyScpiInstrument < MyInstrument
             % Remove duplicates
             short_vl = unique(lower(short_vl));
             
-            % Make the list of full forms
-            long_vl = setdiff(lower(vl), short_vl);  
+            % Make the list of full forms without reordering
+            long_vl = setdiff(lower(vl), short_vl, 'stable');  
         end
         
         % Create a function that returns the long form of value from 
