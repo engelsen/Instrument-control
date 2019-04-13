@@ -69,11 +69,6 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
         end
         
         function turnKnob(this, knob, nturns)
-            is_knob_valid = ismember(lower(knob), lower(this.knob_list));
-            
-            assert(is_knob_valid, ['Knob must be a member of the ' ...
-                'scope knob list: ', newline, var2str(this.knob_list)])
-            
             writeString(this, sprintf(':FPAnel:TURN %s,%i', knob, nturns));
         end
     end
