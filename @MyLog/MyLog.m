@@ -570,11 +570,19 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Ensure the log length is within length limit
         function trim(this)
-            l = length(this.timestamps);
-            if l > this.length_lim
-                dn = l-this.length_lim;
+            len = length(this.timestamps);
+            if len > this.length_lim
+                
+                % Remove data points beyond the length limit
+                dn = len-this.length_lim;
                 this.timestamps(1:dn) = [];
                 this.data(1:dn) = [];
+                
+                % Remove the time labels which times fall outside the 
+                % range of trimmed data
+                BeginTime = this.timestamps(1);
+                ind = [this.TimeLabels.time] < BeginTime;
+                this.TimeLabels(ind) = [];
             end
         end
         
