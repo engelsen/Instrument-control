@@ -553,6 +553,11 @@ classdef MyGuiSync < handle
                 % Assign the list of unprocessed values as ItemsData
                 Link.GuiElement.ItemsData = Cmd.value_list;
             end
+            
+            % Add tooltip
+            if isprop(Link.GuiElement, 'Tooltip')
+                Link.GuiElement.Tooltip = Cmd.info;
+            end
         end
         
         % Decide if getTargetFcn and, correpondingly, ValueChanged 
