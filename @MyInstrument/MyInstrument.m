@@ -72,21 +72,23 @@ classdef MyInstrument < dynamicprops
             
             % Functions for reading and writing the property value to the 
             % instrument
-            addParameter(p,'readFcn',[], @(x)isa(x, 'function_handle'));
-            addParameter(p,'writeFcn',[], @(x)isa(x, 'function_handle'));
+            addParameter(p, 'readFcn', function_handle.empty(), ...
+                @(x)isa(x, 'function_handle'));
+            addParameter(p, 'writeFcn', function_handle.empty(), ...
+                @(x)isa(x, 'function_handle'));
             
             % Function applied before writeFcn
-            addParameter(p,'validationFcn', [], ...
+            addParameter(p, 'validationFcn', function_handle.empty(), ...
                 @(x)isa(x, 'function_handle'));
             
             % Function or list of functions executed after updating the
             % class property value
-            addParameter(p,'postSetFcn', [], ...
+            addParameter(p, 'postSetFcn', function_handle.empty(), ...
                 @(x)isa(x, 'function_handle'));
             
-            addParameter(p,'value_list', {}, @iscell);
-            addParameter(p,'default', []);
-            addParameter(p,'info', '', @ischar);
+            addParameter(p, 'value_list', {}, @iscell);
+            addParameter(p, 'default', []);
+            addParameter(p, 'info', '', @ischar);
             
             parse(p,tag,varargin{:});
             
@@ -101,9 +103,16 @@ classdef MyInstrument < dynamicprops
                 toSingleLine(this.CommandList.(tag).info);
             
             vl = this.CommandList.(tag).value_list;
-            if ~isempty(vl) && ismember('validationFcn', p.UsingDefaults)
+            if ~isempty(vl) && isempty(p.Results.validationFcn)
                 this.CommandList.(tag).validationFcn = ...
                     createListValidationFcn(this, vl);
+            end
+            
+            % Assign default value from the list if not given explicitly
+            if ~isempty(vl) && isempty(p.Results.default)
+                default = vl{1};
+            else
+                default = p.Results.default;
             end
             
             % Create and configure a dynamic property
@@ -112,8 +121,8 @@ classdef MyInstrument < dynamicprops
             H.SetObservable = true;
             H.SetMethod = createCommandSetFcn(this, tag);
             
-            % Assign the value with post processing
-            this.(tag) = p.Results.default;
+            % Assign the default value with post processing
+            this.(tag) = default;
             
             if ~isempty(this.CommandList.(tag).writeFcn)
                 H.SetAccess = 'public';

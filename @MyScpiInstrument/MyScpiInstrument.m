@@ -14,15 +14,19 @@ classdef MyScpiInstrument < MyInstrument
             p = inputParser();
             p.KeepUnmatched = true;
             addRequired(p,'command',@ischar);
-            addParameter(p,'access','rw',@ischar);
-            addParameter(p,'format','%e',@ischar);
-            addParameter(p,'value_list',{},@iscell);
+            
+            addParameter(p, 'access', 'rw', @ischar);
+            addParameter(p, 'format', '%e', @ischar);
+            addParameter(p, 'value_list', {}, @iscell);
+            addParameter(p, 'validationFcn', function_handle.empty(), ...
+                @(x)isa(x, 'function_handle'));
+            addParameter(p, 'default', []);
             
             % Command ending for reading
-            addParameter(p,'read_ending','?',@ischar);
+            addParameter(p, 'read_ending', '?', @ischar);
             
             % Command ending for writing, e.g. '%10e'
-            addParameter(p,'write_ending','',@ischar);
+            addParameter(p, 'write_ending', '', @ischar);
             parse(p, command, varargin{:});
             
             % Create a list of remaining parameters to be supplied to
@@ -44,7 +48,7 @@ classdef MyScpiInstrument < MyInstrument
             this.CommandList.(tag).format = format;
             
             % Add the full read form of the command, e.g. ':FREQ?'
-            if contains(p.Results.access,'r')
+            if contains(p.Results.access, 'r')
                 read_command = [p.Results.command, p.Results.read_ending];
                 readFcn = ...
                     @()sscanf(queryString(this, read_command), format);
@@ -72,53 +76,70 @@ classdef MyScpiInstrument < MyInstrument
             % If the value list contains textual values, extend it with
             % short forms and add a postprocessing function
             value_list = p.Results.value_list;
+            validationFcn = p.Results.validationFcn;
             if ~isempty(value_list)
-                if any(cellfun(@ischar, value_list))
+                if any(cellfun(@ischar, value_list)) 
                 
                     % Put only unique full-named values in the value list
                     [long_vl, short_vl] = splitValueList(this, value_list);
                     value_list = long_vl;
 
                     % For validation, use an extended list made of full and   
-                    % abbreviated name forms and case-insensitive comparison
+                    % abbreviated name forms and case-insensitive 
+                    % comparison
                     validationFcn = createScpiListValidationFcn(this, ...
                         [long_vl, short_vl]);
 
                     postSetFcn = createToStdFormFcn(this, tag, long_vl);
 
-                    sub_varargin = [sub_varargin, { ...
-                        'value_list',       value_list, ...
-                        'validationFcn',    validationFcn, ...
-                        'postSetFcn',       postSetFcn}];
-                else
-                    
-                    % Append the value list without modification
                     sub_varargin = [sub_varargin, ...
-                        {'value_list', value_list}];
+                        {'postSetFcn', postSetFcn}];
                 end
             end
             
-            % Execute the base class method
-            addCommand@MyInstrument(this, tag, sub_varargin{:});
-            
             % Assign validation function based on the value format
-            if isempty(this.CommandList.(tag).validationFcn)
+            if isempty(validationFcn)
                 switch smb
                     case {'d','f','e','g'}
-                        this.CommandList.(tag).validationFcn = @(x) ...
+                        validationFcn = @(x) ...
                             assert(isnumeric(x), 'Value must be numeric.');
                     case 'i'
-                        this.CommandList.(tag).validationFcn = @(x) ...
+                        validationFcn = @(x) ...
                             assert(floor(x)==x, 'Value must be integer.');
                     case 's'
-                        this.CommandList.(tag).validationFcn = @(x) ...
+                        validationFcn = @(x) ...
                             assert(ischar(x), ...
                             'Value must be character string.');
                     case 'b'
-                        this.CommandList.(tag).validationFcn = @(x) ...
+                        validationFcn = @(x) ...
                             assert(x==0 || x==1, 'Value must be logical.');
+                    otherwise
+                        warning(['Unknown format specifier ''%' smb '''.'])
                 end
             end
+            
+            sub_varargin = [sub_varargin, { ...
+                'value_list',       value_list, ...
+                'validationFcn',    validationFcn}];
+            
+            % Assign default based on the format of value (if acceptable 
+            % values are not listed explicitly)
+            default = p.Results.default;
+            if isempty(default) && isempty(value_list)
+                switch smb
+                    case {'d','f','e','g','i','b'}
+                        default = 0;
+                    case 's'
+                        default = '';
+                    otherwise
+                        warning(['Unknown format specifier ''%' smb '''.'])
+                end
+            end
+            
+            sub_varargin = [sub_varargin, {'default', default}];
+            
+            % Execute the base class method
+            addCommand@MyInstrument(this, tag, sub_varargin{:});
         end
         
         % Redefine the base class method to use a single read operation for
