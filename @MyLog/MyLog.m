@@ -96,21 +96,14 @@ classdef MyLog < matlab.mixin.Copyable
             assert(~isempty(filename), 'File name is not provided.');
             
             datfname = this.data_file_name;
-            metfname = this.meta_file_name;
             
             stat = createFile(datfname);
             if ~stat
                 return
             end
                 
-            % Save time labels in a separate file, creating or clearing
-            % it first
-            Mdt = getMetadata(this);
-
-            fid = fopen(metfname, 'w');
-            fclose(fid);
-
-            save(Mdt, metfname);
+            % Save time labels in a separate file
+            saveMetadata(this, Mdt);
 
             fid = fopen(datfname,'w');
 
@@ -254,19 +247,19 @@ classdef MyLog < matlab.mixin.Copyable
             % Optionally save the new data point to file
             if p.Results.save
                 try
-                    exstat = exist(this.data_file_name, 'file');
-                    if exstat == 0
+                    if exist(this.data_file_name, 'file') == 2
+                        
+                        % Otherwise open for appending
+                        fid = fopen(this.data_file_name, 'a');
+                    else
                         
                         % If the file does not exist, create it and write
                         % the column headers 
                         createFile(this.data_file_name);
-                        fid = fopen(this.data_file_name,'w');
-                        str = printDataHeaders(this);
-                        fprintf(fid,'%s',str);
-                    else
+                        fid = fopen(this.data_file_name, 'w');
                         
-                        % Otherwise open for appending
-                        fid = fopen(this.data_file_name,'a');
+                        str = printDataHeaders(this);
+                        fprintf(fid, '%s', str);
                     end
                     
                     % Convert the new timestamps to numeric form for saving
@@ -280,16 +273,14 @@ classdef MyLog < matlab.mixin.Copyable
                     fprintf(fid, this.data_line_fmt, time_num, val);
                     fclose(fid);
                     
-                    % Save metadata with time labels
-                    if ~isempty(this.TimeLabels) && ...
-                            exist(this.meta_file_name, 'file')==0
-                        save(this.Metadata, this.meta_file_name, ...
-                            'overwrite', true);
+                    if exist(this.meta_file_name, 'file') ~= 2
+                        saveMetadata(this);
                     end
                 catch
                     warning(['Logger cannot save data at time = ',...
                         datestr(datetime('now', ...
                         'Format',this.datetime_fmt))]);
+                    
                     % Try closing fid in case it is still open
                     try
                         fclose(fid);
@@ -390,7 +381,7 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Need to calculate length explicitly as using 'end' fails 
             % for an empty array
-            l=length(this.TimeLabels); 
+            l = length(this.TimeLabels); 
 
             this.TimeLabels(l+1).time=time;
             this.TimeLabels(l+1).time_str=datestr(time);
@@ -399,10 +390,8 @@ classdef MyLog < matlab.mixin.Copyable
             % Order time labels by ascending time
             sortTimeLabels(this);
             
-            if p.Results.save==true
-                % Save metadata with new time labels
-                save(this.Metadata, this.meta_file_name, ...
-                    'overwrite', true);
+            if p.Results.save == true
+                saveMetadata(this);
             end
         end
         
@@ -447,10 +436,8 @@ classdef MyLog < matlab.mixin.Copyable
             % Order time labels by ascending time
             sortTimeLabels(this);
             
-            if p.Results.save==true
-                % Save metadata with new time labels
-                save(this.Metadata, this.meta_file_name, ...
-                    'overwrite', true);
+            if p.Results.save == true
+                saveMetadata(this);
             end
         end
         
@@ -543,11 +530,13 @@ classdef MyLog < matlab.mixin.Copyable
                 'CollapseDelimiters', true);
             fclose(fid);
             
-            % Assign column headers first, prioritizing those found in
-            % the metadata file over those found in the main file. This is 
-            % done because the column names in the main file are not 
-            % updated once they are printed, while the column names in 
-            % metadata are always up to date.
+            % Assign column headers, prioritizing those found in 
+            % the metadata file over those found in the main file. Column  
+            % names in the main file printed once the file is created,  
+            % while the column names in metadata are dynamically updated.
+            if isempty(L.data_headers)
+                L.data_headers = dat_col_heads(2:end);
+            end
             
             % Read data as delimiter-separated values and convert to cell
             % array, skip the first line containing column headers
@@ -632,27 +621,40 @@ classdef MyLog < matlab.mixin.Copyable
             Mdt = [CnMdt, TlMdt];
         end
         
+        % Save log metadata, owerwriting existing
+        function saveMetadata(this)
+            metfname = this.data_file_name;
+            
+            % Create or clear the file
+            stat = createFile(metfname, 'owerwrite', true);
+            if ~stat
+                return
+            end
+            
+            Mdt = getMetadata(this);
+            save(Mdt, metfilename);
+        end
+        
         % Process metadata
         function setMetadata(this, Mdt) 
             
             % Assign column names
-            if ismember('ColumnNames', Mdt.field_names) && ...
-                    length(Mdt.ColumnNames.Name.value)>=2
+            Cn = titleref(Mdt, 'ColumnNames');
+            if ~isempty(Cn) && length(Cn.ParamList.Name)>1
                 
                 % Assign column headers from metadata if present 
-                this.data_headers=Mdt.ColumnNames.Name.value(2:end);
-            elseif length(dat_col_heads)>=2
-                this.data_headers=dat_col_heads(2:end);
+                this.data_headers = Cn.ParamList.Name(2:end);
             end
             
             % Assign time labels
-            if ismember('TimeLabels', Mdt.field_names)
-                Lbl=Mdt.TimeLabels.Lbl.value;
+            Tl = titleref(Mdt, 'TimeLabels');
+            if ~isempty(Tl)
+                Lbl = Tl.ParamList.Lbl;
                 for i=1:length(Lbl)
-                    this.TimeLabels(i).time_str=Lbl(i).time_str;
-                    this.TimeLabels(i).time=datetime(Lbl(i).time_str, ...
+                    this.TimeLabels(i).time_str = Lbl(i).time_str;
+                    this.TimeLabels(i).time = datetime(Lbl(i).time_str, ...
                         'Format', this.datetime_fmt);
-                    this.TimeLabels(i).text_str=Lbl(i).text_str;
+                    this.TimeLabels(i).text_str = Lbl(i).text_str;
                 end
             end 
         end
@@ -663,8 +665,10 @@ classdef MyLog < matlab.mixin.Copyable
         
         function set.length_lim(this, val)
             assert(isreal(val),'''length_lim'' must be a real number');
+            
             % Make length_lim non-negative and integer
             this.length_lim=max(0, round(val));
+            
             % Apply the new length limit to log
             trim(this);
         end
@@ -672,7 +676,8 @@ classdef MyLog < matlab.mixin.Copyable
         function set.data_headers(this, val)
             assert(iscellstr(val) && isrow(val), ['''data_headers'' must '...
                 'be a row cell array of character strings.']) %#ok<ISCLSTR>
-            this.data_headers=val;
+            
+            this.data_headers = val;
         end
         
         % The get function for file_name adds extension if it is not
