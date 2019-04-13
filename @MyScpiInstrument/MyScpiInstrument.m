@@ -16,6 +16,7 @@ classdef MyScpiInstrument < MyInstrument
             addRequired(p,'command',@ischar);
             addParameter(p,'access','rw',@ischar);
             addParameter(p,'format','%e',@ischar);
+            addParameter(p,'value_list',{},@iscell);
             
             % Command ending for reading
             addParameter(p,'read_ending','?',@ischar);
@@ -68,47 +69,61 @@ classdef MyScpiInstrument < MyInstrument
             end
             this.CommandList.(tag).write_command = write_command;
             
-            % Execute the base class method
-            addCommand@MyInstrument(this, tag, sub_varargin{:});
-            
             % If the value list contains textual values, extend it with
             % short forms and add a postprocessing function
-            vl = this.CommandList.(tag).value_list;
-            if ~isempty(vl) && any(cellfun(@ischar, vl))
+            value_list = p.Results.value_list;
+            if ~isempty(value_list)
+                if any(cellfun(@ischar, value_list))
                 
-                % Put only unique full-named values in the value list
-                [long_vl, short_vl] = splitValueList(this, vl);
-                this.CommandList.(tag).value_list = long_vl;
+                    % Put only unique full-named values in the value list
+                    [long_vl, short_vl] = splitValueList(this, value_list);
+                    value_list = long_vl;
 
-                % For validation, use an extended list made of full and   
-                % abbreviated name forms and case-insensitive comparison
-                this.CommandList.(tag).validationFcn = ...
-                    @(x) any(cellfun(@(y) isequal(y, lower(x)), ...
-                    [long_vl, short_vl]));
-                
-                this.CommandList.(tag).postSetFcn = @this.toStandardForm;
+                    % For validation, use an extended list made of full and   
+                    % abbreviated name forms and case-insensitive comparison
+                    validationFcn = createScpiListValidationFcn(this, ...
+                        [long_vl, short_vl]);
+
+                    postSetFcn = createToStdFormFcn(this, tag, long_vl);
+
+                    sub_varargin = [sub_varargin, { ...
+                        'value_list',       value_list, ...
+                        'validationFcn',    validationFcn, ...
+                        'postSetFcn',       postSetFcn}];
+                else
+                    
+                    % Append the value list without modification
+                    sub_varargin = [sub_varargin, ...
+                        {'value_list', value_list}];
+                end
             end
+            
+            % Execute the base class method
+            addCommand@MyInstrument(this, tag, sub_varargin{:});
             
             % Assign validation function based on the value format
             if isempty(this.CommandList.(tag).validationFcn)
                 switch smb
                     case {'d','f','e','g'}
-                        this.CommandList.(tag).validationFcn = @isnumeric;
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(isnumeric(x), 'Value must be numeric.');
                     case 'i'
-                        this.CommandList.(tag).validationFcn = ...
-                            @(x)(floor(x)==x);
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(floor(x)==x, 'Value must be integer.');
                     case 's'
-                        this.CommandList.(tag).validationFcn = @ischar;
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(ischar(x), ...
+                            'Value must be character string.');
                     case 'b'
-                        this.CommandList.(tag).validationFcn = ...
-                            @(x)(x==0 || x==1);
+                        this.CommandList.(tag).validationFcn = @(x) ...
+                            assert(x==0 || x==1, 'Value must be logical.');
                 end
             end
         end
         
         % Redefine the base class method to use a single read operation for
         % faster communication
-        function read_cns = sync(this)
+        function sync(this)
             cns = this.command_names;
             ind_r = structfun(@(x) ~isempty(x.read_command), ...
                 this.CommandList);
@@ -125,15 +140,17 @@ classdef MyScpiInstrument < MyInstrument
                 
                 % Assign outputs to the class properties
                 for i=1:length(read_cns)
-                    val = sscanf(res_list{i},...
-                            this.CommandList.(read_cns{i}).format);
+                    tag = read_cns{i};
+                    
+                    val = sscanf(res_list{i}, ...
+                            this.CommandList.(tag).format);
                     
                     if ~isequal(this.CommandList.(tag).last_value, val)
                         
                         % Assign value without writing to the instrument
-                        this.CommandList.(read_cns{i}).Psl.Enabled = false;
-                        this.(read_cns{i}) = val;
-                        this.CommandList.(read_cns{i}).Psl.Enabled = true;
+                        this.CommandList.(tag).Psl.Enabled = false;
+                        this.(tag) = val;
+                        this.CommandList.(tag).Psl.Enabled = true;
                     end
                 end
             else
@@ -177,7 +194,6 @@ classdef MyScpiInstrument < MyInstrument
     end
     
     methods (Access = protected)
-        
         %% Misc utility methods
         
         % Split the list of string values into a full-form list and a
@@ -207,34 +223,37 @@ classdef MyScpiInstrument < MyInstrument
             long_vl = setdiff(lower(vl), short_vl);  
         end
         
-        % Return the long form of value from value_list 
-        function std_val = toStandardForm(this, cmd)
-            assert(ismember(cmd, this.command_names), ['''' cmd ...
-                ''' is not an instrument command.'])
+        % Create a function that returns the long form of value from 
+        % value_list 
+        function f = createToStdFormFcn(this, cmd, value_list)
+            function std_val = toStdForm(val)
 
-            val = this.(cmd);
-            value_list = this.CommandList.(cmd).ext_value_list;
-            
-            % Standardization is applicable to char-valued properties which
-            % have value list
-            if isempty(value_list) || ~ischar(val)
-                std_val = val;
-                return
+                % Standardization is applicable to char-valued properties 
+                % which have value list
+                if isempty(value_list) || ~ischar(val)
+                    std_val = val;
+                    return
+                end
+
+                % find matching values
+                n = length(val);
+                ismatch = cellfun(@(x) strncmpi(val, x, ...
+                    min([n, length(x)])), value_list);
+
+                assert(any(ismatch), ...
+                    sprintf(['%s is not present in the list of values ' ...
+                    'of command %s.'], val, cmd));
+
+                % out of the matching values pick the longest
+                mvals = value_list(ismatch);
+                n_el = cellfun(@(x) length(x), mvals);
+                std_val = mvals{n_el==max(n_el)};
             end
-
-            % find matching values
-            n = length(val);
-            ismatch = cellfun( ...
-                @(x) strncmpi(val, x, min([n, length(x)])), value_list);
             
-            assert(any(ismatch), ...
-                sprintf(['%s is not present in the list of values ' ...
-                'of command %s.'], val, cmd));
-
-            % out of the matching values pick the longest
-            mvals = value_list(ismatch);
-            n_el = cellfun(@(x) length(x), mvals);
-            std_val = mvals{n_el==max(n_el)};
+            assert(ismember(cmd, this.command_names), ['''' cmd ...
+                    ''' is not an instrument command.'])
+                
+            f = @toStdForm;
         end
         
         % Find the format specifier symbol and options
@@ -245,6 +264,32 @@ classdef MyScpiInstrument < MyInstrument
             
             assert(ind_p+1 == ind, ['Correct reading format must not ' ...
                 'have characters between ''%'' and format symbol.'])
+        end
+        
+        function createMetadata(this)
+            createMetadata@MyInstrument(this);
+            
+            % Re-iterate the creation of command parameters to add the
+            % format specifier
+            for i = 1:length(this.command_names)
+                cmd = this.command_names{i};
+                addObjProp(this.Metadata, this, cmd, ...
+                    'comment', this.CommandList.(cmd).info, ...
+                    'fmt_spec', this.CommandList.(cmd).format);
+            end
+        end
+        
+        % List validation function with case-insensitive comparison
+        function f = createScpiListValidationFcn(~, value_list)
+            function listValidationFcn(val)
+                val = lower(val);
+                assert( ...
+                    any(cellfun(@(y) isequal(val, y), value_list)), ...
+                    ['Value must be one from the following list:', ...
+                    newline, var2str(value_list)]);
+            end
+            
+            f = @listValidationFcn;
         end
     end
 end

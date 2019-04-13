@@ -11,12 +11,12 @@ classdef MyGuiSync < handle
             'GuiElement',           {}, ... % graphics object      
             'gui_element_prop',     {}, ...
             'inputProcessingFcn',   {}, ... % applied after a value is 
-            ... % inputed to GUI
+                                        ... % inputed to GUI
             'outputProcessingFcn',  {}, ... % applied before a new value is
-            ... % displayed in GUI 
+                                        ... % displayed in GUI 
             'getTargetFcn',         {}, ...
             'setTargetFcn',         {}, ...
-            'Listener',             {} ...  % PostSet listener (optional)        
+            'Listener',             {}  ...  % PostSet listener (optional)        
             );
         
         % List of objects to be deleted when App is deleted
@@ -24,7 +24,7 @@ classdef MyGuiSync < handle
     end
     
     properties (Access = protected)
-        App = []
+        App
         updateGuiFcn
         createCallbackFcn
     end
@@ -39,9 +39,9 @@ classdef MyGuiSync < handle
             
             % Deletion of kernel object triggers the delition of app
             addParameter(p, 'KernelObj', [], @(x)assert( ...
-                ismember('ObjectBeingDeleted', events(x)), ...
-                ['Object must define ''ObjectBeingDeleted'' to be an ' ...
-                'app kernel.']));
+                ismember('ObjectBeingDestroyed', events(x)), ...
+                ['Object must define ''ObjectBeingDestroyed'' event ' ...
+                'to be an app kernel.']));
             
             % Optional function, executed after an app parameter has been
             % updated (either externally of internally)
@@ -58,23 +58,24 @@ classdef MyGuiSync < handle
             
             this.App = App;
             this.Listeners.AppDeleted = addlistener(App, ...
-                'ObjectBeingDeleted', @(~, ~)delete(this));
+                'ObjectBeingDestroyed', @(~, ~)delete(this));
             
             if ~ismember('KernelObj', p.UsingDefaults)
-
-                addToCleanup(this, KernelObj);
+                
+                KernelObj = p.Results.KernelObj;
+                addToCleanup(this, p.Results.KernelObj);
                 
                 this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
-                    'ObjectBeingDeleted', @this.kernelDeletedCallback);
+                    'ObjectBeingDestroyed', @this.kernelDeletedCallback);
             end
         end
         
         
         function delete(this)
             
-            % Delete general listeners
+            % Delete generic listeners
             try
-                lnames=fieldnames(this.Listeners);
+                lnames = fieldnames(this.Listeners);
                 for i=1:length(lnames)
                     try
                         delete(this.Listeners.(lnames{i}));
@@ -91,7 +92,9 @@ classdef MyGuiSync < handle
             for i=1:length(this.Links)
                 try
                     delete(this.Links(i).Listener);
-                catch
+                catch ME
+                    warning(['Could not delete listener for a GUI ' ...
+                        'link. Error: ' ME.message])
                 end
             end
             
@@ -122,7 +125,7 @@ classdef MyGuiSync < handle
         % some other property of the app
         % 
         % Elem      - graphics object 
-        % prop_tag  - reference to a content of app 
+        % prop_ref  - reference to a content of app, e.g. 'var1.subprop(3)' 
         function addLink(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
@@ -136,7 +139,7 @@ classdef MyGuiSync < handle
             addParameter(p, 'create_value_changed_fcn', true, @islogical);
             addParameter(p, 'event_update', true, @islogical);
             
-            parse(p, Elem, prop_tag, varargin{:});
+            parse(p, varargin{:});
             
             % Make the list of unmatched name-value pairs for subroutine 
             sub_varargin = struct2namevalue(p.Unmatched);
@@ -152,7 +155,7 @@ classdef MyGuiSync < handle
                 else
                     subsref(Hobj.(hobj_prop), RelSubs);
                 end
-            catch
+            catch 
                 disp(['Property referenced by ' prop_ref ...
                     ' is not accessible, the corresponding GUI ' ...
                     'element will be not linked and will be disabled.'])
@@ -176,6 +179,8 @@ classdef MyGuiSync < handle
                 hobj_prop, RelSubs);
             
             % Check if ValueChanged callback needs to be created
+            elem_prop = Link.gui_element_prop;
+            
             create_vcf = p.Results.create_value_changed_fcn && ...
                 checkCreateVcf(this, Elem, elem_prop, Hobj, hobj_prop);
             
@@ -196,7 +201,7 @@ classdef MyGuiSync < handle
                     hobj_prop, RelSubs);
                 
                 Elem.ValueChangedFcn = createValueChangedCallback(this, ...
-                    LinkStruct);
+                    Link);
             end
             
             % Attempt creating a callback to PostSet event for the target 
@@ -205,8 +210,9 @@ classdef MyGuiSync < handle
             if p.Results.event_update
                 try
                     Link.Listener = addlistener(Hobj, hobj_prop, ...
-                        'PostSet', createPostSetCallback(this, LinkStruct));
-                catch 
+                        'PostSet', createPostSetCallback(this, Link));
+                catch ME
+                    warning(ME.message); 
                 end
             end
             
@@ -243,14 +249,15 @@ classdef MyGuiSync < handle
                 this.Links(ind).setTargetFcn = createSetTargetFcn(this, ...
                     Hobj, hobj_prop, RelSubs);
                 
-                this.Links(ind).Elem.ValueChangedFcn = ...
-                    createValueChangedCallback(this, LinkStruct);
+                this.Links(ind).GuiElement.ValueChangedFcn = ...
+                    createValueChangedCallback(this, this.Links(ind));
             end
             
             % Attempt creating a new listener
             try
                 this.Links(ind).Listener = addlistener(Hobj, hobj_prop, ...
-                    'PostSet', createPostSetCallback(this, LinkStruct));
+                    'PostSet', createPostSetCallback(this, ...
+                    this.Links(ind)));
             catch 
             end
                 
@@ -403,7 +410,8 @@ classdef MyGuiSync < handle
             end
             
             function subsasgnProp(val)
-                Obj.(prop_name) = subsasgn(Obj.(prop_name), S, val);
+                Se = [struct('type', '.', 'subs', prop_name), S];
+                Obj = subsasgn(Obj, Se, val);
             end
             
             if isempty(S)
@@ -420,7 +428,7 @@ classdef MyGuiSync < handle
         %% Subroutines of addLink
         
         % Parse input and create the base of Link structure
-        function Link = makeLinkBase(~, Elem, prop_ref, varargin)
+        function Link = makeLinkBase(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
             p=inputParser();
@@ -450,8 +458,8 @@ classdef MyGuiSync < handle
 
             parse(p, Elem, prop_ref, varargin{:});
             
-            assert(isempty( ...
-                arrfun(@(x) isequal(p.Results.Elem, x.GuiElement), ...
+            assert(~any( ...
+                arrayfun(@(x) isequal(p.Results.Elem, x.GuiElement), ...
                 this.Links)), ['Another link for the same GUI element ' ...
                 'that is attempted to be linked to ' prop_ref ...
                 ' already exists.'])
@@ -499,7 +507,7 @@ classdef MyGuiSync < handle
             end
         end
         
-        function extendMyInstrumentLink(~, Link, Instrument, tag)
+        function Link = extendMyInstrumentLink(~, Link, Instrument, tag)
             Cmd = Instrument.CommandList.(tag);
             
             % If supplied command does not have read permission, issue a 
@@ -588,12 +596,12 @@ classdef MyGuiSync < handle
         
         % Extract the top-most handle object in the reference, the end
         % property name and any further subreference
-        function [Hobj, prop, Subs] = parseReference(this, prop_ref)
+        function [Hobj, prop_name, Subs] = parseReference(this, prop_ref)
             
             % Make sure the reference starts with a dot and convert to
             % subreference structure
             if prop_ref(1)~='.'
-                PropSubs = str2substruct(['.',prop_ref]);
+                PropSubs = str2substruct(['.', prop_ref]);
             else
                 PropSubs = str2substruct(prop_ref);
             end
@@ -603,7 +611,7 @@ classdef MyGuiSync < handle
             Hobj = this.App;
             
             Subs = PropSubs;     % Subreference relative to Hobj.(prop)
-            prop = subsref(this.App, PropSubs(1));
+            prop_name = PropSubs(1).subs;
             
             for i=1:length(PropSubs)-1
                 testvar = subsref(this.App, PropSubs(1:end-i));
@@ -611,7 +619,7 @@ classdef MyGuiSync < handle
                     Hobj = testvar;
  
                     Subs = PropSubs(end-i+2:end);
-                    prop = subsref(this.App,PropSubs(1:end-i+1));
+                    prop_name = PropSubs(end-i+1).subs;
                     
                     break
                 end

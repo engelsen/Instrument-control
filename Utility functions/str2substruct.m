@@ -20,7 +20,6 @@ function [S, varname] = str2substruct(str)
     
     % Define patterns to match subscript references, i.e. structure fields, 
     % array indices and cell indices 
-    
     aind = ['\((?<arrind>',csint,')\)'];   % regular array index pattern
     cind = ['{(?<cellind>',csint,')}'];    % cell array index pattern
     fn = '\.(?<fieldname>\w+)';            % field name pattern
@@ -38,21 +37,22 @@ function [S, varname] = str2substruct(str)
     for i=1:length(re_tokens)
         if ~isempty(re_tokens(i).arrind)
             type_cell{i}='()';
+            
             % Split and convert indices to numbers.
             char_ind=regexp(re_tokens(i).arrind,',','split');
-            subs_cell{i}=cellfun(@str2doubleHedged, char_ind, ...
-                'UniformOutput', false);
+            subs_cell{i}=str2doubleHedged(char_ind);
         elseif ~isempty(re_tokens(i).cellind)
             type_cell{i}='{}';
+            
             % Split and convert indices to numbers.
             char_ind=regexp(re_tokens(i).cellind,',','split');
-            subs_cell{i}=cellfun(@str2doubleHedged, char_ind, ...
-                'UniformOutput', false);
+            subs_cell{i}=str2doubleHedged(char_ind);
         elseif ~isempty(re_tokens(i).fieldname)
             type_cell{i}='.';
             subs_cell{i}=re_tokens(i).fieldname;
         end
     end
+    
     S=struct('type', type_cell, 'subs', subs_cell);
 end
 

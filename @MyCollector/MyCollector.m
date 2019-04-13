@@ -1,8 +1,7 @@
 classdef MyCollector < MySingleton & matlab.mixin.Copyable
     properties (Access = public, SetObservable = true)
-        InstrList = struct()    % Structure accomodating instruments 
-        InstrProps = struct()   % Properties of instruments
-        MeasHeaders
+        InstrList    = struct()    % Structure accomodating instruments 
+        InstrProps   = struct()   % Properties of instruments
         collect_flag = true
     end
     
@@ -29,8 +28,6 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             if ~isempty(p.Results.InstrHandles)
                 cellfun(@(x) addInstrument(this,x),p.Results.InstrHandles);
             end
-            
-            this.MeasHeaders = MyMetadata();
         end
     end
     
@@ -116,51 +113,47 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             % Collect the headers if the flag is on and if the triggering 
             % instrument does not request suppression of header collection
             if this.collect_flag && InstrEventData.new_header
-                this.MeasHeaders=MyMetadata();
-                %Add field indicating the time when the trace was acquired
-                addTimeField(this.MeasHeaders, 'AcquisitionTime')
-                addField(this.MeasHeaders,'AcquiringInstrument')
-                %src_name is a valid matlab variable name as ensured by 
-                %its set method
-                addParam(this.MeasHeaders,'AcquiringInstrument',...
-                    'Name', InstrEventData.src_name);
-                acquireHeaders(this);
+                
+                % Add field indicating the time when the trace was acquired
+                TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
+                
+                AcqInstrMdt = MyMetadata('title', 'AcquiringInstrument');
+                addParam(AcqInstrMdt, 'Name', InstrEventData.src_name);
+                Mdt = mdt2str([AcqInstrMdt,TimeMdt,acquireHeaders(this)]);
                 
                 %We copy the MeasHeaders to both copies of the trace - the
                 %one that is with the source and the one that is forwarded
                 %to Daq.
-                InstrEventData.Trace.MeasHeaders=copy(this.MeasHeaders);
-                src.Trace.MeasHeaders=copy(this.MeasHeaders);
+                InstrEventData.Trace.MeasHeaders = copy(Mdt);
+                src.Trace.MeasHeaders = copy(Mdt);
             end
             
-            triggerNewDataWithHeaders(this,InstrEventData);
+            triggerNewDataWithHeaders(this, InstrEventData);
         end
         
-        %Collects headers for open instruments with the header flag on
-        function acquireHeaders(this)
+        % Collects headers for open instruments with the header flag on
+        function Mdt = acquireHeaders(this)
+            Mdt = MyMetadata.empty();
+            
             for i=1:length(this.running_instruments)
-                name=this.running_instruments{i};
+                name = this.running_instruments{i};
                 
                 if this.InstrProps.(name).header_flag
                     try
-                        TmpMetadata=readSettings(this.InstrList.(name));
-                        addMetadata(this.MeasHeaders, TmpMetadata);
+                        TmpMdt = readSettings(this.InstrList.(name));
+                        TmpMdt.title = name;
+                        Mdt = [Mdt, TmpMdt]; %#ok<AGROW>
                     catch
                         warning(['Error while reading metadata from %s. '...
                             'Measurement header collection is switched '...
-                            'off for this instrument.'],name)
-                        this.InstrProps.(name).header_flag=false;
+                            'off for this instrument.'], name)
+                        this.InstrProps.(name).header_flag = false;
                     end
-                    
                 end
             end
         end
         
-        function clearHeaders(this)
-            this.MeasHeaders=MyMetadata();
-        end
-        
-        function bool=isrunning(this,name)
+        function bool = isrunning(this, name)
             assert(~isempty(name),'Instrument name must be specified')
             assert(ischar(name)&&isvector(name),...
                 'Instrument name must be a character vector, not %s',...

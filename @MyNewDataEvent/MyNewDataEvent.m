@@ -36,9 +36,8 @@ classdef MyNewDataEvent < event.EventData
         
         % Use parser to process properties supplied as name-value pairs via
         % varargin
-        function this=MyNewDataEvent(varargin)
-            P=MyClassParser(this);
-            addParameter(P, 'Trace', []);
+        function this = MyNewDataEvent(varargin)
+            P = MyClassParser(this);
             processInputs(P, this, varargin{:});
         end
         

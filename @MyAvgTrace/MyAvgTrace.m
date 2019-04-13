@@ -8,20 +8,22 @@
 
 classdef MyAvgTrace < MyTrace
     
-    properties (Access=public)
+    properties (Access = public)
+        
         % Target number of averages, when it is reached or exceeded 
         % AveragingDone event is triggered
-        n_avg=1 
+        n_avg = 1 
         
-        avg_type='lin'
+        avg_type = 'lin'
     end
     
-    properties (GetAccess=public, SetAccess=protected)
+    properties (GetAccess = public, SetAccess = protected)
+        
         % Counter for the averaging function, can be reset by clearData
-        avg_count=0
+        avg_count = 0
     end
     
-    methods (Access=public)
+    methods (Access = public)
         
         % Adds data to the average accumulator. When the averaging counter
         % reaches n_avg (or exceeds it in the exponential case), completed
@@ -84,39 +86,49 @@ classdef MyAvgTrace < MyTrace
         
         % Provide restricted access to the trace averaging counter
         function resetCounter(this)
-            this.avg_count=0;
+            this.avg_count = 0;
         end
         
         % Overload clearData so that it reset the averaging counter in
         % addition to clearing the x and y values
         function clearData(this)
-            this.x=[];
-            this.y=[];
+            this.x = [];
+            this.y = [];
             resetCounter(this);
         end
+    end
+    
+    methods (Access = protected)
         
         % Extend the info stored in trace metadata compare to MyTrace 
-        function Mdt=makeMetadata(this)
-            Mdt=makeMetadata@MyTrace(this);
-            addParam(Mdt,'Info','avg_type',this.avg_type, ...
-                'comment','Averaging type, linear or exponential');
-            addParam(Mdt,'Info','avg_count',this.avg_count, 'comment', ...
+        function Mdt = getMetadata(this)
+            Mdt = getMetadata@MyTrace(this);
+            
+            Info = titleref(Mdt, 'Info');
+            addParam(Info, 'avg_type', this.avg_type, ...
+                'comment', 'Averaging type, linear or exponential');
+            addParam(Info, 'avg_count', this.avg_count, 'comment', ...
                 'Number of accomplished averages');
-            addParam(Mdt,'Info','n_avg',this.n_avg, 'comment', ...
+            addParam(Info, 'n_avg', this.n_avg, 'comment', ...
                 ['Target number of averages (lin) or exponential ' ...
                 'averaging constant (exp)']);
         end
-        function setFromMetadata(this, Mdt)
-            setFromMetadata@MyTrace(this, Mdt)
-            if isfield(Mdt.Info, 'avg_type')
-                this.avg_type=Mdt.Info.avg_type.value;
+        
+        function setMetadata(this, Mdt)
+            Info = titleref(Mdt, 'Info');
+            if ~isempty(Info)
+                if isparam(Info, 'avg_type')
+                    this.avg_type = Info.ParamList.avg_type;
+                end
+                if isparam(Info, 'n_avg')
+                    this.n_avg = Info.ParamList.n_avg;
+                end
+                if isparam(Info, 'avg_count')
+                    this.avg_count = Info.ParamList.avg_count;
+                end
             end
-            if isfield(Mdt.Info, 'n_avg')
-                this.n_avg=Mdt.Info.n_avg.value;
-            end
-            if isfield(Mdt.Info, 'avg_count')
-                this.avg_count=Mdt.Info.avg_count.value;
-            end
+            
+            setMetadata@MyTrace(this, Mdt);
         end
     end
     
@@ -127,7 +139,7 @@ classdef MyAvgTrace < MyTrace
         % Ensure the supplied value for averaging mode is assigned in its
         % standard form - lowercase and abbreviated
         function set.avg_type(this, val)
-            old_val=this.avg_type;
+            old_val = this.avg_type;
             
             switch lower(val)
                 case {'lin', 'linear'}
@@ -138,15 +150,16 @@ classdef MyAvgTrace < MyTrace
                     error(['Averaging type must be ''lin'' ' ...
                         '(''linear'') or ''exp'' (''exponential'')'])
             end
+            
             % Clear data if the averaging type was changed
-            if this.avg_type~=old_val
+            if this.avg_type ~= old_val
                 clearData(this);
             end
         end
         
         function set.n_avg(this, val)
             % The number of averages should be integer not smaller than one
-            this.n_avg=max(1, round(val));
+            this.n_avg = max(1, round(val));
         end
         
     end

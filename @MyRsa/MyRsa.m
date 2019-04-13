@@ -8,6 +8,8 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
     
     methods (Access = public)
         function this = MyRsa(varargin)
+            this@MyCommCont(varargin{:});
+            
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             

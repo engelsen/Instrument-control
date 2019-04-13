@@ -1,5 +1,5 @@
 classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
-    properties (GetAccess=public, SetAccess={?MyClassParser,?MyTekScope})
+    properties (GetAccess = public, SetAccess={?MyClassParser,?MyTekScope})
         
         % number of channels
         channel_no = 4
@@ -10,51 +10,39 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
     
     methods (Access = public)
         function this = MyTekScope(varargin)
-            P = MyClassParser(this);
-            processInputs(P, this, varargin{:});
+            this@MyCommCont(varargin{:});
             
-            this.Comm.InputBufferSize = 4.1e7; %byte 
-            this.Comm.ByteOrder = 'bigEndian';
+            this.Comm.InputBufferSize = 4.1e7; % byte 
+            
+            this.Trace.name_x = 'Time';
+            this.Trace.name_y = 'Voltage';
         end
         
         function readTrace(this)
             
-            % Configure data transfer: binary format and two bytes per 
-            % point. Then query the trace. 
-            writeCommand(this, ...
-                ':WFMInpre:ENCdg BINary', ...
-                ':DATA:WIDTH 2', ...
-                ':DATA:STARt 1', ...
-                sprintf(':DATA:STOP %i', this.point_no), ...
-                ':CURVE?');
-            
-            y_data = int16(binblockread(this.Comm, 'int16'));
-            
-            if this.Comm.BytesAvailable~=0
-                
-                % read the terminating character
-                fscanf(this.Comm, '%s');
-            end
+            % Read raw y data
+            y_data = readY(this);
             
             % Read units, offsets and steps for the scales
-            parms = queryCommand(this, ...
+            parms = queryStrings(this, ...
                 ':WFMOutpre:XUNit?', ...
                 ':WFMOutpre:YUNit?', ...
-                ':WFMOutpre:YMUlt?', ...
                 ':WFMOutpre:XINcr?', ...
+                ':WFMOutpre:YMUlt?', ...
                 ':WFMOutpre:XZEro?', ...
                 ':WFMOutpre:YZEro?', ...
                 ':WFMOutpre:YOFf?');
             
-           [unit_y, unit_x, step_x, step_y, x_zero, ...
-               y_zero, y_offset] = parms{:};
-                        
+           num_params = str2doubleHedged(parms);
+           [unit_x, unit_y, step_x, step_y, x_zero, ...
+               y_zero, y_offset] = num_params{:};
+            
             % Calculating the y data
-            y = (double(y_data)-y_offset)*step_y+y_zero; 
+            y = (y_data-y_offset)*step_y+y_zero; 
             n_points = length(y);
             
             % Calculating the x data
-            x = linspace(x_zero, x_zero+step_x*(n_points-1), n_points);
+            x = linspace(x_zero, x_zero + step_x*(n_points-1), n_points);
             
             this.Trace.x = x;
             this.Trace.y = y;
@@ -67,34 +55,33 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
         end
         
         function acquireContinuous(this)
-            writeCommand(this, ...
+            writeStrings(this, ...
                 ':ACQuire:STOPAfter RUNSTop', ...
                 ':ACQuire:STATE ON');
         end
         
         function acquireSingle(this)
-            writeCommand(this, ...
+            writeStrings(this, ...
                 ':ACQuire:STOPAfter SEQuence', ...
                 ':ACQuire:STATE ON');
         end
         
         function turnKnob(this, knob, nturns)
-            is_knob_valid = any(cellfun(@(x)strcmpi(x, knob), ...
-                this.knob_list));
+            is_knob_valid = ismember(lower(knob), lower(this.knob_list));
             
             assert(is_knob_valid, ['Knob must be a member of the ' ...
-                'scope knob list: ', sprintf('%s,', this.knob_list)])
+                'scope knob list: ', newline, var2str(this.knob_list)])
             
-            writeCommand(this, ...
-                sprintf(':FPAnel:TURN %s,%i', knob, nturns));
+            writeString(this, sprintf(':FPAnel:TURN %s,%i', knob, nturns));
         end
     end
     
     methods (Access = protected)
         function createCommandList(this)
-            addCommand(this,'channel',':DATa:SOUrce',...
+            addCommand(this, 'channel',':DATa:SOUrce',...
                 'format',   'CH%i',...
                 'info',     'Channel from which the trace is transferred', ...
+                'value_list', {1, 2, 3, 4}, ...
                 'default',  1);
             
             addCommand(this, 'ctrl_channel', ':SELect:CONTROl',...
@@ -185,6 +172,23 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
                     'info',     'Channel enabled', ...
                     'default',  true);
             end
+        end
+        
+        % The default version of this method works for DPO3034-4034 scopes
+        function y_data = readY(this)
+                
+            % Configure data transfer: binary format and two bytes per 
+            % point. Then query the trace. 
+            this.Comm.ByteOrder = 'bigEndian';
+
+            writeStrings(this, ...
+                ':DATA:ENCDG RPBinary', ...
+                ':DATA:WIDTH 2', ...
+                ':DATA:STARt 1', ...
+                sprintf(':DATA:STOP %i', this.point_no), ...
+                ':CURVE?');
+
+            y_data = double(binblockread(this.Comm, 'int16'));
         end
     end
     

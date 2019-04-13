@@ -19,11 +19,17 @@ classdef MyInstrument < dynamicprops
         CommandList = struct()
         
         % identification string
-        idn_str=''
+        idn_str = ''
     end
     
     properties (Dependent = true)
         command_names
+    end
+    
+    properties (Access = protected)
+        
+        % Copying existing metadata is much faster than creating a new one
+        Metadata
     end
     
     methods (Access = public)
@@ -32,10 +38,11 @@ classdef MyInstrument < dynamicprops
             processInputs(P, this, varargin{:});
             
             createCommandList(this);
+            createMetadata(this);
         end
         
         % Read all parameters of the physical device
-        function read_cns = sync(this)
+        function sync(this)
             read_ind = structfun(@(x) ~isempty(x.readFcn), ...
                 this.CommandList);
             read_cns = this.command_names(read_ind);
@@ -69,16 +76,17 @@ classdef MyInstrument < dynamicprops
             addParameter(p,'writeFcn',[], @(x)isa(x, 'function_handle'));
             
             % Function applied before writeFcn
-            addParameter(p,'validationFcn',[], ...
+            addParameter(p,'validationFcn', [], ...
                 @(x)isa(x, 'function_handle'));
             
             % Function or list of functions executed after updating the
             % class property value
-            addParameter(p,'postSetFcn',[], @(x)isa(x, 'function_handle'));
+            addParameter(p,'postSetFcn', [], ...
+                @(x)isa(x, 'function_handle'));
             
-            addParameter(p,'value_list',{}, @iscell);
-            addParameter(p,'default',[]);
-            addParameter(p,'info','', @ischar);
+            addParameter(p,'value_list', {}, @iscell);
+            addParameter(p,'default', []);
+            addParameter(p,'info', '', @ischar);
             
             parse(p,tag,varargin{:});
             
@@ -92,24 +100,20 @@ classdef MyInstrument < dynamicprops
             this.CommandList.(tag).info = ...
                 toSingleLine(this.CommandList.(tag).info);
             
-            if ~isempty(this.CommandList.(tag).value_list)
-                assert(isempty(this.CommandList.(tag).validationFcn), ...
-                    ['validationFcn is already assigned, cannot ' ...
-                    'create a new one based on value_list']);
-                
+            vl = this.CommandList.(tag).value_list;
+            if ~isempty(vl) && ismember('validationFcn', p.UsingDefaults)
                 this.CommandList.(tag).validationFcn = ...
-                    @(x) any(cellfun(@(y) isequal(y, x),...
-                    this.CommandList.(tag).value_list));
+                    createListValidationFcn(this, vl);
             end
             
             % Create and configure a dynamic property
             H = addprop(this, tag);
-            
-            this.(tag) = p.Results.default;
-            
             H.GetAccess = 'public';
             H.SetObservable = true;
             H.SetMethod = createCommandSetFcn(this, tag);
+            
+            % Assign the value with post processing
+            this.(tag) = p.Results.default;
             
             if ~isempty(this.CommandList.(tag).writeFcn)
                 H.SetAccess = 'public';
@@ -138,27 +142,33 @@ classdef MyInstrument < dynamicprops
         end
         
         % Measurement header
-        function Hdr = readSettings(this)
+        function Mdt = readSettings(this)
+            
+            % Ensure that instrument parameters are up to data
             sync(this);
             
-            Hdr = MyMetadata();
-            
-            % Instrument name is a valid Matalb identifier as ensured by
-            % its set method (see the superclass)
-            addField(Hdr, this.name);
-            
-            % Add identification string as parameter
-            addParam(Hdr, this.name, 'idn', this.idn_str);
-
-            for i=1:length(this.command_names)
-                cmd = this.command_names{i};
-                addParam(Hdr, Hdr.field_names{1}, cmd, this.(cmd), ...
-                    'comment', this.CommandList.(cmd).info);
+            param_names = fieldnames(this.Metadata.ParamList);
+            for i = 1:length(param_names)
+                tag = param_names{i};
+                this.Metadata.ParamList.(tag) = this.(tag);
             end
+            
+            Mdt = copy(this.Metadata);
         end
         
         % Write settings from structure
-        function writeSettings(this, Hdr)
+        function writeSettings(this, Mdt)
+            assert(isa(Mdt, 'MyMetadata'), ...
+                'Mdt must be of MyMetadata class.');
+            
+            param_names = fieldnames(Mdt.ParamList);
+            for i=1:length(param_names)
+                tag = param_names{i};
+                
+                if isprop(this, tag)
+                    this.(tag) = Mdt.ParamList.(tag);
+                end
+            end
         end
     end
     
@@ -169,6 +179,19 @@ classdef MyInstrument < dynamicprops
         function createCommandList(~)
         end
         
+        function createMetadata(this)
+            this.Metadata = MyMetadata('title', class(this));
+            
+            % Add identification string 
+            addParam(this.Metadata, 'idn', this.idn_str);
+
+            for i = 1:length(this.command_names)
+                cmd = this.command_names{i};
+                addObjProp(this.Metadata, this, cmd, ...
+                    'comment', this.CommandList.(cmd).info);
+            end
+        end
+        
         % Create set methods for dynamic properties
         function f = createCommandSetFcn(~, tag)
             function commandSetFcn(this, val)
@@ -176,14 +199,14 @@ classdef MyInstrument < dynamicprops
                 % Validate new value
                 vFcn = this.CommandList.(tag).validationFcn;
                 if ~isempty(vFcn)
-                    assert(vFcn(val), ['Value assigned to property ''' ...
-                        tag ''' must satisfy ' func2str(vFcn) '.']);
+                    vFcn(val);
                 end
                 
                 % Store unprocessed value for quick reference in the future 
                 % and change tracking
                 this.CommandList.(tag).last_value = val;
-
+                
+                % Assign the value with post processing
                 pFcn = this.CommandList.(tag).postSetFcn;
                 if ~isempty(pFcn)
                     val = pFcn(val);
@@ -193,6 +216,17 @@ classdef MyInstrument < dynamicprops
             end
             
             f = @commandSetFcn;
+        end
+        
+        function f = createListValidationFcn(~, value_list)
+            function listValidationFcn(val)
+                assert( ...
+                    any(cellfun(@(y) isequal(val, y), value_list)), ...
+                    ['Value must be one from the following list:', ...
+                    newline, var2str(value_list)]);
+            end
+            
+            f = @listValidationFcn;
         end
         
         % Post set function for dynamic properties - writing the new value  
