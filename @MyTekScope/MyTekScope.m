@@ -1,3 +1,5 @@
+% Generic class for controlling Tektronix scopes
+
 classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
     properties (GetAccess = public, SetAccess={?MyClassParser,?MyTekScope})
         
