@@ -24,12 +24,10 @@ classdef MyTpg < MyInstrument & MyCommCont
     end
     
     methods (Access = public)
-        %% Constructor and destructor
         function this = MyTpg(varargin)
             this@MyCommCont(varargin{:});
         end
-        
-        %% Communication commands
+
         % read pressure from a single channel or both channels at a time
         function p_arr = readPressure(this)
             queryString(this, ['PRX', this.CR, this.LF]);
