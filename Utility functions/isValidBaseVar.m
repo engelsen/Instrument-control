@@ -1,15 +1,20 @@
-function bool = isValidBaseVar(name)
-    % Check if the name exists and valid in the global numspace
-    name_exist = evalin('base',['exist(''',name,''', ''var'')']);
-    if name_exist
-        % Check if the variable is a valid object
-        try
-            bool = evalin('base',sprintf('isvalid(%s)',name));
-        catch
-            bool = false;
-        end
-    else
+% Check if the name belongs to a valid object in the global workspace
+
+function bool = isValidBaseVar(name)  
+    try
+        var = evalin('base', name);
+    catch
         bool = false;
+        return
+    end
+    
+    try
+        bool = isvalid(var);
+    catch
+
+        % If variable exists and isvalid function is not applicable to
+        % it, it is still regarded as valid
+        bool = true;
     end
 end
 

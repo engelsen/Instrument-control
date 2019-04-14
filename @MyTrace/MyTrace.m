@@ -15,9 +15,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         file_name = ''
         
-        % Structure storing MyMetadata objects with information about the 
-        % trace was taken
-        MeasHeaders = struct()
+        % Array of MyMetadata objects with information about the trace 
+        MeasHeaders 
         
         % Formatting options for the metadata
         metadata_opts = {} 
@@ -44,6 +43,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function this = MyTrace(varargin)
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
+            
+            this.MeasHeaders = MyMetadata.empty();
         end
         
         %Defines the save function for the class.
@@ -427,16 +428,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
         end
         
-        % Overload the standard copy() method to create a deep copy
+        % Overload the standard copy() method to create a deep copy, 
+        % i.e. when handle properties are copied recursively
         function Copy = copyElement(this)
             Copy = copyElement@matlab.mixin.Copyable(this);
             
             % Copy metadata
-            field_names = fieldnames(this.MeasHeaders);
-            for i = 1:length(field_names)
-                Copy.MeasHeaders.(field_names{i}) = ...
-                    copy(this.MeasHeaders.(field_names{i}));
-            end
+            Copy.MeasHeaders = copy(this.MeasHeaders);
         end
     end
     
@@ -446,8 +444,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         %Set function for MeasHeaders
         function set.MeasHeaders(this, Val)
-            assert(isstruct(Val),...
-                'MeasHeaders must be a structure of MyMetadata objects');
+            assert(isa(Val, 'MyMetadata'),...
+                'MeasHeaders must be an array of MyMetadata objects');
             this.MeasHeaders = Val;
         end
         

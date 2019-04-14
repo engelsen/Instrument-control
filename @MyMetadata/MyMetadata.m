@@ -24,11 +24,12 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
         % Limit for column padding. Variables which take more space than
         % this limit are ignored when calculating the padding length.
         pad_lim = 15
-    end
-    
-    properties (GetAccess = public, SetAccess = protected)
-        ParamList = struct()        % Values of parameters
-        ParamOptList = struct()     % Options for parameters
+        
+        % Metadata parameter values
+        ParamList = struct()        
+        
+        % Options for metadata parameters
+        ParamOptList = struct()     
     end
     
     methods (Access = public)

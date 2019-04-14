@@ -812,6 +812,7 @@ classdef MyDaq < handle
             end
             
             load_path=[path_name,load_name];
+            
             %Finds the destination trace from the GUI
             dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
             
@@ -819,8 +820,7 @@ classdef MyDaq < handle
             hline=getLineHandle(this.(dest_trc), this.main_plot);
                 
             %Reset and load the destination trace
-            this.(dest_trc)=MyTrace();
-            load(this.(dest_trc), load_path);
+            this.(dest_trc)=MyTrace.load(load_path);
             
             % Assign existing line handle to the trace
             if ~isempty(hline)
