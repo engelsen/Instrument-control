@@ -432,7 +432,7 @@ classdef MyGuiSync < handle
         function Link = makeLinkBase(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
-            p=inputParser();
+            p = inputParser();
 
             % GUI control element
             addRequired(p, 'Elem');
@@ -456,6 +456,12 @@ classdef MyGuiSync < handle
                 @(f)isa(f,'function_handle'));
             addParameter(p, 'inputProcessingFcn', [], ...
                 @(f)isa(f,'function_handle'));
+            
+            % Parameters relevant for uilamps
+            addParameter(p, 'lamp_on_color', MyAppColors.lampOn(), ...
+                @iscolor);
+            addParameter(p, 'lamp_off_color', MyAppColors.lampOff(), ...
+                @iscolor);
 
             parse(p, Elem, prop_ref, varargin{:});
             
@@ -484,9 +490,9 @@ classdef MyGuiSync < handle
             if strcmpi(Elem.Type, 'uilamp')
                 Link.gui_element_prop = 'Color';
                 
-                % Select between the default on and off colors. 
+                % Select between the on and off colors. 
                 Link.outputProcessingFcn = @(x)select(x, ...
-                    MyAppColors.lampOn(), MyAppColors.lampOff());
+                    p.Results.lamp_on_color, p.Results.lamp_off_color);
             end
 
             % Simple scaling is a special case of value processing

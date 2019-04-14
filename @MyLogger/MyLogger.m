@@ -1,7 +1,7 @@
-% Generic logger that executes MeasFcn according to MeasTimer, stores the
+% Generic logger that executes measFcn according to MeasTimer, stores the
 % results and optionally continuously saves them. 
-% MeasFcn should be a function with no arguments.  
-% MeasFcn need to return a row vector of numbers in order to save the log
+% measFcn should be a function with no arguments.  
+% measFcn need to return a row vector of numbers in order to save the log
 % in text format or display it. With other kinds of returned values the 
 % log can still be recorded, but not saved or dispalyed.
 
@@ -13,12 +13,14 @@ classdef MyLogger < handle
         MeasTimer
         
         % Function that provides data to be recorded
-        MeasFcn = @()0
-        
-        save_cont = false
+        measFcn = @()0
         
         % MyLog object to store the recorded data
         Record
+    end
+    
+    properties (Access = public, SetObservable = true)
+        save_cont = false
     end
     
     properties (SetAccess = protected, GetAccess = public)
@@ -30,7 +32,7 @@ classdef MyLogger < handle
     
     events
         
-        % Event that is triggered each time MeasFcn is successfully executed
+        % Event that is triggered each time measFcn is successfully executed
         NewData
     end
     
@@ -92,7 +94,7 @@ classdef MyLogger < handle
         function LoggerFcn(this, event)
             time = datetime(event.Data.time);
             try
-                meas_result = this.MeasFcn();
+                meas_result = this.measFcn();
                 this.last_meas_stat=1; % last measurement ok
             catch
                 warning(['Logger cannot take measurement at time = ',...
@@ -117,24 +119,24 @@ classdef MyLogger < handle
     
     %% Set and get functions
     methods 
-        function set.MeasFcn(this, val)
-            assert(isa(val,'function_handle'), ...
-                '''MeasFcn'' must be a function handle.');
-            this.MeasFcn=val;
+        function set.measFcn(this, val)
+            assert(isa(val, 'function_handle'), ...
+                '''measFcn'' must be a function handle.');
+            this.measFcn = val;
         end
         
         function set.Record(this, val)
-            assert(isa(val,'MyLog'), '''Record'' must be a MyLog object')
-            this.Record=val;
+            assert(isa(val, 'MyLog'), '''Record'' must be a MyLog object')
+            this.Record = val;
         end
         
         function set.save_cont(this, val)
-            this.save_cont=logical(val);
+            this.save_cont = logical(val);
         end
         
         function set.MeasTimer(this, val)
             assert(isa(val,'timer'), '''MeasTimer'' must be a timer object')
-            this.MeasTimer=val;
+            this.MeasTimer = val;
         end
     end
 end
