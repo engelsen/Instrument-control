@@ -24,11 +24,12 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
         % Limit for column padding. Variables which take more space than
         % this limit are ignored when calculating the padding length.
         pad_lim = 15
-    end
-    
-    properties (GetAccess = public, SetAccess = protected)
-        ParamList = struct()        % Values of parameters
-        ParamOptList = struct()     % Options for parameters
+        
+        % Metadata parameter values
+        ParamList = struct()        
+        
+        % Options for metadata parameters
+        ParamOptList = struct()     
     end
     
     methods (Access = public)
@@ -242,7 +243,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
         % Save metadata to a file
         function save(this, filename)
             fileID = fopen(filename, 'a');
-            fprintf(fileID, mdt2str(this));
+            fprintf(fileID, '%s', mdt2str(this));
             fclose(fileID);
         end
         
@@ -307,6 +308,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 
                 % Skips if the current line is empty
                 if isempty(deblank(curr_line))
+                    line_no = line_no+1;
                     continue
                 end
                 
