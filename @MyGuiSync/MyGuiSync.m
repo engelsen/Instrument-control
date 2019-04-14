@@ -389,8 +389,8 @@ classdef MyGuiSync < handle
                 val = Obj.(prop_name);
             end
             
-            function val = subsrefProp(val)
-                val = subsref(Obj.(prop_name), S, val);
+            function val = subsrefProp()
+                val = subsref(Obj, S);
             end
             
             if isempty(S)
@@ -400,6 +400,7 @@ classdef MyGuiSync < handle
             else
                 
                 % More general way to access property
+                S = [substruct('.', prop_name), S];
                 f = @subsrefProp;
             end
         end
@@ -410,8 +411,7 @@ classdef MyGuiSync < handle
             end
             
             function subsasgnProp(val)
-                Se = [struct('type', '.', 'subs', prop_name), S];
-                Obj = subsasgn(Obj, Se, val);
+                Obj = subsasgn(Obj, S, val);
             end
             
             if isempty(S)
@@ -421,6 +421,7 @@ classdef MyGuiSync < handle
             else
                 
                 % More general way to assign property
+                S = [substruct('.', prop_name), S];
                 f = @subsasgnProp;
             end
         end

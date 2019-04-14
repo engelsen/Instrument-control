@@ -142,10 +142,10 @@ classdef MyInstrument < dynamicprops
                 'attempt identification.'])
             
             try
-                [str,~,msg] = queryString(this,'*IDN?');
-            catch ErrorMessage
+                str = queryString(this,'*IDN?');
+            catch ME
                 str = '';
-                msg = ErrorMessage.message;
+                msg = ME.message;
             end   
             this.idn_str = str;
         end

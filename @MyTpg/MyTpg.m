@@ -1,72 +1,44 @@
 % Class for communication with Pfeiffer TPG single and dual pressure gauge
 % controllers.
-% Do not use visa communication objects with this instrument
+% Use 'serial' communication objects instead of 'visa' with this instrument
 % Tested with TPG 262 and 362.
-classdef MyTpg < MyInstrument
+
+classdef MyTpg < MyInstrument & MyCommCont
     
-    properties 
-        Lg % MyLogger object
-    end
-    
-    properties (Constant=true)
-        % Named constants for communication
-        ETX = char(3); % end of text
-        CR = char(13); % carriage return \r
-        LF = char(10); %#ok<CHARTEN> % line feed \n
-        ENQ = char(5); % enquiry
-        ACK = char(6); % acknowledge
-        NAK = char(21); % negative acknowledge
-    end
-    
-    properties (SetAccess=protected, GetAccess=public)
-        pressure1 = 0; % numeric values of pressure
-        pressure2 = 0;
-        stat1;
-        stat2;
-        gauge_id1;
-        gauge_id2;
-        pressure_unit = '';
-    end
-    
-    properties (Dependent=true)
-        pressure_str1; % display string with measurement unit
-        pressure_str2;
-    end
-    
-    methods (Access=public)
-        %% Constructor and destructor
-        function this = MyTpg(interface, address, varargin)
-            this@MyInstrument(interface, address, varargin{:});
-            
-            % Create MyLogger object and configure it to measure pressure
-            initLogger(this);
-            
-            % Configure trace to store pressure vs time recorded by Logger
-            this.Trace.name_x='Time';
-            this.Trace.unit_x='s';
-        end
+    properties (Constant = true, Access = protected)
         
-        % Delete method that cleans up logger. Superclass delete method as
-        % usual is executed after this one.
-        function delete(this)
-            % Stop and delete logger. Destructor should never throw errors.
-            try
-                stop(this.Lg)
-                delete(this.Lg);
-            catch
-            end
-        end  
+        % Named constants for communication
+        ETX = char(3);      % end of text
+        CR  = char(13);     % carriage return \r
+        LF  = char(10);     %#ok<CHARTEN> line feed \n
+        ENQ = char(5);      % enquiry
+        ACK = char(6);      % acknowledge
+        NAK = char(21);     % negative acknowledge
+    end
+    
+    properties (SetAccess = protected, GetAccess = public, ...
+            SetObservable = true)
+        
+        % Last measurement status
+        gauge_stat = {'', ''};
+    end
+    
+    methods (Access = public)
+        %% Constructor and destructor
+        function this = MyTpg(varargin)
+            this@MyCommCont(varargin{:});
+        end
         
         %% Communication commands
         % read pressure from a single channel or both channels at a time
         function p_arr = readPressure(this)
-            query(this.Device,['PRX',this.CR,this.LF]);
-            str = query(this.Device,this.ENQ);        
+            queryString(this, ['PRX', this.CR, this.LF]);
+            str = queryString(this, this.ENQ);
+            
             % Extract pressure and gauge status from reading.
             arr = sscanf(str,'%i,%e,%i,%e');
-            p_arr=transpose(arr(2:2:end));
-            this.pressure1 = p_arr(1);
-            this.pressure2 = p_arr(2);
+            p_arr = transpose(arr(2:2:end));
+            
             % Status codes:
             % 0 –> Measurement data okay
             % 1 –> Underrange
@@ -75,15 +47,14 @@ classdef MyTpg < MyInstrument
             % 4 –> Sensor off (IKR, PKR, IMR, PBR)
             % 5 –> No sensor (output: 5,2.0000E-2 [hPa])
             % 6 –> Identification error  
-            this.stat1 = gaugeStatusFromCode(this, arr(1));
-            this.stat2 = gaugeStatusFromCode(this, arr(3));
-            % Trigger event notification
-            triggerPropertyRead(this);
+            this.gauge_stat{1} = gaugeStatusFromCode(this, arr(1));
+            this.gauge_stat{2} = gaugeStatusFromCode(this, arr(3));
         end
         
         function pu = readPressureUnit(this)
-            query(this.Device,['UNI',this.CR,this.LF]);
-            str = query(this.Device,this.ENQ);
+            queryString(this, ['UNI',this.CR,this.LF]);
+            str = queryString(this, this.ENQ);
+            
             % Pressure units correspondence table:
             % 0 –> mbar/bar
             % 1 –> Torr
@@ -93,128 +64,56 @@ classdef MyTpg < MyInstrument
             % 5 –> Volt
             pu_code = sscanf(str,'%i');
             pu = pressureUnitFromCode(this, pu_code);
-            this.pressure_unit = pu;
-            % Trigger event notification
-            triggerPropertyRead(this);
         end
         
         function id_list = readGaugeId(this)
-            query(this.Device,['TID',this.CR,this.LF]);
-            str = query(this.Device,this.ENQ);
+            queryString(this, ['TID',this.CR,this.LF]);
+            str = queryString(this, this.ENQ);
+            
             id_list = deblank(strsplit(str,{','}));
-            this.gauge_id1 = id_list{1};
-            this.gauge_id2 = id_list{2};
-            % Trigger event notification
-            triggerPropertyRead(this);
         end
-        
-        function p_arr = readAllHedged(this)
-            was_open = isopen(this);
-            if ~was_open
-                openDevice(this);
-            end
-            try
-                p_arr = readPressure(this);
-                readPressureUnit(this);
-                readGaugeId(this);
-            catch
-                p_arr = [0,0];
-                warning('Error while communicating with gauge controller')
-            end
-            % Leave device in the state it was in the beginning
-            if ~was_open
-                closeDevice(this);
-            end
-        end
-        
                 
         function code_list = turnGauge(this)
-            query(this.Device,['SEN',char(1,1),this.CR,this.LF]);
-            str = query(this.Device,this.ENQ);
+            queryString(this, ['SEN',char(1,1),this.CR,this.LF]);
+            str = queryString(this, this.ENQ);
             code_list = deblank(strsplit(str,{','}));
         end
         
-        %% Overloading MyInstrument functions
-        
-        % Implement instrument-specific readHeader function
-        function Hdr=readHeader(this)
-            Hdr=readHeader@MyInstrument(this);
-            % Hdr should contain single field
-            fn=Hdr.field_names{1};           
-            readAllHedged(this);
-            addParam(Hdr, fn, 'pressure_unit', this.pressure_unit);
-            addParam(Hdr, fn, 'pressure1', this.pressure1);
-            addParam(Hdr, fn, 'pressure2', this.pressure2);
-            addParam(Hdr, fn, 'stat1', this.stat1);
-            addParam(Hdr, fn, 'stat2', this.stat2);
-            addParam(Hdr, fn, 'gauge_id1', this.gauge_id1);
-            addParam(Hdr, fn, 'gauge_id2', this.gauge_id2);
-        end
-        
         % Attempt communication and identification of the device
-        function [str, msg]=idn(this)
-            was_open=isopen(this);
+        function [str, msg] = idn(this)
             try
-                openDevice(this);
-                query(this.Device,['AYT',this.CR,this.LF]);
-                [str,~,msg]=query(this.Device,this.ENQ);
-            catch ErrorMessage
-                str='';
-                msg=ErrorMessage.message;
-            end
-            % Remove carriage return and new line symbols from the string
-            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
-            str=replace(str, newline_smb,' ');
-            
-            this.idn_str=str;
-            % Leave device in the state it was in the beginning
-            if ~was_open
-                try
-                    closeDevice(this);
-                catch
-                end
-            end
-        end
-        
-        %% Logging functionality
-        
-        % Init or reset logger
-        function initLogger(this, varargin)
-            if isa(this.Lg, 'MyLogger')
-                delete(this.Lg);
-            end
-            this.Lg = MyLogger('MeasFcn', @()readAllHedged(this), ...
-                varargin{:});
-            if isempty(this.Lg.Record.data_headers) &&...
-                    (~isempty(this.pressure_unit))
-                pu = this.pressure_unit;
-                this.Lg.Record.data_headers=...
-                    {['P ch1 (',pu,')'],['P ch2 (',pu,')']};
-            end
-        end
-        
-        % Trigger NewData event that sends trace to Daq
-        function transferTrace(this, n_ch)
-            if nargin==1
-                % Channel number is 1 if not specified explicitly
-                n_ch=1;
+                queryString(['AYT', this.CR, this.LF]);
+                str = queryString(this.ENQ);
+            catch ME
+                str = '';
+                msg = ME.message;
             end
             
-            if isa(this.Lg, 'MyLogger')&&isvalid(this.Lg)
-                time_arr=this.Lg.Record.timestamps_num;
-                % Shift time origin to 0
-                this.Trace.x=time_arr-time_arr(1);
-                this.Trace.y=this.Lg.Record.data(:,n_ch);
-                this.Trace.name_y=sprintf('P Ch%i',n_ch);
-                this.Trace.unit_y=this.pressure_unit;
-                triggerNewData(this);
-            else
-                warning(['Cannot transfer trace from the logger, ',...
-                    'missing or invalid MyLogger object.'])
-            end
+            this.idn_str = toSingleLine(str);
+        end
+    end
+    
+    methods (Access = protected)
+        function createCommandList(this)
+            addCommand(this, 'pressure', ...
+                'readFcn', @this.readPressure, ...
+                'default', [0, 0]);
+            
+            addCommand(this, 'pressure_unit', ...
+                'readFcn', @this.readPressureUnit, ...
+                'default', 'mBar');
+            
+            addCommand(this, 'gauge_id', ...
+                'readFcn', @this.readGaugeId, ...
+                'default', {'', ''});
         end
         
-        %% Functions for convertion between numerical codes and strings
+        function createMetadata(this)
+            createMetadata@MyInstrument(this);
+            
+            addObjProp(this.Metadata, this, 'gauge_stat', ...
+                'comment', 'Last measurement status');
+        end
         
         % Convert numerical code for gauge status to a string
         function str = gaugeStatusFromCode(~, code)
@@ -243,7 +142,7 @@ classdef MyTpg < MyInstrument
         function str = pressureUnitFromCode(~, code)
             switch int8(code)
                 case 0
-                    str = 'mbar';
+                    str = 'mBar';
                 case 1
                     str = 'Torr';
                 case 2
@@ -258,17 +157,6 @@ classdef MyTpg < MyInstrument
                     str = '';
                     warning('unknown pressure unit, code=%i',pu_num)
             end
-        end
-    end
-    
-    %% Get functions
-    methods
-        function p_str = get.pressure_str1(this)
-            p_str = sprintf('%.2e %s', this.pressure1, this.pressure_unit);
-        end
-        
-        function p_str = get.pressure_str2(this)
-            p_str = sprintf('%.2e %s', this.pressure2, this.pressure_unit);
         end
     end
 end
