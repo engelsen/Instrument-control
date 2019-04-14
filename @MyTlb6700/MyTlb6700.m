@@ -10,12 +10,16 @@
 
 classdef MyTlb6700 < MyScpiInstrument
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (GetAccess = public, ...
+            SetAccess = {?MyClassParser, ?MyTlb6700})
         
         % Interface field is not used in this instrument, but keep it
         % for the sake of information
         interface = 'usb';
         address = '';
+    end
+    
+    properties (GetAccess = public, SetAccess = protected)
         
         % Instance of Newport.USBComm.USB used for communication. 
         % Must be shared between the devices
@@ -140,12 +144,6 @@ classdef MyTlb6700 < MyScpiInstrument
             end
         end
         
-        % Writing is done by sending a command and querying its status.
-        % Still, redefine writeStrings of MyScpiInstrument for clarity.
-        function stat = writeStrings(this, varargin)
-            stat = queryStrings(this, varargin{:});
-        end
-        
         % Redefine queryStrings of MyScpiInstrument
         function res_list = queryStrings(this, varargin)
             if ~isempty(varargin)
@@ -161,6 +159,17 @@ classdef MyTlb6700 < MyScpiInstrument
             else
                 res_list = {};
             end
+        end
+        
+        % Writing is done by sending a command and querying its status.
+        % Still, redefine writeStrings of MyScpiInstrument for consistency 
+        % and clarity.
+        function stat = writeString(this, str)
+            stat = queryString(this, str);
+        end
+        
+        function stat = writeStrings(this, varargin)
+            stat = queryStrings(this, varargin{:});
         end
         
         %% Laser power and scan control functions
