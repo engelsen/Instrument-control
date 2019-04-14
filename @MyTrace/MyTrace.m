@@ -287,8 +287,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         % Load trace from file
         function Trace = load(filename, varargin)
-            assert(exist(filename, 'file'), ['File does not exist, ' ...
-                'please choose a different load path.'])
+            assert(exist(filename, 'file') ~= 0, ['File does not ' ...
+                'exist, please choose a different load path.'])
             
             % Extract data formatting 
             p = inputParser();
@@ -360,8 +360,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             Mdt = [Info, this.MeasHeaders, DataSep];
             
             % Ensure uniform formatting
-            if ~isempty(this.metadata_fmt)
-                set(Mdt, this.metadata_fmt{:});
+            if ~isempty(this.metadata_opts)
+                set(Mdt, this.metadata_opts{:});
             end
         end
         
