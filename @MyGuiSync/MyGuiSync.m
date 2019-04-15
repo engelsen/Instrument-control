@@ -102,6 +102,14 @@ classdef MyGuiSync < handle
             for i = 1:length(this.cleanup_list)
                 Obj = this.cleanup_list{i};
                 try
+                    if isa(Obj, 'timer')
+                        
+                        % Stop if object is a timer
+                        try
+                            stop(Obj);
+                        catch
+                        end
+                    end
                     
                     % Check if the object has an appropriate delete method. 
                     % This is a safety measure to never delete a file by 
