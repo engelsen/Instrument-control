@@ -10,13 +10,13 @@ classdef MyLogger < handle
     properties (Access = public)
         
         % Timer object
-        MeasTimer
+        MeasTimer = timer.empty()
         
         % Function that provides data to be recorded
         measFcn = @()0
         
         % MyLog object to store the recorded data
-        Record
+        Record = MyLog.empty()
         
         % Format for displaying readings (column name: value)
         disp_fmt = '%15s: %.3g'
@@ -42,9 +42,10 @@ classdef MyLogger < handle
     methods (Access = public)
         function this = MyLogger(varargin)
             P = MyClassParser(this);
+            addParameter(P, 'log_opts', {}, @iscell);
             processInputs(P, this, varargin{:});
             
-            this.Record = MyLog(P.unmatched_nv{:});
+            this.Record = MyLog(P.Results.log_opts{:});
                  
             % Create and confitugure timer
             this.MeasTimer = timer();
@@ -91,31 +92,31 @@ classdef MyLogger < handle
         
         % Display reading
         function str = printReading(this, ind)
-            if isempty(this.timestamps)
+            if isempty(this.Record.timestamps)
                 str = '';
                 return
             end
             
             % Print the last reading if index is not given explicitly
             if nargin()< 2
-                ind = length(this.timestamps);
+                ind = length(this.Record.timestamps);
             end
             
             switch ind
                 case 1
                     prefix = 'First reading ';
-                case length(this.timestamps)
+                case length(this.Record.timestamps)
                     prefix = 'Last reading ';
                 otherwise
                     prefix = 'Reading ';
             end
             
-            str = [prefix, char(this.timestamps(ind)), newline];
-            data_row = this.data(ind, :);
+            str = [prefix, char(this.Record.timestamps(ind)), newline];
+            data_row = this.Record.data(ind, :);
 
             for i=1:length(data_row)
-                if length(this.data_headers)>=i
-                    lbl = this.data_headers{i};
+                if length(this.Record.data_headers)>=i
+                    lbl = this.Record.data_headers{i};
                 else
                     lbl = sprintf('data%i', i);
                 end
