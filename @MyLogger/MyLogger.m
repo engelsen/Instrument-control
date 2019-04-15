@@ -17,6 +17,9 @@ classdef MyLogger < handle
         
         % MyLog object to store the recorded data
         Record
+        
+        % Format for displaying readings (column name: value)
+        disp_fmt = '%15s: %.3g'
     end
     
     properties (Access = public, SetObservable = true)
@@ -51,7 +54,7 @@ classdef MyLogger < handle
             % period very well, but is robust with respect to
             % function execution delays
             this.MeasTimer.ExecutionMode = 'fixedSpacing';
-            this.MeasTimer.TimerFcn = @(~,event)LoggerFcn(this,event);
+            this.MeasTimer.TimerFcn = @this.loggerFcn;
         end
         
         function delete(this)
@@ -72,7 +75,6 @@ classdef MyLogger < handle
             end
         end
         
-        
         % Redefine start/stop functions for the brevity of use
         function start(this)
             start(this.MeasTimer);
@@ -86,23 +88,58 @@ classdef MyLogger < handle
         % trigger a NewData event 
         function transferLog(this, Tmin, Tmax)
         end
+        
+        % Display reading
+        function str = printReading(this, ind)
+            if isempty(this.timestamps)
+                str = '';
+                return
+            end
+            
+            % Print the last reading if index is not given explicitly
+            if nargin()< 2
+                ind = length(this.timestamps);
+            end
+            
+            switch ind
+                case 1
+                    prefix = 'First reading ';
+                case length(this.timestamps)
+                    prefix = 'Last reading ';
+                otherwise
+                    prefix = 'Reading ';
+            end
+            
+            str = [prefix, char(this.timestamps(ind)), newline];
+            data_row = this.data(ind, :);
+
+            for i=1:length(data_row)
+                if length(this.data_headers)>=i
+                    lbl = this.data_headers{i};
+                else
+                    lbl = sprintf('data%i', i);
+                end
+                str = [str,...
+                    sprintf(this.disp_fmt, lbl, data_row(i)), newline]; %#ok<AGROW>
+            end
+        end
     end
     
     methods (Access = protected)
         
         % Perform measurement and append point to the log
-        function LoggerFcn(this, event)
+        function loggerFcn(this, ~, event)
             time = datetime(event.Data.time);
             try
                 meas_result = this.measFcn();
-                this.last_meas_stat=1; % last measurement ok
+                this.last_meas_stat = 1; % last measurement ok
             catch
                 warning(['Logger cannot take measurement at time = ',...
                     datestr(time)]);
-                this.last_meas_stat=0; % last measurement not ok
+                this.last_meas_stat = 0; % last measurement not ok
             end
             
-            if this.last_meas_stat==1
+            if this.last_meas_stat == 1
                 
                 % Append measurement result together with time stamp
                 appendData(this.Record, time, meas_result,...

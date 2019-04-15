@@ -17,9 +17,6 @@ classdef MyLog < matlab.mixin.Copyable
         % are removed by %g 
         data_fmt = '%.14g'
         
-        % Format for displaying the last reading (column name: value)
-        disp_fmt = '%15s: %.3g'
-        
         % Data column and line separators
         column_sep = '\t'
         line_sep = '\r\n'
@@ -452,7 +449,7 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         % Show the list of labels in readable format
-        function lst=printTimeLabelList(this)
+        function lst = printTimeLabelList(this)
             lst=cell(length(this.TimeLabels),1);
             for i=1:length(this.TimeLabels)
                 if ischar(this.TimeLabels(i).text_str) ||...
@@ -492,25 +489,6 @@ classdef MyLog < matlab.mixin.Copyable
             assert(ismatrix(this.data)&&isnumeric(this.data),...
                 ['Data is not a numeric matrix, saving in '...
                 'text format is not possible.']);
-        end
-        
-        % Display last reading
-        function str = printLastReading(this)
-            if isempty(this.timestamps)
-                str = '';
-            else
-                str = ['Last reading ',char(this.timestamps(end)),newline];
-                last_data = this.data(end,:);
-                for i=1:length(last_data)
-                    if length(this.data_headers)>=i
-                        lbl = this.data_headers{i};
-                    else
-                        lbl = sprintf('data%i',i);
-                    end
-                    str = [str,...
-                        sprintf(this.disp_fmt,lbl,last_data(i)),newline]; %#ok<AGROW>
-                end
-            end
         end
     end
     
