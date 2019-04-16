@@ -283,12 +283,6 @@ classdef MyGuiSync < handle
                     updateLinkedElement(this, this.Links(i));
                 end
             end
-            
-            % Optionally execute the update function defined within 
-            % the App
-            if ~isempty(this.updateGuiFcn)
-                this.updateGuiFcn();
-            end
         end
         
         % Update the value of one linked GUI element.
@@ -376,7 +370,7 @@ classdef MyGuiSync < handle
 
                 Link.setTargetFcn(val);
 
-                if ~isfield(Link, 'Listener')
+                if isempty(Link.Listener)
 
                     % Update non event based links
                     updateLinkedElements(this);
@@ -470,6 +464,12 @@ classdef MyGuiSync < handle
                 @iscolor);
             addParameter(p, 'lamp_off_color', MyAppColors.lampOff(), ...
                 @iscolor);
+            
+            % Option which allows converting a binary choice into a logical
+            % value
+            addParameter(p, 'switch_between', {}, @(x)assert( ...
+                iscell(x)&&length(x)==2, ['The value must be a cell ' ...
+                'of the form {true_opt, false_opt}.']));
 
             parse(p, Elem, prop_ref, varargin{:});
             
@@ -501,6 +501,17 @@ classdef MyGuiSync < handle
                 % Select between the on and off colors. 
                 Link.outputProcessingFcn = @(x)select(x, ...
                     p.Results.lamp_on_color, p.Results.lamp_off_color);
+            end
+            
+            if ~ismember('switch_between', p.UsingDefaults)
+                true_opt = p.Results.switch_between{1};
+                false_opt = p.Results.switch_between{2};
+                
+                % Assign input and output processing functions that convert
+                % a logical value into one of the options and back
+                Link.inputProcessingFcn = @(x)select(x, true_opt, ...
+                    false_opt);
+                Link.outputProcessingFcn = @(x)isequal(x, true_opt);
             end
 
             % Simple scaling is a special case of value processing
