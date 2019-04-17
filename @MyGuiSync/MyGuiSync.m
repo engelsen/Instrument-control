@@ -70,7 +70,6 @@ classdef MyGuiSync < handle
             end
         end
         
-        
         function delete(this)
             
             % Delete generic listeners
@@ -128,7 +127,6 @@ classdef MyGuiSync < handle
             end
         end
         
-        
         % Establish a correspondence between the value of a GUI element and
         % some other property of the app
         % 
@@ -144,7 +142,7 @@ classdef MyGuiSync < handle
             % a PostSet callback is made automatically by this function, 
             % but the parameters below enforce these functions to be *not*
             % created.
-            addParameter(p, 'create_value_changed_fcn', true, @islogical);
+            addParameter(p, 'create_elem_callback', true, @islogical);
             addParameter(p, 'event_update', true, @islogical);
             
             parse(p, varargin{:});
@@ -186,13 +184,13 @@ classdef MyGuiSync < handle
             Link.getTargetFcn = createGetTargetFcn(this, Hobj, ...
                 hobj_prop, RelSubs);
             
-            % Check if ValueChanged callback needs to be created
+            % Check if ValueChanged or another callback needs to be created
             elem_prop = Link.gui_element_prop;
             
-            create_vcf = p.Results.create_value_changed_fcn && ...
-                checkCreateVcf(this, Elem, elem_prop, Hobj, hobj_prop);
+            cb_name = findElemCallbackType(this, Elem, elem_prop, ...
+                Hobj, hobj_prop);
             
-            if create_vcf
+            if p.Results.create_elem_callback && ~isempty(cb_name)
                 
                 % A public CreateCallback method needs to intorduced in the
                 % app, as officially Matlab apps do not support external
@@ -208,8 +206,16 @@ classdef MyGuiSync < handle
                 Link.setTargetFcn = createSetTargetFcn(this, Hobj, ...
                     hobj_prop, RelSubs);
                 
-                Elem.ValueChangedFcn = createValueChangedCallback(this, ...
-                    Link);
+                switch cb_name
+                    case 'ValueChangedFcn'
+                        Elem.ValueChangedFcn = ...
+                            createValueChangedCallback(this, Link);
+                    case 'MenuSelectedFcn'
+                        Elem.MenuSelectedFcn = ...
+                            createMenuSelectedCallback(this, Link);
+                    otherwise
+                        error('Unknown callback name %s', cb_name)
+                end
             end
             
             % Attempt creating a callback to PostSet event for the target 
@@ -219,8 +225,7 @@ classdef MyGuiSync < handle
                 try
                     Link.Listener = addlistener(Hobj, hobj_prop, ...
                         'PostSet', createPostSetCallback(this, Link));
-                catch ME
-                    warning(ME.message); 
+                catch
                 end
             end
             
@@ -231,6 +236,8 @@ classdef MyGuiSync < handle
             this.Links(end+1) = Link;
         end
 
+        % Change link target for a given element. This function does not
+        % affect the input/output processing of values.
         function reLink(this, Elem, prop_ref)
             
             % Find the link structure corresponding to Elem
@@ -373,16 +380,64 @@ classdef MyGuiSync < handle
                     val = Link.inputProcessingFcn(val);
                 end
 
-                Link.setTargetFcn(val);
-
-                if isempty(Link.Listener)
-
-                    % Update non event based links
-                    updateAll(this);
+                if ~isempty(Link.Listener)
+                    
+                    % Switch the listener off
+                    Link.Listener.Enabled = false;
+                    
+                    % Set the value
+                    Link.setTargetFcn(val);
+                    
+                    % Switch the listener on again
+                    Link.Listener.Enabled = true;
+                else
+                    Link.setTargetFcn(val);
                 end
+                
+                % Update non event based links
+                updateAll(this);
             end
             
             f = this.createCallbackFcn(@valueChangedCallback);
+        end
+        
+        % MenuSelected callbacks are different from ValueChanged in that
+        % the state needs to be toggled manually
+        function f = createMenuSelectedCallback(this, Link)
+            function menuSelectedCallback(~, ~)           
+                
+                % Toggle the menu state
+                if strcmpi(Link.GuiElement.Checked, 'on')
+                    Link.GuiElement.Checked = 'off';
+                    val = 'off';
+                else
+                    Link.GuiElement.Checked = 'on';
+                    val = 'on';
+                end
+
+                if ~isempty(Link.inputProcessingFcn)
+                    val = Link.inputProcessingFcn(val);
+                end
+                
+                if ~isempty(Link.Listener)
+                    
+                    % Switch the listener off
+                    Link.Listener.Enabled = false;
+                    
+                    % Set the value
+                    Link.setTargetFcn(val);
+                    
+                    % Switch the listener on again
+                    Link.Listener.Enabled = true;
+                else
+                    Link.setTargetFcn(val);
+                end
+                
+                % Update non event based links
+                updateAll(this);
+            end
+            
+            f = this.createCallbackFcn(@menuSelectedCallback);
         end
         
         function f = createGetTargetFcn(~, Obj, prop_name, S)
@@ -498,6 +553,12 @@ classdef MyGuiSync < handle
                 % Select between the on and off colors. 
                 Link.outputProcessingFcn = @(x)select(x, ...
                     p.Results.lamp_on_color, p.Results.lamp_off_color);
+                return
+            end
+            
+            % Treat the special case of uimenus
+            if strcmpi(Elem.Type, 'uimenu')
+                Link.gui_element_prop = 'Checked';
             end
             
             if ~ismember('map', p.UsingDefaults)
@@ -585,14 +646,10 @@ classdef MyGuiSync < handle
             end
         end
         
-        % Decide if getTargetFcn and, correpondingly, ValueChanged 
-        % callback needs to be created
-        function bool = checkCreateVcf(~, Elem, elem_prop, Hobj, hobj_prop)
-            
-            if ~strcmp(elem_prop, 'Value')
-                bool = false;
-                return
-            end
+        % Decide what kind of callback (if any) needs to be created for 
+        % the GUI element. Options: '', 'ValueChangedFcn', 'MenuSelectedFcn' 
+        function callback_name = findElemCallbackType(~, ...
+                Elem, elem_prop, Hobj, hobj_prop)
             
             % Check property attributes
             Mp = findprop(Hobj, hobj_prop);
@@ -616,12 +673,28 @@ classdef MyGuiSync < handle
                 gui_element_editable = false;
             end
             
-            bool = prop_write_accessible && gui_element_editable; 
-
+            if ~(prop_write_accessible && gui_element_editable)
+                callback_name = '';
+                return
+            end
+            
             % Do not create a new callback if one already exists (typically 
-            % it means that a callback was manually defined in AppDesigner) 
-            bool = bool && (isprop(Elem, 'ValueChangedFcn') && ...
-                isempty(Elem.ValueChangedFcn));
+            % it means that a callback was manually defined in AppDesigner)
+            if strcmp(elem_prop, 'Value') && ...
+                    isprop(Elem, 'ValueChangedFcn') && ...
+                    isempty(Elem.ValueChangedFcn)
+                
+                % This is the most typical type of callback 
+                callback_name = 'ValueChangedFcn';
+            elseif strcmp(elem_prop, 'Checked') && ...
+                    strcmpi(Elem.Type, 'uimenu') && ...
+                    isempty(Elem.MenuSelectedFcn)
+                
+                % Callbacks for menus
+                callback_name = 'MenuSelectedFcn';
+            else
+                callback_name = '';
+            end
         end
         
         % Extract the top-most handle object in the reference, the end
