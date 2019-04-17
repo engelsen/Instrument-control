@@ -58,15 +58,17 @@ classdef MyLog < matlab.mixin.Copyable
             'LbText',   {});     % labels text handles 
     end
     
-    properties (Dependent = true)   
-        data_line_fmt % Format specifier for one data row to be printed
+    properties (Dependent = true)
+        channel_no      % Number of data colums
         
-        column_headers % Time column header + data column headers
+        data_line_fmt   % Format specifier for one data row to be printed
         
-        data_file_name % File name with extension for data saving
-        meta_file_name % File name with extension for metadata saving
+        column_headers  % Time column header + data column headers
         
-        timestamps_num % Timestamps converted to numeric format
+        data_file_name  % File name with extension for data saving
+        meta_file_name  % File name with extension for metadata saving
+        
+        timestamps_num  % Timestamps converted to numeric format
     end
     
     properties (Access = protected)
@@ -734,6 +736,10 @@ classdef MyLog < matlab.mixin.Copyable
             else
                 time_num_arr=this.timestamps;
             end
+        end
+        
+        function val = get.channel_no(this)
+            val = length(this.data_headers);
         end
     end
 end
