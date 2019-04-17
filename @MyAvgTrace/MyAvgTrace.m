@@ -89,9 +89,9 @@ classdef MyAvgTrace < MyTrace
             this.avg_count = 0;
         end
         
-        % Overload clearData so that it reset the averaging counter in
+        % Overload the method so that it reset the averaging counter in
         % addition to clearing the x and y values
-        function clearData(this)
+        function clear(this)
             this.x = [];
             this.y = [];
             resetCounter(this);

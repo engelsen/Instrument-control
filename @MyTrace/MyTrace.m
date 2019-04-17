@@ -101,7 +101,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             fclose(fileID);
         end
         
-        function clearData(this)
+        function clear(this)
             this.x = [];
             this.y = [];
         end
