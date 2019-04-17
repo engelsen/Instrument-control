@@ -173,7 +173,7 @@ classdef MyGuiSync < handle
             
             % Create the basis of link structure (everything except for 
             % set/get functions)
-            Link = makeLinkBase(this, Elem, prop_ref, sub_varargin{:});
+            Link = createLinkBase(this, Elem, prop_ref, sub_varargin{:});
             
             % Do additional link processing in the case of 
             % MyInstrument commands
@@ -430,7 +430,7 @@ classdef MyGuiSync < handle
         %% Subroutines of addLink
         
         % Parse input and create the base of Link structure
-        function Link = makeLinkBase(this, Elem, prop_ref, varargin)
+        function Link = createLinkBase(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
             p = inputParser();
@@ -466,9 +466,7 @@ classdef MyGuiSync < handle
             
             % Option which allows converting a binary choice into a logical
             % value
-            addParameter(p, 'switch_between', {}, @(x)assert( ...
-                iscell(x)&&length(x)==2, ['The value must be a cell ' ...
-                'of the form {true_opt, false_opt}.']));
+            addParameter(p, 'map', {}, @this.validateMapArg);
 
             parse(p, Elem, prop_ref, varargin{:});
             
@@ -502,15 +500,16 @@ classdef MyGuiSync < handle
                     p.Results.lamp_on_color, p.Results.lamp_off_color);
             end
             
-            if ~ismember('switch_between', p.UsingDefaults)
-                true_opt = p.Results.switch_between{1};
-                false_opt = p.Results.switch_between{2};
+            if ~ismember('map', p.UsingDefaults)
+                ref_vals = p.Results.map{1};
+                gui_vals = p.Results.map{2};
                 
                 % Assign input and output processing functions that convert
                 % a logical value into one of the options and back
-                Link.inputProcessingFcn = @(x)select(x, true_opt, ...
-                    false_opt);
-                Link.outputProcessingFcn = @(x)isequal(x, true_opt);
+                Link.inputProcessingFcn = @(x)select( ...
+                    isequal(x, gui_vals{1}), ref_vals{:});
+                Link.outputProcessingFcn = @(x)select( ...
+                    isequal(x, ref_vals{1}), gui_vals{:});
             end
 
             % Simple scaling is a special case of value processing
@@ -655,6 +654,20 @@ classdef MyGuiSync < handle
                     break
                 end
             end
+        end
+        
+        % Validate the value of 'map' optional argument in createLinkBase
+        function validateMapArg(~, arg)
+            try
+                is_map_arg = iscell(arg) && length(arg)==2 && ...
+                    length(arg{1})==2 && length(arg{2})==2; 
+            catch
+                is_map_arg = false;
+            end
+            
+            assert(is_map_arg, ['The value must be a cell of the form ' ...
+                '{{reference value 1, reference value 2}, ' ...
+                '{GUI dispaly value 1, GUI dispaly value 2}}.'])
         end
     end
 end
