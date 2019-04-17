@@ -60,7 +60,7 @@ classdef MyGuiSync < handle
             this.Listeners.AppDeleted = addlistener(App, ...
                 'ObjectBeingDestroyed', @(~, ~)delete(this));
             
-            if ~ismember('KernelObj', p.UsingDefaults)
+            if ~isempty(p.Results.KernelObj)
                 
                 KernelObj = p.Results.KernelObj;
                 addToCleanup(this, p.Results.KernelObj);
@@ -226,6 +226,7 @@ classdef MyGuiSync < handle
                     Link.Listener = addlistener(Hobj, hobj_prop, ...
                         'PostSet', createPostSetCallback(this, Link));
                 catch
+                    Link.Listener = event.proplistener.empty();
                 end
             end
             
@@ -273,7 +274,8 @@ classdef MyGuiSync < handle
                 this.Links(ind).Listener = addlistener(Hobj, hobj_prop, ...
                     'PostSet', createPostSetCallback(this, ...
                     this.Links(ind)));
-            catch 
+            catch
+                this.Links(ind).Listener = event.proplistener.empty();
             end
                 
             % Update the value of GUI element according to the new
@@ -284,9 +286,10 @@ classdef MyGuiSync < handle
         function updateAll(this)
             for i=1:length(this.Links)
                 
-                % Elements updated by callbacks should not be updated
-                % manually
-                if isempty(this.Links(i).Listener)
+                % Only update those elements for which listeners do not
+                % exist or invalid
+                L = this.Links(i).Listener;
+                if isempty(L) || ~any(isvalid(L))
                     updateElement(this, this.Links(i));
                 end
             end
