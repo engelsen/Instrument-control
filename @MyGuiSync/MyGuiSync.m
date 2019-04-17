@@ -225,7 +225,7 @@ classdef MyGuiSync < handle
             end
             
             % Update the value of GUI element 
-            updateLinkedElement(this, Link);
+            updateElement(this, Link);
             
             % Store the link structure
             this.Links(end+1) = Link;
@@ -271,24 +271,29 @@ classdef MyGuiSync < handle
                 
             % Update the value of GUI element according to the new
             % reference
-            updateLinkedElement(this, this.Links(ind));
+            updateElement(this, this.Links(ind));
         end
         
-        function updateLinkedElements(this)
+        function updateAll(this)
             for i=1:length(this.Links)
                 
                 % Elements updated by callbacks should not be updated
                 % manually
                 if isempty(this.Links(i).Listener)
-                    updateLinkedElement(this, this.Links(i));
+                    updateElement(this, this.Links(i));
                 end
+            end
+            
+            % Optionally execute the update function defined within the App
+            if ~isempty(this.updateGuiFcn)
+                this.updateGuiFcn();
             end
         end
         
         % Update the value of one linked GUI element.
         % Arg2 can be a link structure or a GUI element for which the
         % corresponding link structure needs to be found.
-        function updateLinkedElement(this, Arg2)
+        function updateElement(this, Arg2)
             if isstruct(Arg2)
                 Link = Arg2;
                 
@@ -310,7 +315,7 @@ classdef MyGuiSync < handle
                 Link = this.Links(ind);
 
                 if length(Link) == 1
-                    updateLinkedElement(this, Link);
+                    updateElement(this, Link);
                 elseif isempty(Link)
                     warning(['The value of GUI element below cannot ' ...
                         'be updated as no link for it is found.']);
@@ -373,13 +378,7 @@ classdef MyGuiSync < handle
                 if isempty(Link.Listener)
 
                     % Update non event based links
-                    updateLinkedElements(this);
-
-                    % Optionally execute the update function defined within 
-                    % the App
-                    if ~isempty(this.updateGuiFcn)
-                        this.updateGuiFcn();
-                    end
+                    updateAll(this);
                 end
             end
             
