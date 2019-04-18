@@ -69,12 +69,6 @@ classdef MyLog < matlab.mixin.Copyable
         timestamps_num  % Timestamps converted to numeric format
     end
     
-    properties (Access = protected)
-        
-        % Variable used for tracking the modification of metadata 
-        LastSavedMetadata
-    end
-    
     methods (Access = public)
         function this = MyLog(varargin)
             P = MyClassParser(this);
@@ -167,37 +161,34 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Find out if the log was already plotted in these axes. If
             % not, appned Ax to the PlotList.
-            ind=findPlotInd(this, Ax);
+            ind = findPlotInd(this, Ax);
             if isempty(ind)
-                l=length(this.PlotList);
-                this.PlotList(l+1).Axes=Ax;
-                ind=l+1;
+                l = length(this.PlotList);
+                this.PlotList(l+1).Axes = Ax;
+                ind = l+1;
             end
             
             % Plot data 
             if isempty(this.PlotList(ind).DataLines)
+                
                 % If the log was never plotted in Ax, 
                 % plot using default style and store the line handles 
-                Pls=line(Ax, this.timestamps, this.data);
-                this.PlotList(ind).DataLines=Pls;
+                Pls = line(Ax, this.timestamps, this.data);
+                this.PlotList(ind).DataLines = Pls;
             else
+                
                 % Replace existing data
-                Pls=this.PlotList(ind).DataLines;
+                Pls = this.PlotList(ind).DataLines;
                 for i=1:length(Pls)
-                    try
-                        Pls(i).XData=this.timestamps;
-                        Pls(i).YData=this.data(:,i);
-                    catch
-                        warning(['Could not update plot for '...
-                            '%i-th data column'],i);
-                    end
+                    Pls(i).XData = this.timestamps;
+                    Pls(i).YData = this.data(:,i);
                 end
             end
             
             % Set the visibility of lines
             if ~ismember('isdisp',p.UsingDefaults)
                 for i=1:ncols
-                    Pls(i).Visible=p.Results.isdisp(i);
+                    Pls(i).Visible = p.Results.isdisp(i);
                 end
             end
             
@@ -205,14 +196,15 @@ classdef MyLog < matlab.mixin.Copyable
             if (p.Results.time_labels)
                 plotTimeLabels(this, Ax);
             end
+            
             if (p.Results.legend)&&(~isempty(this.data_headers))&&...
-                (~isempty(this.data))    
+                (~isempty(this.data)) 
+            
                 % Add legend only for for those lines that are displayed
                 disp_ind = cellfun(@(x)strcmpi(x,'on'),{Pls.Visible});
                 legend(Ax, Pls(disp_ind), this.data_headers{disp_ind},...
                     'Location','southwest');
             end
-
         end
         
          %% Manipulations with log data
@@ -275,14 +267,6 @@ classdef MyLog < matlab.mixin.Copyable
                     % Append new data points to file
                     fprintf(fid, this.data_line_fmt, time_num, val);
                     fclose(fid);
-                    
-                    % Save metadata if it was modified since last saving 
-                    % or if the file is non-existent
-                    Mdt = getMetadata(this);
-                    mdt_mod = ~isequal(Mdt, this.LastSavedMetadata);
-                    if mdt_mod || exist(this.meta_file_name, 'file') ~= 2
-                        saveMetadata(this, Mdt);
-                    end
                 catch
                     warning(['Logger cannot save data at time = ',...
                         datestr(datetime('now', ...
@@ -300,12 +284,13 @@ classdef MyLog < matlab.mixin.Copyable
         %% Time labels 
         
         function plotTimeLabels(this, Ax)
+            
             % Find out if the log was already plotted in these axes
-            ind=findPlotInd(this, Ax);
+            ind = findPlotInd(this, Ax);
             if isempty(ind)
-                l=length(this.PlotList);
-                this.PlotList(l+1).Axes=Ax;
-                ind=l+1;
+                l = length(this.PlotList);
+                this.PlotList(l+1).Axes = Ax;
+                ind = l+1;
             end
             
             % Remove existing labels 
@@ -317,35 +302,40 @@ classdef MyLog < matlab.mixin.Copyable
             markline = linspace(ymin, ymax, 2);
             
             % Plot labels
-            for i=1:length(this.TimeLabels)
-                T=this.TimeLabels(i);
-                marktime = [T.time,T.time];
+            for i = 1:length(this.TimeLabels)
+                T = this.TimeLabels(i);
+                marktime = [T.time, T.time];
+                
                 % Add text label to plot, with 5% offset from 
                 % the boundary for beauty
-                Txt=text(Ax, T.time, ymin+0.95*(ymax-ymin), T.text_str,...
-                    'Units','data',...
-                    'HorizontalAlignment','right',...
-                    'VerticalAlignment','top',...
-                    'FontWeight', 'bold',...
-                    'Rotation',90,...
-                    'BackgroundColor','white',...
-                    'Clipping','on',...
-                    'Margin',1);
+                Txt = text(Ax,T.time,ymin+0.95*(ymax-ymin),T.text_str, ...
+                    'Units',                'data',...
+                    'HorizontalAlignment',  'right',...
+                    'VerticalAlignment',    'top',...
+                    'FontWeight',           'normal',...
+                    'Rotation',             90,...
+                    'BackgroundColor',      'white',...
+                    'Clipping',             'on',...
+                    'Margin',               1);
+                
                 % Add line to plot
-                Pl=line(Ax, marktime, markline,'color','black');
+                Pl = line(Ax, marktime, markline, 'color', 'black');
+                
                 % Store the handles of text and line
                 this.PlotList(ind).LbLines = ...
-                    [this.PlotList(ind).LbLines,Pl];
+                    [this.PlotList(ind).LbLines, Pl];
                 this.PlotList(ind).LbText = ...
-                    [this.PlotList(ind).LbText,Txt];
+                    [this.PlotList(ind).LbText, Txt];
             end
         end
         
         % Remove existing labels from the plot 
         function eraseTimeLabels(this, Ax)
+            
             % Find out if the log was already plotted in these axes
             ind=findPlotInd(this, Ax);
             if ~isempty(ind)
+                
                 % Remove existing labels 
                 delete(this.PlotList(ind).LbLines);
                 this.PlotList(ind).LbLines=[];
@@ -448,20 +438,23 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
-        % Show the list of labels in readable format
-        function lst = printTimeLabelList(this)
-            lst=cell(length(this.TimeLabels),1);
+        % Show the list of labels in a readable format 
+        function lst = printTimeLabels(this)
+            
+            % The returned output is a list of character strings
+            lst = cell(length(this.TimeLabels), 1);
+            
             for i=1:length(this.TimeLabels)
                 if ischar(this.TimeLabels(i).text_str) ||...
                         isstring(this.TimeLabels(i).text_str)
-                    tmpstr=this.TimeLabels(i).text_str;
+                    tmpstr = this.TimeLabels(i).text_str;
                 elseif iscell(this.TimeLabels(i).text_str)
                     
                     % If text is cell array, elements corresponding to 
                     % multiple lines, display the first line
-                    tmpstr=this.TimeLabels(i).text_str{1};
+                    tmpstr = this.TimeLabels(i).text_str{1};
                 end
-                lst{i}=[this.TimeLabels(i).time_str,' ', tmpstr];
+                lst{i}=[this.TimeLabels(i).time_str, ' ', tmpstr];
             end
         end
         
@@ -624,9 +617,6 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             save(Mdt, metfilename);
-            
-            % Store the value for change tracking
-            this.LastSavedMetadata = Mdt;
         end
         
         % Process metadata
