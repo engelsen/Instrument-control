@@ -7,7 +7,8 @@ classdef MyGuiSync < handle
         Listeners = struct()
         
         % Link structures
-        Links = struct( ...            
+        Links = struct( ...
+            'reference',            {}, ... % reference to the link target
             'GuiElement',           {}, ... % graphics object      
             'gui_element_prop',     {}, ...
             'inputProcessingFcn',   {}, ... % applied after a value is 
@@ -230,26 +231,36 @@ classdef MyGuiSync < handle
                 end
             end
             
-            % Update the value of GUI element 
-            updateElement(this, Link);
-            
             % Store the link structure
-            this.Links(end+1) = Link;
+            ind = length(this.Links)+1;
+            this.Links(ind) = Link;
+            
+            % Update the value of GUI element
+            updateElementByIndex(this, ind);
         end
 
-        % Change link target for a given element. This function does not
-        % affect the input/output processing of values.
+        % Change link reference for a given element or update the functions 
+        % that get and set the value of the existing reference. 
         function reLink(this, Elem, prop_ref)
             
-            % Find the link structure corresponding to Elem
-            ind = find(arrayfun( @(x)isequal(x.GuiElement, Elem), ...
-                this.Links));
+            % Find the index of link structure corresponding to Elem
+            ind = findLinkInd(this, Elem);
             
-            assert(length(ind) == 1, ['No or multiple existing links ' ...
-                'found during a relinking attempt.'])
+            if isempty(ind)
+                return
+            end
             
-            % Delete and clear the existing listener
+            if ~exist('prop_ref', 'var')
+                
+                % If the reference is not supplied, update existing
+                prop_ref = this.Links(ind).reference;
+            end
+            
+            this.Links(ind).reference = prop_ref;
+            
             if ~isempty(this.Links(ind).Listener)
+                
+                % Delete and clear the existing listener
                 delete(this.Links(ind).Listener);
                 this.Links(ind).Listener = [];
             end
@@ -280,17 +291,17 @@ classdef MyGuiSync < handle
                 
             % Update the value of GUI element according to the new
             % reference
-            updateElement(this, this.Links(ind));
+            updateElementByIndex(this, ind);
         end
         
         function updateAll(this)
-            for i=1:length(this.Links)
+            for i = 1:length(this.Links)
                 
                 % Only update those elements for which listeners do not
                 % exist or invalid
                 L = this.Links(i).Listener;
                 if isempty(L) || ~any(isvalid(L))
-                    updateElement(this, this.Links(i));
+                    updateElementByIndex(this, i);
                 end
             end
             
@@ -301,40 +312,10 @@ classdef MyGuiSync < handle
         end
         
         % Update the value of one linked GUI element.
-        % Arg2 can be a link structure or a GUI element for which the
-        % corresponding link structure needs to be found.
-        function updateElement(this, Arg2)
-            if isstruct(Arg2)
-                Link = Arg2;
-                
-                val = Link.getTargetFcn();
-                if ~isempty(Link.outputProcessingFcn)
-                    val = Link.outputProcessingFcn(val);
-                end
-                
-                % Setting value to a matlab app elemen is time consuming, 
-                % so first check if the value has actually changed
-                setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
-            else
-                Elem = Arg2;
-                
-                % Find the link structure corresponding to Elem
-                ind = arrayfun( @(x)isequal(x.GuiElement, Elem), ...
-                    this.Links);
-
-                Link = this.Links(ind);
-
-                if length(Link) == 1
-                    updateElement(this, Link);
-                elseif isempty(Link)
-                    warning(['The value of GUI element below cannot ' ...
-                        'be updated as no link for it is found.']);
-                    disp(Elem);
-                else
-                    warning(['The value of GUI element below cannot ' ...
-                        'be updated, multiple link structures exist.']);
-                    disp(Elem);
-                end
+        function updateElement(this, Elem)
+            ind = findLinkInd(this, Elem);
+            if ~isempty(ind)
+                updateElementByIndex(this, ind);
             end
         end
         
@@ -485,6 +466,39 @@ classdef MyGuiSync < handle
             end
         end
         
+        % Find the link structure corresponding to Elem
+        function ind = findLinkInd(this, Elem)
+                
+            % Argument 2 is a GUI element, for which we find the link 
+            ind = arrayfun(@(x)isequal(x.GuiElement, Elem), this.Links);
+            ind = find(ind);
+            
+            if isempty(ind)
+                warning('No link found for the GUI element below.');
+                disp(Elem);
+            elseif length(ind) > 1
+                warning('Multiple links found for the GUI element below.');
+                disp(Elem);
+                
+                ind = [];
+            end
+        end
+        
+        % Update the value of one linked GUI element given the index of
+        % corresponding link
+        function updateElementByIndex(this, ind)
+            Link = this.Links(ind);
+            
+            val = Link.getTargetFcn();
+            if ~isempty(Link.outputProcessingFcn)
+                val = Link.outputProcessingFcn(val);
+            end
+
+            % Setting value to a matlab app elemen is time consuming, 
+            % so first check if the value has actually changed
+            setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
+        end
+        
         %% Subroutines of addLink
         
         % Parse input and create the base of Link structure
@@ -503,14 +517,15 @@ classdef MyGuiSync < handle
             % Linked property of the GUI element (can be e.g. 'Color')
             addParameter(p, 'elem_prop', 'Value', @ischar);
 
-            % If input_prescaler is given, the value assigned to the instrument propery  
-            % is related to the value x displayed in GUI as x/input_presc.
+            % If input_prescaler is given, the value assigned to the  
+            % instrument propery is related to the value x displayed in 
+            % GUI as x/input_presc.
             addParameter(p, 'input_prescaler', 1, @isnumeric);
 
-            % Arbitrary processing functions can be specified for input and output.
-            % out_proc_fcn is applied to values before assigning them to gui
-            % elements and in_proc_fcn is applied before assigning
-            % to the linked properties
+            % Arbitrary processing functions can be specified for input and 
+            % output. outputProcessingFcn is applied to values before  
+            % assigning them to gui elements and in_proc_fcn is applied  
+            % before assigning to the linked properties.
             addParameter(p, 'outputProcessingFcn', [], ...
                 @(f)isa(f,'function_handle'));
             addParameter(p, 'inputProcessingFcn', [], ...
@@ -536,6 +551,7 @@ classdef MyGuiSync < handle
             
             % Create a new link structure
             Link = struct( ...
+                'reference',            prop_ref, ...
                 'GuiElement',           p.Results.Elem, ...       
                 'gui_element_prop',     p.Results.elem_prop, ...
                 'inputProcessingFcn',   p.Results.inputProcessingFcn, ...
@@ -650,7 +666,7 @@ classdef MyGuiSync < handle
         end
         
         % Decide what kind of callback (if any) needs to be created for 
-        % the GUI element. Options: '', 'ValueChangedFcn', 'MenuSelectedFcn' 
+        % the GUI element. Options: 'ValueChangedFcn', 'MenuSelectedFcn' 
         function callback_name = findElemCallbackType(~, ...
                 Elem, elem_prop, Hobj, hobj_prop)
             
