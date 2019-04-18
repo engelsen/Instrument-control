@@ -287,14 +287,16 @@ classdef MyLog < matlab.mixin.Copyable
         
         %% Time labels 
         
-        function plotTimeLabels(this, Ax)
+        function plotTimeLabels(this, Axes)
             
             % Find out if the log was already plotted in these axes
-            ind = findPlotInd(this, Ax);
+            ind = findPlotInd(this, Axes);
             if isempty(ind)
                 l = length(this.PlotList);
-                this.PlotList(l+1).Axes = Ax;
+                this.PlotList(l+1).Axes = Axes;
                 ind = l+1;
+            else
+                Axes = this.PlotList(ind).Axes;
             end
             
             % Plot labels
@@ -315,34 +317,17 @@ classdef MyLog < matlab.mixin.Copyable
                 catch
                     
                     % Add new background line
-                    this.PlotList(ind).BgLines(i) = xline(T.time, ...
+                    this.PlotList(ind).BgLines(i) = xline(Axes, T.time, ...
                         'LineWidth',    10*length(T.text_str), ...
                         'Color',        [1, 1, 1]);
                     
                     % Add new label line 
-                    this.PlotList(ind).LbLines(i) = xline(T.time, '-', ...
-                        T.text_str, ...
+                    this.PlotList(ind).LbLines(i) = xline(Axes, T.time, ...
+                        '-', T.text_str, ...
                         'LineWidth',                0.5, ...
                         'LabelHorizontalAlignment', 'center', ...
                         'FontSize',                 10);
                 end
-            end
-        end
-        
-        % Remove existing labels from the plot 
-        function eraseTimeLabels(this, Ax)
-            
-            % Find out if the log was already plotted in these axes
-            ind=findPlotInd(this, Ax);
-            if ~isempty(ind)
-                
-                % Remove existing labels 
-                delete(this.PlotList(ind).LbLines);
-                this.PlotList(ind).LbLines=[];
-                delete(this.PlotList(ind).LbText);
-                this.PlotList(ind).LbText=[];
-            else
-                warning('Cannot erase time labels. Axes not found.')
             end
         end
         
@@ -475,7 +460,7 @@ classdef MyLog < matlab.mixin.Copyable
             for i=1:length(this.PlotList)
                 delete(this.PlotList(i).DataLines);
                 delete(this.PlotList(i).LbLines);
-                delete(this.PlotList(i).LbText);
+                delete(this.PlotList(i).BgLines);
             end
             this.PlotList(:)=[];
             
