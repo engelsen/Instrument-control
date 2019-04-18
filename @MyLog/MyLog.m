@@ -41,6 +41,10 @@ classdef MyLog < matlab.mixin.Copyable
     
         timestamps % Times at which data was aqcuired
         data % Array of measurements
+    end
+       
+    properties (GetAccess = public, SetAccess = protected, ...
+            SetObservable = true)
         
         % Structure array that stores labeled time marks
         TimeLabels = struct( ...
@@ -52,8 +56,8 @@ classdef MyLog < matlab.mixin.Copyable
         PlotList = struct( ...
             'Axes',     {}, ...  % axes handles
             'DataLines',{}, ...  % data line handles
-            'LbLines',  {}, ...  % labels line handles
-            'LbText',   {});     % labels text handles 
+            'LbLines',  {}, ...  % label line handles
+            'BgLines',   {});    % label line background handles 
     end
     
     properties (Dependent = true)
@@ -293,39 +297,35 @@ classdef MyLog < matlab.mixin.Copyable
                 ind = l+1;
             end
             
-            % Remove existing labels 
-            eraseTimeLabels(this, Ax);
-            
-            % Define marker lines to span over the entire plot
-            ymin=Ax.YLim(1);
-            ymax=Ax.YLim(2);
-            markline = linspace(ymin, ymax, 2);
-            
             % Plot labels
             for i = 1:length(this.TimeLabels)
                 T = this.TimeLabels(i);
-                marktime = [T.time, T.time];
                 
-                % Add text label to plot, with 5% offset from 
-                % the boundary for beauty
-                Txt = text(Ax,T.time,ymin+0.95*(ymax-ymin),T.text_str, ...
-                    'Units',                'data',...
-                    'HorizontalAlignment',  'right',...
-                    'VerticalAlignment',    'top',...
-                    'FontWeight',           'normal',...
-                    'Rotation',             90,...
-                    'BackgroundColor',      'white',...
-                    'Clipping',             'on',...
-                    'Margin',               1);
-                
-                % Add line to plot
-                Pl = line(Ax, marktime, markline, 'color', 'black');
-                
-                % Store the handles of text and line
-                this.PlotList(ind).LbLines = ...
-                    [this.PlotList(ind).LbLines, Pl];
-                this.PlotList(ind).LbText = ...
-                    [this.PlotList(ind).LbText, Txt];
+                try
+                    Lbl = this.PlotList(ind).LbLines(i);
+                    
+                    % Update the existing label line
+                    Lbl.Value = T.time;
+                    Lbl.Label = T.text_str;
+                    
+                    % Update the background width - font size times the
+                    % number of lines
+                    this.PlotList(ind).BgLines(i).LineWidth = ...
+                        Lbl.FontSize*length(T.text_str);
+                catch
+                    
+                    % Add new background line
+                    this.PlotList(ind).BgLines(i) = xline(T.time, ...
+                        'LineWidth',    10*length(T.text_str), ...
+                        'Color',        [1, 1, 1]);
+                    
+                    % Add new label line 
+                    this.PlotList(ind).LbLines(i) = xline(T.time, '-', ...
+                        T.text_str, ...
+                        'LineWidth',                0.5, ...
+                        'LabelHorizontalAlignment', 'center', ...
+                        'FontSize',                 10);
+                end
             end
         end
         
@@ -392,6 +392,9 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
+        function deleteTimeLabel(this, ind)
+        end
+        
         % Modify text or time of an exising label. If new time and text are
         % not provided as arguments, modifyTimeLabel(this, ind, time, str), 
         % invoke a dialog.
@@ -420,7 +423,9 @@ classdef MyLog < matlab.mixin.Copyable
                 else
                     % Convert the input value to datetime and ensure 
                     % proper format
+                    
                     time=datetime(answ{2}, 'Format', this.datetime_fmt);
+                    
                     % Store multiple lines as cell array
                     str=cellstr(answ{1});
                 end
