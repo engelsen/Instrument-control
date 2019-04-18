@@ -8,7 +8,7 @@
 
 classdef MyLog < matlab.mixin.Copyable
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         
         % Save time as posixtime up to ms precision
         time_fmt = '%14.3f'
@@ -38,9 +38,7 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Format for string representation of timestamps
         datetime_fmt = 'yyyy-MMM-dd HH:mm:ss'
-    end
     
-    properties (SetAccess = public, GetAccess = public)    
         timestamps % Times at which data was aqcuired
         data % Array of measurements
         
@@ -110,13 +108,13 @@ classdef MyLog < matlab.mixin.Copyable
             % Save time labels in a separate file
             saveMetadata(this);
 
-            fid = fopen(datfname,'w');
+            fid = fopen(datfname, 'w');
 
             % Write column headers
             str = printDataHeaders(this);
             fprintf(fid, '%s', str);
 
-            % Write data body
+            % Write the bulk of data
             fmt = this.data_line_fmt;
             for i = 1:length(this.timestamps)
                 fprintf(fid, fmt, this.timestamps_num(i), this.data(i,:));
@@ -458,6 +456,7 @@ classdef MyLog < matlab.mixin.Copyable
                         isstring(this.TimeLabels(i).text_str)
                     tmpstr=this.TimeLabels(i).text_str;
                 elseif iscell(this.TimeLabels(i).text_str)
+                    
                     % If text is cell array, elements corresponding to 
                     % multiple lines, display the first line
                     tmpstr=this.TimeLabels(i).text_str{1};
@@ -470,6 +469,7 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Clear log data and time labels
         function clear(this)
+            
             % Clear while preserving the array types
             this.TimeLabels(:)=[];
             
@@ -520,11 +520,8 @@ classdef MyLog < matlab.mixin.Copyable
                 'CollapseDelimiters', true);
             fclose(fid);
             
-            % Assign column headers, prioritizing those found in 
-            % the metadata file over those found in the main file. Column  
-            % names in the main file printed once the file is created,  
-            % while the column names in metadata are dynamically updated.
-            if isempty(L.data_headers)
+            % Assign column headers
+            if length(dat_col_heads) > 1 
                 L.data_headers = dat_col_heads(2:end);
             end
             
@@ -532,8 +529,8 @@ classdef MyLog < matlab.mixin.Copyable
             % array, skip the first line containing column headers
             fulldata = dlmread(filename, L.column_sep, 1, 0);
             
-            L.data = fulldata(:,2:end);
-            L.timestamps = fulldata(:,1);
+            L.data = fulldata(:, 2:end);
+            L.timestamps = fulldata(:, 1);
             
             % Convert time stamps to datetime if the time column header
             % is 'posixtime'
@@ -598,25 +595,18 @@ classdef MyLog < matlab.mixin.Copyable
         % Create metadata from log properties
         function Mdt = getMetadata(this)
             
-            % Add column names
-            CnMdt = MyMetadata(this.metadata_opts{:}, ...
-                'title', 'ColumnNames');
-            addParam(CnMdt, 'Name', this.column_headers);
-            
             if ~isempty(this.TimeLabels)
                 
                 % Add the textual part of TimeLabels structure
-                TlMdt = MyMetadata(this.metadata_opts{:}, ...
+                Mdt = MyMetadata(this.metadata_opts{:}, ...
                     'title', 'TimeLabels');
             
                 Lbl = struct('time_str', {this.TimeLabels.time_str}, ...
                     'text_str', {this.TimeLabels.text_str});
-                addParam(TlMdt, 'TimeLabels', 'Lbl', Lbl);
+                addParam(Mdt, 'Lbl', Lbl);
             else
-                TlMdt = MyMetadata.empty();
+                Mdt = MyMetadata.empty();
             end
-            
-            Mdt = [CnMdt, TlMdt];
         end
         
         % Save log metadata, owerwriting existing
@@ -625,10 +615,10 @@ classdef MyLog < matlab.mixin.Copyable
                 Mdt = getMetadata(this);
             end
             
-            metfname = this.data_file_name;
+            metfilename = this.meta_file_name;
             
             % Create or clear the file
-            stat = createFile(metfname, 'owerwrite', true);
+            stat = createFile(metfilename, 'overwrite', true);
             if ~stat
                 return
             end
@@ -641,14 +631,6 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Process metadata
         function setMetadata(this, Mdt) 
-            
-            % Assign column names
-            Cn = titleref(Mdt, 'ColumnNames');
-            if ~isempty(Cn) && length(Cn.ParamList.Name)>1
-                
-                % Assign column headers from metadata if present 
-                this.data_headers = Cn.ParamList.Name(2:end);
-            end
             
             % Assign time labels
             Tl = titleref(Mdt, 'TimeLabels');
@@ -720,6 +702,7 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         function hdrs=get.column_headers(this)
+            
             % Add header for the time column
             if isa(this.timestamps,'datetime')
                 time_title_str = 'POSIX time (s)';
@@ -730,6 +713,7 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         function time_num_arr=get.timestamps_num(this)
+            
             % Convert time stamps to numbers
             if isa(this.timestamps,'datetime')
                 time_num_arr=posixtime(this.timestamps);

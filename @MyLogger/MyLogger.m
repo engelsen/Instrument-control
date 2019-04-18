@@ -19,7 +19,7 @@ classdef MyLogger < handle
         Record = MyLog.empty()
         
         % Format for displaying readings (column name: value)
-        disp_fmt = '%15s: %.3g'
+        disp_fmt = '\t%15s:\t%.5g'
     end
     
     properties (Access = public, SetObservable = true)

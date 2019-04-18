@@ -357,11 +357,11 @@ classdef MyGuiSync < handle
         function f = createPostSetCallback(this, Link)
             function postSetCallback(~,~)
                 val = Link.getTargetFcn();
-
+                
                 if ~isempty(Link.outputProcessingFcn)
                     val = Link.outputProcessingFcn(val);
                 end
-
+                
                 setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
 
                 % Optionally execute the update function defined within 
