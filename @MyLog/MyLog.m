@@ -133,7 +133,7 @@ classdef MyLog < matlab.mixin.Copyable
             
             p=inputParser();
             % Axes in which log should be plotted
-            addOptional(p, 'Ax', [], @(x)assert( ...
+            addOptional(p, 'Axes', [], @(x)assert( ...
                 isa(x,'matlab.graphics.axis.Axes')||...
                 isa(x,'matlab.ui.control.UIAxes'),...
                 'Argument must be axes or uiaxes.'));
@@ -157,18 +157,18 @@ classdef MyLog < matlab.mixin.Copyable
             
             parse(p, varargin{:});
             
-            if ~isempty(p.Results.Ax)
-                Ax=p.Results.Ax;
+            if ~isempty(p.Results.Axes)
+                Axes = p.Results.Axes;
             else
-                Ax=gca();
+                Axes = gca();
             end
             
             % Find out if the log was already plotted in these axes. If
             % not, appned Ax to the PlotList.
-            ind = findPlotInd(this, Ax);
+            ind = findPlotInd(this, Axes);
             if isempty(ind)
                 l = length(this.PlotList);
-                this.PlotList(l+1).Axes = Ax;
+                this.PlotList(l+1).Axes = Axes;
                 ind = l+1;
             end
             
@@ -177,7 +177,7 @@ classdef MyLog < matlab.mixin.Copyable
                 
                 % If the log was never plotted in Ax, 
                 % plot using default style and store the line handles 
-                Pls = line(Ax, this.timestamps, this.data);
+                Pls = line(Axes, this.timestamps, this.data);
                 this.PlotList(ind).DataLines = Pls;
             else
                 
@@ -190,15 +190,24 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             % Set the visibility of lines
-            if ~ismember('isdisp',p.UsingDefaults)
+            if ~ismember('isdisp', p.UsingDefaults)
                 for i=1:ncols
                     Pls(i).Visible = p.Results.isdisp(i);
                 end
             end
             
-            % Plot time labels and legend
-            if (p.Results.time_labels)
-                plotTimeLabels(this, Ax);
+            if p.Results.time_labels
+                
+                % Plot time labels
+                plotTimeLabels(this, Axes);
+            else
+                
+                % Hide existing time labels
+                try
+                    set(this.PlotList(ind).LbLines, 'Visible', 'off');
+                    set(this.PlotList(ind).BgLines, 'Visible', 'off');
+                catch
+                end
             end
             
             if (p.Results.legend)&&(~isempty(this.data_headers))&&...
@@ -206,7 +215,7 @@ classdef MyLog < matlab.mixin.Copyable
             
                 % Add legend only for for those lines that are displayed
                 disp_ind = cellfun(@(x)strcmpi(x,'on'),{Pls.Visible});
-                legend(Ax, Pls(disp_ind), this.data_headers{disp_ind},...
+                legend(Axes, Pls(disp_ind), this.data_headers{disp_ind},...
                     'Location','southwest');
             end
         end
@@ -287,65 +296,26 @@ classdef MyLog < matlab.mixin.Copyable
         
         %% Time labels 
         
-        function plotTimeLabels(this, Axes)
-            
-            % Find out if the log was already plotted in these axes
-            ind = findPlotInd(this, Axes);
-            if isempty(ind)
-                l = length(this.PlotList);
-                this.PlotList(l+1).Axes = Axes;
-                ind = l+1;
-            else
-                Axes = this.PlotList(ind).Axes;
-            end
-            
-            % Plot labels
-            for i = 1:length(this.TimeLabels)
-                T = this.TimeLabels(i);
-                
-                try
-                    Lbl = this.PlotList(ind).LbLines(i);
-                    
-                    % Update the existing label line
-                    Lbl.Value = T.time;
-                    Lbl.Label = T.text_str;
-                    
-                    % Update the background width - font size times the
-                    % number of lines
-                    this.PlotList(ind).BgLines(i).LineWidth = ...
-                        Lbl.FontSize*length(T.text_str);
-                catch
-                    
-                    % Add new background line
-                    this.PlotList(ind).BgLines(i) = xline(Axes, T.time, ...
-                        'LineWidth',    10*length(T.text_str), ...
-                        'Color',        [1, 1, 1]);
-                    
-                    % Add new label line 
-                    this.PlotList(ind).LbLines(i) = xline(Axes, T.time, ...
-                        '-', T.text_str, ...
-                        'LineWidth',                0.5, ...
-                        'LabelHorizontalAlignment', 'center', ...
-                        'FontSize',                 10);
-                end
-            end
-        end
-        
         % Add label
         % Form with optional arguments: addTimeLabel(this, time, str)
         function addTimeLabel(this, varargin)
-            p=inputParser();
+            p = inputParser();
+            
             addOptional(p, 'time', ...
                 datetime('now', 'Format', this.datetime_fmt), ...
                 @(x)assert(isa(x,'datetime'), ...
                 '''time'' must be of the type datetime.'));
+            
             addOptional(p, 'str', '', ...
                 @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
                 '''str'' must be a string or cell array of strings.'));
+            
             addParameter(p, 'save', false, @islogical);
+            
             parse(p, varargin{:});
             
             if any(ismember({'time','str'}, p.UsingDefaults))
+                
                 % Invoke a dialog to add the label time and name
                 answ = inputdlg({'Label text', 'Time'},'Add time label',...
                     [2 40; 1 40],{'',datestr(p.Results.time)});
@@ -353,21 +323,19 @@ classdef MyLog < matlab.mixin.Copyable
                 if isempty(answ)||isempty(answ{1})
                     return
                 else
+                    
                     % Conversion of the inputed value to datetime to
                     % ensure proper format
                     time=datetime(answ{2}, 'Format', this.datetime_fmt);
+                    
                     % Store multiple lines as cell array
-                    str=cellstr(answ{1});
+                    str = cellstr(answ{1});
                 end
             end
             
-            % Need to calculate length explicitly as using 'end' fails 
-            % for an empty array
-            l = length(this.TimeLabels); 
-
-            this.TimeLabels(l+1).time=time;
-            this.TimeLabels(l+1).time_str=datestr(time);
-            this.TimeLabels(l+1).text_str=str;
+            this.TimeLabels(end+1).time = time;
+            this.TimeLabels(end+1).time_str = datestr(time);
+            this.TimeLabels(end+1).text_str = str;
             
             % Order time labels by ascending time
             sortTimeLabels(this);
@@ -378,6 +346,7 @@ classdef MyLog < matlab.mixin.Copyable
         end
         
         function deleteTimeLabel(this, ind)
+            this.TimeLabels(ind) = [];
         end
         
         % Modify text or time of an exising label. If new time and text are
@@ -385,7 +354,7 @@ classdef MyLog < matlab.mixin.Copyable
         % invoke a dialog.
         % ind - index of the label to be modified in TimeLabels array.
         function modifyTimeLabel(this, ind, varargin)
-            p=inputParser();
+            p = inputParser();
             addRequired(p, 'ind', @(x)assert((rem(x,1)==0)&&(x>0), ...
                 '''ind'' must be a positive integer.'));
             addOptional(p, 'time', ...
@@ -409,16 +378,16 @@ classdef MyLog < matlab.mixin.Copyable
                     % Convert the input value to datetime and ensure 
                     % proper format
                     
-                    time=datetime(answ{2}, 'Format', this.datetime_fmt);
+                    time = datetime(answ{2}, 'Format', this.datetime_fmt);
                     
                     % Store multiple lines as cell array
-                    str=cellstr(answ{1});
+                    str = cellstr(answ{1});
                 end
             end
             
-            this.TimeLabels(ind).time=time;
-            this.TimeLabels(ind).time_str=datestr(time);
-            this.TimeLabels(ind).text_str=str;
+            this.TimeLabels(ind).time = time;
+            this.TimeLabels(ind).time_str = datestr(time);
+            this.TimeLabels(ind).text_str = str;
             
             % Order time labels by ascending time
             sortTimeLabels(this);
@@ -444,7 +413,7 @@ classdef MyLog < matlab.mixin.Copyable
                     % multiple lines, display the first line
                     tmpstr = this.TimeLabels(i).text_str{1};
                 end
-                lst{i}=[this.TimeLabels(i).time_str, ' ', tmpstr];
+                lst{i} = [this.TimeLabels(i).time_str, ' ', tmpstr];
             end
         end
         
@@ -525,8 +494,66 @@ classdef MyLog < matlab.mixin.Copyable
         end
     end
     
-    methods (Access = protected)
-        %% Auxiliary private functions
+    methods (Access = protected)   
+        function plotTimeLabels(this, Axes)
+            
+            % Find out if the log was already plotted in these axes
+            ind = findPlotInd(this, Axes);
+            if isempty(ind)
+                l = length(this.PlotList);
+                this.PlotList(l+1).Axes = Axes;
+                ind = l+1;
+            else
+                Axes = this.PlotList(ind).Axes;
+            end
+            
+            % Plot labels
+            for i = 1:length(this.TimeLabels)
+                T = this.TimeLabels(i);
+                
+                try
+                    Lbl = this.PlotList(ind).LbLines(i);
+                    
+                    % Update the existing label line
+                    Lbl.Value = T.time;
+                    Lbl.Label = T.text_str;
+                    Lbl.Visible = 'on';
+                    
+                    % Update the background width - font size times the
+                    % number of lines
+                    Bgl = this.PlotList(ind).BgLines(i);
+                    Bgl.Value = T.time;
+                    Bgl.LineWidth = Lbl.FontSize*length(T.text_str);
+                    Bgl.Visible = 'on';
+                catch
+                    
+                    % Add new background line
+                    this.PlotList(ind).BgLines(i) = xline(Axes, T.time, ...
+                        'LineWidth',    10*length(T.text_str), ...
+                        'Color',        [1, 1, 1]);
+                    
+                    % Add new label line 
+                    this.PlotList(ind).LbLines(i) = xline(Axes, T.time, ...
+                        '-', T.text_str, ...
+                        'LineWidth',                0.5, ...
+                        'LabelHorizontalAlignment', 'center', ...
+                        'FontSize',                 10);
+                end
+            end
+            
+            % Remove redundant markers if any
+            n_tlbl = length(this.TimeLabels);
+            
+            if length(this.PlotList(ind).LbLines) > n_tlbl
+                delete(this.PlotList(ind).LbLines(n_tlbl+1:end));
+                this.PlotList(ind).LbLines(n_tlbl+1:end) = [];
+            end
+            
+            if length(this.PlotList(ind).BgLines) > n_tlbl
+                delete(this.PlotList(ind).BgLines(n_tlbl+1:end));
+                this.PlotList(ind).BgLines(n_tlbl+1:end) = [];
+            end
+        end
         
         % Ensure the log length is within length limit
         function trim(this)
