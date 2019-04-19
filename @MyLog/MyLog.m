@@ -41,6 +41,8 @@ classdef MyLog < matlab.mixin.Copyable
     
         timestamps % Times at which data was aqcuired
         data % Array of measurements
+        
+        save_cont = false % If true changes are continuously saved
     end
        
     properties (GetAccess = public, SetAccess = protected, ...
@@ -102,9 +104,12 @@ classdef MyLog < matlab.mixin.Copyable
             if ~stat
                 return
             end
+            
+            if ~isempty(this.TimeLabels)
                 
-            % Save time labels in a separate file
-            saveMetadata(this);
+                % Save time labels in a separate file
+                saveMetadata(this);
+            end
 
             fid = fopen(datfname, 'w');
 
@@ -220,18 +225,16 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
-         %% Manipulations with log data
+        %% Manipulations with log data
         
         % Append data point to the log
-        function appendData(this, time, val, varargin)
-            p = inputParser();
-            addParameter(p, 'save', false, @islogical);
-            parse(p, varargin{:});
+        function appendData(this, time, val)
             
             % Format checks on the input data
-            assert(isa(time,'datetime')||isnumeric(time),...
+            assert(isa(time,'datetime') || isnumeric(time),...
                 ['''time'' argument must be numeric or ',...
                 'of the class datetime.']);
+            
             assert(isrow(val),'''val'' argument must be a row vector.');
             
             if ~isempty(this.data)
@@ -253,7 +256,7 @@ classdef MyLog < matlab.mixin.Copyable
             trim(this);
             
             % Optionally save the new data point to file
-            if p.Results.save
+            if this.save_cont
                 try
                     if exist(this.data_file_name, 'file') == 2
                         
@@ -310,23 +313,21 @@ classdef MyLog < matlab.mixin.Copyable
                 @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
                 '''str'' must be a string or cell array of strings.'));
             
-            addParameter(p, 'save', false, @islogical);
-            
             parse(p, varargin{:});
             
-            if any(ismember({'time','str'}, p.UsingDefaults))
+            if any(ismember({'time', 'str'}, p.UsingDefaults))
                 
                 % Invoke a dialog to add the label time and name
                 answ = inputdlg({'Label text', 'Time'},'Add time label',...
                     [2 40; 1 40],{'',datestr(p.Results.time)});
                 
-                if isempty(answ)||isempty(answ{1})
+                if isempty(answ) || isempty(answ{1})
                     return
                 else
                     
                     % Conversion of the inputed value to datetime to
                     % ensure proper format
-                    time=datetime(answ{2}, 'Format', this.datetime_fmt);
+                    time = datetime(answ{2}, 'Format', this.datetime_fmt);
                     
                     % Store multiple lines as cell array
                     str = cellstr(answ{1});
@@ -340,13 +341,17 @@ classdef MyLog < matlab.mixin.Copyable
             % Order time labels by ascending time
             sortTimeLabels(this);
             
-            if p.Results.save == true
+            if this.save_cont
                 saveMetadata(this);
             end
         end
         
         function deleteTimeLabel(this, ind)
             this.TimeLabels(ind) = [];
+            
+            if this.save_cont
+                saveMetadata(this);
+            end
         end
         
         % Modify text or time of an exising label. If new time and text are
@@ -364,20 +369,21 @@ classdef MyLog < matlab.mixin.Copyable
             addOptional(p, 'str', '', ...
                 @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
                 '''str'' must be a string or cell array of strings.'));
-            addParameter(p, 'save', false, @islogical);
             parse(p, ind, varargin{:});
             
             if any(ismember({'time','str'}, p.UsingDefaults))
                 Tlb=this.TimeLabels(ind);
-                answ = inputdlg({'Label text', 'Time'},'Modify time label',...
+                
+                answ = inputdlg({'Label text', 'Time'}, ...
+                    'Modify time label',...
                     [2 40; 1 40],{char(Tlb.text_str), Tlb.time_str});
 
                 if isempty(answ)||isempty(answ{1})
                     return
                 else
+                    
                     % Convert the input value to datetime and ensure 
                     % proper format
-                    
                     time = datetime(answ{2}, 'Format', this.datetime_fmt);
                     
                     % Store multiple lines as cell array
@@ -392,7 +398,7 @@ classdef MyLog < matlab.mixin.Copyable
             % Order time labels by ascending time
             sortTimeLabels(this);
             
-            if p.Results.save == true
+            if this.save_cont
                 saveMetadata(this);
             end
         end
@@ -423,7 +429,7 @@ classdef MyLog < matlab.mixin.Copyable
         function clear(this)
             
             % Clear while preserving the array types
-            this.TimeLabels(:)=[];
+            this.TimeLabels(:) = [];
             
             % Delete all the data lines and time labels
             for i=1:length(this.PlotList)
@@ -431,11 +437,15 @@ classdef MyLog < matlab.mixin.Copyable
                 delete(this.PlotList(i).LbLines);
                 delete(this.PlotList(i).BgLines);
             end
-            this.PlotList(:)=[];
+            this.PlotList(:) = [];
             
             % Clear data and its type
             this.timestamps = [];
             this.data = [];
+            
+            % Switch off continuous saving to prevent the overwriting of 
+            % previously saved data
+            this.save_cont = false;
         end
         
         % Verify that the data can be saved or plotted
@@ -510,6 +520,7 @@ classdef MyLog < matlab.mixin.Copyable
             % Plot labels
             for i = 1:length(this.TimeLabels)
                 T = this.TimeLabels(i);
+                n_lines = max(length(T.text_str), 1);
                 
                 try
                     Lbl = this.PlotList(ind).LbLines(i);
@@ -523,13 +534,13 @@ classdef MyLog < matlab.mixin.Copyable
                     % number of lines
                     Bgl = this.PlotList(ind).BgLines(i);
                     Bgl.Value = T.time;
-                    Bgl.LineWidth = Lbl.FontSize*length(T.text_str);
+                    Bgl.LineWidth = Lbl.FontSize*n_lines;
                     Bgl.Visible = 'on';
                 catch
                     
                     % Add new background line
                     this.PlotList(ind).BgLines(i) = xline(Axes, T.time, ...
-                        'LineWidth',    10*length(T.text_str), ...
+                        'LineWidth',    10*n_lines, ...
                         'Color',        [1, 1, 1]);
                     
                     % Add new label line 
@@ -670,6 +681,10 @@ classdef MyLog < matlab.mixin.Copyable
                 'be a row cell array of character strings.']) %#ok<ISCLSTR>
             
             this.data_headers = val;
+        end
+        
+        function set.save_cont(this, val)
+            this.save_cont = logical(val);
         end
         
         % The get function for file_name adds extension if it is not

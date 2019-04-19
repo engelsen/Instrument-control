@@ -22,10 +22,6 @@ classdef MyLogger < handle
         disp_fmt = '\t%15s:\t%.5g'
     end
     
-    properties (Access = public, SetObservable = true)
-        save_cont = false
-    end
-    
     properties (SetAccess = protected, GetAccess = public)
         
         % If last measurement was succesful
@@ -143,8 +139,7 @@ classdef MyLogger < handle
             if this.last_meas_stat == 1
                 
                 % Append measurement result together with time stamp
-                appendData(this.Record, time, meas_result,...
-                    'save', this.save_cont);
+                appendData(this.Record, time, meas_result);
                 triggerNewData(this);
             end
         end
@@ -166,10 +161,6 @@ classdef MyLogger < handle
         function set.Record(this, val)
             assert(isa(val, 'MyLog'), '''Record'' must be a MyLog object')
             this.Record = val;
-        end
-        
-        function set.save_cont(this, val)
-            this.save_cont = logical(val);
         end
         
         function set.MeasTimer(this, val)
