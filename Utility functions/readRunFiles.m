@@ -1,14 +1,14 @@
 % Read all the files which names start from 'run' from the local base
-% directory and add entries, autometically generated from the
-% InstrumentList
-function RunFiles = readRunFiles(varargin)
-    if ~isempty(varargin) && ischar(varargin{1})
-        % The directory to search in can be supplied as varargin{1}
-        dir = varargin{1};
-    else
-        % Otherwise use the local base directory
+% directory and add entries, automatically generated from InstrumentList
+
+function RunFiles = readRunFiles(dir)
+    if ~exist('dir', 'var')
+        
+        % Search in the local base directory if directory name is not
+        % supplied explicitly
         dir = getLocalBaseDir();
-    end    
+    end
+            
     % Find all the names of .m files that start with 'run'
     all_names = what(dir);
     is_run = startsWith(all_names.m,'run','IgnoreCase',false);
@@ -20,14 +20,17 @@ function RunFiles = readRunFiles(varargin)
         name_match = regexp(run_names{i},'run(.*)\.m','tokens');
         nm = name_match{1}{1};
         fname = fullfile(dir, run_names{i});
+        
         % Read the run file comment header
         RunFiles.(nm) = readCommentHeader(fname);
         if isfield(RunFiles.(nm),'show_in_daq')
             RunFiles.(nm).show_in_daq = eval(...
                 lower(RunFiles.(nm).show_in_daq));
         end
+        
         % Add information about file name
         RunFiles.(nm).name = nm;
+        
         % Expression that needs to be evaluated to run the program. In this
         % case full name of the file
         RunFiles.(nm).fullname = fname;     
@@ -40,6 +43,7 @@ function RunFiles = readRunFiles(varargin)
     instr_names = fieldnames(InstrumentList);
     for i=1:length(instr_names)
         nm = instr_names{i};
+        
         % If run file for instrument was not specified explicitly and if
         % all the required fields in InstrList are filled, add an entry to
         % RunFiles

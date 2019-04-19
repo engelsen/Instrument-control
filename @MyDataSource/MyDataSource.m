@@ -13,9 +13,9 @@ classdef MyDataSource < handle
         NewData 
     end
     
-    methods (Access=public)
+    methods (Access = public)
         
-        function this = MyDataSource(varargin)
+        function this = MyDataSource()
             this.Trace = MyTrace();
         end
         

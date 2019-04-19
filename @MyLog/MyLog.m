@@ -8,7 +8,7 @@
 
 classdef MyLog < matlab.mixin.Copyable
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         
         % Save time as posixtime up to ms precision
         time_fmt = '%14.3f'
@@ -16,9 +16,6 @@ classdef MyLog < matlab.mixin.Copyable
         % Save data as reals with up to 14 decimal digits. Trailing zeros 
         % are removed by %g 
         data_fmt = '%.14g'
-        
-        % Format for displaying the last reading (column name: value)
-        disp_fmt = '%15s: %.3g'
         
         % Data column and line separators
         column_sep = '\t'
@@ -41,11 +38,15 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Format for string representation of timestamps
         datetime_fmt = 'yyyy-MMM-dd HH:mm:ss'
+        
+        save_cont = false % If true changes are continuously saved
     end
-    
-    properties (SetAccess = public, GetAccess = public)    
-        timestamps % Times at which data was aqcuired
-        data % Array of measurements
+       
+    properties (GetAccess = public, SetAccess = protected, ...
+            SetObservable = true)
+        
+        timestamps  % Times at which data was aqcuired
+        data        % Array of measurements
         
         % Structure array that stores labeled time marks
         TimeLabels = struct( ...
@@ -57,25 +58,21 @@ classdef MyLog < matlab.mixin.Copyable
         PlotList = struct( ...
             'Axes',     {}, ...  % axes handles
             'DataLines',{}, ...  % data line handles
-            'LbLines',  {}, ...  % labels line handles
-            'LbText',   {});     % labels text handles 
+            'LbLines',  {}, ...  % label line handles
+            'BgLines',   {});    % label line background handles 
     end
     
-    properties (Dependent = true)   
-        data_line_fmt % Format specifier for one data row to be printed
+    properties (Dependent = true)
+        channel_no      % Number of data colums
         
-        column_headers % Time column header + data column headers
+        data_line_fmt   % Format specifier for one data row to be printed
         
-        data_file_name % File name with extension for data saving
-        meta_file_name % File name with extension for metadata saving
+        column_headers  % Time column header + data column headers
         
-        timestamps_num % Timestamps converted to numeric format
-    end
-    
-    properties (Access = protected)
+        data_file_name  % File name with extension for data saving
+        meta_file_name  % File name with extension for metadata saving
         
-        % Variable used for tracking the modification of metadata 
-        LastSavedMetadata
+        timestamps_num  % Timestamps converted to numeric format
     end
     
     methods (Access = public)
@@ -87,9 +84,6 @@ classdef MyLog < matlab.mixin.Copyable
         %% Save and load functionality
         % save the entire data record 
         function save(this, filename)
-            
-            % Verify that the data can be saved
-            assertDataMatrix(this);
             
             % File name can be either supplied explicitly or given as the
             % file_name property
@@ -107,17 +101,20 @@ classdef MyLog < matlab.mixin.Copyable
             if ~stat
                 return
             end
+            
+            if ~isempty(this.TimeLabels)
                 
-            % Save time labels in a separate file
-            saveMetadata(this);
+                % Save time labels in a separate file
+                saveMetadata(this);
+            end
 
-            fid = fopen(datfname,'w');
+            fid = fopen(datfname, 'w');
 
             % Write column headers
             str = printDataHeaders(this);
             fprintf(fid, '%s', str);
 
-            % Write data body
+            % Write the bulk of data
             fmt = this.data_line_fmt;
             for i = 1:length(this.timestamps)
                 fprintf(fid, fmt, this.timestamps_num(i), this.data(i,:));
@@ -129,16 +126,11 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Plot the log data with time labels. Reurns plotted line objects.  
         function Pls = plot(this, varargin)
-            
-            % Verify that the data is a numeric matrix, 
-            % otherwise it cannot be plotted
-            assertDataMatrix(this);
-            
             [~, ncols] = size(this.data);
             
-            p=inputParser();
+            p = inputParser();
             % Axes in which log should be plotted
-            addOptional(p, 'Ax', [], @(x)assert( ...
+            addOptional(p, 'Axes', [], @(x)assert( ...
                 isa(x,'matlab.graphics.axis.Axes')||...
                 isa(x,'matlab.ui.control.UIAxes'),...
                 'Argument must be axes or uiaxes.'));
@@ -162,75 +154,81 @@ classdef MyLog < matlab.mixin.Copyable
             
             parse(p, varargin{:});
             
-            if ~isempty(p.Results.Ax)
-                Ax=p.Results.Ax;
+            if ~isempty(p.Results.Axes)
+                Axes = p.Results.Axes;
             else
-                Ax=gca();
+                Axes = gca();
             end
             
             % Find out if the log was already plotted in these axes. If
             % not, appned Ax to the PlotList.
-            ind=findPlotInd(this, Ax);
+            ind = findPlotInd(this, Axes);
             if isempty(ind)
-                l=length(this.PlotList);
-                this.PlotList(l+1).Axes=Ax;
-                ind=l+1;
+                l = length(this.PlotList);
+                this.PlotList(l+1).Axes = Axes;
+                ind = l+1;
             end
             
             % Plot data 
             if isempty(this.PlotList(ind).DataLines)
+                
                 % If the log was never plotted in Ax, 
                 % plot using default style and store the line handles 
-                Pls=line(Ax, this.timestamps, this.data);
-                this.PlotList(ind).DataLines=Pls;
+                Pls = line(Axes, this.timestamps, this.data);
+                this.PlotList(ind).DataLines = Pls;
             else
+                
                 % Replace existing data
-                Pls=this.PlotList(ind).DataLines;
+                Pls = this.PlotList(ind).DataLines;
                 for i=1:length(Pls)
-                    try
-                        Pls(i).XData=this.timestamps;
-                        Pls(i).YData=this.data(:,i);
-                    catch
-                        warning(['Could not update plot for '...
-                            '%i-th data column'],i);
-                    end
+                    Pls(i).XData = this.timestamps;
+                    Pls(i).YData = this.data(:,i);
                 end
             end
             
             % Set the visibility of lines
-            if ~ismember('isdisp',p.UsingDefaults)
+            if ~ismember('isdisp', p.UsingDefaults)
                 for i=1:ncols
-                    Pls(i).Visible=p.Results.isdisp(i);
+                    Pls(i).Visible = p.Results.isdisp(i);
                 end
             end
             
-            % Plot time labels and legend
-            if (p.Results.time_labels)
-                plotTimeLabels(this, Ax);
+            if p.Results.time_labels
+                
+                % Plot time labels
+                plotTimeLabels(this, Axes);
+            else
+                
+                % Hide existing time labels
+                try
+                    set(this.PlotList(ind).LbLines, 'Visible', 'off');
+                    set(this.PlotList(ind).BgLines, 'Visible', 'off');
+                catch
+                end
             end
+            
             if (p.Results.legend)&&(~isempty(this.data_headers))&&...
-                (~isempty(this.data))    
+                (~isempty(this.data)) 
+            
                 % Add legend only for for those lines that are displayed
                 disp_ind = cellfun(@(x)strcmpi(x,'on'),{Pls.Visible});
-                legend(Ax, Pls(disp_ind), this.data_headers{disp_ind},...
+                legend(Axes, Pls(disp_ind), this.data_headers{disp_ind},...
                     'Location','southwest');
             end
-
         end
         
-         %% Manipulations with log data
+        %% Manipulations with log data
         
         % Append data point to the log
-        function appendData(this, time, val, varargin)
-            p = inputParser();
-            addParameter(p, 'save', false, @islogical);
-            parse(p, varargin{:});
+        function appendData(this, Time, val)
             
             % Format checks on the input data
-            assert(isa(time,'datetime')||isnumeric(time),...
+            assert(isa(Time, 'datetime') || isnumeric(Time),...
                 ['''time'' argument must be numeric or ',...
                 'of the class datetime.']);
-            assert(isrow(val),'''val'' argument must be a row vector.');
+            
+            assert(isrow(val) && isnumeric(val), ...
+                '''val'' argument must be a numeric row vector.');
             
             if ~isempty(this.data)
                 [~, ncols] = size(this.data);
@@ -239,19 +237,19 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             % Ensure time format
-            if isa(time,'datetime')
-                time.Format = this.datetime_fmt;
+            if isa(Time,'datetime')
+                Time.Format = this.datetime_fmt;
             end
             
             % Append new data and time stamps
-            this.timestamps = [this.timestamps; time];
+            this.timestamps = [this.timestamps; Time];
             this.data = [this.data; val];
             
             % Ensure the log length is within the length limit
             trim(this);
             
             % Optionally save the new data point to file
-            if p.Results.save
+            if this.save_cont
                 try
                     if exist(this.data_file_name, 'file') == 2
                         
@@ -269,23 +267,15 @@ classdef MyLog < matlab.mixin.Copyable
                     end
                     
                     % Convert the new timestamps to numeric form for saving
-                    if isa(time,'datetime')
-                        time_num = posixtime(time);
+                    if isa(Time, 'datetime')
+                        time_num = posixtime(Time);
                     else
-                        time_num = time;
+                        time_num = Time;
                     end
                     
                     % Append new data points to file
                     fprintf(fid, this.data_line_fmt, time_num, val);
                     fclose(fid);
-                    
-                    % Save metadata if it was modified since last saving 
-                    % or if the file is non-existent
-                    Mdt = getMetadata(this);
-                    mdt_mod = ~isequal(Mdt, this.LastSavedMetadata);
-                    if mdt_mod || exist(this.meta_file_name, 'file') ~= 2
-                        saveMetadata(this, Mdt);
-                    end
                 catch
                     warning(['Logger cannot save data at time = ',...
                         datestr(datetime('now', ...
@@ -302,168 +292,106 @@ classdef MyLog < matlab.mixin.Copyable
         
         %% Time labels 
         
-        function plotTimeLabels(this, Ax)
-            % Find out if the log was already plotted in these axes
-            ind=findPlotInd(this, Ax);
-            if isempty(ind)
-                l=length(this.PlotList);
-                this.PlotList(l+1).Axes=Ax;
-                ind=l+1;
-            end
-            
-            % Remove existing labels 
-            eraseTimeLabels(this, Ax);
-            
-            % Define marker lines to span over the entire plot
-            ymin=Ax.YLim(1);
-            ymax=Ax.YLim(2);
-            markline = linspace(ymin, ymax, 2);
-            
-            % Plot labels
-            for i=1:length(this.TimeLabels)
-                T=this.TimeLabels(i);
-                marktime = [T.time,T.time];
-                % Add text label to plot, with 5% offset from 
-                % the boundary for beauty
-                Txt=text(Ax, T.time, ymin+0.95*(ymax-ymin), T.text_str,...
-                    'Units','data',...
-                    'HorizontalAlignment','right',...
-                    'VerticalAlignment','top',...
-                    'FontWeight', 'bold',...
-                    'Rotation',90,...
-                    'BackgroundColor','white',...
-                    'Clipping','on',...
-                    'Margin',1);
-                % Add line to plot
-                Pl=line(Ax, marktime, markline,'color','black');
-                % Store the handles of text and line
-                this.PlotList(ind).LbLines = ...
-                    [this.PlotList(ind).LbLines,Pl];
-                this.PlotList(ind).LbText = ...
-                    [this.PlotList(ind).LbText,Txt];
-            end
-        end
-        
-        % Remove existing labels from the plot 
-        function eraseTimeLabels(this, Ax)
-            % Find out if the log was already plotted in these axes
-            ind=findPlotInd(this, Ax);
-            if ~isempty(ind)
-                % Remove existing labels 
-                delete(this.PlotList(ind).LbLines);
-                this.PlotList(ind).LbLines=[];
-                delete(this.PlotList(ind).LbText);
-                this.PlotList(ind).LbText=[];
-            else
-                warning('Cannot erase time labels. Axes not found.')
-            end
-        end
-        
         % Add label
-        % Form with optional arguments: addTimeLabel(this, time, str)
         function addTimeLabel(this, varargin)
-            p=inputParser();
-            addOptional(p, 'time', ...
-                datetime('now', 'Format', this.datetime_fmt), ...
-                @(x)assert(isa(x,'datetime'), ...
-                '''time'' must be of the type datetime.'));
-            addOptional(p, 'str', '', ...
-                @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
-                '''str'' must be a string or cell array of strings.'));
-            addParameter(p, 'save', false, @islogical);
-            parse(p, varargin{:});
+            p = inputParser();
             
-            if any(ismember({'time','str'}, p.UsingDefaults))
-                % Invoke a dialog to add the label time and name
-                answ = inputdlg({'Label text', 'Time'},'Add time label',...
-                    [2 40; 1 40],{'',datestr(p.Results.time)});
+            addParameter(p, 'Time', datetime('now'), ...
+                @(x)assert(isa(x, 'datetime'), ['''Time'' must be of ' ...
+                'the type datetime.']))
+            
+            addParameter(p, 'text', '', ...
+                @(x)assert(iscellstr(x) || ischar(x) || isstring(x), ...
+                '''text'' must be a string or cell array of strings.'))
+            
+            % If 'index' is specified, then the function configures an
+            % existing time label instead of adding a new one
+            addParameter(p, 'index', [], ...
+                @(x)assert(floor(x)==x && x<=length(this.TimeLabels), ...
+                ['Index must be a positive integer not exceeding the ' ...
+                'number of time labels.']))
+           
+            parse(p, varargin{:})
+            
+            Time = p.Results.Time;
+            Time.Format = this.datetime_fmt;
+            
+            if ismember('text', p.UsingDefaults)
                 
-                if isempty(answ)||isempty(answ{1})
-                    return
+                % Invoke a dialog to input label time and name
+                if ismember('index', p.UsingDefaults)
+                    
+                    % Default dialog field values
+                    dlg_args = {'', datestr(Time)};
                 else
-                    % Conversion of the inputed value to datetime to
-                    % ensure proper format
-                    time=datetime(answ{2}, 'Format', this.datetime_fmt);
-                    % Store multiple lines as cell array
-                    str=cellstr(answ{1});
+                    
+                    % Provide existing values for modification
+                    Tlb = this.TimeLabels(p.Results.index);
+                    dlg_args = {char(Tlb.text_str), Tlb.time_str};
                 end
+                
+                answ = inputdlg({'Label text', 'Time'},'Add time label',...
+                    [2 40; 1 40], dlg_args);
+                
+                % If 'Cancel' button is pressed or no input is provided, do
+                % not modify or add a new label
+                if isempty(answ) || isempty(answ{1})
+                    return
+                end
+                    
+                % Convert the inputed value to datetime with proper format
+                Time = datetime(answ{2}, 'Format', this.datetime_fmt);
+
+                % Store multiple lines as cell array
+                str = cellstr(answ{1});
+            else
+                str = cellstr(p.Results.text);
             end
             
-            % Need to calculate length explicitly as using 'end' fails 
-            % for an empty array
-            l = length(this.TimeLabels); 
-
-            this.TimeLabels(l+1).time=time;
-            this.TimeLabels(l+1).time_str=datestr(time);
-            this.TimeLabels(l+1).text_str=str;
+            % Find the index of time label. We do not supply a default
+            % value for the end of the list in case the length was changed 
+            % over the course of function execution.  
+            if ismember('index', p.UsingDefaults)
+                ind = length(this.TimeLabels)+1;
+            else
+                ind = p.Results.index;
+            end
+            
+            this.TimeLabels(ind).time = Time;
+            this.TimeLabels(ind).time_str = datestr(Time);
+            this.TimeLabels(ind).text_str = str;
             
             % Order time labels by ascending time
             sortTimeLabels(this);
             
-            if p.Results.save == true
+            if this.save_cont
                 saveMetadata(this);
             end
         end
         
-        % Modify text or time of an exising label. If new time and text are
-        % not provided as arguments, modifyTimeLabel(this, ind, time, str), 
-        % invoke a dialog.
-        % ind - index of the label to be modified in TimeLabels array.
-        function modifyTimeLabel(this, ind, varargin)
-            p=inputParser();
-            addRequired(p, 'ind', @(x)assert((rem(x,1)==0)&&(x>0), ...
-                '''ind'' must be a positive integer.'));
-            addOptional(p, 'time', ...
-                datetime('now', 'Format', this.datetime_fmt), ...
-                @(x)assert(isa(x,'datetime'), ...
-                '''time'' must be of the type datetime.'));
-            addOptional(p, 'str', '', ...
-                @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
-                '''str'' must be a string or cell array of strings.'));
-            addParameter(p, 'save', false, @islogical);
-            parse(p, ind, varargin{:});
+        function deleteTimeLabel(this, ind)
+            this.TimeLabels(ind) = [];
             
-            if any(ismember({'time','str'}, p.UsingDefaults))
-                Tlb=this.TimeLabels(ind);
-                answ = inputdlg({'Label text', 'Time'},'Modify time label',...
-                    [2 40; 1 40],{char(Tlb.text_str), Tlb.time_str});
-
-                if isempty(answ)||isempty(answ{1})
-                    return
+            if this.save_cont
+                saveMetadata(this);
+            end
+        end
+        
+        % Show the list of labels in a readable format 
+        function lst = printTimeLabels(this)
+            
+            % The returned output is a list of character strings
+            lst = cell(length(this.TimeLabels), 1);
+            
+            for i = 1:length(this.TimeLabels)
+                if ~isempty(this.TimeLabels(i).text_str)
+                    
+                    % Display the first line of label
+                    lbl = this.TimeLabels(i).text_str{1};
                 else
-                    % Convert the input value to datetime and ensure 
-                    % proper format
-                    time=datetime(answ{2}, 'Format', this.datetime_fmt);
-                    % Store multiple lines as cell array
-                    str=cellstr(answ{1});
+                    lbl = '';
                 end
-            end
-            
-            this.TimeLabels(ind).time=time;
-            this.TimeLabels(ind).time_str=datestr(time);
-            this.TimeLabels(ind).text_str=str;
-            
-            % Order time labels by ascending time
-            sortTimeLabels(this);
-            
-            if p.Results.save == true
-                saveMetadata(this);
-            end
-        end
-        
-        % Show the list of labels in readable format
-        function lst=printTimeLabelList(this)
-            lst=cell(length(this.TimeLabels),1);
-            for i=1:length(this.TimeLabels)
-                if ischar(this.TimeLabels(i).text_str) ||...
-                        isstring(this.TimeLabels(i).text_str)
-                    tmpstr=this.TimeLabels(i).text_str;
-                elseif iscell(this.TimeLabels(i).text_str)
-                    % If text is cell array, elements corresponding to 
-                    % multiple lines, display the first line
-                    tmpstr=this.TimeLabels(i).text_str{1};
-                end
-                lst{i}=[this.TimeLabels(i).time_str,' ', tmpstr];
+                lst{i} = [this.TimeLabels(i).time_str, ' ', lbl];
             end
         end
         
@@ -471,46 +399,91 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Clear log data and time labels
         function clear(this)
+            
             % Clear while preserving the array types
-            this.TimeLabels(:)=[];
+            this.TimeLabels(:) = [];
             
             % Delete all the data lines and time labels
             for i=1:length(this.PlotList)
                 delete(this.PlotList(i).DataLines);
                 delete(this.PlotList(i).LbLines);
-                delete(this.PlotList(i).LbText);
+                delete(this.PlotList(i).BgLines);
             end
-            this.PlotList(:)=[];
+            this.PlotList(:) = [];
             
             % Clear data and its type
             this.timestamps = [];
             this.data = [];
+            
+            % Switch off continuous saving to prevent the overwriting of 
+            % previously saved data
+            this.save_cont = false;
         end
         
-        % Verify that the data can be saved or plotted
-        function assertDataMatrix(this)
-            assert(ismatrix(this.data)&&isnumeric(this.data),...
-                ['Data is not a numeric matrix, saving in '...
-                'text format is not possible.']);
-        end
-        
-        % Display last reading
-        function str = printLastReading(this)
-            if isempty(this.timestamps)
-                str = '';
-            else
-                str = ['Last reading ',char(this.timestamps(end)),newline];
-                last_data = this.data(end,:);
-                for i=1:length(last_data)
-                    if length(this.data_headers)>=i
-                        lbl = this.data_headers{i};
-                    else
-                        lbl = sprintf('data%i',i);
-                    end
-                    str = [str,...
-                        sprintf(this.disp_fmt,lbl,last_data(i)),newline]; %#ok<AGROW>
+        % Convert the log channel record to trace
+        function Trace = toTrace(this, varargin)
+            log_len = length(this.timestamps);
+            
+            p = inputParser();
+            
+            addParameter(p, 'channel', 1, ...
+                @(x)assert(x>0 && floor(x)==x && x<=this.channel_no, ...
+                ['Channel number must be an integer between 1 and ' ...
+                num2str(this.channel_no) '.']));
+            
+            addParameter(p, 'start_index', 1, ...
+                @(x)assert(x>0 && floor(x)==x && x<=log_len, ...
+                ['Start index must be an integer between 1 and ' ...
+                num2str(log_len) '.']));
+            
+            addParameter(p, 'stop_index', log_len, ...
+                @(x)assert(x>0 && floor(x)==x && x<=log_len, ...
+                ['Stop index must be an integer between 1 and ' ...
+                num2str(log_len) '.']));
+            
+            % If false, the beginning of x data in the trace is shifted to 
+            % zero 
+            addParameter(p, 'absolute_time', false, @islogical);
+            
+            parse(p, varargin{:});
+            
+            n_ch = p.Results.channel;
+            start = p.Results.start_index;
+            stop = p.Results.stop_index;
+            
+            Trace = MyTrace();
+            
+            Trace.name_x = 'Time';
+            Trace.unit_x = 's';
+            Trace.x = this.timestamps_num(start:stop);
+            
+            if ~p.Results.absolute_time
+                
+                % Shift the beginning of data to zero
+                Trace.x = Trace.x-Trace.x(1);
+            end
+            
+            if length(this.data_headers) >= n_ch
+                
+                % Try extracting the name and unit from the column header.
+                % The regexp will match anything of the format 'x (y)' with
+                % any types of brackets, (), [] or {}. 
+                tokens = regexp(this.data_headers{n_ch}, ...
+                    '(.*)[\(\[\{](.*)[\)\]\}]', 'tokens');
+                
+                if ~isempty(tokens)
+                    
+                    % Removes leading and trailing whitespaces
+                    tokens = strtrim(tokens{1});
+                    
+                    Trace.name_y = tokens{1};
+                    Trace.unit_y = tokens{2};
+                else
+                    Trace.name_y = this.data_headers{n_ch};
                 end
             end
+            
+            Trace.y = this.data(start:stop, n_ch);
         end
     end
     
@@ -540,11 +513,8 @@ classdef MyLog < matlab.mixin.Copyable
                 'CollapseDelimiters', true);
             fclose(fid);
             
-            % Assign column headers, prioritizing those found in 
-            % the metadata file over those found in the main file. Column  
-            % names in the main file printed once the file is created,  
-            % while the column names in metadata are dynamically updated.
-            if isempty(L.data_headers)
+            % Assign column headers
+            if length(dat_col_heads) > 1 
                 L.data_headers = dat_col_heads(2:end);
             end
             
@@ -552,8 +522,8 @@ classdef MyLog < matlab.mixin.Copyable
             % array, skip the first line containing column headers
             fulldata = dlmread(filename, L.column_sep, 1, 0);
             
-            L.data = fulldata(:,2:end);
-            L.timestamps = fulldata(:,1);
+            L.data = fulldata(:, 2:end);
+            L.timestamps = fulldata(:, 1);
             
             % Convert time stamps to datetime if the time column header
             % is 'posixtime'
@@ -565,8 +535,67 @@ classdef MyLog < matlab.mixin.Copyable
         end
     end
     
-    methods (Access = protected)
-        %% Auxiliary private functions
+    methods (Access = protected)   
+        function plotTimeLabels(this, Axes)
+            
+            % Find out if the log was already plotted in these axes
+            ind = findPlotInd(this, Axes);
+            if isempty(ind)
+                l = length(this.PlotList);
+                this.PlotList(l+1).Axes = Axes;
+                ind = l+1;
+            else
+                Axes = this.PlotList(ind).Axes;
+            end
+            
+            % Plot labels
+            for i = 1:length(this.TimeLabels)
+                T = this.TimeLabels(i);
+                n_lines = max(length(T.text_str), 1);
+                
+                try
+                    Lbl = this.PlotList(ind).LbLines(i);
+                    
+                    % Update the existing label line
+                    Lbl.Value = T.time;
+                    Lbl.Label = T.text_str;
+                    Lbl.Visible = 'on';
+                    
+                    % Update the background width - font size times the
+                    % number of lines
+                    Bgl = this.PlotList(ind).BgLines(i);
+                    Bgl.Value = T.time;
+                    Bgl.LineWidth = Lbl.FontSize*n_lines;
+                    Bgl.Visible = 'on';
+                catch
+                    
+                    % Add new background line
+                    this.PlotList(ind).BgLines(i) = xline(Axes, T.time, ...
+                        'LineWidth',    10*n_lines, ...
+                        'Color',        [1, 1, 1]);
+                    
+                    % Add new label line 
+                    this.PlotList(ind).LbLines(i) = xline(Axes, T.time, ...
+                        '-', T.text_str, ...
+                        'LineWidth',                0.5, ...
+                        'LabelHorizontalAlignment', 'center', ...
+                        'FontSize',                 10);
+                end
+            end
+            
+            % Remove redundant markers if any
+            n_tlbl = length(this.TimeLabels);
+            
+            if length(this.PlotList(ind).LbLines) > n_tlbl
+                delete(this.PlotList(ind).LbLines(n_tlbl+1:end));
+                this.PlotList(ind).LbLines(n_tlbl+1:end) = [];
+            end
+            
+            if length(this.PlotList(ind).BgLines) > n_tlbl
+                delete(this.PlotList(ind).BgLines(n_tlbl+1:end));
+                this.PlotList(ind).BgLines(n_tlbl+1:end) = [];
+            end
+        end
         
         % Ensure the log length is within length limit
         function trim(this)
@@ -599,11 +628,12 @@ classdef MyLog < matlab.mixin.Copyable
             assert(isvalid(Ax),'Ax must be valid axes or uiaxes')
             
             if ~isempty(this.PlotList)
-                ind_b=cellfun(@(x) isequal(x, Ax),{this.PlotList.Axes});
+                ind_b = cellfun(@(x) isequal(x, Ax),{this.PlotList.Axes});
+                
                 % Find index of the first match
-                ind=find(ind_b,1);
+                ind = find(ind_b,1);
             else
-                ind=[];
+                ind = [];
             end
         end
         
@@ -618,25 +648,18 @@ classdef MyLog < matlab.mixin.Copyable
         % Create metadata from log properties
         function Mdt = getMetadata(this)
             
-            % Add column names
-            CnMdt = MyMetadata(this.metadata_opts{:}, ...
-                'title', 'ColumnNames');
-            addParam(CnMdt, 'Name', this.column_headers);
-            
             if ~isempty(this.TimeLabels)
                 
                 % Add the textual part of TimeLabels structure
-                TlMdt = MyMetadata(this.metadata_opts{:}, ...
+                Mdt = MyMetadata(this.metadata_opts{:}, ...
                     'title', 'TimeLabels');
             
                 Lbl = struct('time_str', {this.TimeLabels.time_str}, ...
                     'text_str', {this.TimeLabels.text_str});
-                addParam(TlMdt, 'TimeLabels', 'Lbl', Lbl);
+                addParam(Mdt, 'Lbl', Lbl);
             else
-                TlMdt = MyMetadata.empty();
+                Mdt = MyMetadata.empty();
             end
-            
-            Mdt = [CnMdt, TlMdt];
         end
         
         % Save log metadata, owerwriting existing
@@ -645,30 +668,19 @@ classdef MyLog < matlab.mixin.Copyable
                 Mdt = getMetadata(this);
             end
             
-            metfname = this.data_file_name;
+            metfilename = this.meta_file_name;
             
             % Create or clear the file
-            stat = createFile(metfname, 'owerwrite', true);
+            stat = createFile(metfilename, 'overwrite', true);
             if ~stat
                 return
             end
             
             save(Mdt, metfilename);
-            
-            % Store the value for change tracking
-            this.LastSavedMetadata = Mdt;
         end
         
         % Process metadata
         function setMetadata(this, Mdt) 
-            
-            % Assign column names
-            Cn = titleref(Mdt, 'ColumnNames');
-            if ~isempty(Cn) && length(Cn.ParamList.Name)>1
-                
-                % Assign column headers from metadata if present 
-                this.data_headers = Cn.ParamList.Name(2:end);
-            end
             
             % Assign time labels
             Tl = titleref(Mdt, 'TimeLabels');
@@ -703,6 +715,10 @@ classdef MyLog < matlab.mixin.Copyable
             this.data_headers = val;
         end
         
+        function set.save_cont(this, val)
+            this.save_cont = logical(val);
+        end
+        
         % The get function for file_name adds extension if it is not
         % already present and also ensures proper file separators 
         % (by splitting and combining the file name)
@@ -718,43 +734,53 @@ classdef MyLog < matlab.mixin.Copyable
         function fname = get.meta_file_name(this)
             fname = this.file_name;
             [filepath,name,~] = fileparts(fname);
-            ext=this.meta_file_ext;
+            ext = this.meta_file_ext;
             fname = fullfile(filepath,[name,ext]);
         end
         
-        function data_line_fmt=get.data_line_fmt(this)
-            cs=this.column_sep;
-            nl=this.line_sep;
+        function data_line_fmt = get.data_line_fmt(this)
+            cs = this.column_sep;
+            nl = this.line_sep;
             
             if isempty(this.data)
-                l=0;
+                l = 0;
             else
-                [~,l]=size(this.data);
+                [~,l] = size(this.data);
             end
             
             data_line_fmt = this.time_fmt;
-            for i=1:l
+            for i = 1:l
                 data_line_fmt = [data_line_fmt, cs, this.data_fmt]; %#ok<AGROW>
             end
             data_line_fmt = [data_line_fmt, nl];
         end
         
-        function hdrs=get.column_headers(this)
+        function hdrs = get.column_headers(this)
+            
             % Add header for the time column
             if isa(this.timestamps,'datetime')
                 time_title_str = 'POSIX time (s)';
             else
                 time_title_str = 'Time';
             end
-            hdrs=[time_title_str,this.data_headers];
+            hdrs = [time_title_str, this.data_headers];
         end
         
-        function time_num_arr=get.timestamps_num(this)
+        function time_num_arr = get.timestamps_num(this)
+            
             % Convert time stamps to numbers
-            if isa(this.timestamps,'datetime')
-                time_num_arr=posixtime(this.timestamps);
+            if isa(this.timestamps, 'datetime')
+                time_num_arr = posixtime(this.timestamps);
             else
-                time_num_arr=this.timestamps;
+                time_num_arr = this.timestamps;
+            end
+        end
+        
+        function val = get.channel_no(this)
+            if isempty(this.data)
+                val = length(this.data_headers);
+            else
+                [~, val] = size(this.data);
             end
         end
     end

@@ -89,7 +89,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
         end
         
         function bool = isparam(this, param_name)
-            bool = isfield(param_name, this.ParamList);
+            bool = isfield(this.ParamList, param_name);
         end
         
         % Alias for addParam that is useful to ensure the correspondence  
@@ -335,9 +335,9 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                             
                             % Assign the value to a new subscript of 
                             % an existing parameter
-                            Subs = [struct('type','.','subs',name), Subs];  %#ok<AGROW>
-                            this.ParamList = subsasgn(this.ParamList, ...
-                                Subs, value);  
+                            Subs = [substruct('.', name), Subs];  %#ok<AGROW>
+                            TmpMdt.ParamList = subsasgn( ...
+                                TmpMdt.ParamList, Subs, value);  
                         end
                     otherwise
                         

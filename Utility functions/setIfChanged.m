@@ -1,7 +1,9 @@
 % Shorthand for an assignment with AbortSet=true.  
 
-function setIfChanged(Obj, prop, val)
-    if ~isequal(Obj.(prop), val)
+function is_changed = setIfChanged(Obj, prop, val)
+    is_changed = ~isequal(Obj.(prop), val);
+    
+    if is_changed
         Obj.(prop) = val;
     end
 end

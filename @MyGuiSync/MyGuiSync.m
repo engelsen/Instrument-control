@@ -7,7 +7,8 @@ classdef MyGuiSync < handle
         Listeners = struct()
         
         % Link structures
-        Links = struct( ...            
+        Links = struct( ...
+            'reference',            {}, ... % reference to the link target
             'GuiElement',           {}, ... % graphics object      
             'gui_element_prop',     {}, ...
             'inputProcessingFcn',   {}, ... % applied after a value is 
@@ -60,7 +61,7 @@ classdef MyGuiSync < handle
             this.Listeners.AppDeleted = addlistener(App, ...
                 'ObjectBeingDestroyed', @(~, ~)delete(this));
             
-            if ~ismember('KernelObj', p.UsingDefaults)
+            if ~isempty(p.Results.KernelObj)
                 
                 KernelObj = p.Results.KernelObj;
                 addToCleanup(this, p.Results.KernelObj);
@@ -69,7 +70,6 @@ classdef MyGuiSync < handle
                     'ObjectBeingDestroyed', @this.kernelDeletedCallback);
             end
         end
-        
         
         function delete(this)
             
@@ -102,6 +102,14 @@ classdef MyGuiSync < handle
             for i = 1:length(this.cleanup_list)
                 Obj = this.cleanup_list{i};
                 try
+                    if isa(Obj, 'timer')
+                        
+                        % Stop if object is a timer
+                        try
+                            stop(Obj);
+                        catch
+                        end
+                    end
                     
                     % Check if the object has an appropriate delete method. 
                     % This is a safety measure to never delete a file by 
@@ -120,7 +128,6 @@ classdef MyGuiSync < handle
             end
         end
         
-        
         % Establish a correspondence between the value of a GUI element and
         % some other property of the app
         % 
@@ -136,7 +143,7 @@ classdef MyGuiSync < handle
             % a PostSet callback is made automatically by this function, 
             % but the parameters below enforce these functions to be *not*
             % created.
-            addParameter(p, 'create_value_changed_fcn', true, @islogical);
+            addParameter(p, 'create_elem_callback', true, @islogical);
             addParameter(p, 'event_update', true, @islogical);
             
             parse(p, varargin{:});
@@ -165,7 +172,7 @@ classdef MyGuiSync < handle
             
             % Create the basis of link structure (everything except for 
             % set/get functions)
-            Link = makeLinkBase(this, Elem, prop_ref, sub_varargin{:});
+            Link = createLinkBase(this, Elem, prop_ref, sub_varargin{:});
             
             % Do additional link processing in the case of 
             % MyInstrument commands
@@ -178,13 +185,13 @@ classdef MyGuiSync < handle
             Link.getTargetFcn = createGetTargetFcn(this, Hobj, ...
                 hobj_prop, RelSubs);
             
-            % Check if ValueChanged callback needs to be created
+            % Check if ValueChanged or another callback needs to be created
             elem_prop = Link.gui_element_prop;
             
-            create_vcf = p.Results.create_value_changed_fcn && ...
-                checkCreateVcf(this, Elem, elem_prop, Hobj, hobj_prop);
+            cb_name = findElemCallbackType(this, Elem, elem_prop, ...
+                Hobj, hobj_prop);
             
-            if create_vcf
+            if p.Results.create_elem_callback && ~isempty(cb_name)
                 
                 % A public CreateCallback method needs to intorduced in the
                 % app, as officially Matlab apps do not support external
@@ -200,8 +207,16 @@ classdef MyGuiSync < handle
                 Link.setTargetFcn = createSetTargetFcn(this, Hobj, ...
                     hobj_prop, RelSubs);
                 
-                Elem.ValueChangedFcn = createValueChangedCallback(this, ...
-                    Link);
+                switch cb_name
+                    case 'ValueChangedFcn'
+                        Elem.ValueChangedFcn = ...
+                            createValueChangedCallback(this, Link);
+                    case 'MenuSelectedFcn'
+                        Elem.MenuSelectedFcn = ...
+                            createMenuSelectedCallback(this, Link);
+                    otherwise
+                        error('Unknown callback name %s', cb_name)
+                end
             end
             
             % Attempt creating a callback to PostSet event for the target 
@@ -211,29 +226,41 @@ classdef MyGuiSync < handle
                 try
                     Link.Listener = addlistener(Hobj, hobj_prop, ...
                         'PostSet', createPostSetCallback(this, Link));
-                catch ME
-                    warning(ME.message); 
+                catch
+                    Link.Listener = event.proplistener.empty();
                 end
             end
             
-            % Update the value of GUI element 
-            updateLinkedElement(this, Link);
-            
             % Store the link structure
-            this.Links(end+1) = Link;
+            ind = length(this.Links)+1;
+            this.Links(ind) = Link;
+            
+            % Update the value of GUI element
+            updateElementByIndex(this, ind);
         end
 
+        % Change link reference for a given element or update the functions 
+        % that get and set the value of the existing reference. 
         function reLink(this, Elem, prop_ref)
             
-            % Find the link structure corresponding to Elem
-            ind = find(arrayfun( @(x)isequal(x.GuiElement, Elem), ...
-                this.Links));
+            % Find the index of link structure corresponding to Elem
+            ind = findLinkInd(this, Elem);
             
-            assert(length(ind) == 1, ['No or multiple existing links ' ...
-                'found during a relinking attempt.'])
+            if isempty(ind)
+                return
+            end
             
-            % Delete and clear the existing listener
+            if ~exist('prop_ref', 'var')
+                
+                % If the reference is not supplied, update existing
+                prop_ref = this.Links(ind).reference;
+            end
+            
+            this.Links(ind).reference = prop_ref;
+            
             if ~isempty(this.Links(ind).Listener)
+                
+                % Delete and clear the existing listener
                 delete(this.Links(ind).Listener);
                 this.Links(ind).Listener = [];
             end
@@ -258,66 +285,37 @@ classdef MyGuiSync < handle
                 this.Links(ind).Listener = addlistener(Hobj, hobj_prop, ...
                     'PostSet', createPostSetCallback(this, ...
                     this.Links(ind)));
-            catch 
+            catch
+                this.Links(ind).Listener = event.proplistener.empty();
             end
                 
             % Update the value of GUI element according to the new
             % reference
-            updateLinkedElement(this, this.Links(ind));
+            updateElementByIndex(this, ind);
         end
         
-        function updateLinkedElements(this)
-            for i=1:length(this.Links)
+        function updateAll(this)
+            for i = 1:length(this.Links)
                 
-                % Elements updated by callbacks should not be updated
-                % manually
-                if isempty(this.Links(i).Listener)
-                    updateLinkedElement(this, this.Links(i));
+                % Only update those elements for which listeners do not
+                % exist or invalid
+                L = this.Links(i).Listener;
+                if isempty(L) || ~any(isvalid(L))
+                    updateElementByIndex(this, i);
                 end
             end
             
-            % Optionally execute the update function defined within 
-            % the App
+            % Optionally execute the update function defined within the App
             if ~isempty(this.updateGuiFcn)
                 this.updateGuiFcn();
             end
         end
         
         % Update the value of one linked GUI element.
-        % Arg2 can be a link structure or a GUI element for which the
-        % corresponding link structure needs to be found.
-        function updateLinkedElement(this, Arg2)
-            if isstruct(Arg2)
-                Link = Arg2;
-                
-                val = Link.getTargetFcn();
-                if ~isempty(Link.outputProcessingFcn)
-                    val = Link.outputProcessingFcn(val);
-                end
-                
-                % Setting value to a matlab app elemen is time consuming, 
-                % so first check if the value has actually changed
-                setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
-            else
-                Elem = Arg2;
-                
-                % Find the link structure corresponding to Elem
-                ind = arrayfun( @(x)isequal(x.GuiElement, Elem), ...
-                    this.Links);
-
-                Link = this.Links(ind);
-
-                if length(Link) == 1
-                    updateLinkedElement(this, Link);
-                elseif isempty(Link)
-                    warning(['The value of GUI element below cannot ' ...
-                        'be updated as no link for it is found.']);
-                    disp(Elem);
-                else
-                    warning(['The value of GUI element below cannot ' ...
-                        'be updated, multiple link structures exist.']);
-                    disp(Elem);
-                end
+        function updateElement(this, Elem)
+            ind = findLinkInd(this, Elem);
+            if ~isempty(ind)
+                updateElementByIndex(this, ind);
             end
         end
         
@@ -340,11 +338,11 @@ classdef MyGuiSync < handle
         function f = createPostSetCallback(this, Link)
             function postSetCallback(~,~)
                 val = Link.getTargetFcn();
-
+                
                 if ~isempty(Link.outputProcessingFcn)
                     val = Link.outputProcessingFcn(val);
                 end
-
+                
                 setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
 
                 % Optionally execute the update function defined within 
@@ -366,22 +364,64 @@ classdef MyGuiSync < handle
                     val = Link.inputProcessingFcn(val);
                 end
 
-                Link.setTargetFcn(val);
-
-                if ~isfield(Link, 'Listener')
-
-                    % Update non event based links
-                    updateLinkedElements(this);
-
-                    % Optionally execute the update function defined within 
-                    % the App
-                    if ~isempty(this.updateGuiFcn)
-                        this.updateGuiFcn();
-                    end
+                if ~isempty(Link.Listener)
+                    
+                    % Switch the listener off
+                    Link.Listener.Enabled = false;
+                    
+                    % Set the value
+                    Link.setTargetFcn(val);
+                    
+                    % Switch the listener on again
+                    Link.Listener.Enabled = true;
+                else
+                    Link.setTargetFcn(val);
                 end
+                
+                % Update non event based links
+                updateAll(this);
             end
             
             f = this.createCallbackFcn(@valueChangedCallback);
+        end
+        
+        % MenuSelected callbacks are different from ValueChanged in that
+        % the state needs to be toggled manually
+        function f = createMenuSelectedCallback(this, Link)
+            function menuSelectedCallback(~, ~)           
+                
+                % Toggle the menu state
+                if strcmpi(Link.GuiElement.Checked, 'on')
+                    Link.GuiElement.Checked = 'off';
+                    val = 'off';
+                else
+                    Link.GuiElement.Checked = 'on';
+                    val = 'on';
+                end
+
+                if ~isempty(Link.inputProcessingFcn)
+                    val = Link.inputProcessingFcn(val);
+                end
+                
+                if ~isempty(Link.Listener)
+                    
+                    % Switch the listener off
+                    Link.Listener.Enabled = false;
+                    
+                    % Set the value
+                    Link.setTargetFcn(val);
+                    
+                    % Switch the listener on again
+                    Link.Listener.Enabled = true;
+                else
+                    Link.setTargetFcn(val);
+                end
+                
+                % Update non event based links
+                updateAll(this);
+            end
+            
+            f = this.createCallbackFcn(@menuSelectedCallback);
         end
         
         function f = createGetTargetFcn(~, Obj, prop_name, S)
@@ -426,13 +466,46 @@ classdef MyGuiSync < handle
             end
         end
         
+        % Find the link structure corresponding to Elem
+        function ind = findLinkInd(this, Elem)
+                
+            % Argument 2 is a GUI element, for which we find the link 
+            ind = arrayfun(@(x)isequal(x.GuiElement, Elem), this.Links);
+            ind = find(ind);
+            
+            if isempty(ind)
+                warning('No link found for the GUI element below.');
+                disp(Elem);
+            elseif length(ind) > 1
+                warning('Multiple links found for the GUI element below.');
+                disp(Elem);
+                
+                ind = [];
+            end
+        end
+        
+        % Update the value of one linked GUI element given the index of
+        % corresponding link
+        function updateElementByIndex(this, ind)
+            Link = this.Links(ind);
+            
+            val = Link.getTargetFcn();
+            if ~isempty(Link.outputProcessingFcn)
+                val = Link.outputProcessingFcn(val);
+            end
+
+            % Setting value to a matlab app elemen is time consuming, 
+            % so first check if the value has actually changed
+            setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
+        end
+        
         %% Subroutines of addLink
         
         % Parse input and create the base of Link structure
-        function Link = makeLinkBase(this, Elem, prop_ref, varargin)
+        function Link = createLinkBase(this, Elem, prop_ref, varargin)
             
             % Parse function inputs
-            p=inputParser();
+            p = inputParser();
 
             % GUI control element
             addRequired(p, 'Elem');
@@ -444,18 +517,29 @@ classdef MyGuiSync < handle
             % Linked property of the GUI element (can be e.g. 'Color')
             addParameter(p, 'elem_prop', 'Value', @ischar);
 
-            % If input_prescaler is given, the value assigned to the instrument propery  
-            % is related to the value x displayed in GUI as x/input_presc.
+            % If input_prescaler is given, the value assigned to the  
+            % instrument propery is related to the value x displayed in 
+            % GUI as x/input_presc.
             addParameter(p, 'input_prescaler', 1, @isnumeric);
 
-            % Arbitrary processing functions can be specified for input and output.
-            % out_proc_fcn is applied to values before assigning them to gui
-            % elements and in_proc_fcn is applied before assigning
-            % to the linked properties
+            % Arbitrary processing functions can be specified for input and 
+            % output. outputProcessingFcn is applied to values before  
+            % assigning them to gui elements and in_proc_fcn is applied  
+            % before assigning to the linked properties.
             addParameter(p, 'outputProcessingFcn', [], ...
                 @(f)isa(f,'function_handle'));
             addParameter(p, 'inputProcessingFcn', [], ...
                 @(f)isa(f,'function_handle'));
+            
+            % Parameters relevant for uilamps
+            addParameter(p, 'lamp_on_color', MyAppColors.lampOn(), ...
+                @iscolor);
+            addParameter(p, 'lamp_off_color', MyAppColors.lampOff(), ...
+                @iscolor);
+            
+            % Option which allows converting a binary choice into a logical
+            % value
+            addParameter(p, 'map', {}, @this.validateMapArg);
 
             parse(p, Elem, prop_ref, varargin{:});
             
@@ -467,6 +551,7 @@ classdef MyGuiSync < handle
             
             % Create a new link structure
             Link = struct( ...
+                'reference',            prop_ref, ...
                 'GuiElement',           p.Results.Elem, ...       
                 'gui_element_prop',     p.Results.elem_prop, ...
                 'inputProcessingFcn',   p.Results.inputProcessingFcn, ...
@@ -484,9 +569,27 @@ classdef MyGuiSync < handle
             if strcmpi(Elem.Type, 'uilamp')
                 Link.gui_element_prop = 'Color';
                 
-                % Select between the default on and off colors. 
+                % Select between the on and off colors. 
                 Link.outputProcessingFcn = @(x)select(x, ...
-                    MyAppColors.lampOn(), MyAppColors.lampOff());
+                    p.Results.lamp_on_color, p.Results.lamp_off_color);
+                return
+            end
+            
+            % Treat the special case of uimenus
+            if strcmpi(Elem.Type, 'uimenu')
+                Link.gui_element_prop = 'Checked';
+            end
+            
+            if ~ismember('map', p.UsingDefaults)
+                ref_vals = p.Results.map{1};
+                gui_vals = p.Results.map{2};
+                
+                % Assign input and output processing functions that convert
+                % a logical value into one of the options and back
+                Link.inputProcessingFcn = @(x)select( ...
+                    isequal(x, gui_vals{1}), ref_vals{:});
+                Link.outputProcessingFcn = @(x)select( ...
+                    isequal(x, ref_vals{1}), gui_vals{:});
             end
 
             % Simple scaling is a special case of value processing
@@ -556,19 +659,16 @@ classdef MyGuiSync < handle
             end
             
             % Add tooltip
-            if isprop(Link.GuiElement, 'Tooltip')
+            if isprop(Link.GuiElement, 'Tooltip') && ...
+                    isempty(Link.GuiElement.Tooltip)
                 Link.GuiElement.Tooltip = Cmd.info;
             end
         end
         
-        % Decide if getTargetFcn and, correpondingly, ValueChanged 
-        % callback needs to be created
-        function bool = checkCreateVcf(~, Elem, elem_prop, Hobj, hobj_prop)
-            
-            if ~strcmp(elem_prop, 'Value')
-                bool = false;
-                return
-            end
+        % Decide what kind of callback (if any) needs to be created for 
+        % the GUI element. Options: 'ValueChangedFcn', 'MenuSelectedFcn' 
+        function callback_name = findElemCallbackType(~, ...
+                Elem, elem_prop, Hobj, hobj_prop)
             
             % Check property attributes
             Mp = findprop(Hobj, hobj_prop);
@@ -592,12 +692,28 @@ classdef MyGuiSync < handle
                 gui_element_editable = false;
             end
             
-            bool = prop_write_accessible && gui_element_editable; 
-
+            if ~(prop_write_accessible && gui_element_editable)
+                callback_name = '';
+                return
+            end
+            
             % Do not create a new callback if one already exists (typically 
-            % it means that a callback was manually defined in AppDesigner) 
-            bool = bool && (isprop(Elem, 'ValueChangedFcn') && ...
-                isempty(Elem.ValueChangedFcn));
+            % it means that a callback was manually defined in AppDesigner)
+            if strcmp(elem_prop, 'Value') && ...
+                    isprop(Elem, 'ValueChangedFcn') && ...
+                    isempty(Elem.ValueChangedFcn)
+                
+                % This is the most typical type of callback 
+                callback_name = 'ValueChangedFcn';
+            elseif strcmp(elem_prop, 'Checked') && ...
+                    strcmpi(Elem.Type, 'uimenu') && ...
+                    isempty(Elem.MenuSelectedFcn)
+                
+                % Callbacks for menus
+                callback_name = 'MenuSelectedFcn';
+            else
+                callback_name = '';
+            end
         end
         
         % Extract the top-most handle object in the reference, the end
@@ -630,6 +746,20 @@ classdef MyGuiSync < handle
                     break
                 end
             end
+        end
+        
+        % Validate the value of 'map' optional argument in createLinkBase
+        function validateMapArg(~, arg)
+            try
+                is_map_arg = iscell(arg) && length(arg)==2 && ...
+                    length(arg{1})==2 && length(arg{2})==2; 
+            catch
+                is_map_arg = false;
+            end
+            
+            assert(is_map_arg, ['The value must be a cell of the form ' ...
+                '{{reference value 1, reference value 2}, ' ...
+                '{GUI dispaly value 1, GUI dispaly value 2}}.'])
         end
     end
 end
