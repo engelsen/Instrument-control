@@ -300,43 +300,73 @@ classdef MyLog < matlab.mixin.Copyable
         %% Time labels 
         
         % Add label
-        % Form with optional arguments: addTimeLabel(this, time, str)
         function addTimeLabel(this, varargin)
             p = inputParser();
             
-            addOptional(p, 'time', ...
-                datetime('now', 'Format', this.datetime_fmt), ...
-                @(x)assert(isa(x,'datetime'), ...
-                '''time'' must be of the type datetime.'));
+            addParameter(p, 'Time', datetime('now'), ...
+                @(x)assert(isa(x, 'datetime'), ['''Time'' must be of ' ...
+                'the type datetime.']))
             
-            addOptional(p, 'str', '', ...
-                @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
-                '''str'' must be a string or cell array of strings.'));
+            addParameter(p, 'text', '', ...
+                @(x)assert(iscellstr(x) || ischar(x) || isstring(x), ...
+                '''text'' must be a string or cell array of strings.'))
             
-            parse(p, varargin{:});
+            % If 'index' is specified, then the function configures an
+            % existing time label instead of adding a new one
+            addParameter(p, 'index', [], ...
+                @(x)assert(floor(x)==x && x<=length(this.TimeLabels), ...
+                ['Index must be a positive integer not exceeding the ' ...
+                'number of time labels.']))
+           
+            parse(p, varargin{:})
             
-            if any(ismember({'time', 'str'}, p.UsingDefaults))
+            Time = p.Results.Time;
+            Time.Format = this.datetime_fmt;
+            
+            if ismember('text', p.UsingDefaults)
                 
-                % Invoke a dialog to add the label time and name
-                answ = inputdlg({'Label text', 'Time'},'Add time label',...
-                    [2 40; 1 40],{'',datestr(p.Results.time)});
-                
-                if isempty(answ) || isempty(answ{1})
-                    return
+                % Invoke a dialog to input label time and name
+                if ismember('index', p.UsingDefaults)
+                    
+                    % Default dialog field values
+                    dlg_args = {'', datestr(Time)};
                 else
                     
-                    % Conversion of the inputed value to datetime to
-                    % ensure proper format
-                    time = datetime(answ{2}, 'Format', this.datetime_fmt);
-                    
-                    % Store multiple lines as cell array
-                    str = cellstr(answ{1});
+                    % Provide existing values for modification
+                    Tlb = this.TimeLabels(p.Results.index);
+                    dlg_args = {char(Tlb.text_str), Tlb.time_str};
                 end
+                
+                answ = inputdlg({'Label text', 'Time'},'Add time label',...
+                    [2 40; 1 40], dlg_args);
+                
+                % If 'Cancel' button is pressed or no input is provided, do
+                % not modify or add a new label
+                if isempty(answ) || isempty(answ{1})
+                    return
+                end
+                    
+                % Convert the inputed value to datetime with proper format
+                Time = datetime(answ{2}, 'Format', this.datetime_fmt);
+
+                % Store multiple lines as cell array
+                str = cellstr(answ{1});
+            else
+                str = cellstr(p.Results.text);
             end
             
-            this.TimeLabels(end+1).time = time;
-            this.TimeLabels(end+1).time_str = datestr(time);
-            this.TimeLabels(end+1).text_str = str;
+            % Find the index of time label. We do not supply a default
+            % value for the end of the list in case the length was changed 
+            % over the course of function execution.  
+            if ismember('index', p.UsingDefaults)
+                ind = length(this.TimeLabels)+1;
+            else
+                ind = p.Results.index;
+            end
+            
+            this.TimeLabels(ind).time = Time;
+            this.TimeLabels(ind).time_str = datestr(Time);
+            this.TimeLabels(ind).text_str = str;
             
             % Order time labels by ascending time
             sortTimeLabels(this);
@@ -354,72 +384,21 @@ classdef MyLog < matlab.mixin.Copyable
             end
         end
         
-        % Modify text or time of an exising label. If new time and text are
-        % not provided as arguments, modifyTimeLabel(this, ind, time, str), 
-        % invoke a dialog.
-        % ind - index of the label to be modified in TimeLabels array.
-        function modifyTimeLabel(this, ind, varargin)
-            p = inputParser();
-            addRequired(p, 'ind', @(x)assert((rem(x,1)==0)&&(x>0), ...
-                '''ind'' must be a positive integer.'));
-            addOptional(p, 'time', ...
-                datetime('now', 'Format', this.datetime_fmt), ...
-                @(x)assert(isa(x,'datetime'), ...
-                '''time'' must be of the type datetime.'));
-            addOptional(p, 'str', '', ...
-                @(x) assert(iscellstr(x)||ischar(x)||isstring(x), ...
-                '''str'' must be a string or cell array of strings.'));
-            parse(p, ind, varargin{:});
-            
-            if any(ismember({'time','str'}, p.UsingDefaults))
-                Tlb=this.TimeLabels(ind);
-                
-                answ = inputdlg({'Label text', 'Time'}, ...
-                    'Modify time label',...
-                    [2 40; 1 40],{char(Tlb.text_str), Tlb.time_str});
-
-                if isempty(answ)||isempty(answ{1})
-                    return
-                else
-                    
-                    % Convert the input value to datetime and ensure 
-                    % proper format
-                    time = datetime(answ{2}, 'Format', this.datetime_fmt);
-                    
-                    % Store multiple lines as cell array
-                    str = cellstr(answ{1});
-                end
-            end
-            
-            this.TimeLabels(ind).time = time;
-            this.TimeLabels(ind).time_str = datestr(time);
-            this.TimeLabels(ind).text_str = str;
-            
-            % Order time labels by ascending time
-            sortTimeLabels(this);
-            
-            if this.save_cont
-                saveMetadata(this);
-            end
-        end
-        
         % Show the list of labels in a readable format 
         function lst = printTimeLabels(this)
             
             % The returned output is a list of character strings
             lst = cell(length(this.TimeLabels), 1);
             
-            for i=1:length(this.TimeLabels)
-                if ischar(this.TimeLabels(i).text_str) ||...
-                        isstring(this.TimeLabels(i).text_str)
-                    tmpstr = this.TimeLabels(i).text_str;
-                elseif iscell(this.TimeLabels(i).text_str)
+            for i = 1:length(this.TimeLabels)
+                if ~isempty(this.TimeLabels(i).text_str)
                     
-                    % If text is cell array, elements corresponding to 
-                    % multiple lines, display the first line
-                    tmpstr = this.TimeLabels(i).text_str{1};
+                    % Display the first line of label
+                    lbl = this.TimeLabels(i).text_str{1};
+                else
+                    lbl = '';
                 end
-                lst{i} = [this.TimeLabels(i).time_str, ' ', tmpstr];
+                lst{i} = [this.TimeLabels(i).time_str, ' ', lbl];
             end
         end
         
