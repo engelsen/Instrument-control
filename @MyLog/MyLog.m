@@ -59,7 +59,15 @@ classdef MyLog < matlab.mixin.Copyable
             'Axes',     {}, ...  % axes handles
             'DataLines',{}, ...  % data line handles
             'LbLines',  {}, ...  % label line handles
-            'BgLines',   {});    % label line background handles 
+            'BgLines',  {});     % label line background handles 
+    end
+    
+    properties (Access = protected)
+        
+        % First timestamp that was saved in the current file. This value 
+        % is used to decide which time labels to retain under when the log 
+        % data is being trimmed. 
+        FirstSavedTime = datetime.empty()
     end
     
     properties (Dependent = true)
@@ -81,7 +89,6 @@ classdef MyLog < matlab.mixin.Copyable
             processInputs(P, this, varargin{:});
         end
         
-        %% Save and load functionality
         % save the entire data record 
         function save(this, filename)
             
@@ -101,12 +108,6 @@ classdef MyLog < matlab.mixin.Copyable
             if ~stat
                 return
             end
-            
-            if ~isempty(this.TimeLabels)
-                
-                % Save time labels in a separate file
-                saveMetadata(this);
-            end
 
             fid = fopen(datfname, 'w');
 
@@ -120,6 +121,11 @@ classdef MyLog < matlab.mixin.Copyable
                 fprintf(fid, fmt, this.timestamps_num(i), this.data(i,:));
             end
             fclose(fid);
+            
+            this.FirstSavedTime = this.timestamps(1);
+                      
+            % Save time labels in a separate file
+            saveMetadata(this);
         end
         
         %% Plotting
@@ -276,10 +282,14 @@ classdef MyLog < matlab.mixin.Copyable
                     % Append new data points to file
                     fprintf(fid, this.data_line_fmt, time_num, val);
                     fclose(fid);
+                    
+                    if isempty(this.FirstSavedTime)
+                        this.FirstSavedTime = Time;
+                    end
                 catch
                     warning(['Logger cannot save data at time = ',...
                         datestr(datetime('now', ...
-                        'Format',this.datetime_fmt))]);
+                        'Format', this.datetime_fmt))]);
                     
                     % Try closing fid in case it is still open
                     try
@@ -379,19 +389,33 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Show the list of labels in a readable format 
         function lst = printTimeLabels(this)
+            if isempty(this.TimeLabels)
+                lst = {};
+                return
+            end
+            
+            if ~isempty(this.timestamps)
+                
+                % Select only those time labels that are within 
+                % the interval of time of currently stored data
+                t_ind = ([this.TimeLabels.time] >= this.timestamps(1));
+                Tl = this.TimeLabels(t_ind);
+            else
+                Tl = this.TimeLabels;
+            end
             
             % The returned output is a list of character strings
-            lst = cell(length(this.TimeLabels), 1);
+            lst = cell(length(Tl), 1);
             
-            for i = 1:length(this.TimeLabels)
-                if ~isempty(this.TimeLabels(i).text_str)
+            for i = 1:length(Tl)
+                if ~isempty(Tl(i).text_str)
                     
                     % Display the first line of label
-                    lbl = this.TimeLabels(i).text_str{1};
+                    lbl = Tl(i).text_str{1};
                 else
                     lbl = '';
                 end
-                lst{i} = [this.TimeLabels(i).time_str, ' ', lbl];
+                lst{i} = [Tl(i).time_str, ' ', lbl];
             end
         end
         
@@ -532,6 +556,8 @@ classdef MyLog < matlab.mixin.Copyable
                 L.timestamps = datetime(L.timestamps, ...
                     'ConvertFrom', 'posixtime', 'Format', L.datetime_fmt);
             end
+            
+            L.FirstSavedTime = L.timestamps(1);
         end
     end
     
@@ -548,9 +574,19 @@ classdef MyLog < matlab.mixin.Copyable
                 Axes = this.PlotList(ind).Axes;
             end
             
+            if ~isempty(this.timestamps) && ~isempty(this.TimeLabels)
+                
+                % Select for plotting only those time labels that are within
+                % the interval of time of currently stored data
+                t_ind = ([this.TimeLabels.time] >= this.timestamps(1));
+                Tl = this.TimeLabels(t_ind);
+            else
+                Tl = this.TimeLabels;
+            end
+            
             % Plot labels
-            for i = 1:length(this.TimeLabels)
-                T = this.TimeLabels(i);
+            for i = 1:length(Tl)
+                T = Tl(i);
                 n_lines = max(length(T.text_str), 1);
                 
                 try
@@ -584,7 +620,7 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             % Remove redundant markers if any
-            n_tlbl = length(this.TimeLabels);
+            n_tlbl = length(Tl);
             
             if length(this.PlotList(ind).LbLines) > n_tlbl
                 delete(this.PlotList(ind).LbLines(n_tlbl+1:end));
@@ -614,9 +650,9 @@ classdef MyLog < matlab.mixin.Copyable
                 return
             end
             
-            % Remove the time labels which times fall outside the 
-            % range of trimmed data
-            BeginTime = this.timestamps(1);
+            % Remove only the time labels which times fall outside the 
+            % range of both a) trimmed data b) data in the current file
+            BeginTime = min(this.timestamps(1), this.FirstSavedTime);
             ind = ([this.TimeLabels.time] < BeginTime);
             this.TimeLabels(ind) = [];
         end
@@ -653,15 +689,24 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Create metadata from log properties
         function Mdt = getMetadata(this)
+            if ~isempty(this.FirstSavedTime)
             
-            if ~isempty(this.TimeLabels)
+                % Select for saving only those time labels that are within
+                % the interval of time of data in the current file
+                ind = ([this.TimeLabels.time] >= this.FirstSavedTime);
+                Tl = this.TimeLabels(ind);
+            else
+                Tl = this.TimeLabels;
+            end
+                
+            if ~isempty(Tl)
                 
                 % Add the textual part of TimeLabels structure
                 Mdt = MyMetadata(this.metadata_opts{:}, ...
                     'title', 'TimeLabels');
-            
-                Lbl = struct('time_str', {this.TimeLabels.time_str}, ...
-                    'text_str', {this.TimeLabels.text_str});
+                
+                Lbl = struct('time_str', {Tl.time_str}, ...
+                    'text_str', {Tl.text_str});
                 addParam(Mdt, 'Lbl', Lbl);
             else
                 Mdt = MyMetadata.empty();
@@ -672,6 +717,10 @@ classdef MyLog < matlab.mixin.Copyable
         function saveMetadata(this, Mdt)
             if exist('Mdt', 'var') == 0
                 Mdt = getMetadata(this);
+            end
+            
+            if isempty(Mdt)
+                return
             end
             
             metfilename = this.meta_file_name;
@@ -709,7 +758,7 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Make length_lim non-negative and integer
             this.length_lim = max(0, round(val));
-            
+
             % Apply the new length limit to log
             trim(this);
         end
@@ -723,6 +772,18 @@ classdef MyLog < matlab.mixin.Copyable
         
         function set.save_cont(this, val)
             this.save_cont = logical(val);
+        end
+        
+        function set.file_name(this, val)
+            assert(ischar(val),'''file_name'' must be a character string.')
+            
+            if ~isequal(this.file_name, val)
+                
+                % Reset the first saved timestamp marker
+                this.FirstSavedTime = datetime.empty(); %#ok<MCSUP>
+            end
+            
+            this.file_name = val;
         end
         
         % The get function for file_name adds extension if it is not
