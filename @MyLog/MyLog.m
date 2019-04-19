@@ -38,15 +38,15 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Format for string representation of timestamps
         datetime_fmt = 'yyyy-MMM-dd HH:mm:ss'
-    
-        timestamps % Times at which data was aqcuired
-        data % Array of measurements
         
         save_cont = false % If true changes are continuously saved
     end
        
     properties (GetAccess = public, SetAccess = protected, ...
             SetObservable = true)
+        
+        timestamps  % Times at which data was aqcuired
+        data        % Array of measurements
         
         % Structure array that stores labeled time marks
         TimeLabels = struct( ...
@@ -84,9 +84,6 @@ classdef MyLog < matlab.mixin.Copyable
         %% Save and load functionality
         % save the entire data record 
         function save(this, filename)
-            
-            % Verify that the data can be saved
-            assertDataMatrix(this);
             
             % File name can be either supplied explicitly or given as the
             % file_name property
@@ -129,14 +126,9 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Plot the log data with time labels. Reurns plotted line objects.  
         function Pls = plot(this, varargin)
-            
-            % Verify that the data is a numeric matrix, 
-            % otherwise it cannot be plotted
-            assertDataMatrix(this);
-            
             [~, ncols] = size(this.data);
             
-            p=inputParser();
+            p = inputParser();
             % Axes in which log should be plotted
             addOptional(p, 'Axes', [], @(x)assert( ...
                 isa(x,'matlab.graphics.axis.Axes')||...
@@ -228,14 +220,15 @@ classdef MyLog < matlab.mixin.Copyable
         %% Manipulations with log data
         
         % Append data point to the log
-        function appendData(this, time, val)
+        function appendData(this, Time, val)
             
             % Format checks on the input data
-            assert(isa(time,'datetime') || isnumeric(time),...
+            assert(isa(Time, 'datetime') || isnumeric(Time),...
                 ['''time'' argument must be numeric or ',...
                 'of the class datetime.']);
             
-            assert(isrow(val),'''val'' argument must be a row vector.');
+            assert(isrow(val) && isnumeric(val), ...
+                '''val'' argument must be a numeric row vector.');
             
             if ~isempty(this.data)
                 [~, ncols] = size(this.data);
@@ -244,12 +237,12 @@ classdef MyLog < matlab.mixin.Copyable
             end
             
             % Ensure time format
-            if isa(time,'datetime')
-                time.Format = this.datetime_fmt;
+            if isa(Time,'datetime')
+                Time.Format = this.datetime_fmt;
             end
             
             % Append new data and time stamps
-            this.timestamps = [this.timestamps; time];
+            this.timestamps = [this.timestamps; Time];
             this.data = [this.data; val];
             
             % Ensure the log length is within the length limit
@@ -274,10 +267,10 @@ classdef MyLog < matlab.mixin.Copyable
                     end
                     
                     % Convert the new timestamps to numeric form for saving
-                    if isa(time,'datetime')
-                        time_num = posixtime(time);
+                    if isa(Time, 'datetime')
+                        time_num = posixtime(Time);
                     else
-                        time_num = time;
+                        time_num = Time;
                     end
                     
                     % Append new data points to file
@@ -427,11 +420,70 @@ classdef MyLog < matlab.mixin.Copyable
             this.save_cont = false;
         end
         
-        % Verify that the data can be saved or plotted
-        function assertDataMatrix(this)
-            assert(ismatrix(this.data)&&isnumeric(this.data),...
-                ['Data is not a numeric matrix, saving in '...
-                'text format is not possible.']);
+        % Convert the log channel record to trace
+        function Trace = toTrace(this, varargin)
+            log_len = length(this.timestamps);
+            
+            p = inputParser();
+            
+            addParameter(p, 'channel', 1, ...
+                @(x)assert(x>0 && floor(x)==x && x<=this.channel_no, ...
+                ['Channel number must be an integer between 1 and ' ...
+                num2str(this.channel_no) '.']));
+            
+            addParameter(p, 'start_ind', 1, ...
+                @(x)assert(x>0 && floor(x)==x && x<=log_len, ...
+                ['Start index must be an integer between 1 and ' ...
+                num2str(log_len) '.']));
+            
+            addParameter(p, 'stop_ind', log_len, ...
+                @(x)assert(x>0 && floor(x)==x && x<=log_len, ...
+                ['Stop index must be an integer between 1 and ' ...
+                num2str(log_len) '.']));
+            
+            % If false, the beginning of x data in the trace is shifted to 
+            % zero 
+            addParameter(p, 'absolute_time', false, @islogical);
+            
+            parse(p, varargin{:});
+            
+            n_ch = p.Results.channel;
+            start = p.Results.start_ind;
+            stop = p.Results.stop_ind;
+            
+            Trace = MyTrace();
+            
+            Trace.name_x = 'Time';
+            Trace.unit_x = 's';
+            Trace.x = this.timestamps_num(start:stop);
+            
+            if ~p.Results.absolute_time
+                
+                % Shift the beginning of data to zero
+                Trace.x = Trace.x-Trace.x(1);
+            end
+            
+            if length(this.data_headers) >= n_ch
+                
+                % Try extracting the name and unit from the column header.
+                % The regexp will match anything of the format 'x (y)' with
+                % any types of brackets, (), [] or {}. 
+                tokens = regexp(this.data_headers{n_ch}, ...
+                    '(.*)[\(\[\{](.*)[\)\]\}]', 'tokens');
+                
+                if ~isempty(tokens)
+                    
+                    % Removes leading and trailing whitespaces
+                    tokens = strtrim(tokens{1});
+                    
+                    Trace.name_y = tokens{1};
+                    Trace.unit_y = tokens{2};
+                else
+                    Trace.name_y = this.data_headers{n_ch};
+                end
+            end
+            
+            Trace.y = this.data(start:stop, n_ch);
         end
     end
     
@@ -576,11 +628,12 @@ classdef MyLog < matlab.mixin.Copyable
             assert(isvalid(Ax),'Ax must be valid axes or uiaxes')
             
             if ~isempty(this.PlotList)
-                ind_b=cellfun(@(x) isequal(x, Ax),{this.PlotList.Axes});
+                ind_b = cellfun(@(x) isequal(x, Ax),{this.PlotList.Axes});
+                
                 % Find index of the first match
-                ind=find(ind_b,1);
+                ind = find(ind_b,1);
             else
-                ind=[];
+                ind = [];
             end
         end
         
@@ -681,28 +734,28 @@ classdef MyLog < matlab.mixin.Copyable
         function fname = get.meta_file_name(this)
             fname = this.file_name;
             [filepath,name,~] = fileparts(fname);
-            ext=this.meta_file_ext;
+            ext = this.meta_file_ext;
             fname = fullfile(filepath,[name,ext]);
         end
         
-        function data_line_fmt=get.data_line_fmt(this)
-            cs=this.column_sep;
-            nl=this.line_sep;
+        function data_line_fmt = get.data_line_fmt(this)
+            cs = this.column_sep;
+            nl = this.line_sep;
             
             if isempty(this.data)
-                l=0;
+                l = 0;
             else
-                [~,l]=size(this.data);
+                [~,l] = size(this.data);
             end
             
             data_line_fmt = this.time_fmt;
-            for i=1:l
+            for i = 1:l
                 data_line_fmt = [data_line_fmt, cs, this.data_fmt]; %#ok<AGROW>
             end
             data_line_fmt = [data_line_fmt, nl];
         end
         
-        function hdrs=get.column_headers(this)
+        function hdrs = get.column_headers(this)
             
             % Add header for the time column
             if isa(this.timestamps,'datetime')
@@ -710,21 +763,25 @@ classdef MyLog < matlab.mixin.Copyable
             else
                 time_title_str = 'Time';
             end
-            hdrs=[time_title_str,this.data_headers];
+            hdrs = [time_title_str, this.data_headers];
         end
         
-        function time_num_arr=get.timestamps_num(this)
+        function time_num_arr = get.timestamps_num(this)
             
             % Convert time stamps to numbers
-            if isa(this.timestamps,'datetime')
-                time_num_arr=posixtime(this.timestamps);
+            if isa(this.timestamps, 'datetime')
+                time_num_arr = posixtime(this.timestamps);
             else
-                time_num_arr=this.timestamps;
+                time_num_arr = this.timestamps;
             end
         end
         
         function val = get.channel_no(this)
-            val = length(this.data_headers);
+            if isempty(this.data)
+                val = length(this.data_headers);
+            else
+                [~, val] = size(this.data);
+            end
         end
     end
 end
