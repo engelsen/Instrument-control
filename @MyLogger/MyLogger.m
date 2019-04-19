@@ -31,7 +31,11 @@ classdef MyLogger < handle
     
     events
         
-        % Event that is triggered each time measFcn is successfully executed
+        % Event that is triggered each time measFcn is successfully 
+        % executed
+        NewMeasurement
+        
+        % Event for transferring data to the collector
         NewData
     end
     
@@ -81,9 +85,11 @@ classdef MyLogger < handle
             stop(this.MeasTimer);
         end
         
-        % Convert a part of log between Tmin and Tmax to MyTrace format and 
-        % trigger a NewData event 
-        function transferLog(this, Tmin, Tmax)
+        % Trigger an event that transfers the data from one channel to the
+        % collector
+        function transferLog(this, varargin)
+            Trace = toTrace(this.Record, varargin{:});
+            triggerNewData(this, Trace);
         end
         
         % Display reading
@@ -140,13 +146,15 @@ classdef MyLogger < handle
                 
                 % Append measurement result together with time stamp
                 appendData(this.Record, time, meas_result);
-                triggerNewData(this);
+                notify(this, 'NewMeasurement');
             end
         end
         
-        %Triggers event for acquired data
-        function triggerNewData(this)
-            notify(this,'NewData')
+        % Since the class does not have Trace property, a Trace must be
+        % supplied explicitly every time
+        function triggerNewData(this, Trace)
+            EventData = MyNewDataEvent('Trace',Trace,'new_header',false);
+            notify(this, 'NewData', EventData);
         end
     end
     
