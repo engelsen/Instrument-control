@@ -521,37 +521,12 @@ classdef MyDaq < handle
             fullfilename=fullfile(this.save_dir,this.filename);
             
             if p.Results.make_unique_name && exist(fullfilename, 'file')~=0
-                fullfilename=makeUniqueFileName(this); 
+                fullfilename = makeUniqueFileName( ...
+                    fullfile(this.save_dir, this.filename)); 
             end
             
             %Save in readable format using the method of MyTrace
             save(this.(trace_tag), fullfilename)
-        end
-        
-        % Make the filename unique within the measurement folder
-        % by appending _n. This function does not make sure that the 
-        % filename is valid - i.e. does not contain symbols forbidden by 
-        % the file system.   
-        function fullfilename=makeUniqueFileName(this)
-            [~, fn, ext]=fileparts(this.filename);
-            % List all the existing files in the measurement directory
-            % that have the same extension as our filename
-            DirCont=dir(fullfile(this.save_dir,['*', ext]));
-            file_ind=~[DirCont.isdir];
-            existing_fns={DirCont(file_ind).name};
-
-            % Remove extensions
-            [~,existing_fns,~]=cellfun(@fileparts, existing_fns, ...
-                'UniformOutput',false);
-
-            % Generate a new file name
-            if ~isempty(fn)
-                fn=matlab.lang.makeUniqueStrings(fn, existing_fns);
-            else
-                fn=matlab.lang.makeUniqueStrings('placeholder', ...
-                    existing_fns);
-            end
-            fullfilename=fullfile(this.save_dir,[fn, ext]); 
         end
         
         %Toggle button callback for showing the data trace.
