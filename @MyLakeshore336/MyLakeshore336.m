@@ -1,17 +1,15 @@
-% Class communication with Lakeshore Model 336 temperature controller. 
-classdef MyLakeshore336 < MyInstrument
-    
-    properties (Access=public)
-        temp_unit = 'K'; % temperature unit, K or C
-    end
-    
-    properties (SetAccess=protected, GetAccess=public)
-        temp = {0,0,0,0}; % cell array of temperatures
-        setpoint = {0,0,0,0};
-        inp_sens_name = {'','','',''}; % input sensor names
+% Class communication with Lakeshore Model 336 temperature controller.
+
+classdef MyLakeshore336 < MyScpiInstrument & MyCommCont 
+    properties (SetAccess = protected, GetAccess = public)
+        
         heater_rng = {0,0,0,0}; % cell array of heater range codes
         % output modes{{mode, cntl_inp, powerup_en},...}
         out_mode = {[0,0,0],[0,0,0],[0,0,0],[0,0,0]}; 
+        
+        % Temperature unit, K or C. This variable can be set only during
+        % the object creation.
+        temp_unit = 'K' 
     end
     
     properties (SetAccess=private, GetAccess=public)
@@ -31,9 +29,9 @@ classdef MyLakeshore336 < MyInstrument
         powerup_en_str %
     end
     
-    methods (Access=public)
-        function this=MyLakeshore336(interface, address, varargin)
-            this@MyInstrument(interface, address, varargin{:});
+    methods (Access = public)
+        function this = MyLakeshore336(varargin)
+            this@MyCommCont(varargin{:});
         end
         
         % read 
@@ -74,25 +72,6 @@ classdef MyLakeshore336 < MyInstrument
             end
         end
         
-        function temp_arr = readTemperature(this)
-            % unit = C or K;
-            tu = this.temp_unit;
-            cmd_str = [tu,'RDG? A;',tu,'RDG? B;',tu,'RDG? C;',tu,'RDG? D'];
-            resp_str = query(this.Device, cmd_str);
-            resp_split = strsplit(resp_str,';','CollapseDelimiters',false);
-            % convert to numbers
-            this.temp = cellfun(@str2num,resp_split,'UniformOutput',false);
-            % create an output array replacing missing readings with NaN
-            temp_arr = [NaN, NaN, NaN, NaN];
-            for i=1:4
-                if ~isempty(this.temp{i})
-                    temp_arr(i) = this.temp{i};
-                end
-            end
-            % Trigger event notification
-            triggerPropertyRead(this);
-        end
-        
         % out_channel is 1-4, in_channel is A-D
         function ret = readHeaterRange(this)
             cmd_str = 'RANGE? 1;RANGE? 2;RANGE? 3;RANGE? 4';
@@ -109,41 +88,6 @@ classdef MyLakeshore336 < MyInstrument
             if isHeaterRangeOk(this, out_channel, val)
                 cmd = sprintf('RANGE %i,%i', out_channel, val);
                 fprintf(this.Device, cmd);
-            end
-        end
-        
-        function ret = readSetpoint(this)
-            cmd_str = 'SETP? 1;SETP? 2;SETP? 3;SETP? 4';
-            resp_str = query(this.Device, cmd_str);
-            resp_split = strsplit(resp_str,';','CollapseDelimiters',false);
-            this.setpoint = cellfun(@(s)sscanf(s, '%e'),...
-                resp_split,'UniformOutput',false);
-            ret = this.setpoint;
-            % Trigger event notification
-            triggerPropertyRead(this);
-        end
-        
-        function writeSetpoint(this, out_channel, val)
-            cmd_str = sprintf('SETP %i,%.3f', out_channel, val);
-            fprintf(this.Device, cmd_str);
-        end
-        
-        function ret = readInputSensorName(this)
-            cmd_str = 'INNAME? A;INNAME? B;INNAME? C;INNAME? D';
-            resp_str = query(this.Device, cmd_str);
-            this.inp_sens_name = strtrim(strsplit(resp_str,';',...
-                'CollapseDelimiters',false));
-            ret = this.inp_sens_name;
-            % Trigger event notification
-            triggerPropertyRead(this);
-        end
-        
-        function writeInputSensorName(this, in_channel, name)
-            fprintf(this.Device, ['INNAME ',in_channel, name]);
-            ch_n = inChannelToNumber(this, in_channel);
-            if ~strcmpi(this.inp_sens_name{ch_n}, name)
-                warning(['Name of input sensor ',in_channel,...
-                    ' could not be changed'])
             end
         end
         
@@ -165,8 +109,53 @@ classdef MyLakeshore336 < MyInstrument
         end
     end
     
-    %% auxiliary method
-    methods (Access=private)
+    methods (Access = protected)
+        function createCommandList(this)
+            
+            % Commands for the input channels
+            inp_ch = {'A', 'B', 'C', 'D'};
+            for i = 1:4
+                nch = inp_ch{i};
+                
+                addCommand(this, ['sens_name_' lower(nch)], 'INNAME', ...
+                    'format',       '%s', ... 
+                    'read_ending',  ['? ' inp_ch{i}], ...
+                    'write_ending', [' ' inp_ch{i} ',%s'], ...
+                    'info',         ['Sensor name channel ' nch]);
+                
+                info = sprintf('Reading channel %s (%s)', nch, ...
+                    this.temp_unit);
+                
+                addCommand(this, ['temp_' lower(nch)], ...
+                    [this.temp_unit 'RDG'], ...
+                    'format',       '%e', ... 
+                    'access',       'r', ...
+                    'read_ending',  ['? ' nch], ...
+                    'info',         info);
+            end
+            
+            % Commands for the output channels
+            for i = 1:4
+                nch = num2str(i);
+                
+                addCommand(this, ['setp_' nch], 'SETP', ...
+                    'read_ending',  ['? ' nch], ...
+                    'write_ending', [' ' nch ',%.3f'], ...
+                    'info',         ['Output '  nch ' PID setpoint']);
+                
+                addCommand(this, ['range_' nch], 'RANGE', ...
+                    'read_ending',  ['? ' nch], ...
+                    'write_ending', [' ' nch ',%i'], ...
+                    'info',         ['Output '  nch ' range']);
+                
+                addCommand(this, ['out_mode_' nch], 'OUTMODE', ...
+                    'format',       '%i,%i,%i', ...
+                    'read_ending',  ['? ' nch], ...
+                    'write_ending', [' ' nch ',%i,%i,%i'], ...
+                    'info',         ['Output '  nch ' mode']);
+            end
+        end
+        
         % check if the heater range code takes a proper value, which is
         % channel-dependent
         function bool = isHeaterRangeOk(~, out_channel, val)
@@ -191,7 +180,7 @@ classdef MyLakeshore336 < MyInstrument
             end
         end
         
-        function num = inChannelToNumber(~,in_channel)
+        function num = inChannelToNumber(~, in_channel)
             switch in_channel
                 case 'A'
                     num = int32(1);
@@ -274,11 +263,11 @@ classdef MyLakeshore336 < MyInstrument
         end
         
         function set.temp_unit(this, val)
-           if strcmpi(val,'K')||strcmpi(val,'C')
+           if strcmpi(val,'K') || strcmpi(val,'C')
                this.temp_unit = upper(val);
            else
                warning(['Temperature unit needs to be K or C, ',...
-                   'value has not been changed'])
+                   'value has not been changed.'])
            end
         end
     end
