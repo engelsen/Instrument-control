@@ -20,6 +20,9 @@ classdef MyLogger < handle
         
         % Format for displaying readings (column name: value)
         disp_fmt = '\t%15s:\t%.5g'
+        
+        % Option for daily/weekly creation of a new log file 
+        FileCreationInterval = duration.empty()
     end
     
     properties (SetAccess = protected, GetAccess = public)
@@ -78,6 +81,14 @@ classdef MyLogger < handle
         
         % Redefine start/stop functions for the brevity of use
         function start(this)
+            if ~isempty(this.FileCreationInterval) && ...
+                    isempty(this.Record.FirstSaveTime)
+                
+                % If run in the limited length mode, extend the record 
+                % file name
+                createFileName(this);
+            end
+            
             start(this.MeasTimer);
         end
         
@@ -85,11 +96,15 @@ classdef MyLogger < handle
             stop(this.MeasTimer);
         end
         
-        % Trigger an event that transfers the data from one channel to the
-        % collector
-        function transferLog(this, varargin)
+        % Trigger an event that transfers the data from one log channel 
+        % to Daq
+        function triggerNewData(this, varargin)
+            
+            % Since the class does not have Trace property, a Trace must be
+            % supplied explicitly
             Trace = toTrace(this.Record, varargin{:});
-            triggerNewData(this, Trace);
+            EventData = MyNewDataEvent('Trace',Trace, 'new_header',false);
+            notify(this, 'NewData', EventData);
         end
         
         % Display reading
@@ -132,29 +147,54 @@ classdef MyLogger < handle
         
         % Perform measurement and append point to the log
         function loggerFcn(this, ~, event)
-            time = datetime(event.Data.time);
+            Time = datetime(event.Data.time);
             try
                 meas_result = this.measFcn();
                 this.last_meas_stat = 1; % last measurement ok
             catch
                 warning(['Logger cannot take measurement at time = ',...
-                    datestr(time)]);
+                    datestr(Time)]);
                 this.last_meas_stat = 0; % last measurement not ok
+                return
             end
             
-            if this.last_meas_stat == 1
+            if this.Record.save_cont && ...
+                    ~isempty(this.FileCreationInterval) && ...
+                    ~isempty(this.Record.FirstSaveTime) && ...
+                    (Time - this.Record.FirstSaveTime) >= ...
+                        this.FileCreationInterval
                 
-                % Append measurement result together with time stamp
-                appendData(this.Record, time, meas_result);
-                notify(this, 'NewMeasurement');
+                % Switch to a new data file
+                createFileName(this);
             end
+                
+            % Append measurement result together with time stamp
+            appendData(this.Record, Time, meas_result);
+            notify(this, 'NewMeasurement');
         end
         
-        % Since the class does not have Trace property, a Trace must be
-        % supplied explicitly every time
-        function triggerNewData(this, Trace)
-            EventData = MyNewDataEvent('Trace',Trace,'new_header',false);
-            notify(this, 'NewData', EventData);
+        % Generate a new file name for the measurement record
+        function createFileName(this)
+            [path, name, ext] = fileparts(this.Record.file_name);
+            
+            % Remove the previous time stamp from the file name if exists,
+            % as well as possible _n ending
+            token = regexp(name, ...
+                '\d\d\d\d-\d\d-\d\d \d\d-\d\d ([^(?:_\d)]*)', ...
+                'tokens');
+            if ~isempty(token)
+                name = token{1}{1};
+            end
+            
+            % Prepend a new time stamp
+            name = [datestr(datetime('now'),'yyyy-mm-dd HH-MM '), name];
+            
+            file_name = fullfile(path, [name, ext]);
+
+            % Ensure that the generated file name is unique
+            file_name = makeUniqueFileName(file_name);
+            
+            this.Record.file_name = file_name;
         end
     end
     
