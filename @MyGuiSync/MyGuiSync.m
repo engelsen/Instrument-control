@@ -27,7 +27,6 @@ classdef MyGuiSync < handle
     properties (Access = protected)
         App
         updateGuiFcn
-        createCallbackFcn
     end
     
     methods (Access = public)     
@@ -49,13 +48,9 @@ classdef MyGuiSync < handle
             addParameter(p, 'updateGuiFcn', [], ...
                 @(x)isa(x, 'function_handle'));
             
-            addParameter(p, 'createCallbackFcn', [], ...
-                @(x)isa(x, 'function_handle'));
-            
             parse(p, App, varargin{:});
             
             this.updateGuiFcn = p.Results.updateGuiFcn;
-            this.createCallbackFcn = p.Results.createCallbackFcn;
             
             this.App = App;
             this.Listeners.AppDeleted = addlistener(App, ...
@@ -192,16 +187,6 @@ classdef MyGuiSync < handle
                 Hobj, hobj_prop);
             
             if p.Results.create_elem_callback && ~isempty(cb_name)
-                
-                % A public CreateCallback method needs to intorduced in the
-                % app, as officially Matlab apps do not support external
-                % callback assignment (as of the version of Matlab 2019a)
-                assert(~isempty(this.createCallbackFcn), ...
-                    ['Matlab app must define a public wrapper for ' ...
-                    'createCallbackFcn in order for GuiSync to be able to ' ...
-                    'automatically assign ValueChanged callbacks. ' ...
-                    'The wrapper method must have signature ' ...
-                    'publicCreateCallbackFcn(app, callbackFunction).']);
                 
                 % Assign the function that sets new value to reference
                 Link.setTargetFcn = createSetTargetFcn(this, Hobj, ...
@@ -381,7 +366,7 @@ classdef MyGuiSync < handle
                 updateAll(this);
             end
             
-            f = this.createCallbackFcn(@valueChangedCallback);
+            f = @valueChangedCallback;
         end
         
         % MenuSelected callbacks are different from ValueChanged in that
@@ -420,7 +405,7 @@ classdef MyGuiSync < handle
                 updateAll(this);
             end
             
-            f = this.createCallbackFcn(@menuSelectedCallback);
+            f = @menuSelectedCallback;
         end
         
         function f = createGetTargetFcn(~, Obj, prop_name, S)
