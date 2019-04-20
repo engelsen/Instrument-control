@@ -298,9 +298,8 @@ classdef MyGuiSync < handle
             for i = 1:length(this.Links)
                 
                 % Only update those elements for which listeners do not
-                % exist or invalid
-                L = this.Links(i).Listener;
-                if isempty(L) || ~any(isvalid(L))
+                % exist
+                if isempty(this.Links(i).Listener)
                     updateElementByIndex(this, i);
                 end
             end
