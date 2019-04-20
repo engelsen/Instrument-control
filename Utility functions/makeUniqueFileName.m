@@ -1,7 +1,10 @@
 % Generate a unique file name based on the full file name supplied as the
 % input by appending _n with sufficiently large n. 
+% 
 % This function does not make sure that the filename is valid - i.e. that 
 % it does not contain symbols forbidden by the file system.
+%
+% The second output argument is true if the file name was modified
 
 function [file_name, is_mod] = makeUniqueFileName(file_name)
     [path, name, ext] = fileparts(file_name);
