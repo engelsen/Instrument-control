@@ -7,7 +7,7 @@
 % These methods are intentionally not introduced as abstract as under
 % some conditions they are not necessary
 
-classdef MyInstrument < dynamicprops
+classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
     
     properties (Access = public)
         
@@ -249,6 +249,21 @@ classdef MyInstrument < dynamicprops
             if this.auto_sync
                 sync(this);
             end
+        end
+        
+        % Overload a method of matlab.mixin.CustomDisplay in order to
+        % modify the display of object. This serves two purposes 
+        % a) separate commands from other properties 
+        % b) order commands in a systematic way
+        function PrGroups = getPropertyGroups(this)
+            cmds = this.command_names;
+            
+            % We separate the display of non-command properties from the
+            % rest
+            props = setdiff(properties(this), cmds);
+            
+            PrGroups = [matlab.mixin.util.PropertyGroup(props), ...
+                matlab.mixin.util.PropertyGroup(cmds)];
         end
     end
     
