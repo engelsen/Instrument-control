@@ -17,6 +17,9 @@ classdef MyLakeshore336 < MyScpiInstrument & MyCommCont
         out_mode_list = {'Off', 'Closed loop PID', 'Zone', ...
             'Open loop', 'Monitor out', 'Warmup supply'};
         
+        % Control input, out_mode_n(2). 
+        control_input_list = {'None', 'A', 'B', 'C', 'D'};
+        
         % Heater ranges 
         heater12_range_list = {'Off','Low','Medium','High'};
         heater34_range_list = {'Off','On'};
@@ -64,11 +67,11 @@ classdef MyLakeshore336 < MyScpiInstrument & MyCommCont
                         'preferred units of the sensor']);
                 
                 addCommand(this, ['out_mode_' nch], 'OUTMODE', ...
-                    'format',       '%i,%i,%i', ...
                     'read_ending',  ['? ' nch], ...
                     'write_ending', [' ' nch ',%i,%i,%i'], ...
                     'info',         ['Output '  nch ' settings: ' ...
-                        '[mode, cntl_input, powerup_enable]']);
+                        '[mode, cntl_input, powerup_enable]'], ...
+                    'default',      [0, 0, 0]);
                 
                 if i==1 || i==2
                     

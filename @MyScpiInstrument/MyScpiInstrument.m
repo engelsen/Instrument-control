@@ -41,14 +41,14 @@ classdef MyScpiInstrument < MyInstrument
                     ~ismember('write_ending', p.UsingDefaults)
                 
                 % Extract format specifier and symbol from the write ending
-                [smb, format] = findFormatSymbol(this, write_ending);
+                [smb, format] = parseFormat(this, write_ending);
             else
                 
                 % Extract format symbol
-                smb = findFormatSymbol(this, format);
+                smb = parseFormat(this, format);
             end
             
-            if smb == 'b'
+            if ismember('b', smb)
                 
                 % '%b' is a non-MATLAB format specifier that is introduced
                 % to designate logical variables
@@ -109,23 +109,7 @@ classdef MyScpiInstrument < MyInstrument
             
             % Assign validation function based on the value format
             if isempty(validationFcn)
-                switch smb
-                    case {'d','f','e','g'}
-                        validationFcn = @(x) ...
-                            assert(isnumeric(x), 'Value must be numeric.');
-                    case 'i'
-                        validationFcn = @(x) ...
-                            assert(floor(x)==x, 'Value must be integer.');
-                    case 's'
-                        validationFcn = @(x) ...
-                            assert(ischar(x), ...
-                            'Value must be character string.');
-                    case 'b'
-                        validationFcn = @(x) ...
-                            assert(x==0 || x==1, 'Value must be logical.');
-                    otherwise
-                        warning(['Unknown format specifier ''%' smb '''.'])
-                end
+                validationFcn = createArrayValidationFcn(this, smb);
             end
             
             sub_varargin = [sub_varargin, { ...
@@ -133,17 +117,11 @@ classdef MyScpiInstrument < MyInstrument
                 'validationFcn',    validationFcn}];
             
             % Assign default based on the format of value (if acceptable 
-            % values are not listed explicitly)
+            % values are listed explicitly, default will be assigned from 
+            % the list)
             default = p.Results.default;
             if isempty(default) && isempty(value_list)
-                switch smb
-                    case {'d','f','e','g','i','b'}
-                        default = 0;
-                    case {'s', 'c'}
-                        default = '';
-                    otherwise
-                        warning(['Unknown format specifier ''%' smb '''.'])
-                end
+                default = makeValidValue(this, smb);
             end
             
             sub_varargin = [sub_varargin, {'default', default}];
@@ -288,16 +266,19 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         % Find the format specifier symbol and options
-        function [smb, format] = findFormatSymbol(~, fmt_spec)
-            tok = regexp(fmt_spec, '%([\d\.]*)([a-z])', 'tokens');
+        function [smb, format] = parseFormat(~, fmt_spec)
+            [start, stop, tok] = regexp(fmt_spec, '%([\d\.]*)([a-z])', ...
+                'start', 'end', 'tokens');
             
             assert(~isempty(tok) && ~isempty(tok{1}{2}), ...
                 ['Format symbol is not found in ' fmt_spec]);
             
-            % The first index corresponds to different matches if there is  
-            % more than one specifier, we take only the first match
-            smb = tok{1}{2};
-            format = ['%' tok{1}{1} tok{1}{2}];
+            % The first cell index corresponds to different matches if   
+            % there are more than one specifier
+            smb = cellfun(@(x)x{2}, tok);
+            
+            % Return a substring that includes all the specifiers 
+            format = fmt_spec(min(start):max(stop));
         end
         
         function createMetadata(this)
@@ -324,6 +305,52 @@ classdef MyScpiInstrument < MyInstrument
             end
             
             f = @listValidationFcn;
+        end
+        
+        % smb is an array of format specifier symbols
+        function f = createArrayValidationFcn(~, smb)
+            function validateNumeric(val)
+                assert((length(val) == length(smb)) && isnumeric(val), ...
+                    ['Value must be a numeric array of length ' ...
+                    length(smb) '.'])
+            end
+            
+            function validateInteger(val)
+                assert((length(val) == length(smb)) && ...
+                    all(floor(val) == val), ['Value must be an ' ...
+                    'integer array of length ' length(smb) '.'])
+            end
+            
+            function validateLogical(val)
+                assert((length(val) == length(smb)) && ...
+                    all(val==1 | x==0), ['Value must be a logical ' ...
+                    'array of length ' length(smb) '.'])
+            end
+            
+            function valudateCharacterString(val)
+                assert(ischar(val), 'Value must be a character string.');
+            end
+            
+            % Determine the type of validation function
+            if all(smb == 's' | smb == 'c')
+                f = @valudateCharacterString;
+            elseif all(smb == 'b')
+                f = @validateLogical;
+            elseif all(smb == 'b' | smb == 'i')
+                f = @validateInteger;
+            else
+                f = @validateNumeric;
+            end
+        end
+        
+        function val = makeValidValue(~, smb)
+            if all(smb == 's' | smb == 'c')
+                val = '';
+            elseif all(smb == 'b')
+                val = false(length(smb), 1);
+            else
+                val = zeros(length(smb), 1);
+            end
         end
     end
 end
