@@ -13,7 +13,7 @@ classdef MyScpiInstrument < MyInstrument
         function addCommand(this, tag, command, varargin)
             p = inputParser();
             p.KeepUnmatched = true;
-            addRequired(p,'command',@ischar);
+            addRequired(p, 'command', @ischar);
             
             addParameter(p, 'access', 'rw', @ischar);
             addParameter(p, 'format', '%e', @ischar);
@@ -37,13 +37,23 @@ classdef MyScpiInstrument < MyInstrument
             format = p.Results.format;
             write_ending = p.Results.write_ending;
             
-            smb = findReadFormatSymbol(this, format);
+            if ismember('format', p.UsingDefaults) && ...
+                    ~ismember('write_ending', p.UsingDefaults)
+                
+                % Extract format specifier and symbol from the write ending
+                [smb, format] = findFormatSymbol(this, write_ending);
+            else
+                
+                % Extract format symbol
+                smb = findFormatSymbol(this, format);
+            end
+            
             if smb == 'b'
                 
                 % '%b' is a non-MATLAB format specifier that is introduced
-                % to be used with logical variables
-                format = replace(format,'%b','%i');
-                write_ending = replace(write_ending,'%b','%i');
+                % to designate logical variables
+                format = replace(format, '%b', '%i');
+                write_ending = replace(write_ending, '%b', '%i');
             end
             this.CommandList.(tag).format = format;
             
@@ -129,7 +139,7 @@ classdef MyScpiInstrument < MyInstrument
                 switch smb
                     case {'d','f','e','g','i','b'}
                         default = 0;
-                    case 's'
+                    case {'s', 'c'}
                         default = '';
                     otherwise
                         warning(['Unknown format specifier ''%' smb '''.'])
@@ -278,13 +288,16 @@ classdef MyScpiInstrument < MyInstrument
         end
         
         % Find the format specifier symbol and options
-        function smb = findReadFormatSymbol(~, fmt_spec)
-            ind_p = strfind(fmt_spec,'%');
-            ind = ind_p+find(isletter(fmt_spec(ind_p:end)),1)-1;
-            smb = fmt_spec(ind);
+        function [smb, format] = findFormatSymbol(~, fmt_spec)
+            tok = regexp(fmt_spec, '%([\d\.]*)([a-z])', 'tokens');
             
-            assert(ind_p+1 == ind, ['Correct reading format must not ' ...
-                'have characters between ''%'' and format symbol.'])
+            assert(~isempty(tok) && ~isempty(tok{1}{2}), ...
+                ['Format symbol is not found in ' fmt_spec]);
+            
+            % The first index corresponds to different matches if there is  
+            % more than one specifier, we take only the first match
+            smb = tok{1}{2};
+            format = ['%' tok{1}{1} tok{1}{2}];
         end
         
         function createMetadata(this)
