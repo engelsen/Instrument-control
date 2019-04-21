@@ -615,8 +615,11 @@ classdef MyGuiSync < handle
                 end
             end
 
-            % Auto initialize the content of dropdown menues
-            if isequal(Link.GuiElement.Type, 'uidropdown')
+            % Generate Items and ItemsData for dropdown menues if they were
+            % not initialized manually
+            if isequal(Link.GuiElement.Type, 'uidropdown') && ...
+                    isempty(Link.GuiElement.ItemsData)
+                
                 if all(cellfun(@ischar, Cmd.value_list))
 
                     % Capitalized displayed names for beauty
