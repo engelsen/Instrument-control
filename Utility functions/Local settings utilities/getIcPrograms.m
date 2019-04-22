@@ -62,9 +62,18 @@ function ProgList = getIcPrograms()
             ProgList(j).data_source = true;
             
             try
-                ProgList(j).enabled = InstrumentList.(nm).enable_logger;
-            catch
-                ProgList(j).enabled = true;
+                
+                % Assign logger options found in InstrumentList
+                logger_opts = fieldnames(InstrumentList.(nm).LoggerOpts);
+                
+                for k = 1:length(logger_opts)
+                    opt_nm = logger_opts{k};
+                    if isprop(ProgList, opt_nm)
+                        ProgList(j).(opt_nm) = ...
+                            InstrumentList.(nm).LoggerOpts.(opt_nm);
+                    end
+                end
+            catch 
             end  
             
             ProgList(j).run_expr = ['runLogger(' nm ');'];
