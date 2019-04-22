@@ -7,7 +7,7 @@ classdef MyProgramDescriptor
         info        = ''     % Description
         type        = ''     % runfile/instrument/logger
         enabled     = true
-        data_source = true   % If program produces traces
+        data_source = false  % If program produces traces
         run_expr    = ''     % Expression to run the program
         run_bg_expr = ''     % Expression to run the program without GUI
     end

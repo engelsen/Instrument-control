@@ -115,6 +115,8 @@ function RunFiles = readRunFiles(dir)
         % Read the run file comment header and assign the parameters found
         ParamList = readCommentHeader(fullfile(dir, run_names{i}));
         
+        RunFiles(i).info = ParamList.comment_header;
+        
         for fn = fieldnames(ParamList)'
             if isprop(RunFiles, fn)
                 RunFiles(i).(fn) = ParamList.(fn);

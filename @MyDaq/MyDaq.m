@@ -14,7 +14,7 @@ classdef MyDaq < handle
         Background
 
         %List of all the programs with run files
-        ProgramList=struct()
+        ProgramList= MyProgramDescriptor.empty()
         %Struct containing Cursor objects
         Cursors=struct()
         %Struct containing Cursor labels
@@ -81,26 +81,27 @@ classdef MyDaq < handle
 
             %The list of instruments is automatically populated from the
             %run files
-            this.ProgramList = readRunFiles();
+            this.ProgramList = getIcPrograms();
             
             %We grab the guihandles from a GUI made in Guide.
             this.Gui=guihandles(eval('GuiDaq'));
+            
             %This function sets all the callbacks for the GUI. If a new
             %button is made, the associated callback must be put in the
             %initGui function
             initGui(this);
-            % Initialize the menu based on the available run files
-            content = menuFromRunFiles(this.ProgramList,...
-                'show_in_daq',true);
-            set(this.Gui.InstrMenu,'String',[{'Select the application'};...
-                content.titles]);
+            
+            % Initialize the menu based on the available programs
+            set(this.Gui.InstrMenu,'String',[{'Select the application'},...
+                {this.ProgramList.title}]);
+            
             % Add a property to the menu for storing the program file
             % names
             if ~isprop(this.Gui.InstrMenu, 'ItemsData')
                 addprop(this.Gui.InstrMenu, 'ItemsData');
             end
-            set(this.Gui.InstrMenu,'ItemsData',[{''};...
-                content.tags]);
+            
+            set(this.Gui.InstrMenu,'ItemsData',0:length(this.ProgramList));
             
             % Add Data, Ref and Bg traces in the proper order on the plot
             % as empty lines.
@@ -469,22 +470,21 @@ classdef MyDaq < handle
         end
         
         %Callback for the instrument menu
-        function instrMenuCallback(this,hObject,~)
+        function instrMenuCallback(this, hObject,~)
             val=hObject.Value;
             if val==1
                 %Returns if we are on the dummy option ('Select instrument')
                 return
             else
-                tag = hObject.ItemsData{val};
+                ind = hObject.ItemsData(val);
             end
 
             try
-                eval(this.ProgramList.(tag).run_expr);
+                eval(this.ProgramList(ind).run_expr);
             catch
                 errordlg(sprintf('An error occured while running %s',...
-                    this.ProgramList.(tag).name))
+                    this.ProgramList(ind).name))
             end
-
         end
         
         %Select trace callback. If we change the trace being analyzed, the
@@ -837,9 +837,11 @@ classdef MyDaq < handle
         %Callback function for the NewData listener
         function acquireNewData(this, EventData)
             %Get the currently selected instrument
-            val=this.Gui.InstrMenu.Value;
-            curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
+            val = this.Gui.InstrMenu.Value;
             
+            ind = this.Gui.InstrMenu.ItemsData(val);
+            curr_instr_name=this.ProgramList(ind).name;
+
             %Check if the data originates from the currently selected
             %instrument
             if strcmp(EventData.src_name, curr_instr_name)

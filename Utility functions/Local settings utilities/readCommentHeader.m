@@ -15,14 +15,10 @@ function Info = readCommentHeader(file_name)
     while ~feof(fid)
         str = fgetl(fid);
         
-        % Store the entire header
-        Info.comment_header = [Info.comment_header, str, newline];
-        
         trimstr = strtrim(str);
         if isempty(trimstr)
 
-            % Skip empty strings
-            continue
+            % Do nothing for empty strings
         elseif trimstr(1) == '%'
 
             % A comment string, try to extract the 'property'='value'
@@ -55,6 +51,9 @@ function Info = readCommentHeader(file_name)
             Info.first_code_line = [str, newline];
             break
         end
+        
+        % Store the entire header
+        Info.comment_header = [Info.comment_header, str, newline];
     end
     
     fclose(fid);
