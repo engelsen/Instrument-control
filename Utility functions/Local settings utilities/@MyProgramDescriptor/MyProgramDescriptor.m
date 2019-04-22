@@ -23,9 +23,14 @@ classdef MyProgramDescriptor
          function this = set.name(this, val)
              assert(isvarname(val), '''name'' must be valid variable name')
              this.name = val;
-             
-             if isempty(this.title) %#ok<*MCSUP>
-                 this.title = val; 
+         end
+         
+         % If title is not specified, return name
+         function val = get.title(this)
+             if isempty(this.title)
+                 val = this.name;
+             else
+                 val = this.title;
              end
          end
      end

@@ -3,7 +3,7 @@
 function setLocalSettings(varargin)
 
     % Use an input parser with no parameters to ensure the proper
-    % formatting for name-value pairs
+    % formatting of name-value pairs
     p = inputParser();
     p.KeepUnmatched = true;
     parse(p, varargin);
