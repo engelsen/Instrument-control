@@ -7,7 +7,7 @@ function [Lg, Gui] = runLogger(instr_name)
         Lg = createLogger(Instr);
     else
         warning(['A logger is not created as instrument class ''%s'' ' ...
-            'does not define ''createLogger'' method'], class(Instr));
+            'does not define ''createLogger'' method.'], class(Instr));
         return
     end
     
