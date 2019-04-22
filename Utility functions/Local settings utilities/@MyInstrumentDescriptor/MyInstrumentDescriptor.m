@@ -25,16 +25,16 @@ classdef MyInstrumentDescriptor
              this.name = val;
          end
          
-         function this = set.StartupOpts(this, Val)
-             assert(isvarname(val), ['Value assigned to ''StartupOpts'''...
+         function this = set.StartupOpts(this, val)
+             assert(isstruct(val), ['Value assigned to ''StartupOpts'''...
                  ' must be a structure.'])
-             this.StartupOpts = Val;
+             this.StartupOpts = val;
          end
          
-         function this = set.LoggerOpts(this, Val)
-             assert(isvarname(val), ['Value assigned to ''LoggerOpts''' ...
+         function this = set.LoggerOpts(this, val)
+             assert(isstruct(val), ['Value assigned to ''LoggerOpts''' ...
                  ' must be a structure.'])
-             this.LoggerOpts = Val;
+             this.LoggerOpts = val;
          end
          
          % If title is not specified, return name
