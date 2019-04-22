@@ -673,10 +673,10 @@ classdef MyLog < matlab.mixin.Copyable
             assert(isvalid(Ax),'Ax must be valid axes or uiaxes')
             
             if ~isempty(this.PlotList)
-                ind_b = cellfun(@(x) isequal(x, Ax),{this.PlotList.Axes});
+                ind_b = ([this.PlotList.Axes] == Ax);
                 
-                % Find index of the first match
-                ind = find(ind_b,1);
+                % Find the index of first match
+                ind = find(ind_b, 1);
             else
                 ind = [];
             end

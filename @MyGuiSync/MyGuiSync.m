@@ -454,7 +454,7 @@ classdef MyGuiSync < handle
         function ind = findLinkInd(this, Elem)
                 
             % Argument 2 is a GUI element, for which we find the link 
-            ind = arrayfun(@(x)isequal(x.GuiElement, Elem), this.Links);
+            ind = ([this.Links.GuiElement] == Elem);
             ind = find(ind);
             
             if isempty(ind)
@@ -527,11 +527,9 @@ classdef MyGuiSync < handle
 
             parse(p, Elem, prop_ref, varargin{:});
             
-            assert(~any( ...
-                arrayfun(@(x) isequal(p.Results.Elem, x.GuiElement), ...
-                this.Links)), ['Another link for the same GUI element ' ...
-                'that is attempted to be linked to ' prop_ref ...
-                ' already exists.'])
+            assert(all([this.Links.GuiElement] ~= p.Results.Elem), ...
+                ['Another link for the same GUI element that is ' ...
+                'attempted to be linked to ' prop_ref ' already exists.'])
             
             % Create a new link structure
             Link = struct( ...
