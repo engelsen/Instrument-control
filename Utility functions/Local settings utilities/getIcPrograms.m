@@ -7,21 +7,20 @@ function ProgList = getIcPrograms()
     
     % Add entries, automatically generated from the InstrumentList
     InstrumentList = getLocalSettings('InstrumentList');
-    instr_names = fieldnames(InstrumentList);
     
     j = 1; % Counter for the program list
     
-    for i = 1:length(instr_names)
+    for i = 1:length(InstrumentList)
         
         % If a run file for instrument was not specified explicitly and if
         % all the required fields in InstrList are filled, generate a new
         % entry.
-        nm = instr_names{i};
+        nm = InstrumentList(i).name;
         
         if ~ismember(nm, {RunFiles.name}) && ...
-                ~isempty(InstrumentList.(nm).control_class)
+                ~isempty(InstrumentList(i).control_class)
             
-            ctrl_class = InstrumentList.(nm).control_class;
+            ctrl_class = InstrumentList(i).control_class;
         
             ProgList(j).name = nm;
             ProgList(j).type = 'instrument';
@@ -32,14 +31,14 @@ function ProgList = getIcPrograms()
                 events(ctrl_class));
             
             try
-                ProgList(j).enabled = InstrumentList.(nm).enable;
+                ProgList(j).enabled = InstrumentList(i).enabled;
             catch
                 ProgList(j).enabled = true;
             end  
 
             ProgList(j).run_bg_expr = sprintf('runInstrument(''%s'');',nm);
 
-            if ~isempty(InstrumentList.(nm).gui)
+            if ~isempty(InstrumentList(i).gui)
 
                 % Add command for running the instrument with gui
                 ProgList(j).run_expr = ...
@@ -64,13 +63,10 @@ function ProgList = getIcPrograms()
             try
                 
                 % Assign logger options found in InstrumentList
-                logger_opts = fieldnames(InstrumentList.(nm).LoggerOpts);
-                
-                for k = 1:length(logger_opts)
-                    opt_nm = logger_opts{k};
-                    if isprop(ProgList, opt_nm)
-                        ProgList(j).(opt_nm) = ...
-                            InstrumentList.(nm).LoggerOpts.(opt_nm);
+                for opt_nm = fieldnames(InstrumentList(i).LoggerOpts)'
+                    if isprop(ProgList, opt_nm{1})
+                        ProgList(j).(opt_nm{1}) = ...
+                            InstrumentList(i).LoggerOpts.(opt_nm{1});
                     end
                 end
             catch 
