@@ -456,8 +456,6 @@ classdef MyLog < matlab.mixin.Copyable
         
         % Convert the log channel record to trace
         function Trace = toTrace(this, varargin)
-            log_len = length(this.timestamps);
-            
             p = inputParser();
             
             addParameter(p, 'channel', 1, ...
@@ -465,15 +463,7 @@ classdef MyLog < matlab.mixin.Copyable
                 ['Channel number must be an integer between 1 and ' ...
                 num2str(this.channel_no) '.']));
             
-            addParameter(p, 'start_index', 1, ...
-                @(x)assert(x>0 && floor(x)==x && x<=log_len, ...
-                ['Start index must be an integer between 1 and ' ...
-                num2str(log_len) '.']));
-            
-            addParameter(p, 'stop_index', log_len, ...
-                @(x)assert(x>0 && floor(x)==x && x<=log_len, ...
-                ['Stop index must be an integer between 1 and ' ...
-                num2str(log_len) '.']));
+            addParameter(p, 'index', []);
             
             % If false, the beginning of x data in the trace is shifted to 
             % zero 
@@ -482,14 +472,19 @@ classdef MyLog < matlab.mixin.Copyable
             parse(p, varargin{:});
             
             n_ch = p.Results.channel;
-            start = p.Results.start_index;
-            stop = p.Results.stop_index;
             
             Trace = MyTrace();
             
+            if ismember('index', p.UsingDefaults)
+                Trace.x = this.timestamps_num;
+                Trace.y = this.data(:, n_ch);
+            else
+                Trace.x = this.timestamps_num(p.Results.index);
+                Trace.y = this.data(p.Results.index, n_ch);
+            end
+            
             Trace.name_x = 'Time';
             Trace.unit_x = 's';
-            Trace.x = this.timestamps_num(start:stop);
             
             if ~p.Results.absolute_time
                 
@@ -516,8 +511,6 @@ classdef MyLog < matlab.mixin.Copyable
                     Trace.name_y = this.data_headers{n_ch};
                 end
             end
-            
-            Trace.y = this.data(start:stop, n_ch);
         end
     end
     
