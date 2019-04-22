@@ -20,8 +20,21 @@ classdef MyInstrumentDescriptor
      
      methods 
          function this = set.name(this, val)
-             assert(isvarname(val), '''name'' must be valid variable name')
+             assert(isvarname(val), ['Value assigned to ''name'' must ' ...
+                 'be a valid MATLAB variable name.'])
              this.name = val;
+         end
+         
+         function this = set.StartupOpts(this, Val)
+             assert(isvarname(val), ['Value assigned to ''StartupOpts'''...
+                 ' must be a structure.'])
+             this.StartupOpts = Val;
+         end
+         
+         function this = set.LoggerOpts(this, Val)
+             assert(isvarname(val), ['Value assigned to ''LoggerOpts''' ...
+                 ' must be a structure.'])
+             this.LoggerOpts = Val;
          end
          
          % If title is not specified, return name

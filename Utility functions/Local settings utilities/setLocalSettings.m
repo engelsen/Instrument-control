@@ -6,7 +6,7 @@ function setLocalSettings(varargin)
     % formatting of name-value pairs
     p = inputParser();
     p.KeepUnmatched = true;
-    parse(p, varargin);
+    parse(p, varargin{:});
     
     SaveList = p.Unmatched;
 
