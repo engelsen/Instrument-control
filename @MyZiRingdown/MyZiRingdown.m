@@ -123,7 +123,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
     end
     
     % Other dependent variables that are not device properties
-    properties (Dependent = true, SetObservable = true) 
+    properties (Dependent = true) 
         
         % Downsample the measurement record to reduce the amount of data
         % while keeping the large demodulation bandwidth.
