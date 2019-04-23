@@ -20,9 +20,9 @@
 % to the output consisting of itermittent on and off periods
 % starting from on. 
 
-classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
+classdef MyZiRingdown < MyZiLockIn & MyDataSource
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         
         % Ringdown is recorded if the signal in the triggering demodulation 
         % channel exceeds this value
@@ -64,7 +64,8 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
     
     % The properties which are read or set only once during the class
     % initialization
-    properties (GetAccess = public, SetAccess = {?MyClassParser})
+    properties (GetAccess = public, SetAccess = {?MyClassParser}, ...
+            SetObservable = true)
         
         % enumeration for demodulators, oscillators and output starts from 1
         demod = 1 % demodulator used for both triggering and measurement
@@ -103,7 +104,9 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
     end
     
     % Internal variables
-    properties (GetAccess = public, SetAccess = protected)
+    properties (GetAccess = public, SetAccess = protected, ...
+            SetObservable = true)
+        
         recording = false % true if a ringdown is being recorded
         
         % true if adaptive measurement oscillator mode is on and if the
@@ -119,54 +122,33 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
         DemodSpectrum % MyTrace object to store FFT of the demodulator data
     end
     
-    % Setting or reading the properties below automatically invokes
-    % communication with the device
-    properties (Dependent = true)
-        drive_osc_freq
-        meas_osc_freq
-        drive_on % true when the dirive output is on
-        
-        % Demodulator sampling rate (as transferred to the computer)
-        demod_rate   
-        
-        % The properties below are only used within the program to display
-        % the information about device state.
-        drive_amp % (V), peak-to-peak amplitude of the driving tone
-        lowpass_order % low-pass filter order
-        lowpass_bw % low-pass filter bandwidth
-    end
-    
-    % Other dependent variables that are dont device properties
-    properties (Dependent = true) 
+    % Other dependent variables that are not device properties
+    properties (Dependent = true, SetObservable = true) 
         
         % Downsample the measurement record to reduce the amount of data
         % while keeping the large demodulation bandwidth.
         % (samples/s), sampling rate of the trace after avraging
         downsampled_rate  
         
-        % number of the oscillator presently in use with the demodulator
-        current_osc
-        
-        % true/false, true if the signal output from aux out is in on state
-        aux_out_on
-        
         % Provides public access to properties of private AvgTrace
         n_avg % number of ringdowns to be averaged
         avg_count % the average counter
         
         fft_rbw % resolution bandwidth of fft
+        
+        poll_period % (s)
     end
     
     % Keeping handle objects fully private is the only way to restrict set
     % access to their properties
     properties (Access = private)
-        PollTimer
+        PollTimer 
         
         AuxOutOffTimer   % Timer responsible for switching the aux out off
         AuxOutOnTimer    % Timer responsible for switching the aux out on
         
         % Demodulator samples z(t) stored to continuously calculate
-        % spectrum, values of z are complex here, z=x+iy. 
+        % spectrum, the values of z are complex here, z=x+iy. 
         % osc_freq is the demodulation frequency
         DemodRecord = struct('t',[],'z',[],'osc_freq',[])
         
@@ -181,31 +163,32 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
     methods (Access = public)
         
         %% Constructor and destructor
-        function this = MyZiRingdown(dev_serial, varargin)
-            this = this@MyZiLi(dev_serial);
+        function this = MyZiRingdown(varargin)
             
-            P = MyClassParser(this);
-            addRequired(P, dev_serial, @ischar)
+            % Extract poll period from varargin
+            p = inputParser();
+            p.KeepUnmatched = true;
+            addParameter(p, 'poll_period', 0.042, @isnumeric);
+            parse(p, varargin{:});
+            varargin = struct2namevalue(p.Unmatched);
             
-            % Poll timer period
-            addParameter(P,'poll_period',0.042,@isnumeric);
-            processInputs(P, this, dev_serial, varargin{:});
+            this = this@MyZiLockIn(varargin{:});
             
             % Create and configure trace objects
             % Trace is inherited from the superclass
-            this.Trace=MyTrace(...
+            this.Trace = MyTrace(...
                 'name_x','Time',...
                 'unit_x','s',...
                 'name_y','Magnitude r',...
                 'unit_y','V');
             
-            this.DemodSpectrum=MyTrace(...
+            this.DemodSpectrum = MyTrace(...
                 'name_x','Frequency',...
                 'unit_x','Hz',...
                 'name_y','PSD',...
                 'unit_y','V^2/Hz');
             
-            this.AvgTrace=MyAvgTrace();
+            this.AvgTrace = MyAvgTrace();
             
             % Set up the poll timer. Using a timer for anyncronous
             % data readout allows to use the wait time for execution 
@@ -215,7 +198,7 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
             % precisely defined is not the biggest concern. 
             this.PollTimer = timer(...
                 'ExecutionMode',    'fixedSpacing',...
-                'Period',           P.Results.poll_period,...
+                'Period',           p.Results.poll_period,...
                 'TimerFcn',         @this.pollTimerCallback);
             
             % Aux out timers use fixedRate mode for more precise timing.
@@ -282,14 +265,16 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
             
             % Set the data transfer rate so that it satisfies the Nyquist
             % criterion (>x2 the bandwidth of interest)
-            this.demod_rate=4*this.lowpass_bw;
+            this.demod_rate = 4*this.lowpass_bw;
             
             % Configure the demodulator. Signal input:
             ziDAQ('setInt', ...
                 [this.demod_path,'/adcselect'], this.signal_in-1);
+            
             % Oscillator:
             ziDAQ('setInt', ...
                 [this.demod_path,'/oscselect'], this.drive_osc-1);
+            
             % Enable data transfer from the demodulator to the computer
             ziDAQ('setInt', [this.demod_path,'/enable'], 1);
             
@@ -298,28 +283,30 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
             path = sprintf('/%s/sigouts/%i/enables/*', ...
                 this.dev_id, this.drive_out-1);
             ziDAQ('setInt', path, 0);
+            
             path = sprintf('/%s/sigouts/%i/enables/%i', ...
                 this.dev_id, this.drive_out-1, this.drive_osc-1);
             ziDAQ('setInt', path, 1);
             
             % Enable output 
-            this.drive_on=true;
+            this.drive_on = true;
              
             % By convention, we start form 'enable_acq=false' state
-            this.enable_acq=false;
+            this.enable_acq = false;
             
             % Configure the auxiliary trigger output - put it in the manual
             % mode so it does not output demodulator readings
-            path=sprintf('/%s/auxouts/%i/outputselect', ...
+            path = sprintf('/%s/auxouts/%i/outputselect', ...
                 this.dev_id, this.aux_out-1);
             ziDAQ('setInt', path, -1);
+            
             % The convention is that aux out is on by default
-            this.aux_out_on=true;
+            this.aux_out_on = true;
             
             % Subscribe to continuously receive samples from the 
             % demodulator. Samples accumulated between timer callbacks 
             % will be read out using ziDAQ('poll', ... 
-            ziDAQ('subscribe',[this.demod_path,'/sample']);
+            ziDAQ('subscribe', [this.demod_path,'/sample']);
             
             % Start continuous polling
             start(this.PollTimer)
@@ -327,7 +314,7 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
         
         function stopPoll(this)
             stop(this.PollTimer)
-            ziDAQ('unsubscribe',[this.demod_path,'/sample']);
+            ziDAQ('unsubscribe', [this.demod_path,'/sample']);
         end
         
         % Main function that polls data from the device demodulator
@@ -372,10 +359,10 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
                     % If the adaptive measurement frequency mode is on,
                     % update the measurement oscillator frequency.
                     % Make sure that the demodulator record actually
-                    % contains signal by comparing the dispersion of 
-                    % frequency to demodulator bandwidth.
+                    % contains a signal by comparing the dispersion of 
+                    % frequency to the demodulator bandwidth.
                     if this.adaptive_meas_osc
-                        [df_avg, df_dev]=calcfreq(this);
+                        [df_avg, df_dev] = calcfreq(this);
                         if df_dev < this.ad_osc_margin*this.lowpass_bw
                             this.meas_osc_freq = df_avg;
                             
@@ -608,37 +595,38 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
         function auxOutOnTimerCallback(this, ~, ~)
             this.aux_out_on = true;
         end
-        
-        function Hdr = readSettings(this)
-            
-        end
     end
     
     methods (Access = protected)
         function createCommandList(this)
             
-            path = sprintf('/%s/oscs/%i/freq', this.dev_id, this.drive_osc-1);
+            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
+                this.drive_osc-1);
             
             addCommand(this, 'drive_osc_freq', ...
                 'readFcn',      @()ziDAQ('getDouble', path), ...
                 'writeFcn',     @(x)ziDAQ('setDouble', path, x));
             
-            path = sprintf('/%s/oscs/%i/freq', this.dev_id, this.meas_osc-1);
+            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
+                this.meas_osc-1);
             
             addCommand(this, 'meas_osc_freq', ...
                 'readFcn',      @()ziDAQ('getDouble', path), ...
                 'writeFcn',     @(x)ziDAQ('setDouble', path, x));
             
             % Use double() to convert from logical type
-            path = sprintf('/%s/sigouts/%i/on', this.dev_id, this.drive_out-1);
+            path = sprintf('/%s/sigouts/%i/on', this.dev_id, ...
+                this.drive_out-1);
             
             addCommand(this, 'drive_on', ...
                 'readFcn',      @()logical(ziDAQ('getInt', path)), ...
                 'writeFcn',     @(x)ziDAQ('setInt', path, double(x)));
             
             addCommand(this, 'current_osc', ...
-                'readFcn',      @()(double(ziDAQ('getInt', [this.demod_path,'/oscselect']))+1), ...
-                'writeFcn',     @(x)ziDAQ('setInt', [this.demod_path,'/oscselect'], x-1));
+                'readFcn',      @()(double(ziDAQ('getInt', ...
+                    [this.demod_path,'/oscselect']))+1), ...
+                'writeFcn',     @(x)ziDAQ('setInt', ...
+                    [this.demod_path,'/oscselect'], x-1));
             
             path = sprintf('/%s/sigouts/%i/amplitudes/%i', ...
                 this.dev_id, this.drive_out-1, this.drive_osc-1);
@@ -648,157 +636,175 @@ classdef MyZiRingdown < MyZiLi & MyInstrument & MyDataSource
                 'writeFcn',     @(x)ziDAQ('setDouble', path, x));
             
             addCommand(this, 'lowpass_order', ...
-                'readFcn',          @()(double(ziDAQ('getInt', [this.demod_path,'/oscselect']))+1), ...
-                'writeFcn',         @(x)ziDAQ('setInt', [this.demod_path '/order'], x), ...
-                'validationFcn',    @(x)assert(any(x==[1,2,3,4,5,6,7,8]), ['Low-pass filter ', ...
-                    'order must be an integer between 1 and 8']));
+                'readFcn',         @()(double(ziDAQ('getInt', ...
+                    [this.demod_path,'/oscselect']))+1), ...
+                'writeFcn',        @(x)ziDAQ('setInt', ...
+                    [this.demod_path '/order'], x), ...
+                'validationFcn',   @(x)assert(any(x==[1,2,3,4,5,6,7,8]),...
+                    ['Low-pass filter order must be an integer between '...
+                    '1 and 8']), ...
+                'default',         1);
                 
             addCommand(this, 'lowpass_bw', ...
-                'readFcn',      @()ziTC2BW(ziDAQ('getDouble', [this.demod_path,'/timeconstant'])), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', [this.demod_path,'/timeconstant'], ziBW2TC(x)));
+                'readFcn',      @()ziTC2BW(ziDAQ('getDouble', ...
+                    [this.demod_path,'/timeconstant'])), ...
+                'writeFcn',     @(x)ziDAQ('setDouble', ...
+                    [this.demod_path,'/timeconstant'], ziBW2TC(x)));
             
             addCommand(this, 'demod_rate', ...
-                'readFcn',      @()ziDAQ('getDouble', [this.demod_path,'/rate']), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', [this.demod_path,'/rate'], x));
+                'readFcn',      @()ziDAQ('getDouble', ...
+                    [this.demod_path,'/rate']), ...
+                'writeFcn',     @(x)ziDAQ('setDouble', ...
+                    [this.demod_path,'/rate'], x));
             
             % The auxiliary output level can be in one of two states, on or
             % off
-            path = sprintf('/%s/auxouts/%i/offset', this.dev_id, this.aux_out-1);
+            path = sprintf('/%s/auxouts/%i/offset', this.dev_id, ...
+                this.aux_out-1);
             
             addCommand(this, 'aux_out_on', ...
                 'readFcn',      @()ziDAQ('getDouble', path), ...
-                'postSetFcn',   @(x) (abs(val-this.aux_out_on_lev) < abs(val-this.aux_out_off_lev)), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', path, select(x, this.aux_out_on_lev, this.aux_out_off_lev)));
+                'postSetFcn',   @(x) (abs(x-this.aux_out_on_lev) < ...
+                    abs(x-this.aux_out_off_lev)), ...
+                'writeFcn',     @(x)ziDAQ('setDouble', path, ...
+                    select(x, this.aux_out_on_lev, this.aux_out_off_lev)));
         end
         
         function createMetadata(this)
-            createMetadata@MyZiLi(this);
+            createMetadata@MyZiLockIn(this);
 
             % Demodulator parameters
-            addObjProp(Hdr, this, 'demod', 'comment', ...
+            addObjProp(this.Metadata, this, 'demod', 'comment', ...
                 'Number of the demodulator in use (starting from 1)');
-            addObjProp(Hdr, this, 'meas_osc', 'comment', ...
+            addObjProp(this.Metadata, this, 'meas_osc', 'comment', ...
                 'Measurement oscillator number');
             
             % Signal input
-            addObjProp(Hdr, this, 'signal_in', 'comment', ...
+            addObjProp(this.Metadata, this, 'signal_in', 'comment', ...
                 'Singnal input number');
             
             % Drive parameters
-            addObjProp(Hdr, this, 'drive_out', 'comment', ...
+            addObjProp(this.Metadata, this, 'drive_out', 'comment', ...
                 'Driving output number');
-            addObjProp(Hdr, this, 'drive_osc', 'comment', ...
+            addObjProp(this.Metadata, this, 'drive_osc', 'comment', ...
                 'Swept oscillator number');
             
             % Parameters of the auxiliary output
-            addObjProp(Hdr, this, 'aux_out', 'comment', ...
+            addObjProp(this.Metadata, this, 'aux_out', 'comment', ...
                 'Auxiliary output number');
-            addObjProp(Hdr, this, 'enable_aux_out', 'comment', ...
+            addObjProp(this.Metadata, this, 'enable_aux_out', 'comment',...
                 'Auxiliary output is applied during ringdown');
-            addObjProp(Hdr, this, 'aux_out_on_lev', 'comment', '(V)');
-            addObjProp(Hdr, this, 'aux_out_off_lev', 'comment', '(V)');
-            addObjProp(Hdr, this, 'aux_out_on_t', 'comment', '(s)');
-            addObjProp(Hdr, this, 'aux_out_off_t', 'comment', '(s)');
+            addObjProp(this.Metadata, this, 'aux_out_on_lev', ...
+                'comment', '(V)');
+            addObjProp(this.Metadata, this, 'aux_out_off_lev', ...
+                'comment', '(V)');
+            addObjProp(this.Metadata, this, 'aux_out_on_t', ...
+                'comment', '(s)');
+            addObjProp(this.Metadata, this, 'aux_out_off_t', ...
+                'comment', '(s)');
             
             % Software parameters
-            addObjProp(Hdr, this, 'trig_threshold', 'comment', ...
+            addObjProp(this.Metadata, this, 'trig_threshold', 'comment',...
                 '(V), threshold for starting a ringdown record');
-            addObjProp(Hdr, this, 'record_time', 'comment', '(s)');
-            addObjProp(Hdr, this, 'n_avg', 'comment', ...
-                'Number of ringdowns to be averaged');
-            addObjProp(Hdr, this, 'downsampled_rate', 'comment', ...
-                ['(samples/s), rate to which a ringown trace is ', ...
-                'downsampled with averaging after acquisition']);
-            addObjProp(Hdr, this, 'auto_save', 'comment', '(s)');
+            addObjProp(this.Metadata, this, 'record_time', ...
+                'comment', '(s)');
+            addObjProp(this.Metadata, this, 'downsampled_rate', ...
+                'comment', ['(samples/s), rate to which a ringown ', ...
+                'trace is downsampled with averaging after acquisition']);
+            addObjProp(this.Metadata, this, 'auto_save', 'comment', '(s)');
             
             % Adaptive measurement oscillator
-            addObjProp(Hdr, this, 'adaptive_meas_osc', 'comment', ...
-                ['If true the measurement oscillator frequency is ', ...
-                'adjusted during ringdown']);
-            addObjProp(Hdr, this, 'ad_osc_margin');
-            addObjProp(Hdr, this, 'fft_length', 'comment', '(points)');
+            addObjProp(this.Metadata, this, 'adaptive_meas_osc', ...
+                'comment', ['If true the measurement oscillator ', ...
+                'frequency is adjusted during ringdown']);
+            addObjProp(this.Metadata, this, 'ad_osc_margin');
+            addObjProp(this.Metadata, this, 'fft_length', ...
+                'comment', '(points)');
             
             % Timer poll parameters
-            addParam(Hdr, this.name, 'poll_period', ...
-                this.PollTimer.Period, 'comment', '(s)');
-            addObjProp(Hdr, this, 'poll_duration', 'comment', '(s)');
-            addObjProp(Hdr, this, 'poll_timeout', 'comment', '(ms)');
+            addParam(this.Metadata, 'poll_period', [],...
+                'comment', '(s)');
+            addObjProp(this.Metadata, this, 'poll_duration', ...
+                'comment', '(s)');
+            addObjProp(this.Metadata, this, 'poll_timeout', ...
+                'comment', '(ms)');
         end
     end
     
     %% Set and get methods.
     methods
         function set.downsample_n(this, val)
-            n=round(val);
+            n = round(val);
             assert(n>=1, ['Number of points for trace averaging must ', ...
                 'be greater than 1'])
-            this.downsample_n=n;
+            this.downsample_n = n;
         end
         
         function set.downsampled_rate(this, val)
-            dr=this.demod_rate;
-            if val>dr
-                
-                % Downsampled rate should not exceed the data transfer rate
-                val=dr;
-            end
+            dr = this.demod_rate;
+            
+            % Downsampled rate should not exceed the data transfer rate
+            val = min(val, dr);
             
             % Round so that the averaging is done over an integer number of
             % points
-            this.downsample_n=round(dr/val);
+            this.downsample_n = round(dr/val);
         end
         
-        function val=get.downsampled_rate(this)
-            val=this.demod_rate/this.downsample_n;
+        function val = get.downsampled_rate(this)
+            val = this.demod_rate/this.downsample_n;
         end
         
         function set.fft_length(this, val)
-            if val<1
-                val=1;
-            end
+            
             % Round val to the nearest 2^n to make the calculation of
             % Fourier transform efficient
-            n=round(log2(val));
-            this.fft_length=2^n;
+            n = round(log2(max(val, 1)));
+            this.fft_length = 2^n;
         end
         
-        function val=get.fft_rbw(this)
-            val=this.demod_rate/this.fft_length;
+        function val = get.fft_rbw(this)
+            val = this.demod_rate/this.fft_length;
         end
         
         function set.fft_rbw(this, val)
             assert(val>0,'FFT resolution bandwidth must be greater than 0')
             % Rounding of fft_length to the nearest integer is handled by 
             % its own set method
-            this.fft_length=this.demod_rate/val;
+            
+            this.fft_length = this.demod_rate/val;
         end
         
         function set.n_avg(this, val)
-            this.AvgTrace.n_avg=val;
+            this.AvgTrace.n_avg = val;
         end
         
-        function val=get.n_avg(this)
-            val=this.AvgTrace.n_avg;
+        function val = get.n_avg(this)
+            val = this.AvgTrace.n_avg;
         end
         
-        function val=get.avg_count(this)
-            val=this.AvgTrace.avg_count;
+        function val = get.avg_count(this)
+            val = this.AvgTrace.avg_count;
         end
         
         function set.aux_out_on_t(this, val)
             assert(val>0.001, ...
                 'Aux out on time must be greater than 0.001 s.')
-            this.aux_out_on_t=val;
+            this.aux_out_on_t = val;
         end
         
         function set.aux_out_off_t(this, val)
             assert(val>0.001, ...
                 'Aux out off time must be greater than 0.001 s.')
-            this.aux_out_off_t=val;
+            this.aux_out_off_t = val;
         end
         
         function set.enable_acq(this, val)
-            this.enable_acq=logical(val);
+            this.enable_acq = logical(val);
+        end
+        
+        function val = get.poll_period(this)
+            val = this.PollTimer.Period;
         end
     end
 end

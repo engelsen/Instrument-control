@@ -1,25 +1,31 @@
 % A generic class for programs based on Zurich Instruments UHFLI and MFLI
 % lock-in amplifiers
 
-classdef MyZiLi < handle
+classdef MyZiLockIn < MyInstrument
     
-    properties (GetAccess = public, SetAccess = {?MyClassParser, ?MyZiLi})
+    properties (GetAccess = public, ...
+            SetAccess = {?MyClassParser, ?MyZiLockIn})
+        
         dev_serial = 'dev4090'
         
         % The string that specifies the device name as appears 
         % in the server's node tree. Can be the same as dev_serial.
         dev_id
         
-        % Device information string containing the data returned by  
-        % ziDAQ('discoveryGet', ... 
-        idn_str
-        
         % Device clock frequency, i.e. the number of timestamps per second
         clockbase
     end
     
-    methods
-        function this = MyZiLi(dev_serial)
+    methods (Access = public)
+        function this = MyZiLockIn(varargin)    
+            P = MyClassParser(this);
+            addParameter(P, 'address', '', @ischar);
+            processInputs(P, this, varargin{:});
+            
+            % address is another alias for dev_serial
+            if ~ismember('address', P.UsingDefaults)
+                this.dev_serial = P.Results.address;
+            end
             
             % Check the ziDAQ MEX (DLL) and Utility functions can be found 
             % in Matlab's path.
@@ -50,7 +56,6 @@ classdef MyZiLi < handle
             catch ME
                 warning(ME.message)
             end
-
         end
         
         function str = idn(this)
@@ -73,16 +78,12 @@ classdef MyZiLi < handle
             end
             this.idn_str = str;
         end
-        
-        function Hdr=readHeader(this)
-            Hdr=MyMetadata();
-            
-            % name is always a valid variable as ensured by its set method
-            addField(Hdr, this.name);
-            
-            % Instrument identification 
-            addParam(Hdr, this.name, 'idn', this.idn_str);
-            addObjProp(Hdr, this, 'clockbase', 'comment', ...
+    end
+    
+    methods (Access = protected)
+        function createMetadata(this)
+            createMetadata@MyInstrument(this);
+            addObjProp(this.Metadata, this, 'clockbase', 'comment', ...
                 ['Device clock frequency, i.e. the number of ', ...
                 'timestamps per second']);
         end

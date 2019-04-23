@@ -32,7 +32,8 @@ classdef MyClassParser < inputParser
                 
                 % Constant, Dependent and Abstract propeties cannot be set,
                 % so skip in this case also.
-                if Tmp.Constant||Tmp.Abstract||Tmp.Dependent
+                if Tmp.Constant || Tmp.Abstract|| ...
+                        (Tmp.Dependent && isempty(Tmp.SetMethod))
                     continue
                 end
                 
