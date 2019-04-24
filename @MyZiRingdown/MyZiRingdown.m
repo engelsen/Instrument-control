@@ -196,7 +196,11 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             % Fixed spacing is preferred as it is the most robust mode of 
             % operation when keeping the intervals between callbacks 
             % precisely defined is not the biggest concern. 
+            % Busy mode is 'drop' - there is no need to accumulate timer
+            % callbacks as the data is stored in the buffer of zi data
+            % server since the previous poll.
             this.PollTimer = timer(...
+                'BusyMode',         'drop',...
                 'ExecutionMode',    'fixedSpacing',...
                 'Period',           p.Results.poll_period,...
                 'TimerFcn',         @this.pollTimerCallback);
@@ -328,178 +332,180 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             % immediately with the data accumulated since the last timer 
             % callback 
             Data = ziDAQ('poll', this.poll_duration, this.poll_timeout);
-                
-            if ziCheckPathInData(Data, [this.demod_path, '/sample'])
+            
+            try
                 
                 % Demodulator returns data
-                DemodSample = ...
-                    Data.(this.dev_id).demods(this.demod).sample;
+                DemodSample = Data.(this.dev_id).demods(this.demod).sample;
+            catch
+                this.auto_sync = true;
+                return
+            end
                 
-                % Append new samples to the record and recalculate spectrum
-                appendSamplesToBuff(this, DemodSample);
-                calcfft(this);
-                
-                if this.recording
-                    
-                    % If the recording has just started, save the start
-                    % time
-                    if isempty(this.Trace)
-                        this.t0 = DemodSample.timestamp(1);
-                    end
-                    
-                    % If recording is under way, append the new samples to
-                    % the trace
-                    rec_finished = appendSamplesToTrace(this, DemodSample);
-                    
-                    % Recording can be manually stopped by setting
-                    % enable_acq=false
-                    if ~this.enable_acq
-                        rec_finished = true;
-                    end
-                    
-                    % Update elapsed time
-                    this.elapsed_t = this.Trace.x(end);
-                    
-                    % If the adaptive measurement frequency mode is on,
-                    % update the measurement oscillator frequency.
-                    % Make sure that the demodulator record actually
-                    % contains a signal by comparing the dispersion of 
-                    % frequency to the demodulator bandwidth.
-                    if this.adaptive_meas_osc
-                        [df_avg, df_dev] = calcfreq(this);
-                        if df_dev < this.ad_osc_margin*this.lowpass_bw
-                            this.meas_osc_freq = df_avg;
-                            
-                            % Change indicator
-                            this.ad_osc_following = true;
-                        else
-                            this.ad_osc_following = false;
-                        end
+            % Append new samples to the record and recalculate spectrum
+            appendSamplesToBuff(this, DemodSample);
+            calcfft(this);
+
+            if this.recording
+
+                % If the recording has just started, save the start
+                % time
+                if isempty(this.Trace)
+                    this.t0 = DemodSample.timestamp(1);
+                end
+
+                % If recording is under way, append the new samples to
+                % the trace
+                rec_finished = appendSamplesToTrace(this, DemodSample);
+
+                % Recording can be manually stopped by setting
+                % enable_acq=false
+                if ~this.enable_acq
+                    rec_finished = true;
+                end
+
+                % Update elapsed time
+                this.elapsed_t = this.Trace.x(end);
+
+                % If the adaptive measurement frequency mode is on,
+                % update the measurement oscillator frequency.
+                % Make sure that the demodulator record actually
+                % contains a signal by comparing the dispersion of 
+                % frequency to the demodulator bandwidth.
+                if this.adaptive_meas_osc
+                    [df_avg, df_dev] = calcfreq(this);
+                    if df_dev < this.ad_osc_margin*this.lowpass_bw
+                        this.meas_osc_freq = df_avg;
+
+                        % Change indicator
+                        this.ad_osc_following = true;
                     else
                         this.ad_osc_following = false;
                     end
                 else
-                    r = sqrt(DemodSample.x.^2+DemodSample.y.^2);
-                    if this.enable_acq && max(r)>this.trig_threshold
-                        
-                        % Start acquisition of a new trace if the maximum
-                        % of the signal exceeds threshold
-                        this.recording = true;
-                        this.elapsed_t = 0;
-
-                        % Switch the drive off
-                        this.drive_on = false;
-
-                        % Set the measurement oscillator frequency to be
-                        % the frequency at which triggering occurred
-                        this.meas_osc_freq = this.drive_osc_freq;
-
-                        % Switch the oscillator
-                        this.current_osc = this.meas_osc;
-                        
-                        % Clear the buffer on ZI data server from existing   
-                        % demodulator samples, as these samples were 
-                        % recorded with drive on 
-                        ziDAQ('poll',this.poll_duration,this.poll_timeout);
-                        
-                        % Optionally start the auxiliary output timers
-                        if this.enable_aux_out
-                            
-                            % Configure measurement periods and delays
-                            T = this.aux_out_on_t + this.aux_out_off_t;
-                            this.AuxOutOffTimer.Period = T;
-                            this.AuxOutOnTimer.Period = T;
-                            
-                            this.AuxOutOffTimer.startDelay =...
-                                this.aux_out_on_t;
-                            this.AuxOutOnTimer.startDelay = T;
-                            
-                            % Start timers
-                            start(this.AuxOutOffTimer)
-                            start(this.AuxOutOnTimer)
-                        end
-                        
-                        % Clear trace 
-                        clear(this.Trace);
-                        
-                        notify(this, 'RecordingStarted');
-                    end
-                    
-                    rec_finished = false;
-                    
-                    % Indicator for adaptive measurement is off, since
-                    % recording is not under way
                     this.ad_osc_following = false;
                 end
-                
-                notify(this,'NewDemodSample');
-                
-                % Stop recording if a record was completed
-                if rec_finished
-                    
-                    % stop recording
-                    this.recording = false;
-                    this.ad_osc_following = false;
-                    
-                    % Stop auxiliary timers
-                    stop(this.AuxOutOffTimer);
-                    stop(this.AuxOutOnTimer);
-                    
-                    % Return the drive and aux out to the default state
-                    this.aux_out_on = true;
-                    this.current_osc = this.drive_osc;
-                    this.drive_on = true;
+            else
+                r = sqrt(DemodSample.x.^2+DemodSample.y.^2);
+                if this.enable_acq && max(r)>this.trig_threshold
 
-                    % Downsample the trace to reduce the amount of data
-                    downsample(this.Trace, this.downsample_n, 'avg');
-                    
-                    % Do trace averaging. If the new data length is not of 
-                    % the same size as the length of the existing data 
-                    % (which should happen only when the record period was
-                    % changed during recording or when recording was 
-                    % manually stopped), truncate to the minimum length
-                    if ~isempty(this.AvgTrace) && ...
-                            (length(this.AvgTrace.y)~=length(this.Trace.y))
-                        
-                        l = min(length(this.AvgTrace.y), ...
-                            length(this.Trace.y));
-                        
-                        this.AvgTrace.y = this.AvgTrace.y(1:l);
-                        this.AvgTrace.x = this.AvgTrace.x(1:l);
-                        this.Trace.y = this.Trace.y(1:l);
-                        this.Trace.x = this.Trace.x(1:l);
-                        
-                        disp('Ringdown record was truncated')
+                    % Start acquisition of a new trace if the maximum
+                    % of the signal exceeds threshold
+                    this.recording = true;
+                    this.elapsed_t = 0;
+
+                    % Switch the drive off
+                    this.drive_on = false;
+
+                    % Set the measurement oscillator frequency to be
+                    % the frequency at which triggering occurred
+                    this.meas_osc_freq = this.drive_osc_freq;
+
+                    % Switch the oscillator
+                    this.current_osc = this.meas_osc;
+
+                    % Clear the buffer on ZI data server from existing   
+                    % demodulator samples, as these samples were 
+                    % recorded with drive on 
+                    ziDAQ('poll',this.poll_duration,this.poll_timeout);
+
+                    % Optionally start the auxiliary output timers
+                    if this.enable_aux_out
+
+                        % Configure measurement periods and delays
+                        T = this.aux_out_on_t + this.aux_out_off_t;
+                        this.AuxOutOffTimer.Period = T;
+                        this.AuxOutOnTimer.Period = T;
+
+                        this.AuxOutOffTimer.startDelay =...
+                            this.aux_out_on_t;
+                        this.AuxOutOnTimer.startDelay = T;
+
+                        % Start timers
+                        start(this.AuxOutOffTimer)
+                        start(this.AuxOutOnTimer)
                     end
-                    avg_compl = addAverage(this.AvgTrace, this.Trace);
-                    
-                    % Trigger NewData
+
+                    % Clear trace 
+                    clear(this.Trace);
+
+                    notify(this, 'RecordingStarted');
+                end
+
+                rec_finished = false;
+
+                % Indicator for adaptive measurement is off, since
+                % recording is not under way
+                this.ad_osc_following = false;
+            end
+
+            notify(this,'NewDemodSample');
+
+            % Stop recording if a record was completed
+            if rec_finished
+
+                % stop recording
+                this.recording = false;
+                this.ad_osc_following = false;
+
+                % Stop auxiliary timers
+                stop(this.AuxOutOffTimer);
+                stop(this.AuxOutOnTimer);
+
+                % Return the drive and aux out to the default state
+                this.aux_out_on = true;
+                this.current_osc = this.drive_osc;
+                this.drive_on = true;
+
+                % Downsample the trace to reduce the amount of data
+                downsample(this.Trace, this.downsample_n, 'avg');
+
+                % Do trace averaging. If the new data length is not of 
+                % the same size as the length of the existing data 
+                % (which should happen only when the record period was
+                % changed during recording or when recording was 
+                % manually stopped), truncate to the minimum length
+                if ~isempty(this.AvgTrace) && ...
+                        (length(this.AvgTrace.y)~=length(this.Trace.y))
+
+                    l = min(length(this.AvgTrace.y), ...
+                        length(this.Trace.y));
+
+                    this.AvgTrace.y = this.AvgTrace.y(1:l);
+                    this.AvgTrace.x = this.AvgTrace.x(1:l);
+                    this.Trace.y = this.Trace.y(1:l);
+                    this.Trace.x = this.Trace.x(1:l);
+
+                    disp('Ringdown record was truncated')
+                end
+                avg_compl = addAverage(this.AvgTrace, this.Trace);
+
+                % Trigger NewData
+                if this.n_avg>1
+                    end_str = sprintf('_%i', this.AvgTrace.avg_count);
+                else
+                    end_str = '';
+                end
+                triggerNewData(this, 'save', this.auto_save, ...
+                    'filename_ending', end_str);
+
+                % If the ringdown averaging is complete, disable
+                % further triggering to exclude data overwriting 
+                if avg_compl
+                    this.enable_acq = false;
+
                     if this.n_avg>1
-                        end_str = sprintf('_%i', this.AvgTrace.avg_count);
-                    else
-                        end_str = '';
-                    end
-                    triggerNewData(this, 'save', this.auto_save, ...
-                        'filename_ending', end_str);
-                    
-                    % If the ringdown averaging is complete, disable
-                    % further triggering to exclude data overwriting 
-                    if avg_compl
-                        this.enable_acq = false;
-                        
-                        if this.n_avg>1
-                            end_str = '_avg';
-                            
-                            % Trigger one more time to transfer the average
-                            % trace.
-                            % A new measurement header is not necessary 
-                            % as the delay since the last triggering is  
-                            % minimum.
-                            triggerNewData(this, ...
-                                'Trace', copy(this.AvgTrace), ...
-                                'save', this.auto_save, ...
-                                'filename_ending', end_str);
-                        end
+                        end_str = '_avg';
+
+                        % Trigger one more time to transfer the average
+                        % trace.
+                        % A new measurement header is not necessary 
+                        % as the delay since the last triggering is  
+                        % minimum.
+                        triggerNewData(this, ...
+                            'Trace', copy(this.AvgTrace), ...
+                            'save', this.auto_save, ...
+                            'filename_ending', end_str);
                     end
                 end
             end
