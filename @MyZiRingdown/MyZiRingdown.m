@@ -168,7 +168,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             % Extract poll period from varargin
             p = inputParser();
             p.KeepUnmatched = true;
-            addParameter(p, 'poll_period', 0.1, @isnumeric);
+            addParameter(p, 'poll_period', 0.042, @isnumeric);
             parse(p, varargin{:});
             varargin = struct2namevalue(p.Unmatched);
             
@@ -350,10 +350,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
 
                 % If the recording has just started, save the start
                 % time
-                if isempty(this.Trace)
+                if isempty(this.Trace.x)
                     this.t0 = DemodSample.timestamp(1);
                 end
-
+                
                 % If recording is under way, append the new samples to
                 % the trace
                 rec_finished = appendSamplesToTrace(this, DemodSample);
@@ -407,7 +407,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                     % Clear the buffer on ZI data server from existing   
                     % demodulator samples, as these samples were 
                     % recorded with drive on 
-                    ziDAQ('poll',this.poll_duration,this.poll_timeout);
+                    ziDAQ('poll', this.poll_duration, this.poll_timeout);
 
                     % Optionally start the auxiliary output timers
                     if this.enable_aux_out
@@ -465,7 +465,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                 % (which should happen only when the record period was
                 % changed during recording or when recording was 
                 % manually stopped), truncate to the minimum length
-                if ~isempty(this.AvgTrace) && ...
+                if ~isempty(this.AvgTrace.x) && ...
                         (length(this.AvgTrace.y)~=length(this.Trace.y))
 
                     l = min(length(this.AvgTrace.y), ...
@@ -549,10 +549,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             this.DemodRecord.osc_freq = [this.DemodRecord.osc_freq; ...
                 DemodSample.frequency(:)];
             
-            assert(length(this.DemodRecord.t) == ...
-                length(this.DemodRecord.z), ...
-                't and z=x+iy array lengths of DemodRecord are not equal.')
-            
             % Only store the latest data points required to calculate fft
             flen = this.fft_length;
             if length(this.DemodRecord.t)>flen
@@ -575,7 +571,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         % Calculate the average frequency and dispersion of the demodulator 
         % signal 
         function [f_avg, f_dev] = calcfreq(this)
-            if ~isempty(this.DemodSpectrum)
+            if ~isempty(this.DemodSpectrum.x)
                 norm = sum(this.DemodSpectrum.y);
                 
                 % Calculate the center frequency of the spectrum
