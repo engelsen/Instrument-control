@@ -168,7 +168,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             % Extract poll period from varargin
             p = inputParser();
             p.KeepUnmatched = true;
-            addParameter(p, 'poll_period', 0.042, @isnumeric);
+            addParameter(p, 'poll_period', 0.05, @isnumeric);
             parse(p, varargin{:});
             varargin = struct2namevalue(p.Unmatched);
             
@@ -575,9 +575,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                 norm = sum(this.DemodSpectrum.y);
                 
                 % Calculate the center frequency of the spectrum
-                f_avg=dot(this.DemodSpectrum.x, this.DemodSpectrum.y)/norm;
+                f_avg = dot(this.DemodSpectrum.x, ...
+                    this.DemodSpectrum.y)/norm;
                 
-                f_dev=sqrt(dot(this.DemodSpectrum.x.^2, ...
+                f_dev = sqrt(dot(this.DemodSpectrum.x.^2, ...
                     this.DemodSpectrum.y)/norm-f_avg^2);
                 
                 % Shift the FFT center by the demodulation frequency to
@@ -592,7 +593,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         % Provide restricted access to private AvgTrace
         function resetAveraging(this)
             
-            % Clear data and reset counter
+            % Clear data and reset the counter
             clear(this.AvgTrace);
         end
         

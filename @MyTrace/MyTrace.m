@@ -245,12 +245,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function downsample(this, n, opt)
             n0 = ceil(n/2);
             
-            if nargin()==3 && (strcmpi(opt,'average')||strcmpi(opt,'avg'))
+            if exist('opt', 'var') && ...
+                    (strcmpi(opt,'average') || strcmpi(opt,'avg'))
                 
                 % Compute moving average with 'shrink' option so that the
                 % total number of samples is preserved. Endpoints will be
                 % discarded by starting the indexing from n0.
-                tmpy = movmean(this.y, 'Endpoints', 'shrink');
+                tmpy = movmean(this.y, n, 'Endpoints', 'shrink');
                 
                 this.x = this.x(n0:n:end);
                 this.y = tmpy(n0:n:end);
