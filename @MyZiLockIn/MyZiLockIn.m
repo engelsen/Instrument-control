@@ -4,7 +4,7 @@
 classdef MyZiLockIn < MyInstrument
     
     properties (GetAccess = public, ...
-            SetAccess = {?MyClassParser, ?MyZiLockIn})
+            SetAccess = {?MyClassParser, ?MyZiLockIn}, SetObservable)
         
         dev_serial = 'dev4090'
         
@@ -48,7 +48,8 @@ classdef MyZiLockIn < MyInstrument
                 % ziDAQ('connect',.. and ziDAQ('connectDevice', ... when 
                 % necessary
                 apilevel = 6;
-                [this.dev_id, ~] = ziCreateAPISession(dev_serial,apilevel);
+                [this.dev_id, ~] = ziCreateAPISession(this.dev_serial, ...
+                    apilevel);
 
                 % Read the divice clock frequency
                 this.clockbase = ...
