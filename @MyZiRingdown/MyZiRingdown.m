@@ -168,7 +168,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             % Extract poll period from varargin
             p = inputParser();
             p.KeepUnmatched = true;
-            addParameter(p, 'poll_period', 0.042, @isnumeric);
+            addParameter(p, 'poll_period', 0.1, @isnumeric);
             parse(p, varargin{:});
             varargin = struct2namevalue(p.Unmatched);
             
@@ -215,6 +215,8 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
            
             this.demod_path = sprintf('/%s/demods/%i', this.dev_id, ...
                 this.demod-1);
+            
+            createCommandList(this);
         end
         
         function delete(this)
@@ -319,6 +321,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         
         % Main function that polls data from the device demodulator
         function pollTimerCallback(this, ~, ~)
+            this.auto_sync = false;
             
             % ziDAQ('poll', ... with short poll_duration returns 
             % immediately with the data accumulated since the last timer 
@@ -499,6 +502,8 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                     end
                 end
             end
+            
+            this.auto_sync = true;
         end
         
         % Append timestamps vs r=sqrt(x^2+y^2) to the measurement record.
@@ -599,75 +604,155 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
     
     methods (Access = protected)
         function createCommandList(this)
-            
-            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
-                this.drive_osc-1);
-            
             addCommand(this, 'drive_osc_freq', ...
-                'readFcn',      @()ziDAQ('getDouble', path), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', path, x));
-            
-            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
-                this.meas_osc-1);
+                'readFcn',      @this.readDriveOscFreq, ...
+                'writeFcn',     @this.writeDriveOscFreq);
             
             addCommand(this, 'meas_osc_freq', ...
-                'readFcn',      @()ziDAQ('getDouble', path), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', path, x));
-            
-            % Use double() to convert from logical type
-            path = sprintf('/%s/sigouts/%i/on', this.dev_id, ...
-                this.drive_out-1);
+                'readFcn',      @this.readMeasOscFreq, ...
+                'writeFcn',     @this.writeMeasOscFreq);
             
             addCommand(this, 'drive_on', ...
-                'readFcn',      @()logical(ziDAQ('getInt', path)), ...
-                'writeFcn',     @(x)ziDAQ('setInt', path, double(x)));
+                'readFcn',      @this.readDriveOn, ...
+                'writeFcn',     @this.writeDriveOn);
             
             addCommand(this, 'current_osc', ...
-                'readFcn',      @()(double(ziDAQ('getInt', ...
-                    [this.demod_path,'/oscselect']))+1), ...
-                'writeFcn',     @(x)ziDAQ('setInt', ...
-                    [this.demod_path,'/oscselect'], x-1));
-            
-            path = sprintf('/%s/sigouts/%i/amplitudes/%i', ...
-                this.dev_id, this.drive_out-1, this.drive_osc-1);
+                'readFcn',      @this.readCurrentOsc, ...
+                'writeFcn',     @this.writeCurrentOsc);
             
             addCommand(this, 'drive_amp', ...
-                'readFcn',      @()ziDAQ('getDouble', path), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', path, x));
+                'readFcn',      @this.readDriveAmp, ...
+                'writeFcn',     @this.writeDriveAmp);
             
             addCommand(this, 'lowpass_order', ...
-                'readFcn',         @()(double(ziDAQ('getInt', ...
-                    [this.demod_path,'/oscselect']))+1), ...
-                'writeFcn',        @(x)ziDAQ('setInt', ...
-                    [this.demod_path '/order'], x), ...
-                'validationFcn',   @(x)assert(any(x==[1,2,3,4,5,6,7,8]),...
-                    ['Low-pass filter order must be an integer between '...
-                    '1 and 8']), ...
-                'default',         1);
+                'readFcn',      @this.readLowpassOrder, ...
+                'writeFcn',     @this.writeLowpassOrder, ...
+                'default',      1);
                 
             addCommand(this, 'lowpass_bw', ...
-                'readFcn',      @()ziTC2BW(ziDAQ('getDouble', ...
-                    [this.demod_path,'/timeconstant'])), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', ...
-                    [this.demod_path,'/timeconstant'], ziBW2TC(x)));
+                'readFcn',      @this.readLowpassBw, ...
+                'writeFcn',     @this.writeLowpassBw);
             
             addCommand(this, 'demod_rate', ...
-                'readFcn',      @()ziDAQ('getDouble', ...
-                    [this.demod_path,'/rate']), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', ...
-                    [this.demod_path,'/rate'], x));
-            
-            % The auxiliary output level can be in one of two states, on or
-            % off
-            path = sprintf('/%s/auxouts/%i/offset', this.dev_id, ...
-                this.aux_out-1);
+                'readFcn',      @this.readDemodRate, ...
+                'writeFcn',     @this.writeDemodRate);
             
             addCommand(this, 'aux_out_on', ...
-                'readFcn',      @()ziDAQ('getDouble', path), ...
-                'postSetFcn',   @(x) (abs(x-this.aux_out_on_lev) < ...
-                    abs(x-this.aux_out_off_lev)), ...
-                'writeFcn',     @(x)ziDAQ('setDouble', path, ...
-                    select(x, this.aux_out_on_lev, this.aux_out_off_lev)));
+                'readFcn',      @this.readAuxOutOn, ...
+                'writeFcn',     @this.writeAuxOutOn);
+        end
+        
+        
+        function val = readDriveOscFreq(this)
+            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
+                this.drive_osc-1);
+            val = ziDAQ('getDouble', path);
+        end
+        
+        function writeDriveOscFreq(this, val)
+            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
+                this.drive_osc-1);
+            ziDAQ('setDouble', path, val);
+        end
+        
+        function val = readMeasOscFreq(this)
+            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
+                this.meas_osc-1);
+            val = ziDAQ('getDouble', path);
+        end
+        
+        function writeMeasOscFreq(this, val)
+            path = sprintf('/%s/oscs/%i/freq', this.dev_id, ...
+                this.meas_osc-1);
+            ziDAQ('setDouble', path, val);
+        end
+        
+        function val = readDriveOn(this)
+            path = sprintf('/%s/sigouts/%i/on', this.dev_id, ...
+                this.drive_out-1);
+            val = logical(ziDAQ('getInt', path));
+        end
+        
+        function writeDriveOn(this, val)
+            path = sprintf('/%s/sigouts/%i/on', this.dev_id, ...
+                this.drive_out-1);
+            % Use double() to convert from logical
+            ziDAQ('setInt', path, double(val));
+        end
+        
+        function val = readCurrentOsc(this)
+            val = double(ziDAQ('getInt', ...
+                [this.demod_path,'/oscselect']))+1;
+        end
+        
+        function writeCurrentOsc(this, val)
+            assert((val==this.drive_osc) || (val==this.meas_osc), ...
+                ['The number of current oscillator must be that of ', ...
+                'the drive or measurement oscillator, not ', num2str(val)])
+            ziDAQ('setInt', [this.demod_path,'/oscselect'], val-1);
+        end
+        
+        function val = readDriveAmp(this)
+            path = sprintf('/%s/sigouts/%i/amplitudes/%i', ...
+                this.dev_id, this.drive_out-1, this.drive_osc-1);
+            val = ziDAQ('getDouble', path);
+        end
+        
+        function writeDriveAmp(this, val)
+            path=sprintf('/%s/sigouts/%i/amplitudes/%i', ...
+                this.dev_id, this.drive_out-1, this.drive_osc-1);
+            ziDAQ('setDouble', path, val);
+        end
+        
+        function n = readLowpassOrder(this)
+            n = ziDAQ('getInt', [this.demod_path,'/order']);
+        end
+        
+        function writeLowpassOrder(this, val)
+            assert(any(val==[1,2,3,4,5,6,7,8]), ['Low-pass filter ', ...
+                'order must be an integer between 1 and 8'])
+            ziDAQ('setInt', [this.demod_path,'/order'], val);
+        end
+        
+        function bw = readLowpassBw(this)
+            tc = ziDAQ('getDouble', [this.demod_path,'/timeconstant']);
+            bw = ziTC2BW(tc, this.lowpass_order);
+        end
+        
+        function writeLowpassBw(this, val)
+            tc = ziBW2TC(val, this.lowpass_order);
+            ziDAQ('setDouble', [this.demod_path,'/timeconstant'], tc);
+        end
+        
+        function val = readDemodRate(this)
+            val = ziDAQ('getDouble', [this.demod_path,'/rate']);
+        end
+        
+        function writeDemodRate(this, val)
+            ziDAQ('setDouble', [this.demod_path,'/rate'], val);
+        end
+        
+        function bool = readAuxOutOn(this)
+            path = sprintf('/%s/auxouts/%i/offset', ...
+                this.dev_id, this.aux_out-1);
+            val = ziDAQ('getDouble', path);
+            
+            % Signal from the auxiliary output is continuous, we make the
+            % binary decision about the output state depending on if 
+            % the signal is closer to the ON or OFF level
+            bool = (abs(val-this.aux_out_on_lev) < ...
+                abs(val-this.aux_out_off_lev));
+        end
+        
+        function writeAuxOutOn(this, bool)
+            path = sprintf('/%s/auxouts/%i/offset', ...
+                this.dev_id, this.aux_out-1);
+            if bool
+                out_offset = this.aux_out_on_lev;
+            else
+                out_offset = this.aux_out_off_lev;
+            end
+            ziDAQ('setDouble', path, out_offset);
         end
         
         function createMetadata(this)
