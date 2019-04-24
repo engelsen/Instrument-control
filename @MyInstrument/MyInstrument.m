@@ -65,7 +65,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
         end
         
         function addCommand(this, tag, varargin)
-            p=inputParser();
+            p = inputParser();
             
             % Name of the command
             addRequired(p,'tag', @(x)isvarname(x));
@@ -87,7 +87,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
                 @(x)isa(x, 'function_handle'));
             
             addParameter(p, 'value_list', {}, @iscell);
-            addParameter(p, 'default', []);
+            addParameter(p, 'default', 0);
             addParameter(p, 'info', '', @ischar);
             
             parse(p,tag,varargin{:});
@@ -109,7 +109,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             end
             
             % Assign default value from the list if not given explicitly
-            if ~isempty(vl) && isempty(p.Results.default)
+            if ~isempty(vl) && ismember('default', p.Results.UsingDefault)
                 default = vl{1};
             else
                 default = p.Results.default;
