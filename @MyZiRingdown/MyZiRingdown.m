@@ -256,6 +256,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         %% Other methods
         
         function startPoll(this)
+            sync(this);
             
             % Configure the oscillators, demodulator and driving output
             % -1 accounts for the difference in enumeration conventions 
