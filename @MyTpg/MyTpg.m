@@ -94,11 +94,11 @@ classdef MyTpg < MyInstrument & MyCommCont
         % Create pressure logger
         function Lg = createLogger(this, varargin)
 
-            Lg = MyLogger('MeasFcn', @this.readPressure, varargin{:});
+            Lg = MyLogger(varargin{:}, 'MeasFcn', @this.readPressure);
             
             pu = this.pressure_unit;
             if isempty(Lg.Record.data_headers) && ~isempty(pu)
-                this.Lg.Record.data_headers = ...
+                Lg.Record.data_headers = ...
                     {['P ch1 (' pu ')'], ['P ch2 (' pu ')']};
             end
         end

@@ -30,6 +30,29 @@ classdef MyLakeshore336 < MyScpiInstrument & MyCommCont
             this@MyCommCont(varargin{:});
             createCommandList(this);
         end
+        
+        % Create temperature logger
+        function Lg = createLogger(this, varargin)
+            function temp = readTemperature()
+                sync(this);
+                temp = [this.temp_a,this.temp_b,this.temp_c,this.temp_d];
+            end
+
+            Lg = MyLogger(varargin{:}, 'MeasFcn', @readTemperature);
+            
+            % Make column headers
+            inp_ch = {'A', 'B', 'C', 'D'};
+            headers = cell(1, 4);
+            for i = 1:length(inp_ch)
+                sens_name = sprintf('sens_name_%s', lower(inp_ch{i}));
+                headers{i} = sprintf('T ch %s %s (%s)', inp_ch{i}, ...
+                    sens_name, this.temp_unit);
+            end
+            
+            if isempty(Lg.Record.data_headers)
+                Lg.Record.data_headers = headers;
+            end
+        end
     end
     
     methods (Access = protected)
