@@ -8,7 +8,7 @@
 
 classdef MyAvgTrace < MyTrace
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         
         % Target number of averages, when it is reached or exceeded 
         % AveragingDone event is triggered
@@ -17,7 +17,8 @@ classdef MyAvgTrace < MyTrace
         avg_type = 'lin'
     end
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (GetAccess = public, SetAccess = protected, ...
+            SetObservable = true)
         
         % Counter for the averaging function, can be reset by clearData
         avg_count = 0

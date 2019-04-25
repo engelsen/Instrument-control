@@ -199,11 +199,11 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource
             addObjProp(this.Metadata, this, 'trigholdoff', 'comment', ...
                 ['(s), the scope hold off time inbetween acquiring ' ...
                 'triggers']);
-            addParam(this.Metadata, this.name, 'poll_period', ...
+            addParam(this.Metadata, 'poll_period', ...
                 this.PollTimer.Period, 'comment', '(s)');
         end
         
-        function val = readScoperate(this)
+        function val = readScopeRate(this)
             tn = ziDAQ('getDouble', [this.scope_path '/time']);
             val = this.clockbase/(2^tn);
         end
@@ -240,6 +240,10 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource
             else
                 val = Inf;
             end
+        end
+        
+        function val = get.poll_period(this)
+            val = this.PollTimer.Period;
         end
     end
 end
