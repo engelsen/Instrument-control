@@ -168,7 +168,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             % Extract poll period from varargin
             p = inputParser();
             p.KeepUnmatched = true;
-            addParameter(p, 'poll_period', 0.05, @isnumeric);
+            addParameter(p, 'poll_period', 0.1, @isnumeric);
             parse(p, varargin{:});
             varargin = struct2namevalue(p.Unmatched);
             
@@ -294,12 +294,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             path = sprintf('/%s/sigouts/%i/enables/%i', ...
                 this.dev_id, this.drive_out-1, this.drive_osc-1);
             ziDAQ('setInt', path, 1);
-            
-            % Enable output 
-            this.drive_on = true;
              
             % By convention, we start form 'enable_acq=false' state
             this.enable_acq = false;
+            this.drive_on = false;
             
             % Configure the auxiliary trigger output - put it in the manual
             % mode so it does not output demodulator readings
@@ -366,7 +364,11 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                 end
 
                 % Update elapsed time
-                this.elapsed_t = this.Trace.x(end);
+                if ~isempty(this.Trace.x)
+                    this.elapsed_t = this.Trace.x(end);
+                else
+                    this.elapsed_t = 0;
+                end
 
                 % If the adaptive measurement frequency mode is on,
                 % update the measurement oscillator frequency.
@@ -442,7 +444,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
 
             notify(this,'NewDemodSample');
 
-            % Stop recording if a record was completed
+            % Stop recording if a ringdown record was completed
             if rec_finished
 
                 % stop recording
@@ -456,7 +458,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                 % Return the drive and aux out to the default state
                 this.aux_out_on = true;
                 this.current_osc = this.drive_osc;
-                this.drive_on = true;
 
                 % Do trace averaging. If the new data length is not of 
                 % the same size as the length of the existing data 
@@ -491,6 +492,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                 % further triggering to exclude data overwriting 
                 if avg_compl
                     this.enable_acq = false;
+                    this.drive_on = false;
 
                     if this.n_avg>1
                         end_str = '_avg';
@@ -505,6 +507,11 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                             'save', this.auto_save, ...
                             'filename_ending', end_str);
                     end
+                else
+                    
+                    % Continue trying to acquire new ringdowns
+                    this.enable_acq = true;
+                    this.drive_on = true;
                 end
             end
             
