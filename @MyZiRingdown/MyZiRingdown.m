@@ -538,25 +538,24 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             
             n = floor(length(r_sq_buff)/this.downsample_n);
             
-            if n < 1
-                
-                % Insuffficient number of points to add to the trace
-                return
-            end
-            
             % Average over downsample_n consecutive points
             new_r_sq = mean(reshape(r_sq_buff(1:n*this.downsample_n), ...
-                [n, this.downsample_n]), 2);
+                [this.downsample_n, n]));
             new_ts = mean(reshape(ts_buff(1:n*this.downsample_n), ...
-                [n, this.downsample_n]), 2);
+                [this.downsample_n, n]));
             
             % Append the new downsampled data to the trace
-            this.Trace.x = [this.Trace.x; new_ts];
-            this.Trace.y = [this.Trace.y; sqrt(new_r_sq)];
+            this.Trace.x = [this.Trace.x; new_ts(:)];
+            this.Trace.y = [this.Trace.y; sqrt(new_r_sq(:))];
             
             % Reset the averaging buffers
             r_sq_buff = r_sq_buff(n*this.downsample_n+1:end);
             ts_buff = ts_buff(n*this.downsample_n+1:end);
+            
+            if isfin
+                r_sq_buff = [];
+                ts_buff = [];
+            end
         end
         
         % Append timestamps vs z=x+iy to the shift register for fft
