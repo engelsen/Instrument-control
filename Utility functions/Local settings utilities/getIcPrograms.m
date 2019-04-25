@@ -72,7 +72,7 @@ function ProgList = getIcPrograms()
             catch 
             end  
             
-            ProgList(j).run_expr = ['runLogger(' nm ');'];
+            ProgList(j).run_expr = ['runLogger(''' nm ''');'];
             
             j = j+1;
         end

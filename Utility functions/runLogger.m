@@ -19,12 +19,12 @@ function [Lg, Gui] = runLogger(instr_name)
     addInstrument(C, name, Lg);
     
     % Check if the instrument already has GUI
-    Gui = getInstrumentGui(Collector, name);
+    Gui = getInstrumentGui(C, name);
     if isempty(Gui)
         
         % Run a new GUI and store it in the collector
         Gui = GuiLogger(Lg);
-        addInstrumentGui(Collector, name, Gui);
+        addInstrumentGui(C, name, Gui);
         
         % Display the instrument's name 
         Fig = findfigure(Gui);

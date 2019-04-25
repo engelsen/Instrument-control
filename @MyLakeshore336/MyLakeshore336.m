@@ -46,7 +46,7 @@ classdef MyLakeshore336 < MyScpiInstrument & MyCommCont
             for i = 1:length(inp_ch)
                 sens_name = sprintf('sens_name_%s', lower(inp_ch{i}));
                 headers{i} = sprintf('T ch %s %s (%s)', inp_ch{i}, ...
-                    sens_name, this.temp_unit);
+                    this.(sens_name), this.temp_unit);
             end
             
             if isempty(Lg.Record.data_headers)

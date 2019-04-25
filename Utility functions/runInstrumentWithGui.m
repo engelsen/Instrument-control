@@ -14,7 +14,7 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
         % Load GUI name from InstrumentList
         InstrumentList = getLocalSettings('InstrumentList');
         
-        ind = ([InstrumentList.name]==name);
+        ind = cellfun(@(x)isequal(x, name), {InstrumentList.name});
         
         assert(any(ind), [name ' must correspond to an entry in ' ...
             'InstrumentList.'])
