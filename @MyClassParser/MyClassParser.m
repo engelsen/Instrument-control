@@ -1,11 +1,10 @@
 % Input parser, which functionality was extended to automatically add
 % class properties to the scheme and assign the results after parsing is
 % done.
-% Different to inputParser, KeepUnmatched is 'true' by default.
 
 classdef MyClassParser < inputParser
     
-    methods (Access=public)
+    methods (Access = public)
         function this = MyClassParser(varargin)
             this@inputParser();
             

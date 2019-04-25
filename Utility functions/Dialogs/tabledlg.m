@@ -4,7 +4,7 @@
 
 function OutS = tabledlg(InS, varargin)
     p=inputParser();
-    addRequired(p,'InS', @(x)assert(isstruct(x), ...
+    addRequired(p, 'InS', @(x)assert(isstruct(x), ...
         'Input argument must be structure'));
     addParameter(p, 'Name', '', @ischar); % Figure name to display
     parse(p, InS, varargin{:});
@@ -91,7 +91,10 @@ function OutS = tabledlg(InS, varargin)
 
     function continueButtonCallback(~,~)
         [nrows, ~]=size(T.Data);
+        
+        OutS=struct();
         for i=1:nrows
+            
             % Try converting values to numbers
             OutS.(T.Data{i,1})=str2doubleHedged(T.Data{i,2});
         end

@@ -23,40 +23,33 @@ function Instr = runInstrument(name, instr_class, varargin)
     end
     
     % Create a new instrument object 
-    if nargin()==1
+    if ~exist('instr_class', 'var')
 
         % Load instr_class, interface, address and other startup arguments 
         % from InstrumentList
         InstrumentList = getLocalSettings('InstrumentList');
         
-        assert(isfield(InstrumentList, name), [name ' must be a field ' ...
-            'of InstrumentList.'])
+        ind = ([InstrumentList.name]==name);
         
-        assert(isfield(InstrumentList.(name), 'control_class'), ...
-            ['InstrumentList entry ' name ...
-            ' has no ''control_class'' field.'])
+        assert(any(ind), [name ' must correspond to an entry in ' ...
+            'InstrumentList.'])
         
-        instr_class = InstrumentList.(name).control_class;
+        InstrEntry = InstrumentList(ind);
         
-        instr_args = {}; % instrument startup arguments
-        
-        if isfield(InstrumentList.(name), 'interface')
-            instr_args = [instr_args, {'interface', ...
-                InstrumentList.(name).interface}];
+        if length(InstrEntry) > 1
+            
+            % Multiple entries found
+            warning(['Multiple InstrumentList entries found with ' ...
+                'name ' name]);
+            InstrEntry = InstrEntry(1);
         end
         
-        if isfield(InstrumentList.(name), 'address')
-            instr_args = [instr_args, {'address', ...
-                InstrumentList.(name).address}];
-        end
-
-        % Make a list of optional name-value pairs. Put the options on the
-        % left-hand side of the list so that they could not overshadow
-        % 'interface' and 'address'
-        if isfield(InstrumentList.(name), 'StartupOpts')
-            Opts = InstrumentList.(name).StartupOpts;
-            instr_args = [struct2namevalue(Opts), instr_args];
-        end
+        instr_class = InstrEntry.control_class;
+        
+        assert(~isempty(instr_class), ['Control class is not specified '...
+            'for ' name]);
+        
+        instr_args = struct2namevalue(InstrEntry.StartupOpts);
     else
         
         % Case when all the arguments are supplied explicitly

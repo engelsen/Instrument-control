@@ -6,22 +6,35 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
     Collector = MyCollector.instance();
 
     % Run instrument first
-    if nargin==1
+    if ~exist('instr_class', 'var') || ~exist('gui', 'var')
         
-        % load parameters from InstrumentList
+        % Run instrument without GUI
+        Instr = runInstrument(name);
+        
+        % Load GUI name from InstrumentList
         InstrumentList = getLocalSettings('InstrumentList');
         
-        assert(isfield(InstrumentList, name), [name ' must be a field ' ...
-            'of InstrumentList.'])
+        ind = ([InstrumentList.name]==name);
         
-        assert(isfield(InstrumentList.(name), 'gui'), ...
-            ['InstrumentList entry ' name ' has no ''gui'' field.'])
+        assert(any(ind), [name ' must correspond to an entry in ' ...
+            'InstrumentList.'])
         
-        gui = InstrumentList.(name).gui;
-        Instr = runInstrument(name);
+        InstrEntry = InstrumentList(ind);
+        
+        if length(InstrEntry) > 1
+            
+            % Multiple entries found
+            warning(['Multiple InstrumentList entries found with ' ...
+                'name ' name]);
+            InstrEntry = InstrEntry(1);
+        end
+        
+        gui = InstrEntry.gui;
+        
+        assert(~isempty(gui), ['GUI is not specified for ' name]);
     else
         
-        % All the arguments are supplied explicitly
+        % All arguments are supplied explicitly
         Instr = runInstrument(name, instr_class, varargin{:});
     end
     
