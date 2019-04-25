@@ -1,6 +1,6 @@
 % Spectrum analyzer based on Zurich Instruments UHFLI or MFLI
 
-classdef MyZiScopeFt < MyZiLi & MyDataSource
+classdef MyZiScopeFt < MyZiLockIn & MyDataSource
     
     properties (GetAccess=public, SetAccess={?MyClassParser})
         n_scope=1   % number of hardware scope
@@ -41,7 +41,7 @@ classdef MyZiScopeFt < MyZiLi & MyDataSource
     methods (Access=public)
         
         function this = MyZiScopeFt(dev_serial, varargin)
-            this=this@MyZiLi(dev_serial);
+            this=this@MyZiLockIn(dev_serial);
             
             P=MyClassParser(this);
             addRequired(P, dev_serial, @ischar)

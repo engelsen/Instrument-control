@@ -547,9 +547,9 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             
             % Average over downsample_n consecutive points
             new_r_sq = mean(reshape(r_sq_buff(1:n*this.downsample_n), ...
-                [this.downsample_n, n]));
+                [this.downsample_n, n]), 1);
             new_ts = mean(reshape(ts_buff(1:n*this.downsample_n), ...
-                [this.downsample_n, n]));
+                [this.downsample_n, n]), 1);
             
             % Append the new downsampled data to the trace
             this.Trace.x = [this.Trace.x; new_ts(:)];
