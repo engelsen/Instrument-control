@@ -526,6 +526,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             % Check if recording should be stopped
             isfin = (ts(end)>=this.record_time);
             if isfin
+                
                 % Remove excess data points from the new data
                 ind = (ts<this.record_time);
                 ts = ts(ind);
