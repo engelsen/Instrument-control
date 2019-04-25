@@ -29,6 +29,7 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource
     properties (Dependent = true)
         scope_path
         fft_rbw         % Spacing between fft bins
+        poll_period
     end
     
     events
