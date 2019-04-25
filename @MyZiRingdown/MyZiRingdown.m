@@ -326,6 +326,8 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         
         % Main function that polls data from the device demodulator
         function pollTimerCallback(this, ~, ~)
+            
+            % Switch off the hedged mode to reduce latency
             this.auto_sync = false;
             
             % ziDAQ('poll', ... with short poll_duration returns 
@@ -335,7 +337,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             
             try
                 
-                % Demodulator returns data
+                % Get the new demodulator data
                 DemodSample = Data.(this.dev_id).demods(this.demod).sample;
             catch
                 this.auto_sync = true;
@@ -348,8 +350,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
 
             if this.recording
 
-                % If the recording has just started, save the start
-                % time
+                % If the recording has just started, save the start time
                 if isempty(this.Trace.x)
                     this.t0 = DemodSample.timestamp(1);
                 end
@@ -457,9 +458,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                 this.current_osc = this.drive_osc;
                 this.drive_on = true;
 
-                % Downsample the trace to reduce the amount of data
-                downsample(this.Trace, this.downsample_n, 'avg');
-
                 % Do trace averaging. If the new data length is not of 
                 % the same size as the length of the existing data 
                 % (which should happen only when the record period was
@@ -517,25 +515,48 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         % Starting index can be supplied as varargin.
         % The output variable tells if the record is finished.
         function isfin = appendSamplesToTrace(this, DemodSample)
+            persistent ts_buff r_sq_buff
             
-            r = sqrt(DemodSample.x.^2 + DemodSample.y.^2);
+            r_sq = DemodSample.x.^2 + DemodSample.y.^2;
             
             % Subtract the reference time, convert timestamps to seconds
             ts = double(DemodSample.timestamp - this.t0)/this.clockbase;
             
             % Check if recording should be stopped
-            isfin = (ts(end)>=this.record_time);
+            isfin = (ts(end) >= this.record_time);
             if isfin
                 
                 % Remove excess data points from the new data
                 ind = (ts<this.record_time);
                 ts = ts(ind);
-                r = r(ind);
+                r_sq = r_sq(ind);
             end
             
-            % Append the new data in column format to the trace
-            this.Trace.x = [this.Trace.x; ts(:)];
-            this.Trace.y = [this.Trace.y; r(:)];
+            % Add new data to the averaging buffer
+            r_sq_buff = [r_sq_buff; r_sq(:)];
+            ts_buff = [ts_buff; ts(:)];
+            
+            n = floor(length(r_sq_buff)/this.downsample_n);
+            
+            if n < 1
+                
+                % Insuffficient number of points to add to the trace
+                return
+            end
+            
+            % Average over downsample_n consecutive points
+            new_r_sq = mean(reshape(r_sq_buff(1:n*this.downsample_n), ...
+                [n, this.downsample_n]), 2);
+            new_ts = mean(reshape(ts_buff(1:n*this.downsample_n), ...
+                [n, this.downsample_n]), 2);
+            
+            % Append the new downsampled data to the trace
+            this.Trace.x = [this.Trace.x; new_ts];
+            this.Trace.y = [this.Trace.y; sqrt(new_r_sq)];
+            
+            % Reset the averaging buffers
+            r_sq_buff = r_sq_buff(n*this.downsample_n+1:end);
+            ts_buff = ts_buff(n*this.downsample_n+1:end);
         end
         
         % Append timestamps vs z=x+iy to the shift register for fft
