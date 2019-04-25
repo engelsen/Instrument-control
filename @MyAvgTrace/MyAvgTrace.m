@@ -8,7 +8,7 @@
 
 classdef MyAvgTrace < MyTrace
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         
         % Target number of averages, when it is reached or exceeded 
         % AveragingDone event is triggered
@@ -17,7 +17,8 @@ classdef MyAvgTrace < MyTrace
         avg_type = 'lin'
     end
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (GetAccess = public, SetAccess = protected, ...
+            SetObservable = true)
         
         % Counter for the averaging function, can be reset by clearData
         avg_count = 0
@@ -91,7 +92,7 @@ classdef MyAvgTrace < MyTrace
         
         % Overload the method so that it reset the averaging counter in
         % addition to clearing the x and y values
-        function clear(this)
+        function clearData(this)
             this.x = [];
             this.y = [];
             resetCounter(this);

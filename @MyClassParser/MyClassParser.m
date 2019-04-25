@@ -9,7 +9,8 @@ classdef MyClassParser < inputParser
         function this = MyClassParser(varargin)
             this@inputParser();
             
-            if nargin()==1
+            if nargin() == 1
+                
                 % If an object is supplied via varargin, add its properties
                 % to the parser scheme
                 addClassProperties(this, varargin{1});
@@ -32,7 +33,8 @@ classdef MyClassParser < inputParser
                 
                 % Constant, Dependent and Abstract propeties cannot be set,
                 % so skip in this case also.
-                if Tmp.Constant||Tmp.Abstract||Tmp.Dependent
+                if Tmp.Constant || Tmp.Abstract|| ...
+                        (Tmp.Dependent && isempty(Tmp.SetMethod))
                     continue
                 end
                 
@@ -61,9 +63,9 @@ classdef MyClassParser < inputParser
                         % Create validation function based on the class of
                         % default value
                         validationFcn = @(x)assert(isa(x, class(def)),...
-                            ['The value must be of the class ',class(def),...
-                            ' while the present one is of the class ',...
-                            class(x),'.']);                        
+                            ['The value must be of the class ' ...
+                            class(def) ' while the present one is ' ...
+                            'of the class ' class(x) '.']);                        
                         opt_vars = {def, validationFcn};
                     else
                         def = [];

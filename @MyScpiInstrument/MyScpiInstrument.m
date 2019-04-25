@@ -20,7 +20,7 @@ classdef MyScpiInstrument < MyInstrument
             addParameter(p, 'value_list', {}, @iscell);
             addParameter(p, 'validationFcn', function_handle.empty(), ...
                 @(x)isa(x, 'function_handle'));
-            addParameter(p, 'default', []);
+            addParameter(p, 'default', 0);
             
             % Command ending for reading
             addParameter(p, 'read_ending', '?', @ischar);
@@ -116,11 +116,12 @@ classdef MyScpiInstrument < MyInstrument
                 'value_list',       value_list, ...
                 'validationFcn',    validationFcn}];
             
-            % Assign default based on the format of value (if acceptable 
-            % values are listed explicitly, default will be assigned from 
-            % the list)
-            default = p.Results.default;
-            if isempty(default) && isempty(value_list)
+            % Assign default based on the format of value 
+            if ~ismember('default', p.UsingDefault)
+                default = p.Results.default;
+            elseif ~isempty(value_list)
+                default = value_list{1};
+            else
                 default = makeValidValue(this, smb);
             end
             

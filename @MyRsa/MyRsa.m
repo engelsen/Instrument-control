@@ -3,20 +3,19 @@
 classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
     
     properties (SetAccess = protected, GetAccess = public)
-        acq_trace = [] % Last read trace
+        acq_trace = [] % The number of last read trace
     end
     
     methods (Access = public)
         function this = MyRsa(varargin)
             this@MyCommCont(varargin{:});
             
-            P = MyClassParser(this);
-            processInputs(P, this, varargin{:});
-            
             this.Trace.unit_x = 'Hz';
             this.Trace.unit_y = '$\mathrm{V}^2/\mathrm{Hz}$';
             this.Trace.name_y = 'Power';
             this.Trace.name_x = 'Frequency';
+            
+            createCommandList(this);
         end
     end
     
@@ -179,7 +178,7 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
             %Hdr should contain single field
             addParam(Hdr, Hdr.field_names{1}, ...
                 'acq_trace', this.acq_trace, ...
-                'comment', 'Last read trace');
+                'comment', 'The number of last read trace');
         end
     end
     

@@ -2,7 +2,6 @@
 %
 % Undefined/dummy methods:
 %   queryString(this, cmd)
-%   createCommandList(this)
 % 
 % These methods are intentionally not introduced as abstract as under
 % some conditions they are not necessary
@@ -29,16 +28,13 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
     properties (Access = protected)
         
         % Copying existing metadata is much faster than creating a new one
-        Metadata
+        Metadata = MyMetadata.empty()
     end
     
     methods (Access = public)
         function this = MyInstrument(varargin)
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
-            
-            createCommandList(this);
-            createMetadata(this);
         end
         
         % Read all parameters of the physical device
@@ -65,7 +61,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
         end
         
         function addCommand(this, tag, varargin)
-            p=inputParser();
+            p = inputParser();
             
             % Name of the command
             addRequired(p,'tag', @(x)isvarname(x));
@@ -87,7 +83,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
                 @(x)isa(x, 'function_handle'));
             
             addParameter(p, 'value_list', {}, @iscell);
-            addParameter(p, 'default', []);
+            addParameter(p, 'default', 0);
             addParameter(p, 'info', '', @ischar);
             
             parse(p,tag,varargin{:});
@@ -109,7 +105,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             end
             
             % Assign default value from the list if not given explicitly
-            if ~isempty(vl) && isempty(p.Results.default)
+            if ~isempty(vl) && ismember('default', p.Results.UsingDefault)
                 default = vl{1};
             else
                 default = p.Results.default;
@@ -152,6 +148,9 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
         
         % Measurement header
         function Mdt = readSettings(this)
+            if isempty(this.Metadata)
+                createMetadata(this);
+            end
             
             % Ensure that instrument parameters are up to data
             sync(this);
@@ -182,12 +181,6 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
     end
     
     methods (Access = protected)
-        
-        % Dummy function that is redefined in subclasses to
-        % incorporate addCommand statements
-        function createCommandList(~)
-        end
-        
         function createMetadata(this)
             this.Metadata = MyMetadata('title', class(this));
             
