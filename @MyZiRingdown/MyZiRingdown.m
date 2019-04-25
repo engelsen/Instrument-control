@@ -428,7 +428,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                     end
 
                     % Clear trace 
-                    clear(this.Trace);
+                    clearData(this.Trace);
 
                     notify(this, 'RecordingStarted');
                 end
@@ -615,7 +615,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         function resetAveraging(this)
             
             % Clear data and reset the counter
-            clear(this.AvgTrace);
+            clearData(this.AvgTrace);
         end
         
         function auxOutOffTimerCallback(this, ~, ~)
