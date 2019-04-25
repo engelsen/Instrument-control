@@ -28,7 +28,7 @@ classdef MyLakeshore336 < MyScpiInstrument & MyCommCont
     methods (Access = public)
         function this = MyLakeshore336(varargin)
             this@MyCommCont(varargin{:});
-            this@MyScpiInstrument();
+            createCommandList(this);
         end
     end
     

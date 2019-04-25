@@ -105,7 +105,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             end
             
             % Assign default value from the list if not given explicitly
-            if ~isempty(vl) && ismember('default', p.Results.UsingDefault)
+            if ~isempty(vl) && ismember('default', p.UsingDefaults)
                 default = vl{1};
             else
                 default = p.Results.default;

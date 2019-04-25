@@ -117,7 +117,7 @@ classdef MyScpiInstrument < MyInstrument
                 'validationFcn',    validationFcn}];
             
             % Assign default based on the format of value 
-            if ~ismember('default', p.UsingDefault)
+            if ~ismember('default', p.UsingDefaults)
                 default = p.Results.default;
             elseif ~isempty(value_list)
                 default = value_list{1};

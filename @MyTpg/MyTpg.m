@@ -26,6 +26,7 @@ classdef MyTpg < MyInstrument & MyCommCont
     methods (Access = public)
         function this = MyTpg(varargin)
             this@MyCommCont(varargin{:});
+            createCommandList(this);
         end
 
         % read pressure from a single channel or both channels at a time
