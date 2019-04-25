@@ -80,8 +80,12 @@ classdef MyDaq < handle
             this.Background=MyTrace();
 
             %The list of instruments is automatically populated from the
-            %run files
-            this.ProgramList = getIcPrograms();
+            %run files. Select programs that are enabled and can produce 
+            %traces.
+            FullProgList = getIcPrograms();
+            ind = [FullProgList.enabled] & [FullProgList.data_source];
+            
+            this.ProgramList = FullProgList(ind);
             
             %We grab the guihandles from a GUI made in Guide.
             this.Gui=guihandles(eval('GuiDaq'));

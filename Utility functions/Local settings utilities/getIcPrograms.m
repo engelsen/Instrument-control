@@ -23,6 +23,7 @@ function ProgList = getIcPrograms()
             ctrl_class = InstrumentList(i).control_class;
         
             ProgList(j).name = nm;
+            ProgList(j).title = InstrumentList(i).title;
             ProgList(j).type = 'instrument';
             ProgList(j).info = ['% This entry is automatically ' ...
                 'generated from InstrumentList'];

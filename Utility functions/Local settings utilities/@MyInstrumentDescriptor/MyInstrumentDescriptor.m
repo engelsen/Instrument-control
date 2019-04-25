@@ -18,11 +18,30 @@ classdef MyInstrumentDescriptor
         end
      end
      
-     methods 
+     methods
+         % If title is not specified, return name
+         function val = get.title(this)
+             if isempty(this.title)
+                 val = this.name;
+             else
+                 val = this.title;
+             end
+         end
+         
          function this = set.name(this, val)
              assert(isvarname(val), ['Value assigned to ''name'' must ' ...
                  'be a valid MATLAB variable name.'])
              this.name = val;
+         end
+         
+         function this = set.enabled(this, val)
+             
+             % Attempt convertion to logical
+             val = logical(val);
+             
+             assert(islogical(val) && isscalar(val), ['Value assigned ' ...
+                 'to ''enabled'' must be a logical scalar.']);
+             this.enabled = val;
          end
          
          function this = set.StartupOpts(this, val)
@@ -35,15 +54,6 @@ classdef MyInstrumentDescriptor
              assert(isstruct(val), ['Value assigned to ''LoggerOpts''' ...
                  ' must be a structure.'])
              this.LoggerOpts = val;
-         end
-         
-         % If title is not specified, return name
-         function val = get.title(this)
-             if isempty(this.title)
-                 val = this.name;
-             else
-                 val = this.title;
-             end
          end
      end
 end

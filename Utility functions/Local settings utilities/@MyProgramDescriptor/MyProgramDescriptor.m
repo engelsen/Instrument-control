@@ -33,6 +33,26 @@ classdef MyProgramDescriptor
                  val = this.title;
              end
          end
+         
+         function this = set.enabled(this, val)
+             
+             % Attempt convertion to logical
+             val = logical(val);
+             
+             assert(islogical(val) && isscalar(val), ['Value assigned ' ...
+                 'to ''enabled'' must be a logical scalar.']);
+             this.enabled = val;
+         end
+         
+         function this = set.data_source(this, val)
+             
+             % Attempt convertion to logical
+             val = logical(val);
+             
+             assert(islogical(val) && isscalar(val), ['Value assigned ' ...
+                 'to ''data_source'' must be a logical scalar.']);
+             this.data_source = val;
+         end
      end
 end
 
