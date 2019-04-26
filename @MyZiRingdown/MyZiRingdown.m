@@ -357,12 +357,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                 % the trace
                 rec_finished = appendSamplesToTrace(this, DemodSample);
 
-                % Recording can be manually stopped by setting
-                % enable_acq=false
-                if ~this.enable_acq
-                    rec_finished = true;
-                end
-
                 % Update elapsed time
                 if ~isempty(this.Trace.x)
                     this.elapsed_t = this.Trace.x(end);
@@ -555,13 +549,17 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             this.Trace.x = [this.Trace.x; new_ts(:)];
             this.Trace.y = [this.Trace.y; sqrt(new_r_sq(:))];
             
-            % Reset the averaging buffers
-            r_sq_buff = r_sq_buff(n*this.downsample_n+1:end);
-            ts_buff = ts_buff(n*this.downsample_n+1:end);
+            % Recording can be manually stopped by setting
+            % enable_acq=false
+            isfin = isfin || ~this.enable_acq;
             
+            % Reset the averaging buffers
             if isfin
                 r_sq_buff = [];
                 ts_buff = [];
+            else
+                r_sq_buff = r_sq_buff(n*this.downsample_n+1:end);
+                ts_buff = ts_buff(n*this.downsample_n+1:end);
             end
         end
         
