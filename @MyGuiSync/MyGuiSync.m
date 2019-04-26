@@ -616,7 +616,7 @@ classdef MyGuiSync < handle
             % Generate Items and ItemsData for dropdown menues if they were
             % not initialized manually
             if isequal(Link.GuiElement.Type, 'uidropdown') && ...
-                    isempty(Link.GuiElement.ItemsData)
+                    isempty(Link.GuiElement.Items)
                 
                 if all(cellfun(@ischar, Cmd.value_list))
 

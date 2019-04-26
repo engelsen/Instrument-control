@@ -21,7 +21,6 @@ classdef MyCommCont < handle
         
         function this = MyCommCont(varargin)
             P = MyClassParser(this);
-            P.KeepUnmatched = true;
             processInputs(P, this, varargin{:});
             
             try
