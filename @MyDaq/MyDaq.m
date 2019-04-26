@@ -841,11 +841,19 @@ classdef MyDaq < handle
         %Callback function for the NewData listener
         function acquireNewData(this, EventData)
             %Get the currently selected instrument
+            
             val = this.Gui.InstrMenu.Value;
             
             ind = this.Gui.InstrMenu.ItemsData(val);
-            curr_instr_name=this.ProgramList(ind).name;
-
+            
+            if ind == 0
+                
+                % No application selected
+                return
+            end
+            
+            curr_instr_name = this.ProgramList(ind).name;
+            
             %Check if the data originates from the currently selected
             %instrument
             if strcmp(EventData.src_name, curr_instr_name)
