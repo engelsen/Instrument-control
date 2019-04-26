@@ -198,7 +198,7 @@ classdef MyScpiInstrument < MyInstrument
                 % Drop the end-of-the-string symbol and split
                 res_list = split(deblank(res_str),';');
             else
-                res_list={};
+                res_list = {};
             end
         end
     end
