@@ -229,7 +229,8 @@ classdef MyGuiSync < handle
         function reLink(this, Elem, prop_ref)
             
             % Find the index of link structure corresponding to Elem
-            ind = findLinkInd(this, Elem);
+            ind = ([this.Links.GuiElement] == Elem);
+            ind = find(ind, 1);
             
             if isempty(ind)
                 return
@@ -296,11 +297,23 @@ classdef MyGuiSync < handle
         end
         
         % Update the value of one linked GUI element.
-        function updateElement(this, Elem)
-            ind = findLinkInd(this, Elem);
-            if ~isempty(ind)
-                updateElementByIndex(this, ind);
+        function updateElement(this, Elem) 
+            ind = ([this.Links.GuiElement] == Elem);
+            ind = find(ind);
+            
+            if isempty(ind)
+                warning('No link found for the GUI element below.');
+                disp(Elem);
+                
+                return
+            elseif length(ind) > 1
+                warning('Multiple links found for the GUI element below.');
+                disp(Elem);
+                
+                return
             end
+            
+            updateElementByIndex(this, ind);
         end
         
         function addToCleanup(this, Obj)
@@ -447,24 +460,6 @@ classdef MyGuiSync < handle
                 % More general way to assign property
                 S = [substruct('.', prop_name), S];
                 f = @subsasgnProp;
-            end
-        end
-        
-        % Find the link structure corresponding to Elem
-        function ind = findLinkInd(this, Elem)
-                
-            % Argument 2 is a GUI element, for which we find the link 
-            ind = ([this.Links.GuiElement] == Elem);
-            ind = find(ind);
-            
-            if isempty(ind)
-                warning('No link found for the GUI element below.');
-                disp(Elem);
-            elseif length(ind) > 1
-                warning('Multiple links found for the GUI element below.');
-                disp(Elem);
-                
-                ind = [];
             end
         end
         
