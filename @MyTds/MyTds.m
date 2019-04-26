@@ -17,6 +17,8 @@ classdef MyTds < MyTekScope
             % 5e3 is the maximum trace size of TDS2022 
             %(2500 point of 2-byte integers)
             this.Comm.InputBufferSize = 1e4; % byte 
+            
+            createCommandList(this);
         end
         
         % Emulates the physical knob turning, works with nturns=+-1

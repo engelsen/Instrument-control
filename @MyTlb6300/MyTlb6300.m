@@ -1,7 +1,12 @@
 % Class for communication with NewFocus TLB6300 tunable laser controllers
 
 classdef MyTlb6300 < MyScpiInstrument & MyCommCont
-    methods (Access = public) 
+    
+    methods (Access = public)
+        function this = MyTlb6300(varargin)
+            this@MyCommCont(varargin{:});
+            createCommandList(this);
+        end
         
         % Need to overwrite the standard query function as 
         % TLB6300 does not seem to support concatenation of commands 
