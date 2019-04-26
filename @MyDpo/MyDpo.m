@@ -15,6 +15,8 @@ classdef MyDpo < MyTekScope
                 'HORZScale, TRIGLevel','PANKNOB1', 'ZOOM', ...
                 'VERTPOS1', 'VERTPOS2', 'VERTPOS3', 'VERTPOS4', ...
                 'VERTSCALE1', 'VERTSCALE2', 'VERTSCALE3', 'VERTSCALE4'});
+            
+            createCommandList(this);
         end
     end
     

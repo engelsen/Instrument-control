@@ -18,8 +18,6 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
             
             this.Trace.name_x = 'Time';
             this.Trace.name_y = 'Voltage';
-            
-            createCommandList(this);
         end
         
         function readTrace(this)
