@@ -228,7 +228,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             persistent UniqueInstance
 
             if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
-                disp('Creating new instance of MyCollector')
+                disp('Creating a new instance of MyCollector')
                 this = MyCollector();
                 UniqueInstance = this;
             else
