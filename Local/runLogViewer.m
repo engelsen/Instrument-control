@@ -15,9 +15,7 @@ function runLogViewer()
         
         % Bring the window of existing GUI to the front
         try
-            Fig = findfigure(Gui);
-            Fig.Visible = 'off';
-            Fig.Visible = 'on';
+            setFocus(Gui);
         catch
         end
     else
@@ -28,7 +26,7 @@ function runLogViewer()
         addInstrumentGui(Collector, name, GuiLw);
         
         % Display the instrument's name 
-        Fig = findfigure(GuiLw);
+        Fig = findFigure(GuiLw);
         Fig.Name = char(name);
     end
 end

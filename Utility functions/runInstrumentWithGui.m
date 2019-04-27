@@ -47,7 +47,7 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
         addInstrumentGui(Collector, name, Gui);
         
         % Display the instrument's name 
-        Fig = findfigure(Gui);
+        Fig = findFigure(Gui);
         if ~isempty(Fig)
            Fig.Name = char(name);
         else
@@ -57,9 +57,7 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
         
         % Bring the window of existing GUI to the front
         try
-            Fig = findfigure(Gui);
-            Fig.Visible = 'off';
-            Fig.Visible = 'on';
+            setFocus(Gui);
         catch
         end
     end
