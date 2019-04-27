@@ -53,6 +53,15 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
         else
            warning('No UIFigure found to assign the name')
         end
+        
+        try
+            
+            % Apply color scheme
+            S = getLocalSettings('ColorScheme');
+            S.colorSchemeFcn(Fig);
+        catch ME
+            warning(['Could not apply color scheme. Error: ' ME.message])
+        end
     else
         
         % Bring the window of existing GUI to the front

@@ -28,6 +28,15 @@ function runLogViewer()
         % Display the instrument's name 
         Fig = findFigure(GuiLw);
         Fig.Name = char(name);
+        
+        try
+            
+            % Apply color scheme
+            S = getLocalSettings('ColorScheme');
+            S.colorSchemeFcn(Fig);
+        catch ME
+            warning(['Could not apply color scheme. Error: ' ME.message])
+        end
     end
 end
 
