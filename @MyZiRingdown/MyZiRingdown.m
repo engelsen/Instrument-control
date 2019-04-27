@@ -17,7 +17,7 @@
 %
 % Auxiliary output signal: If enable_aux_out=true 
 % then after a ringdown is started a sequence of pulses is applied
-% to the output consisting of itermittent on and off periods
+% to the output consisting of intermittent on and off periods
 % starting from on. 
 
 classdef MyZiRingdown < MyZiLockIn & MyDataSource
