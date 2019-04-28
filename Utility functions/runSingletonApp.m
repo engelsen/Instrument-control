@@ -16,6 +16,21 @@ function runSingletonApp(App, global_name)
         
         % Recolor app according to the present color scheme
         applyLocalColorScheme(App);
+        
+        % Set up a listener that will clear the global name 
+        addlistener(App, 'ObjectBeingDestroyed', @clearGlobalName);
+    end
+    
+    % The declaration of listener callback
+    function clearGlobalName(~, ~)
+        if ~isempty(global_name)
+            try
+                evalin('base', sprintf('clear(''%s'');', global_name));
+            catch ME
+                warning(['Could not clear global variable ''' ...
+                    global_name '''. Error: ' ME.message]);
+            end
+        end
     end
 end
 

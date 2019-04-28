@@ -80,6 +80,10 @@ classdef MyAppColors
                 MyAppColors.applyScheme(Fig, scheme);
                 return
             end
+            
+            if ~isprop(Obj, 'Type')
+                return
+            end
 
             switch Obj.Type
                 case 'figure'
