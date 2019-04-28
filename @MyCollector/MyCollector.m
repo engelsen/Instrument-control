@@ -1,8 +1,13 @@
-classdef MyCollector < MySingleton & matlab.mixin.Copyable
+classdef MyCollector < MySingleton
     properties (Access = public, SetObservable = true)
-        InstrList    = struct()    % Structure accomodating instruments 
-        InstrProps   = struct()    % Properties of instruments
-        collect_flag = true
+        InstrProps = struct()    % Properties of instruments   
+    end
+    
+    properties (GetAccess = public, SetAccess = private, ...
+            SetObservable = true)
+        
+        % Structure accomodating instruments 
+        InstrList = struct()    
     end
     
     properties (Access = private)
@@ -20,21 +25,14 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
     methods (Access = private)
         
         % Constructor of a singleton class must be private
-        function this = MyCollector(varargin)
-            p = inputParser;
-            addParameter(p,'InstrHandles',{});
-            parse(p,varargin{:});
-            
-            if ~isempty(p.Results.InstrHandles)
-                cellfun(@(x) addInstrument(this,x),p.Results.InstrHandles);
-            end
+        function this = MyCollector()
         end
     end
     
     methods (Access = public)
-        
         function delete(this)
-            cellfun(@(x) deleteListeners(this,x), this.running_instruments);
+            cellfun(@(x) deleteListeners(this, x), ...
+                this.running_instruments);
         end
         
         function addInstrument(this, name, Instrument, varargin)
@@ -50,13 +48,20 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             
             % Optional - put the instrument in global workspace
             addParameter(p, 'make_global', true, @islogical);
+            
+            % Read the settings of this instrument when new data is
+            % acquired
+            addParameter(p, 'collect_header', true, @islogical);
+            
             parse(p, varargin{:});
             
             this.InstrList.(name) = Instrument;
             
             % Configure instrument properties
-            this.InstrProps.(name) = struct();
-            this.InstrProps.(name).Gui = [];
+            this.InstrProps.(name) = struct( ...
+                'collect_header',   p.Results.collect_header, ...
+                'global_name',      '', ...
+                'Gui',              []);
             
             if p.Results.make_global
                 global_name = name;
@@ -77,21 +82,17 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 
                 % Put the instrument in global workspace
                 assignin('base', global_name, Instrument);
-            else
-                global_name = '';
-            end
-            this.InstrProps.(name).global_name = global_name;
-            
-            if ismethod(Instrument, 'readSettings')
                 
-                %Defaults to read header
-                this.InstrProps.(name).header_flag = true;
-            else
+                this.InstrProps.(name).global_name = global_name;
+            end
+            
+            if this.InstrProps.(name).collect_header && ...
+                    ~ismethod(Instrument, 'readSettings')
                 
                 % If the class does not have a header generation function, 
                 % it can still be added to the collector and transfer data
                 % to Daq
-                this.InstrProps.(name).header_flag = false;
+                this.InstrProps.(name).collect_header = false;
                 warning(['%s does not have a readSettings function, ',...
                     'measurement headers will not be collected from ',...
                     'this instrument.'],name)
@@ -107,8 +108,17 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             
             %Cleans up if the instrument is closed
             this.Listeners.(name).Deletion = ...
-                addlistener(this.InstrList.(name),'ObjectBeingDestroyed',...
-                @(~,~) deleteInstrument(this, name));
+                addlistener(this.InstrList.(name), ...
+                'ObjectBeingDestroyed', ...
+                @(~,~) instrumentDeletedCallback(this, name));
+        end
+        
+        % Get existing instrument
+        function Instr = getInstrument(this, name)
+            assert(ismember(name, this.running_instruments), ...
+                ['Name does not correspond to any of the running ' ...
+                'instruments.'])
+            Instr = this.InstrList.(name);
         end
         
         % Store instrument GUI
@@ -123,10 +133,11 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             assert(ismember(instr_name, this.running_instruments), ...
                 'Name must correspond to one of the running instruments.')
             
-            try
-                assert(isvalid(this.InstrProps.(instr_name).Gui), '');
-                Gui = this.InstrProps.(instr_name).Gui;
-            catch
+            Gui = this.InstrProps.(instr_name).Gui;
+            
+            if ~(ismethod(Gui, 'isvalid') && isvalid(Gui))
+                
+                % Do not return invalid GUIs
                 Gui = [];
             end
         end
@@ -142,12 +153,12 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                 InstrEventData.Trace = copy(src.Trace);
             end
             
-            % Add instrument name
+            % Indicate the name of acquiring instrument
             InstrEventData.src_name = name;
             
             % Collect the headers if the flag is on and if the triggering 
             % instrument does not request suppression of header collection
-            if this.collect_flag && InstrEventData.new_header
+            if InstrEventData.new_header
                 
                 % Add field indicating the time when the trace was acquired
                 TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
@@ -175,7 +186,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             for i=1:length(this.running_instruments)
                 name = this.running_instruments{i};
                 
-                if this.InstrProps.(name).header_flag
+                if this.InstrProps.(name).collect_header
                     try
                         TmpMdt = readSettings(this.InstrList.(name));
                         TmpMdt.title = name;
@@ -185,7 +196,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
                             'Measurement header collection is switched '...
                             'off for this instrument.\nError: %s'], ...
                             name, ME.message)
-                        this.InstrProps.(name).header_flag = false;
+                        this.InstrProps.(name).collect_header = false;
                     end
                 end
             end
@@ -198,32 +209,42 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
             bool = ismember(name, this.running_instruments);
         end
         
-        function deleteInstrument(this,name)
+        % Remove instrument from collector without deleting the instrument 
+        % object
+        function removeInstrument(this, name)
             if isrunning(this, name)
                 
-                % Clear the base workspace wariable
-                gn = this.InstrProps.(name).global_name;
-                if ~isempty(gn)
-                    try
-                        evalin('base', sprintf('clear(''%s'');', gn));
-                    catch ME
-                        warning(['Could not clear global variable ''' ...
-                            gn '''. Error: ' ME.message]);
-                    end
-                end
-                
-                % Remove the instrument
+                % Remove the instrument entries
                 this.InstrList = rmfield(this.InstrList, name);
                 this.InstrProps = rmfield(this.InstrProps, name);
+                
                 deleteListeners(this, name);
             end
         end
-        
+    end
+    
+    methods (Access = private)
+        function instrumentDeletedCallback(this, name)
+            
+            % Clear the base workspace wariable
+            gn = this.InstrProps.(name).global_name;
+            if ~isempty(gn)
+                try
+                    evalin('base', sprintf('clear(''%s'');', gn));
+                catch ME
+                    warning(['Could not clear global variable ''' ...
+                        gn '''. Error: ' ME.message]);
+                end
+            end
+            
+            % Remove the instrument entry from Collector
+            removeInstrument(this, name);
+        end
     end
     
     methods(Static = true)
         
-        % Concrete implementation of the singletone constructor.
+        % Singletone constructor.
         function this = instance()
             persistent UniqueInstance
 
@@ -239,7 +260,7 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
     
     methods (Access = private)       
         function triggerNewDataWithHeaders(this, InstrEventData)
-            notify(this,'NewDataWithHeaders', InstrEventData);
+            notify(this, 'NewDataWithHeaders', InstrEventData);
         end
 
         %deleteListeners is in a separate file
@@ -247,8 +268,8 @@ classdef MyCollector < MySingleton & matlab.mixin.Copyable
     end
     
     methods
-        function running_instruments = get.running_instruments(this)
-            running_instruments = fieldnames(this.InstrList);
+        function val = get.running_instruments(this)
+            val = fieldnames(this.InstrList);
         end
     end
 end

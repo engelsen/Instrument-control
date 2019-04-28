@@ -22,7 +22,7 @@ function runLogViewer()
         
         % Start GuiLogger in dummy mode
         GuiLw = GuiLogger();
-        addInstrument(Collector, name, GuiLw.Lg);
+        addInstrument(Collector, name, GuiLw.Lg, 'collect_header', false);
         addInstrumentGui(Collector, name, GuiLw);
         
         % Display the instrument's name 

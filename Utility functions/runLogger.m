@@ -16,7 +16,7 @@ function [Lg, Gui] = runLogger(instr_name)
     
     % Add logger to the collector so that it can transfer data to Daq
     C = MyCollector.instance();
-    addInstrument(C, name, Lg);
+    addInstrument(C, name, Lg, 'collect_header', false);
     
     % Check if the instrument already has GUI
     Gui = getInstrumentGui(C, name);
