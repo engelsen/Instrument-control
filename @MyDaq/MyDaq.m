@@ -53,6 +53,13 @@ classdef MyDaq < handle
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
+            
+            %We grab the guihandles from a GUI made in Guide.
+            this.Gui=guihandles(eval('GuiDaq'));
+            
+            %Recolor
+            applyLocalColorScheme(this.Gui.figure1);
+            
             % Parse inputs
             p=inputParser;
             addParameter(p,'global_name','',@ischar);
@@ -86,12 +93,6 @@ classdef MyDaq < handle
             ind = [FullProgList.enabled] & [FullProgList.data_source];
             
             this.ProgramList = FullProgList(ind);
-            
-            %We grab the guihandles from a GUI made in Guide.
-            this.Gui=guihandles(eval('GuiDaq'));
-            
-            %Recolor
-            applyLocalColorScheme(this.Gui.figure1);
             
             %This function sets all the callbacks for the GUI. If a new
             %button is made, the associated callback must be put in the
