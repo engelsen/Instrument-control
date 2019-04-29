@@ -26,8 +26,7 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont
             
             this.Timer = timer();
             
-            % Buffer size of 64 kB should be way an overkill. The labview
-            % program provided by ColdEdge use 256 Bytes.
+            % Buffer size of 64 kByte should be way an overkill.
             this.Device.InputBufferSize = 2^16;
             this.Device.OutputBufferSize = 2^16;
             
