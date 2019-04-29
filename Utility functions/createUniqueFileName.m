@@ -6,7 +6,7 @@
 %
 % The second output argument is true if the file name was modified
 
-function [file_name, is_mod] = makeUniqueFileName(file_name)
+function [file_name, is_mod] = createUniqueFileName(file_name)
     [path, name, ext] = fileparts(file_name);
     
     if isempty(name)

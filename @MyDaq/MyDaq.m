@@ -529,7 +529,7 @@ classdef MyDaq < handle
             fullfilename=fullfile(this.save_dir,this.filename);
             
             if p.Results.make_unique_name && exist(fullfilename, 'file')~=0
-                fullfilename = makeUniqueFileName( ...
+                fullfilename = createUniqueFileName( ...
                     fullfile(this.save_dir, this.filename)); 
             end
             
