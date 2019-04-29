@@ -50,6 +50,15 @@ classdef MyInstrumentDescriptor
              this.StartupOpts = val;
          end
          
+         function Val = get.LoggerOpts(this)
+             Val = this.LoggerOpts;
+             
+             if ~isfield(Val, 'enabled')
+                 Val.enabled = ismethod(this.control_class, ...
+                     'createLogger') && this.enabled;
+             end
+         end
+         
          function this = set.LoggerOpts(this, val)
              assert(isstruct(val), ['Value assigned to ''LoggerOpts''' ...
                  ' must be a structure.'])

@@ -49,12 +49,13 @@ function ProgList = getIcPrograms()
             j = j+1;
         end
         
+        % Make default logger name
         nm_logger = [nm 'Logger'];
         
         if ~ismember(nm_logger, {RunFiles.name}) && ...
                 ismethod(ctrl_class, 'createLogger')
             
-            % Add entry for starting a logger with this instrument
+            % Add an entry for starting a logger with this instrument
             ProgList(j).name = nm_logger;
             ProgList(j).type = 'logger';
             ProgList(j).info = ['% This entry is automatically ' ...
