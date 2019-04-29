@@ -98,6 +98,7 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont
         
         function stopCooldown(this)
             function switchRecirculatorOff(~, ~)
+                this.auto_sync = false;
                 
                 % Close the recirculator path, starting from the supply
                 this.valve1 = false;
@@ -107,16 +108,24 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont
                 % closed
                 this.recirc = false;
                 
+                sync(this);
+                this.auto_sync = true;
+                
                 this.operation_in_progress = false;
             end
             
             assert(~this.operation_in_progress, ['Cannot initiate' ...
                 ' cooldown stop. Another operation is in progress.'])
             
+            this.auto_sync = false;
+            
             % Switch off the cryocooler, close the recirculator supply 
             % valve (1).
             this.valve1 = false;
             this.cryocooler = false;
+            
+            sync(this);
+            this.auto_sync = true;
             
             % Wait for the helium to be pumped out of the capillary by the
             % recirculator and then switch the recirculator off
