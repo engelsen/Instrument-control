@@ -102,12 +102,10 @@ classdef MyAppColors
                 case 'uidropdown'
                     Obj.FontColor = label_text_color;
                     Obj.BackgroundColor = main_color;
-                case 'uicheckbox'
-                    Obj.FontColor = label_text_color;
                 case 'uieditfield'
                     Obj.FontColor = edit_text_color;
                     Obj.BackgroundColor = edit_field_color;
-                case 'uilabel'
+                case {'uilabel', 'uicheckbox', 'uiradiobutton'}
                     Obj.FontColor = label_text_color;
                 case 'uilistbox'
                     Obj.FontColor = edit_text_color;
@@ -115,7 +113,7 @@ classdef MyAppColors
                 case 'uitextarea'
                     Obj.FontColor = edit_text_color;
                     Obj.BackgroundColor = edit_field_color;
-                case 'uipanel'
+                case {'uipanel', 'uibuttongroup'}
                     Obj.ForegroundColor = label_text_color;
                     Obj.BackgroundColor = main_color;
                 case 'axes'
