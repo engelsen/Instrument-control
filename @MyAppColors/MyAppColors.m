@@ -35,7 +35,7 @@ classdef MyAppColors
 
             switch lower(scheme)
                 case 'dark'
-                    main_color = [0,0.0,0.4];
+                    main_color = [0.18, 0.19,0.57];
                     label_text_color = [1,1,1];
                     edit_text_color = [0,0,0];
                     edit_field_color = [1,1,1];
@@ -79,7 +79,7 @@ classdef MyAppColors
                 Fig = findFigure(Obj);
                 MyAppColors.applyScheme(Fig, scheme);
                 return
-            end
+            end 
             
             if ~isprop(Obj, 'Type')
                 return
@@ -119,12 +119,29 @@ classdef MyAppColors
                     Obj.ForegroundColor = label_text_color;
                     Obj.BackgroundColor = main_color;
                 case 'axes'
-                    Obj.BackgroundColor = main_color;
+                    try
+                        
+                        % This property is only present in uiaxes
+                        Obj.BackgroundColor = main_color;
+                    catch
+                    end
                     Obj.XColor = axes_label_color;
                     Obj.YColor = axes_label_color;
                     Obj.GridColor = [0.15, 0.15, 0.15];
                 case 'uimenu'
                     Obj.ForegroundColor = edit_text_color;
+                case 'uibuttongroup'
+                    Obj.ForegroundColor = label_text_color;
+                    Obj.BackgroundColor = main_color;
+                case 'uicontrol'
+                    switch Obj.Style
+                        case {'text', 'pushbutton', 'togglebutton'}
+                            Obj.ForegroundColor = label_text_color;
+                            Obj.BackgroundColor = main_color;
+                        case 'popupmenu'
+                            Obj.ForegroundColor = edit_text_color;
+                            Obj.BackgroundColor = edit_field_color;
+                    end
             end
 
             if isprop(Obj, 'Children')

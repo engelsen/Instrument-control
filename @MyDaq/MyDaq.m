@@ -90,6 +90,9 @@ classdef MyDaq < handle
             %We grab the guihandles from a GUI made in Guide.
             this.Gui=guihandles(eval('GuiDaq'));
             
+            %Recolor
+            applyLocalColorScheme(this.Gui.figure1);
+            
             %This function sets all the callbacks for the GUI. If a new
             %button is made, the associated callback must be put in the
             %initGui function
