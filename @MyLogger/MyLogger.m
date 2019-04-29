@@ -86,7 +86,7 @@ classdef MyLogger < handle
                 
                 % If run in the limited length mode, extend the record 
                 % file name
-                createFileName(this);
+                createLogFileName(this);
             end
             
             start(this.MeasTimer);
@@ -141,6 +141,46 @@ classdef MyLogger < handle
                     sprintf(this.disp_fmt, lbl, data_row(i)), newline]; %#ok<AGROW>
             end
         end
+        
+        % Generate a new file name for the measurement record
+        function createLogFileName(this, path, name, ext)
+            [ex_path, ex_name, ex_ext] = fileparts(this.Record.file_name);
+            
+            if ~exist('path', 'var')
+                path = ex_path;
+            end
+            
+            if ~exist('name', 'var')
+                name = ex_name;
+            end
+            
+            if ~exist('ext', 'var')
+                if ~isempty(ex_ext)
+                    ext = ex_ext;
+                else
+                    ext = this.Record.data_file_ext;
+                end
+            end
+            
+            % Remove the previous time stamp from the file name if exists,
+            % as well as possible _n ending
+            token = regexp(name, ...
+                '\d\d\d\d-\d\d-\d\d \d\d-\d\d ([^(?:_\d)]*)', ...
+                'tokens');
+            if ~isempty(token)
+                name = token{1}{1};
+            end
+            
+            % Prepend a new time stamp
+            name = [datestr(datetime('now'),'yyyy-mm-dd HH-MM '), name];
+            
+            file_name = fullfile(path, [name, ext]);
+
+            % Ensure that the generated file name is unique
+            file_name = createUniqueFileName(file_name);
+            
+            this.Record.file_name = file_name;
+        end
     end
     
     methods (Access = protected)
@@ -165,36 +205,12 @@ classdef MyLogger < handle
                         this.FileCreationInterval
                 
                 % Switch to a new data file
-                createFileName(this);
+                createLogFileName(this);
             end
                 
             % Append measurement result together with time stamp
             appendData(this.Record, Time, meas_result);
             notify(this, 'NewMeasurement');
-        end
-        
-        % Generate a new file name for the measurement record
-        function createFileName(this)
-            [path, name, ext] = fileparts(this.Record.file_name);
-            
-            % Remove the previous time stamp from the file name if exists,
-            % as well as possible _n ending
-            token = regexp(name, ...
-                '\d\d\d\d-\d\d-\d\d \d\d-\d\d ([^(?:_\d)]*)', ...
-                'tokens');
-            if ~isempty(token)
-                name = token{1}{1};
-            end
-            
-            % Prepend a new time stamp
-            name = [datestr(datetime('now'),'yyyy-mm-dd HH-MM '), name];
-            
-            file_name = fullfile(path, [name, ext]);
-
-            % Ensure that the generated file name is unique
-            file_name = makeUniqueFileName(file_name);
-            
-            this.Record.file_name = file_name;
         end
     end
     
