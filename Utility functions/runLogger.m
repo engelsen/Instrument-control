@@ -1,14 +1,42 @@
-% Create a logger based on the instrument built-in method
+% Create and add to Collector an instrument logger using buil-in method 
+% of the instrument class. 
+%
+% This function is called with two syntaxes:
+%
+%   runLogger(instr_name) where instr_name corresponds to an entry in 
+%       the local InstrumentList 
+%
+%   runLogger(Instrument) where Instrument is an object that is 
+%       already present in the collector
 
-function [Lg, Gui] = runLogger(instr_name)
-    Instr = runInstrument(instr_name);
+function [Lg, Gui] = runLogger(arg)
+
+    % Get the instance of collector
+    C = MyCollector.instance();
     
-    % Make logger name
+    if ischar(arg)
+        
+        % The function is called with an instrument name
+        instr_name = arg;
+        Instr = runInstrument(instr_name);
+    else
+        
+        % The function is called with an instrument object
+        Instr = arg;
+        
+        % Find the instrument name from the collector
+        ri = C.running_instruments;
+        ind = cellfun(@(x)isequal(Instr, getInstrument(C, x)), ri);
+        
+        assert(nnz(ind) == 1, ['Instrument must be present ' ...
+            'in Collector']);
+        instr_name = ri{ind};
+    end
+    
+    % Make a logger name
     name = [instr_name 'Logger'];
     
     % Add logger to the collector so that it can transfer data to Daq
-    C = MyCollector.instance();
-    
     if ~isrunning(C, name)
         
         % Create and set up a new logger
