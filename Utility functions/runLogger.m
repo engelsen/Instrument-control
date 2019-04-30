@@ -30,6 +30,7 @@ function [Lg, Gui] = runLogger(arg)
         
         assert(nnz(ind) == 1, ['Instrument must be present ' ...
             'in Collector']);
+        
         instr_name = ri{ind};
     end
     
@@ -38,29 +39,25 @@ function [Lg, Gui] = runLogger(arg)
     
     % Add logger to the collector so that it can transfer data to Daq
     if ~isrunning(C, name)
+        assert(ismethod(Instr, 'createLogger'), ['A logger is not ' ...
+            'created as instrument class ' class(Instr) ...
+            ' does not define ''createLogger'' method.'])
         
         % Create and set up a new logger
-        if ismethod(Instr, 'createLogger')
+        try
+            dir = getLocalSettings('default_log_dir');
+        catch
             try
-                dir = getLocalSettings('default_log_dir');
+                dir = getLocalSettings('measurement_base_dir');
+                dir = createSessionPath(dir, [instr_name ' log']);
             catch
-                try
-                    dir = getLocalSettings('measurement_base_dir');
-                    dir = createSessionPath(dir, [instr_name ' log']);
-                catch
-                    dir = '';
-                end
+                dir = '';
             end
-
-            Lg = createLogger(Instr);
-
-            createLogFileName(Lg, dir, instr_name);
-        else
-            warning(['A logger is not created as instrument class ' ...
-                '''%s'' does not define ''createLogger'' method.'], ...
-                class(Instr));
-            return
         end
+
+        Lg = createLogger(Instr);
+
+        createLogFileName(Lg, dir, instr_name);
         
         % Add logger to Collector
         addInstrument(C, name, Lg, 'collect_header', false);
