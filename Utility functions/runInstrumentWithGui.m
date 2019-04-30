@@ -56,6 +56,9 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
         
         % Apply color scheme
         applyLocalColorScheme(Fig);
+        
+        % Move the app figure to the center of the screen
+        centerFigure(Fig);
     else
         
         % Bring the window of existing GUI to the front

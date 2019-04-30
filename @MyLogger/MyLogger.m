@@ -191,9 +191,9 @@ classdef MyLogger < handle
             try
                 meas_result = this.measFcn();
                 this.last_meas_stat = 1; % last measurement ok
-            catch
+            catch ME
                 warning(['Logger cannot take measurement at time = ',...
-                    datestr(Time)]);
+                    datestr(Time) '.\nError: ' ME.message]);
                 this.last_meas_stat = 0; % last measurement not ok
                 return
             end

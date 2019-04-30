@@ -86,6 +86,9 @@ function [Lg, Gui] = runLogger(arg)
         
         % Apply color scheme
         applyLocalColorScheme(Fig);
+        
+        % Move the app figure to the center of the screen
+        centerFigure(Fig);
     else
         
         % Bring the window of existing GUI to the front

@@ -31,6 +31,9 @@ function runLogViewer()
         
         % Apply color scheme
         applyLocalColorScheme(Fig);
+        
+        % Move the app figure to the center of the screen
+        centerFigure(Fig);
     end
 end
 

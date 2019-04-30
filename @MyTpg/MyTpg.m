@@ -93,8 +93,15 @@ classdef MyTpg < MyInstrument & MyCommCont
         
         % Create pressure logger
         function Lg = createLogger(this, varargin)
+            function p = MeasPressure()
+                
+                % Sync the class properties which also will tirgger an 
+                % update of all the guis to which the instrument is linked 
+                sync(this);
+                p = this.pressure;
+            end
 
-            Lg = MyLogger(varargin{:}, 'MeasFcn', @this.readPressure);
+            Lg = MyLogger(varargin{:}, 'MeasFcn', @MeasPressure);
             
             pu = this.pressure_unit;
             if isempty(Lg.Record.data_headers) && ~isempty(pu)
