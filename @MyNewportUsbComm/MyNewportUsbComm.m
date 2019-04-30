@@ -65,7 +65,7 @@ classdef MyNewportUsbComm < MySingleton
             persistent UniqueInstance
 
             if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
-                disp('Creating new instance of NewportUsbComm')
+                disp('Creating a new instance of NewportUsbComm')
                 this = MyNewportUsbComm();
                 UniqueInstance = this;
             else

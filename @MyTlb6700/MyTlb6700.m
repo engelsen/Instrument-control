@@ -36,6 +36,8 @@ classdef MyTlb6700 < MyScpiInstrument
             
             % Get the unique instance of control class for Newport driver 
             this.UsbComm = MyNewportUsbComm.instance();
+            
+            createCommandList(this);
         end
     end
     

@@ -102,17 +102,11 @@ classdef (Abstract) MyAppColors
                 case 'uidropdown'
                     Obj.FontColor = label_text_color;
                     Obj.BackgroundColor = main_color;
-                case 'uieditfield'
+                case {'uieditfield', 'uispinner', 'uitextarea', 'uilistbox'}
                     Obj.FontColor = edit_text_color;
                     Obj.BackgroundColor = edit_field_color;
                 case {'uilabel', 'uicheckbox', 'uiradiobutton'}
                     Obj.FontColor = label_text_color;
-                case 'uilistbox'
-                    Obj.FontColor = edit_text_color;
-                    Obj.BackgroundColor = edit_field_color;
-                case 'uitextarea'
-                    Obj.FontColor = edit_text_color;
-                    Obj.BackgroundColor = edit_field_color;
                 case {'uipanel', 'uibuttongroup'}
                     Obj.ForegroundColor = label_text_color;
                     Obj.BackgroundColor = main_color;
