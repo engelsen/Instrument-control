@@ -1,6 +1,6 @@
 % Set of colors indended to introduce some uniformity in GUIs
 
-classdef MyAppColors
+classdef (Abstract) MyAppColors
 
     methods (Static)
         %% Predefined colors
@@ -128,10 +128,10 @@ classdef MyAppColors
                     Obj.GridColor = [0.15, 0.15, 0.15];
                 case 'uimenu'
                     Obj.ForegroundColor = edit_text_color;
-                case 'uibuttongroup'
-                    Obj.ForegroundColor = label_text_color;
-                    Obj.BackgroundColor = main_color;
                 case 'uicontrol'
+                    
+                    % The following switch case is for programmatically
+                    % created components
                     switch Obj.Style
                         case {'text', 'pushbutton', 'togglebutton'}
                             Obj.ForegroundColor = label_text_color;
