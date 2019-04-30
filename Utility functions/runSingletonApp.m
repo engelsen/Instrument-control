@@ -17,6 +17,9 @@ function runSingletonApp(App, global_name)
         % Recolor app according to the present color scheme
         applyLocalColorScheme(App);
         
+        % Move the app figure to the center of the screen
+        centerFigure(App);
+        
         % Set up a listener that will clear the global name 
         addlistener(App, 'ObjectBeingDestroyed', @clearGlobalName);
     end

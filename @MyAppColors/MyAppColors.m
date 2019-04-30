@@ -126,6 +126,7 @@ classdef (Abstract) MyAppColors
                     Obj.XColor = axes_label_color;
                     Obj.YColor = axes_label_color;
                     Obj.GridColor = [0.15, 0.15, 0.15];
+                    Obj.MinorGridColor = [0.15, 0.15, 0.15];
                 case 'uimenu'
                     Obj.ForegroundColor = edit_text_color;
                 case 'uicontrol'
