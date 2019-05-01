@@ -472,7 +472,7 @@ classdef MyGuiSync < handle
             if ~isempty(Link.outputProcessingFcn)
                 val = Link.outputProcessingFcn(val);
             end
-
+            
             % Setting value to a matlab app elemen is time consuming, 
             % so first check if the value has actually changed
             setIfChanged(Link.GuiElement, Link.gui_element_prop, val);
@@ -613,26 +613,23 @@ classdef MyGuiSync < handle
             if isequal(Link.GuiElement.Type, 'uidropdown') && ...
                     isempty(Link.GuiElement.ItemsData)
                 
-                if all(cellfun(@ischar, Cmd.value_list))
-
-                    % Capitalized displayed names for beauty
-                    Link.GuiElement.Items = cellfun( ...
-                        @(x)[upper(x(1)),lower(x(2:end))],...
-                        Cmd.value_list, 'UniformOutput', false);
-                else
-
-                    % Items in a dropdown should be strings, so convert if
-                    % necessary
-                    str_value_list = cell(length(Cmd.value_list), 1);
+                str_value_list = cell(length(Cmd.value_list), 1);
                     
-                    for i=1:length(Cmd.value_list)
-                        if ~ischar(Cmd.value_list{i})
-                            str_value_list{i} = num2str(Cmd.value_list{i});
-                        end
+                for i=1:length(Cmd.value_list)
+                    if ischar(Cmd.value_list{i})
+
+                        % Capitalized displayed names for beauty
+                        str = Cmd.value_list{i};
+                        str_value_list{i} = [upper(str(1)), ...
+                            lower(str(2:end))];
+                    else
+
+                        % Items in a dropdown should be strings
+                        str_value_list{i} = num2str(Cmd.value_list{i});
                     end
-                    
-                    Link.GuiElement.Items = str_value_list;
                 end
+                
+                Link.GuiElement.Items = str_value_list;
 
                 % Assign the list of unprocessed values as ItemsData
                 Link.GuiElement.ItemsData = Cmd.value_list;
