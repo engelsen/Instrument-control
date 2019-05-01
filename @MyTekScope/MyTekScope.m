@@ -90,6 +90,10 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
                 ':CURVE?');
 
             y_data = double(binblockread(this.Comm, 'int16'));
+            
+            % For some reason MDO3000 scope needs to have an explicit pause 
+            % between data reading and any other communication
+            pause(0.01);
         end
     end
     
