@@ -49,22 +49,23 @@ classdef MyNewportUsbComm < MySingleton
             
             % Send query using the QueryData buffer
             stat = Query(this.Usb, addr, cmd, this.QueryData);
-            if stat==0
+            if stat == 0
                 str = char(ToString(this.QueryData));
             else
-                str='';
+                str = '';
                 warning('Query to Newport usb driver was unsuccessful.');
             end
-            this.isbusy=false;
+            this.isbusy = false;
         end
     end
    
     methods(Static)
+        
         % Concrete implementation of the singleton constructor.
         function this = instance()
             persistent UniqueInstance
 
-            if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
+            if isempty(UniqueInstance) || ~isvalid(UniqueInstance)
                 disp('Creating a new instance of NewportUsbComm')
                 this = MyNewportUsbComm();
                 UniqueInstance = this;
