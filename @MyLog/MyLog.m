@@ -184,7 +184,7 @@ classdef MyLog < matlab.mixin.Copyable
                 
                 % Replace existing data
                 Pls = this.PlotList(ind).DataLines;
-                for i=1:length(Pls)
+                for i = 1:length(Pls)
                     Pls(i).XData = this.timestamps;
                     Pls(i).YData = this.data(:,i);
                 end
@@ -192,7 +192,7 @@ classdef MyLog < matlab.mixin.Copyable
             
             % Set the visibility of lines
             if ~ismember('isdisp', p.UsingDefaults)
-                for i=1:ncols
+                for i = 1:ncols
                     Pls(i).Visible = p.Results.isdisp(i);
                 end
             end
@@ -211,13 +211,26 @@ classdef MyLog < matlab.mixin.Copyable
                 end
             end
             
-            if (p.Results.legend)&&(~isempty(this.data_headers))&&...
-                (~isempty(this.data)) 
+            % Add legend
+            if ~isempty(Axes.Legend)
+                legend(Axes, 'Location', 'southwest');
+            end
             
-                % Add legend only for for those lines that are displayed
-                disp_ind = cellfun(@(x)strcmpi(x,'on'),{Pls.Visible});
-                legend(Axes, Pls(disp_ind), this.data_headers{disp_ind},...
-                    'Location','southwest');
+            if p.Results.legend && ~isempty(this.data_headers) && ...
+                    ~isempty(this.data) 
+                
+                % Display the legend
+                Axes.Legend.Visible = 'on';
+            
+                % Include only those lines that are visible
+                for i = 1:ncols
+                    Pls(i).Annotation.LegendInformation.IconDisplayStyle = ...
+                        Pls(i).Visible;
+                end
+            else
+                
+                % Hide the legend
+                Axes.Legend.Visible = 'off';
             end
         end
         
