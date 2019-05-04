@@ -108,7 +108,9 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             elseif length(this) > 1
                 str_arr = arrayfun(@(x)mdt2str(x), this, ...
                     'UniformOutput', false);
-                str = [str_arr{:}];
+                
+                % Add an extra line between sections
+                str = strjoin(str_arr, this(1).line_sep);
                 return
             end
             
@@ -235,9 +237,6 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                     end
                 end
             end
-            
-            % Prints an extra line separator at the end
-            str = [str, sprintf(ls)];
         end
         
         % Save metadata to a file
