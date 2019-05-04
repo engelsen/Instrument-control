@@ -291,7 +291,7 @@ classdef MyScpiInstrument < MyInstrument
                 cmd = this.command_names{i};
                 addObjProp(this.Metadata, this, cmd, ...
                     'comment', this.CommandList.(cmd).info, ...
-                    'fmt_spec', this.CommandList.(cmd).format);
+                    'format', this.CommandList.(cmd).format);
             end
         end
         
