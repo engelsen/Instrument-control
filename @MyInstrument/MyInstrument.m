@@ -167,16 +167,20 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             Mdt = copy(this.Metadata);
         end
         
-        % Write settings from structure
+        % Write new settings to the physical instrument
         function writeSettings(this, Mdt)
             assert(isa(Mdt, 'MyMetadata'), ...
-                'Mdt must be of MyMetadata class.');
+                'Settings must be provided as MyMetadata object.');
+            
+            % Synchronize the instrument object to write only the settings
+            % that changed 
+            sync(this);
             
             param_names = fieldnames(Mdt.ParamList);
             for i=1:length(param_names)
                 tag = param_names{i};
                 
-                if isprop(this, tag)
+                if isprop(this, tag) && (this.(tag) ~= Mdt.ParamList.(tag))
                     this.(tag) = Mdt.ParamList.(tag);
                 end
             end

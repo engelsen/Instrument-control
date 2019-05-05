@@ -106,8 +106,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 str = '';
                 return
             elseif length(this) > 1
-                str_arr = arrayfun(@(x)mdt2str(x), this, ...
-                    'UniformOutput', false);
+                str_arr = arrayfun(@mdt2str, this, 'UniformOutput', false);
                 
                 % Add an extra line between sections
                 str = strjoin(str_arr, this(1).line_sep);

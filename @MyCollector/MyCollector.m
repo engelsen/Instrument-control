@@ -12,6 +12,9 @@ classdef MyCollector < MySingleton
     
     properties (Access = private)
         Listeners = struct()
+        
+        % Metadata indicating the state of Collector
+        Metadata = MyMetadata.empty()
     end
     
     properties (Dependent = true)
@@ -24,7 +27,7 @@ classdef MyCollector < MySingleton
     
     methods (Access = private)
         
-        % Constructor of a singleton class must be private
+        % The constructor of a singleton class must be private
         function this = MyCollector()
         end
     end
@@ -163,11 +166,16 @@ classdef MyCollector < MySingleton
                 % Add field indicating the time when the trace was acquired
                 TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
                 
+                % Add the name of acquisition instrument
                 AcqInstrMdt = MyMetadata('title', 'AcquiringInstrument');
                 addParam(AcqInstrMdt, 'Name', InstrEventData.src_name);
                 
+                % Add the state of Collector
+                CollMdt = getMetadata(this);
+                
                 % Make the full metadata
-                Mdt = [AcqInstrMdt, TimeMdt, acquireHeaders(this)];
+                Mdt = [AcqInstrMdt, TimeMdt, acquireHeaders(this), ...
+                    CollMdt];
                 
                 %We copy the MeasHeaders to both copies of the trace - the
                 %one that is with the source and the one that is forwarded
@@ -183,7 +191,7 @@ classdef MyCollector < MySingleton
         function Mdt = acquireHeaders(this)
             Mdt = MyMetadata.empty();
             
-            for i=1:length(this.running_instruments)
+            for i = 1:length(this.running_instruments)
                 name = this.running_instruments{i};
                 
                 if this.InstrProps.(name).collect_header
@@ -192,10 +200,10 @@ classdef MyCollector < MySingleton
                         TmpMdt.title = name;
                         Mdt = [Mdt, TmpMdt]; %#ok<AGROW>
                     catch ME
-                        warning(['Error while reading metadata from %s. '...
-                            'Measurement header collection is switched '...
-                            'off for this instrument.\nError: %s'], ...
-                            name, ME.message)
+                        warning(['Error while reading metadata from ' ...
+                            '%s. Measurement header collection is '...
+                            'switched off for this instrument.' ...
+                            '\nError: %s'], name, ME.message)
                         this.InstrProps.(name).collect_header = false;
                     end
                 end
@@ -239,6 +247,35 @@ classdef MyCollector < MySingleton
             
             % Remove the instrument entry from Collector
             removeInstrument(this, name);
+        end
+        
+        % Create metadata that stores information about the Collector 
+        % state
+        function Mdt = getMetadata(this)
+            
+            % Create new metadata if it has not yet been initialized
+            if isempty(this.Metadata)
+                this.Metadata = MyMetadata('title', 'Collector');
+                addParam(this.Metadata, 'instruments', {});
+                addParam(this.Metadata, 'Props', struct());
+            end
+            
+            % Update metadata parameters
+            this.Metadata.ParamList.instruments = this.running_instruments;
+                
+            for fn = this.running_instruments'
+                this.Metadata.ParamList.Props.(fn).collect_header = ...
+                    this.InstrProps.collect_header;
+                this.Metadata.ParamList.Props.(fn).global_name = ...
+                    this.InstrProps.global_name;
+                
+                % Note that we cannot store the GUI handles in metadata, 
+                % so we indicate if the instrument has gui or not 
+                this.Metadata.ParamList.Props.(fn).has_gui = ...
+                    ~isempty(this.InstrProps.Gui);
+            end
+            
+            Mdt = copy(this.Metadata);
         end
     end
     
