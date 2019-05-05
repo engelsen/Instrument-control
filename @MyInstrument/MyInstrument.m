@@ -29,6 +29,10 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
         
         % Copying existing metadata is much faster than creating a new one
         Metadata = MyMetadata.empty()
+        
+        % Logical variables that determine if writing to the instrument 
+        % takes place when property is assigned new value
+        CommandWriteEnabled = struct()
     end
     
     methods (Access = public)
@@ -53,9 +57,9 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
                 if ~isequal(this.CommandList.(tag).last_value, read_value)
                     
                     % Assign value without writing to the instrument
-                    this.CommandList.(tag).Psl.Enabled = false;
+                    this.CommandWriteEnabled.(tag) = false;
                     this.(tag) = read_value;
-                    this.CommandList.(tag).Psl.Enabled = true;
+                    this.CommandWriteEnabled.(tag) = true;
                 end
             end
         end
@@ -117,18 +121,17 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             H.SetObservable = true;
             H.SetMethod = createCommandSetFcn(this, tag);
             
-            % Assign the default value with post processing
+            % Assign the default value with post processing but without
+            % writing to the instrument
+            this.CommandWriteEnabled.(tag) = false;
             this.(tag) = default;
+            this.CommandWriteEnabled.(tag) = true;
             
             if ~isempty(this.CommandList.(tag).writeFcn)
                 H.SetAccess = 'public';
             else
                 H.SetAccess = {'MyInstrument'};
             end
-            
-            % Listener to PostSet event
-            this.CommandList.(tag).Psl = addlistener(this, tag, ...
-                'PostSet', @this.commandPostSetCallback);
         end
         
         % Identification
@@ -204,17 +207,29 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
                     vFcn(val);
                 end
                 
-                % Store unprocessed value for quick reference in the future 
-                % and change tracking
+                % Store the unprocessed value for quick reference in  
+                % the future and value change tracking
                 this.CommandList.(tag).last_value = val;
-                
-                % Assign the value with post processing
+                    
+                % Assign the value after post processing to the property
                 pFcn = this.CommandList.(tag).postSetFcn;
                 if ~isempty(pFcn)
                     val = pFcn(val);
                 end
 
                 this.(tag) = val;
+                
+                if this.CommandWriteEnabled.(tag)
+                    
+                    % Write the new value to the instrument
+                    this.CommandList.(tag).writeFcn(this.(tag));
+                    
+                    if this.auto_sync
+                        
+                        % Confirm the changes by reading the state
+                        sync(this);
+                    end
+                end
             end
             
             f = @commandSetFcn;
@@ -229,19 +244,6 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             end
             
             f = @listValidationFcn;
-        end
-        
-        % Post set function for dynamic properties - writing the new value  
-        % to the instrument and optionally reading it back to confirm the 
-        % change
-        function commandPostSetCallback(this, Src, ~)
-            tag = Src.Name;
-
-            this.CommandList.(tag).writeFcn(this.(tag));
-
-            if this.auto_sync
-                sync(this);
-            end
         end
         
         % Overload a method of matlab.mixin.CustomDisplay in order to

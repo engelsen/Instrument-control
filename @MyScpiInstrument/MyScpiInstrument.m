@@ -3,7 +3,6 @@
 % Undefined/dummy methods:
 %   queryString(this, cmd)
 %   writeString(this, cmd)
-%   createCommandList(this)
 
 classdef MyScpiInstrument < MyInstrument
     
@@ -122,7 +121,7 @@ classdef MyScpiInstrument < MyInstrument
             elseif ~isempty(value_list)
                 default = value_list{1};
             else
-                default = makeValidValue(this, smb);
+                default = createValidValue(this, smb);
             end
             
             sub_varargin = [sub_varargin, {'default', default}];
@@ -158,9 +157,9 @@ classdef MyScpiInstrument < MyInstrument
                     if ~isequal(this.CommandList.(tag).last_value, val)
                         
                         % Assign value without writing to the instrument
-                        this.CommandList.(tag).Psl.Enabled = false;
+                        this.CommandWriteEnabled.(tag) = false;
                         this.(tag) = val;
-                        this.CommandList.(tag).Psl.Enabled = true;
+                        this.CommandWriteEnabled.(tag) = true;
                     end
                 end
             else
@@ -211,26 +210,34 @@ classdef MyScpiInstrument < MyInstrument
         % based on case. For example, the value that has the full name 
         % 'AVErage' has the short form 'AVE'.
         function [long_vl, short_vl] = splitValueList(~, vl)
-            short_vl = {}; % Abbreviated forms
+            long_str_vl = {};   % Full forms of string values
+            short_vl = {};      % Abbreviated forms of string values
+            num_vl = {};        % Numeric values
             
             % Iterate over the list of values
-            for i=1:length(vl)
+            for i = 1:length(vl)
                 
                 % Short forms exist only for string values
                 if ischar(vl{i})
+                    long_str_vl{end+1} = vl{i};         %#ok<AGROW>
+                    
+                    % Add short form
                     idx = isstrprop(vl{i},'upper');
                     short_form = vl{i}(idx);
                     if ~isequal(vl{i}, short_form) && ~isempty(short_form)
-                        short_vl{end+1} = short_form; %#ok<AGROW>
+                        short_vl{end+1} = short_form;   %#ok<AGROW>
                     end
+                else
+                    num_vl{end+1} = vl{i};              %#ok<AGROW>
                 end
             end
             
             % Remove duplicates
             short_vl = unique(lower(short_vl));
             
-            % Make the list of full forms without reordering
-            long_vl = setdiff(lower(vl), short_vl, 'stable');  
+            % Make the list of full forms
+            long_vl = [num_vl, ...
+                setdiff(lower(long_str_vl), short_vl, 'stable')];  
         end
         
         % Create a function that returns the long form of value from 
@@ -344,7 +351,7 @@ classdef MyScpiInstrument < MyInstrument
             end
         end
         
-        function val = makeValidValue(~, smb)
+        function val = createValidValue(~, smb)
             if all(smb == 's' | smb == 'c')
                 val = '';
             elseif all(smb == 'b')

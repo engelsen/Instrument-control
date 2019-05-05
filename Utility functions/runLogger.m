@@ -28,8 +28,7 @@ function [Lg, Gui] = runLogger(arg)
         ri = C.running_instruments;
         ind = cellfun(@(x)isequal(Instr, getInstrument(C, x)), ri);
         
-        assert(nnz(ind) == 1, ['Instrument must be present ' ...
-            'in Collector']);
+        assert(nnz(ind) == 1, 'Instrument must be present in Collector');
         
         instr_name = ri{ind};
     end

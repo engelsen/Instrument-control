@@ -46,8 +46,8 @@ classdef MyTpg < MyInstrument & MyCommCont
             % 4 –> Sensor off (IKR, PKR, IMR, PBR)
             % 5 –> No sensor (output: 5,2.0000E-2 [hPa])
             % 6 –> Identification error  
-            this.gauge_stat{1} = gaugeStatusFromCode(this, arr(1));
-            this.gauge_stat{2} = gaugeStatusFromCode(this, arr(3));
+            this.gauge_stat = {gaugeStatusFromCode(this, arr(1)), ...
+                gaugeStatusFromCode(this, arr(3))};
         end
         
         function pu = readPressureUnit(this)
