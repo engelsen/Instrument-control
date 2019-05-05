@@ -229,6 +229,17 @@ classdef MyCollector < MySingleton
                 deleteListeners(this, name);
             end
         end
+        
+        % Delete all presesently running instruments
+        function flush(this)
+            instr_names = this.running_instruments;
+            for i = 1:length(instr_names)
+                nm = instr_names{i};
+                
+                % We rely on the deletion callbacks to do cleanup
+                delete(this.InstrList.(nm));
+            end
+        end
     end
     
     methods (Access = private)
@@ -255,7 +266,7 @@ classdef MyCollector < MySingleton
             
             % Create new metadata if it has not yet been initialized
             if isempty(this.Metadata)
-                this.Metadata = MyMetadata('title', 'Collector');
+                this.Metadata = MyMetadata('title', 'SessionInfo');
                 addParam(this.Metadata, 'instruments', {});
                 addParam(this.Metadata, 'Props', struct());
             end
@@ -266,8 +277,8 @@ classdef MyCollector < MySingleton
             for fn = this.running_instruments'
                 this.Metadata.ParamList.Props.(fn).collect_header = ...
                     this.InstrProps.collect_header;
-                this.Metadata.ParamList.Props.(fn).global_name = ...
-                    this.InstrProps.global_name;
+                this.Metadata.ParamList.Props.(fn).is_global = ...
+                    ~isempty(this.InstrProps.global_name);
                 
                 % Note that we cannot store the GUI handles in metadata, 
                 % so we indicate if the instrument has gui or not 
