@@ -162,11 +162,9 @@ classdef MyLogger < handle
                 end
             end
             
-            % Remove the previous time stamp from the file name if exists,
-            % as well as possible _n ending
+            % Remove the previous time stamp from the file name if exists
             token = regexp(name, ...
-                '\d\d\d\d-\d\d-\d\d \d\d-\d\d ([^(?:_\d)]*)', ...
-                'tokens');
+                '\d\d\d\d-\d\d-\d\d \d\d-\d\d (.*)', 'tokens');
             if ~isempty(token)
                 name = token{1}{1};
             end
