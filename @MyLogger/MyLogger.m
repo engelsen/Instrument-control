@@ -226,8 +226,15 @@ classdef MyLogger < handle
         end
         
         function set.MeasTimer(this, val)
-            assert(isa(val,'timer'), '''MeasTimer'' must be a timer object')
+            assert(isa(val, 'timer'), ...
+                '''MeasTimer'' must be a timer object')
             this.MeasTimer = val;
+        end
+        
+        function set.FileCreationInterval(this, val)
+            assert(isa(val, 'duration'), ['''FileCreationInterval'' ' ...
+                'must be a duration object.'])
+            this.FileCreationInterval = val;
         end
     end
 end
