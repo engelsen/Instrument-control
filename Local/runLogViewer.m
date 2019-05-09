@@ -11,7 +11,7 @@ function runLogViewer()
         % a new one, but rather bring focus to the existing one.
         disp([name, ' is already running.']);
         
-        Gui = getInstrumentGui(Collector, name);
+        Gui = getInstrumentProp(Collector, name, 'Gui');
         
         % Bring the window of existing GUI to the front
         try
@@ -23,7 +23,7 @@ function runLogViewer()
         % Start GuiLogger in dummy mode
         GuiLw = GuiLogger();
         addInstrument(Collector, name, GuiLw.Lg, 'collect_header', false);
-        addInstrumentGui(Collector, name, GuiLw);
+        setInstrumentProp(Collector, name, 'Gui', GuiLw);
         
         % Display the instrument's name 
         Fig = findFigure(GuiLw);

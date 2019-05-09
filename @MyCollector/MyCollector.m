@@ -1,13 +1,13 @@
 classdef MyCollector < MySingleton
-    properties (Access = public, SetObservable = true)
-        InstrProps = struct()    % Properties of instruments   
-    end
-    
+
     properties (GetAccess = public, SetAccess = private, ...
             SetObservable = true)
         
-        % Structure accomodating instruments 
-        InstrList = struct()    
+        % Structure accomodating handles of instrument objects 
+        InstrList = struct()
+        
+         % Properties of instruments
+        InstrProps = struct()   
     end
     
     properties (Access = private)
@@ -118,31 +118,38 @@ classdef MyCollector < MySingleton
         
         % Get existing instrument
         function Instr = getInstrument(this, name)
-            assert(ismember(name, this.running_instruments), ...
-                ['Name does not correspond to any of the running ' ...
+            assert(isfield(this.InstrList, name), ...
+                ['Name must correspond to one of the running ' ...
                 'instruments.'])
+            
             Instr = this.InstrList.(name);
         end
         
-        % Store instrument GUI
-        function addInstrumentGui(this, instr_name, Gui)
-            assert(ismember(instr_name, this.running_instruments), ...
-                'Name must correspond to one of the running instruments.')
-            this.InstrProps.(instr_name).Gui = Gui;
+        % Interface for accessing internally stored instrument properties
+        function val = getInstrumentProp(this, instr_name, prop_name)
+            assert(isfield(this.InstrProps, instr_name), ...
+                ['''instr_name'' must correspond to one of the ' ...
+                'running instruments.'])
+            
+            assert(isfield(this.InstrProps.(instr_name), prop_name), ...
+                ['''prop_name'' must correspond to one of the following'...
+                'instrument properties: ' ...
+                var2str(fieldnames(this.InstrProps.(instr_name)))])
+            
+            val = this.InstrProps.(instr_name).(prop_name);
         end
         
-        % Get existing instrument GUI
-        function Gui = getInstrumentGui(this, instr_name)
-            assert(ismember(instr_name, this.running_instruments), ...
-                'Name must correspond to one of the running instruments.')
+        function setInstrumentProp(this, instr_name, prop_name, val)
+            assert(isfield(this.InstrProps, instr_name), ...
+                ['''instr_name'' must correspond to one of the ' ...
+                'running instruments.'])
             
-            Gui = this.InstrProps.(instr_name).Gui;
+            assert(isfield(this.InstrProps.(instr_name), prop_name), ...
+                ['''prop_name'' must correspond to one of the following'...
+                'instrument properties: ' ...
+                var2str(fieldnames(this.InstrProps.(instr_name)))])
             
-            if ~(ismethod(Gui, 'isvalid') && isvalid(Gui))
-                
-                % Do not return invalid GUIs
-                Gui = [];
-            end
+            this.InstrProps.(instr_name).(prop_name) = val;
         end
         
         function acquireData(this, name, InstrEventData)

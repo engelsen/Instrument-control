@@ -1,6 +1,6 @@
 % Create an instrument instance with gui add them to the collector
 
-function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
+function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui_name, varargin)
 
     % Get the unique instance of Collector
     Collector = MyCollector.instance();
@@ -29,9 +29,9 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
             InstrEntry = InstrEntry(1);
         end
         
-        gui = InstrEntry.gui;
+        gui_name = InstrEntry.gui;
         
-        assert(~isempty(gui), ['GUI is not specified for ' name]);
+        assert(~isempty(gui_name), ['GUI is not specified for ' name]);
     else
         
         % All arguments are supplied explicitly
@@ -39,12 +39,12 @@ function [Instr, Gui] = runInstrumentWithGui(name, instr_class, gui, varargin)
     end
     
     % Check if the instrument already has GUI
-    Gui = getInstrumentGui(Collector, name);
-    if isempty(Gui)
+    Gui = getInstrumentProp(Collector, name, 'Gui');
+    if isempty(Gui) || ~isvalid(Gui)
         
-        % Run a new GUI and store it in the collector
-        Gui = feval(gui, Instr);
-        addInstrumentGui(Collector, name, Gui);
+        % Run a new GUI and store it in Collector
+        Gui = feval(gui_name, Instr);
+        setInstrumentProp(Collector, name, 'Gui', Gui);
         
         % Display the instrument's name 
         Fig = findFigure(Gui);
