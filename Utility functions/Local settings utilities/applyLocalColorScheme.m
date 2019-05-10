@@ -11,7 +11,7 @@ function applyLocalColorScheme(Obj)
         S = getLocalSettings('ColorScheme');
         
         if ~strcmpi(S.name, 'default')
-            S.colorSchemeFcn(Obj);
+            S.colorSchemeFcn(findFigure(Obj));
         end
     catch ME
         warning(['Could not apply color scheme. Error: ' ME.message])

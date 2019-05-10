@@ -6,6 +6,9 @@ classdef MyDaq < handle
         Gui
         %Main figure
         Figure
+        %main axes
+        main_plot
+        
         %Contains Reference trace (MyTrace object)
         Ref
         %Contains Data trace (MyTrace object)
@@ -37,7 +40,6 @@ classdef MyDaq < handle
     
     properties (Dependent=true)
         save_dir
-        main_plot
         open_fits
         open_crs
     end
@@ -60,6 +62,7 @@ classdef MyDaq < handle
             %Assign the handle of main figure to a property for
             %compatibility with Matalb apps
             this.Figure = this.Gui.figure1;
+            this.main_plot = this.Gui.figure1.CurrentAxes;        
             runSingletonApp(this);
             
             % Parse inputs
@@ -966,11 +969,6 @@ classdef MyDaq < handle
         %Get function from save directory
         function save_dir=get.save_dir(this)
             save_dir=createSessionPath(this.base_dir,this.session_name);
-        end
-        
-        %Get function for the plot handles
-        function main_plot=get.main_plot(this)
-            main_plot=this.Gui.figure1.CurrentAxes; 
         end
         
         %Get function for open fits

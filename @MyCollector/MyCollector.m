@@ -166,7 +166,7 @@ classdef MyCollector < MySingleton
             % Set up a listener that will update the list when the app
             % is deleted
             addlistener(App, 'ObjectBeingDestroyed', ...
-                @(~,~)appDeletedCallback(this, app_name));
+                @(~,~)removeApp(this, app_name));
         end
         
         function App = getApp(this, app_name)
@@ -262,6 +262,12 @@ classdef MyCollector < MySingleton
             end
         end
         
+        function removeApp(this, name)
+            if isfield(this.AppList, name)
+                this.AppList = rmfield(this.AppList, name);
+            end
+        end
+        
         % Delete all presesently running instruments
         function flush(this)
             instr_names = this.running_instruments;
@@ -290,10 +296,6 @@ classdef MyCollector < MySingleton
             
             % Remove the instrument entry from Collector
             removeInstrument(this, name);
-        end
-        
-        function appDeletedCallback(this, name)
-            this.AppList = rmfield(this.AppList, name);
         end
         
         % Create metadata that stores information about the Collector 

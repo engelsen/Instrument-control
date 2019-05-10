@@ -1,4 +1,5 @@
-function runSingletonApp(App)
+function runSingletonApp(App, varargin)
+    
     C = MyCollector.instance();
     
     % Singleton apps can be uniquely identified by the name of their class
