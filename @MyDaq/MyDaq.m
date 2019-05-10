@@ -2,10 +2,10 @@
 % also be used for analysis of previously acquired traces.
 classdef MyDaq < handle
     properties
-        %Global variable with Daq name is cleared on exit.
-        global_name
         %Contains GUI handles
         Gui
+        %Main figure
+        Figure
         %Contains Reference trace (MyTrace object)
         Ref
         %Contains Data trace (MyTrace object)
@@ -57,17 +57,16 @@ classdef MyDaq < handle
             %We grab the guihandles from a GUI made in Guide.
             this.Gui=guihandles(eval('GuiDaq'));
             
-            %Recolor
-            applyLocalColorScheme(this.Gui.figure1);
+            %Assign the handle of main figure to a property for
+            %compatibility with Matalb apps
+            this.Figure = this.Gui.figure1;
+            runSingletonApp(this);
             
             % Parse inputs
             p=inputParser;
-            addParameter(p,'global_name','',@ischar);
             addParameter(p,'collector_handle',[]);
             this.ConstructionParser=p;
             parse(p, varargin{:});
-            
-            this.global_name = p.Results.global_name;
             
             %Sets a listener to the collector
             if ~isempty(p.Results.collector_handle)
@@ -137,9 +136,6 @@ classdef MyDaq < handle
                 cellfun(@(x) deleteListeners(this, x),...
                     fieldnames(this.Listeners));
             end
-            
-            % clear global variable, to which Daq handle is assigned
-            evalin('base', sprintf('clear(''%s'')', this.global_name));
             
             %A class destructor should never through errors, so enclose the
             %attempt to close figure into try-catch structure

@@ -7,7 +7,11 @@ classdef MyCollector < MySingleton
         InstrList = struct()
         
          % Properties of instruments
-        InstrProps = struct()   
+        InstrProps = struct()
+        
+        % Structure accomodating handles of apps which contain user
+        % interface elements (excluding instrument GUIs)
+        AppList = struct()
     end
     
     properties (Access = private)
@@ -19,6 +23,7 @@ classdef MyCollector < MySingleton
     
     properties (Dependent = true)
         running_instruments
+        running_apps
     end
     
     events
@@ -152,6 +157,25 @@ classdef MyCollector < MySingleton
             this.InstrProps.(instr_name).(prop_name) = val;
         end
         
+        function addApp(this, App, app_name)
+            assert(~isfield(this.AppList, app_name), ['App with name ''' ...
+                app_name ''' is already present in the collector.'])
+            
+            this.AppList.(app_name) = App;
+            
+            % Set up a listener that will update the list when the app
+            % is deleted
+            addlistener(App, 'ObjectBeingDestroyed', ...
+                @(~,~)appDeletedCallback(this, app_name));
+        end
+        
+        function App = getApp(this, app_name)
+            assert(isfield(this.AppList, app_name), ...
+                '''app_name'' must correspond to one of the running apps.')
+            
+            App = this.AppList.(app_name);
+        end
+        
         function acquireData(this, name, InstrEventData)
             src = InstrEventData.Source;
             
@@ -268,6 +292,10 @@ classdef MyCollector < MySingleton
             removeInstrument(this, name);
         end
         
+        function appDeletedCallback(this, name)
+            this.AppList = rmfield(this.AppList, name);
+        end
+        
         % Create metadata that stores information about the Collector 
         % state
         function Mdt = getMetadata(this)
@@ -325,6 +353,10 @@ classdef MyCollector < MySingleton
     methods
         function val = get.running_instruments(this)
             val = fieldnames(this.InstrList);
+        end
+        
+        function val = get.running_apps(this)
+            val = fieldnames(this.AppList);
         end
     end
 end
