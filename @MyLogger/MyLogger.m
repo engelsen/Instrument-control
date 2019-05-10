@@ -162,11 +162,9 @@ classdef MyLogger < handle
                 end
             end
             
-            % Remove the previous time stamp from the file name if exists,
-            % as well as possible _n ending
+            % Remove the previous time stamp from the file name if exists
             token = regexp(name, ...
-                '\d\d\d\d-\d\d-\d\d \d\d-\d\d ([^(?:_\d)]*)', ...
-                'tokens');
+                '\d\d\d\d-\d\d-\d\d \d\d-\d\d (.*)', 'tokens');
             if ~isempty(token)
                 name = token{1}{1};
             end
@@ -228,8 +226,15 @@ classdef MyLogger < handle
         end
         
         function set.MeasTimer(this, val)
-            assert(isa(val,'timer'), '''MeasTimer'' must be a timer object')
+            assert(isa(val, 'timer'), ...
+                '''MeasTimer'' must be a timer object')
             this.MeasTimer = val;
+        end
+        
+        function set.FileCreationInterval(this, val)
+            assert(isa(val, 'duration'), ['''FileCreationInterval'' ' ...
+                'must be a duration object.'])
+            this.FileCreationInterval = val;
         end
     end
 end

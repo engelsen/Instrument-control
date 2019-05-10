@@ -1,7 +1,8 @@
 % Class communication with Lakeshore Model 336 temperature controller.
 
 classdef MyLakeshore336 < MyScpiInstrument & MyCommCont 
-    properties (SetAccess = protected, GetAccess = public)
+    properties (GetAccess = public, ...
+            SetAccess = {?MyClassParser, ?MyLakeshore336}, SetObservable)
         
         % Temperature unit, K or C. This variable should be set 
         % before the command list is created.

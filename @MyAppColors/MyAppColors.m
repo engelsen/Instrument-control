@@ -35,7 +35,7 @@ classdef (Abstract) MyAppColors
 
             switch lower(scheme)
                 case 'dark'
-                    main_color = [0.18, 0.19,0.57];
+                    main_color = [8, 62, 118]/255; % [0.18, 0.19,0.57]
                     label_text_color = [1,1,1];
                     edit_text_color = [0,0,0];
                     edit_field_color = [1,1,1];
@@ -102,17 +102,11 @@ classdef (Abstract) MyAppColors
                 case 'uidropdown'
                     Obj.FontColor = label_text_color;
                     Obj.BackgroundColor = main_color;
-                case 'uieditfield'
+                case {'uieditfield', 'uispinner', 'uitextarea', 'uilistbox'}
                     Obj.FontColor = edit_text_color;
                     Obj.BackgroundColor = edit_field_color;
                 case {'uilabel', 'uicheckbox', 'uiradiobutton'}
                     Obj.FontColor = label_text_color;
-                case 'uilistbox'
-                    Obj.FontColor = edit_text_color;
-                    Obj.BackgroundColor = edit_field_color;
-                case 'uitextarea'
-                    Obj.FontColor = edit_text_color;
-                    Obj.BackgroundColor = edit_field_color;
                 case {'uipanel', 'uibuttongroup'}
                     Obj.ForegroundColor = label_text_color;
                     Obj.BackgroundColor = main_color;

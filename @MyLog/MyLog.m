@@ -151,11 +151,6 @@ classdef MyLog < matlab.mixin.Copyable
                 ['''isdisp'' must be a logical vector of the size ',...
                 'equal to the number of data columns.']));
             
-            % If 'reset' is true than all the data lines and time labels are
-            % re-plotted with default style even if they are already present 
-            % in the plot
-            addParameter(p, 'reset', false, @islogical);
-            
             parse(p, varargin{:});
             
             if ~isempty(p.Results.Axes)
@@ -184,15 +179,19 @@ classdef MyLog < matlab.mixin.Copyable
                 
                 % Replace existing data
                 Pls = this.PlotList(ind).DataLines;
-                for i=1:length(Pls)
-                    Pls(i).XData = this.timestamps;
-                    Pls(i).YData = this.data(:,i);
+                for i = 1:length(Pls)
+                    
+                    % Set new data and timestamps at the same time to
+                    % prevent a conflict of array sizes
+                    set(Pls(i), ...
+                        'XData',    this.timestamps, ...
+                        'YData',    this.data(:,i));
                 end
             end
             
             % Set the visibility of lines
             if ~ismember('isdisp', p.UsingDefaults)
-                for i=1:ncols
+                for i = 1:ncols
                     Pls(i).Visible = p.Results.isdisp(i);
                 end
             end
@@ -200,24 +199,39 @@ classdef MyLog < matlab.mixin.Copyable
             if p.Results.time_labels
                 
                 % Plot time labels
-                plotTimeLabels(this, Axes);
+                plotTimeLabels(this, ind);
             else
                 
                 % Hide existing time labels
                 try
                     set(this.PlotList(ind).LbLines, 'Visible', 'off');
                     set(this.PlotList(ind).BgLines, 'Visible', 'off');
-                catch
+                catch ME
+                    warning(ME.message)
                 end
             end
             
-            if (p.Results.legend)&&(~isempty(this.data_headers))&&...
-                (~isempty(this.data)) 
+            % Add legend
+            if isempty(Axes.Legend)
+                legend(Axes, 'Location', 'southwest');
+            end
             
-                % Add legend only for for those lines that are displayed
-                disp_ind = cellfun(@(x)strcmpi(x,'on'),{Pls.Visible});
-                legend(Axes, Pls(disp_ind), this.data_headers{disp_ind},...
-                    'Location','southwest');
+            if p.Results.legend && ~isempty(this.data_headers) && ...
+                    ~isempty(this.data) 
+                
+                % Display the legend
+                Axes.Legend.Visible = 'on';
+                Axes.Legend.String = this.data_headers;
+            
+                % Include only those lines that are visible
+                for i = 1:ncols
+                    Pls(i).Annotation.LegendInformation.IconDisplayStyle = ...
+                        Pls(i).Visible;
+                end
+            else
+                
+                % Hide the legend
+                Axes.Legend.Visible = 'off';
             end
         end
         
@@ -564,18 +578,11 @@ classdef MyLog < matlab.mixin.Copyable
         end
     end
     
-    methods (Access = protected)   
-        function plotTimeLabels(this, Axes)
-            
-            % Find out if the log was already plotted in these axes
-            ind = findPlotInd(this, Axes);
-            if isempty(ind)
-                l = length(this.PlotList);
-                this.PlotList(l+1).Axes = Axes;
-                ind = l+1;
-            else
-                Axes = this.PlotList(ind).Axes;
-            end
+    methods (Access = protected)
+        
+        % Add time labels on the plot given the plot index in PlotList
+        function plotTimeLabels(this, ind)            
+            Axes = this.PlotList(ind).Axes;
             
             if ~isempty(this.timestamps) && ~isempty(this.TimeLabels)
                 
