@@ -172,8 +172,8 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             assert(isa(Mdt, 'MyMetadata'), ...
                 'Settings must be provided as MyMetadata object.');
             
-            % Synchronize the instrument object to write only the settings
-            % that changed 
+            % Synchronize the instrument object and write only the settings
+            % which values are different from present 
             sync(this);
             
             param_names = fieldnames(Mdt.ParamList);

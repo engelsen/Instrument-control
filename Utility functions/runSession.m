@@ -17,56 +17,56 @@ function runSession(filename)
         CollMdt = CollMdt(1);
     end
     
+    ProgList = getIcPrograms();
+    prog_names = {ProgList.name};
+    
     if ~isempty(CollMdt)
         
         % Get the list of instruments active during the session from the
         % collector metadata
-        instr_names = CollMdt.ParamList.instruments;
+        ind = cellfun(@(x)ismember(x, prog_names), ...
+            CollMdt.ParamList.instruments);
     else
         
-        % Get the list of instruments as the titles of those fileds which
-        % have a corresponding entry the list of local measurement routines
-        ProgList = getIcPrograms();
-        prog_names = {ProgList.name};
-        
+        % Get the list of instruments as the titles of those metadata 
+        % entries that have a corresponding local measurement routine
         ind = cellfun(@(x)ismember(x, prog_names), {Mdt.title});
-        instr_names = prog_names(ind);
     end
+    
+    ActiveProgList = ProgList(ind);
     
     % Delete all the instruments present in the collector
     C = MyCollector.instance();
     flush(C);
     
     % Run new instruments and configure their settings
-    for i = 1:length(instr_names)
-        nm = instr_names{i};
+    for i = 1:length(ActiveProgList)
+        nm = ActiveProgList(i).name;
         
         if ~isempty(CollMdt)
             
             % Extract instument options from the collector metadata
             collect_header = CollMdt.ParamList.Props.(nm).collect_header;
             has_gui = CollMdt.ParamList.Props.(nm).has_gui;
-            is_logger = 
         else
             
             % Assign default values for the instrument options
             collect_header = true;
             has_gui = true;
-            is_global = true;
-            is_logger = false;
         end
         
         % We hedge the operation of running a new instrument so that the
         % falure of one would not prevent starting the others
         try
             if has_gui
-                Instr = runInstrumentWithGui(nm);
+                eval(ActiveProgList(i).run_expr);
             else
-                Instr = runInstrument(nm);
+                eval(ActiveProgList(i).run_bg_expr);
             end
+            
+            setInstrumentProp(C, nm, 'collect_header', collect_header);
 
-            C.InstrProps.(nm).collect_header = collect_header;
-
+            % Configure the settings of instrument object
             InstrMdt = titleref(Mdt, nm);
             if ~isempty(InstrMdt) && ismethod(Instr, 'writeSettings')
                 if length(InstrMdt) > 1
@@ -74,7 +74,8 @@ function runSession(filename)
                         'instrument with name ''' nm '''.']);
                     InstrMdt = InstrMdt(1);
                 end
-
+                
+                Instr = getInstrument(C, nm);
                 writeSettings(Instr, InstrMdt);
             end
         catch ME

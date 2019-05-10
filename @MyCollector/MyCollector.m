@@ -287,8 +287,7 @@ classdef MyCollector < MySingleton
                 this.Metadata.ParamList.Props.(fn).is_global = ...
                     ~isempty(this.InstrProps.global_name);
                 
-                % Note that we cannot store the GUI handles in metadata, 
-                % so we indicate if the instrument has gui or not 
+                % Indicate if the instrument has gui
                 this.Metadata.ParamList.Props.(fn).has_gui = ...
                     ~isempty(this.InstrProps.Gui);
             end
