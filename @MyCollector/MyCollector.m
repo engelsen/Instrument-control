@@ -170,19 +170,12 @@ classdef MyCollector < MySingleton
             % instrument does not request suppression of header collection
             if InstrEventData.new_header
                 
-                % Add field indicating the time when the trace was acquired
-                TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
-                
                 % Add the name of acquisition instrument
                 AcqInstrMdt = MyMetadata('title', 'AcquiringInstrument');
                 addParam(AcqInstrMdt, 'Name', InstrEventData.src_name);
                 
-                % Add the state of Collector
-                CollMdt = getMetadata(this);
-                
                 % Make the full metadata
-                Mdt = [AcqInstrMdt, TimeMdt, acquireHeaders(this), ...
-                    CollMdt];
+                Mdt = [AcqInstrMdt, acquireHeaders(this)];
                 
                 %We copy the MeasHeaders to both copies of the trace - the
                 %one that is with the source and the one that is forwarded
@@ -215,6 +208,14 @@ classdef MyCollector < MySingleton
                     end
                 end
             end
+            
+            % Add field indicating the time when the trace was acquired
+            TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
+            
+            % Add the state of Collector
+            CollMdt = getMetadata(this);
+            
+            Mdt = [TimeMdt, Mdt, CollMdt];
         end
         
         function bool = isrunning(this, name)
