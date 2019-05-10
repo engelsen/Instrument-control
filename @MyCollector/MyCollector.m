@@ -170,8 +170,8 @@ classdef MyCollector < MySingleton
         end
         
         function App = getApp(this, app_name)
-            assert(isfield(this.AppList, app_name), ...
-                '''app_name'' must correspond to one of the running apps.')
+            assert(isfield(this.AppList, app_name), [app_name ...
+                ' does not correspond to any of the running apps.'])
             
             App = this.AppList.(app_name);
         end

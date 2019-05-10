@@ -63,7 +63,6 @@ classdef MyDaq < handle
             %compatibility with Matalb apps
             this.Figure = this.Gui.figure1;
             this.main_plot = this.Gui.figure1.CurrentAxes;        
-            runSingletonApp(this);
             
             % Parse inputs
             p=inputParser;
