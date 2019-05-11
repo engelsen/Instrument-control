@@ -34,6 +34,7 @@ classdef MyCollector < MySingleton
         
         % The constructor of a singleton class must be private
         function this = MyCollector()
+            disp(['Creating a new instance of ' class(this)])
         end
     end
     
@@ -334,7 +335,6 @@ classdef MyCollector < MySingleton
             persistent UniqueInstance
 
             if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
-                disp('Creating a new instance of MyCollector')
                 this = MyCollector();
                 UniqueInstance = this;
             else

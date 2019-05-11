@@ -59,7 +59,7 @@ function [Lg, Gui] = runLogger(arg)
         createLogFileName(Lg, dir, instr_name);
         
         % Add logger to Collector
-        addInstrument(C, name, Lg, 'collect_header', false);
+        addInstrument(C, name, Lg);
     else
         disp(['Logger for ' instr_name ' is already running. ' ...
             'Returning existing.'])

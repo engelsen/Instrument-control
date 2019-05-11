@@ -32,6 +32,10 @@ classdef MyLogger < handle
         last_meas_stat = 2 
     end
     
+    properties (Access = protected)
+        Metadata = MyMetadata.empty()
+    end
+    
     events
         
         % Event that is triggered each time measFcn is successfully 
@@ -94,6 +98,17 @@ classdef MyLogger < handle
         
         function stop(this)
             stop(this.MeasTimer);
+        end
+        
+        function bool = isrunning(this)
+            try
+                bool = strcmpi(this.MeasTimer.running, 'on');
+            catch ME
+                warning(['Cannot check if the measurement timer is on. '...
+                    'Error: ' ME.message]);
+                
+                bool = false;
+            end
         end
         
         % Trigger an event that transfers the data from one log channel 
@@ -179,6 +194,61 @@ classdef MyLogger < handle
             
             this.Record.file_name = file_name;
         end
+        
+        function Mdt = readSettings(this)
+            if isempty(this.Metadata)
+                this.Metadata = MyMetadata('title', class(this));
+                
+                addParam(this.Metadata, 'meas_period', [], 'comment', ...
+                    'measurement period (s)');
+                
+                addParam(this.Metadata, 'save_cont', [], 'comment', ...
+                    'If measurements are continuously saved (true/false)');
+                
+                addParam(this.Metadata, 'file_creation_interval', [], ...
+                    'comment', ['The interval over which new data ' ...
+                    'files are created when saving continuously ' ...
+                    '(days:hours:min:sec)']);
+                
+                addParam(this.Metadata, 'log_length_limit', [], ...
+                    'comment', ['The maximum number of points kept ' ...
+                    'in the measurement record']);
+            end
+            
+            % Update parameter values
+            this.Metadata.ParamList.meas_period = this.MeasTimer.Period;
+            this.Metadata.ParamList.save_cont = this.Record.save_cont;
+            this.Metadata.ParamList.file_creation_interval = ...
+                char(this.FileCreationInterval);
+            this.Metadata.ParamList.log_length_limit = ...
+                this.Record.length_lim;
+            
+            Mdt = copy(this.Metadata);
+        end
+        
+        % Configure the logger settings from metadata
+        function writeSettings(this, Mdt)
+            
+            % Stop ongoing measurements
+            stop(this);
+            
+            if isparam(Mdt, 'meas_period')
+                this.MeasTimer.Period = Mdt.ParamList.meas_period;
+            end
+            
+            if isparam(Mdt, 'save_cont')
+                this.Record.save_cont = Mdt.ParamList.save_cont;
+            end
+            
+            if isparam(Mdt, 'file_creation_interval')
+                this.FileCreationInterval = ...
+                    duration(Mdt.ParamList.file_creation_interval);
+            end
+            
+            if isparam(Mdt, 'log_length_limit')
+                this.Record.length_lim = Mdt.ParamList.log_length_limit;
+            end
+        end
     end
     
     methods (Access = protected)
@@ -231,10 +301,15 @@ classdef MyLogger < handle
             this.MeasTimer = val;
         end
         
-        function set.FileCreationInterval(this, val)
-            assert(isa(val, 'duration'), ['''FileCreationInterval'' ' ...
+        function set.FileCreationInterval(this, Val)
+            assert(isa(Val, 'duration'), ['''FileCreationInterval'' ' ...
                 'must be a duration object.'])
-            this.FileCreationInterval = val;
+            
+            if ~isempty(Val)
+                Val.Format = 'dd:hh:mm:ss';
+            end
+            
+            this.FileCreationInterval = Val;
         end
     end
 end

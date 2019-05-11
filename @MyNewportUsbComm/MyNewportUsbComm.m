@@ -14,6 +14,8 @@ classdef MyNewportUsbComm < MySingleton
         % The constructor of a singleton class should only be invoked from
         % the instance method.
         function this = MyNewportUsbComm()
+            disp(['Creating a new instance of ' class(this)])
+            
             this.QueryData = System.Text.StringBuilder(64);
             loadLib(this);
         end
@@ -66,7 +68,6 @@ classdef MyNewportUsbComm < MySingleton
             persistent UniqueInstance
 
             if isempty(UniqueInstance) || ~isvalid(UniqueInstance)
-                disp('Creating a new instance of NewportUsbComm')
                 this = MyNewportUsbComm();
                 UniqueInstance = this;
             else
