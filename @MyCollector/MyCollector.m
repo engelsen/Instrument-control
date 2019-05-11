@@ -313,15 +313,18 @@ classdef MyCollector < MySingleton
             % Update metadata parameters
             this.Metadata.ParamList.instruments = this.running_instruments;
                 
-            for fn = this.running_instruments'
+            for i = 1:length(this.running_instruments)
+                fn = this.running_instruments{i};
+                
                 this.Metadata.ParamList.Props.(fn).collect_header = ...
-                    this.InstrProps.collect_header;
+                    this.InstrProps.(fn).collect_header;
+                
                 this.Metadata.ParamList.Props.(fn).is_global = ...
-                    ~isempty(this.InstrProps.global_name);
+                    ~isempty(this.InstrProps.(fn).global_name);
                 
                 % Indicate if the instrument has gui
                 this.Metadata.ParamList.Props.(fn).has_gui = ...
-                    ~isempty(this.InstrProps.Gui);
+                    ~isempty(this.InstrProps.(fn).Gui);
             end
             
             Mdt = copy(this.Metadata);

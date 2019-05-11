@@ -158,7 +158,10 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             % Ensure that instrument parameters are up to data
             sync(this);
             
-            param_names = fieldnames(this.Metadata.ParamList);
+            % Exclude idn from parameter names
+            param_names = setdiff(fieldnames(this.Metadata.ParamList), ...
+                'idn');
+            
             for i = 1:length(param_names)
                 tag = param_names{i};
                 this.Metadata.ParamList.(tag) = this.(tag);
