@@ -51,6 +51,10 @@ classdef MyDummyScpiInstrument < MyScpiInstrument & MyDataSource
         % writeString does nothing
         function writeString(this, str) %#ok<INUSD>
         end
+        
+        function idn(this)
+            this.idn_str = 'dummy';
+        end
     end
     
     methods (Access = protected)
@@ -61,13 +65,18 @@ classdef MyDummyScpiInstrument < MyScpiInstrument & MyDataSource
                 'info',     'regular read/write numeric command');
             
             addCommand(this, 'cmd2', 'COMMAND2', ...
+                'format',   '%e', ...
+                'access',   'r', ...
+                'info',     'read-only numeric command');
+            
+            addCommand(this, 'cmd3', 'COMMAND3', ...
+                'format',   '%i,%i,%i,%i,%i', ...
+                'info',     'read/write vector');
+            
+            addCommand(this, 'cmd4', 'COMMAND2', ...
                 'format',   '%s', ...
                 'info',     'regular read/write string command', ...
                 'default',  'val');
-            
-            addCommand(this, 'cmd3', 'COMMAND3', ...
-                'format',   '%i,%i,%i', ...
-                'info',     'read/write vector');
         end
     end
 end

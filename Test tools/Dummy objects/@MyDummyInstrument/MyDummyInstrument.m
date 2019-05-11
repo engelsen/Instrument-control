@@ -31,6 +31,10 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource
             Lg.Record.data_headers = {'random 1', 'random 2', ...
                 'random 3', 'random 4', 'random 5'};
         end
+        
+        function idn(this)
+            this.idn_str = 'dummy';
+        end
     end
     
     methods (Access = protected)
