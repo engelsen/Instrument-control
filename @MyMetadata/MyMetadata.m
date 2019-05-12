@@ -239,8 +239,21 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
         end
         
         % Save metadata to a file
-        function save(this, filename)
-            fileID = fopen(filename, 'a');
+        function save(this, filename, varargin)
+            p = inputParser();
+            addParameter(p, 'overwrite', false, @islogical)
+            parse(p, varargin{:});
+            
+            if p.Results.overwrite
+                
+                % Open and delete any existing content of the file
+                fileID = fopen(filename, 'w');
+            else
+                
+                % Open for appending
+                fileID = fopen(filename, 'a');
+            end
+            
             fprintf(fileID, '%s', mdt2str(this));
             fclose(fileID);
         end

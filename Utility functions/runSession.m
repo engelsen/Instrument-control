@@ -24,13 +24,13 @@ function runSession(filename)
         
         % Get the list of instruments active during the session from the
         % collector metadata
-        ind = cellfun(@(x)ismember(x, prog_names), ...
-            CollMdt.ParamList.instruments);
+        ind = cellfun(@(x)ismember(x, CollMdt.ParamList.instruments), ...
+            prog_names);
     else
         
         % Get the list of instruments as the titles of those metadata 
         % entries that have a corresponding local measurement routine
-        ind = cellfun(@(x)ismember(x, prog_names), {Mdt.title});
+        ind = cellfun(@(x)ismember(x, {Mdt.title}), prog_names);
     end
     
     ActiveProgList = ProgList(ind);
@@ -43,16 +43,24 @@ function runSession(filename)
     for i = 1:length(ActiveProgList)
         nm = ActiveProgList(i).name;
         
-        if ~isempty(CollMdt)
-            
-            % Extract instument options from the collector metadata
+        % Extract instument options from the collector metadata or assign
+        % default values
+        try
             collect_header = CollMdt.ParamList.Props.(nm).collect_header;
-            has_gui = CollMdt.ParamList.Props.(nm).has_gui;
-        else
-            
-            % Assign default values for the instrument options
+        catch
             collect_header = true;
+        end
+        
+        try
+            has_gui = CollMdt.ParamList.Props.(nm).has_gui;
+        catch
             has_gui = true;
+        end
+        
+        try 
+            gui_position = CollMdt.ParamList.Props.(nm).gui_position;
+        catch
+            gui_position = '';
         end
         
         % We hedge the operation of running a new instrument so that the
@@ -60,6 +68,21 @@ function runSession(filename)
         try
             if has_gui
                 eval(ActiveProgList(i).run_expr);
+                
+                if ~isempty(gui_position)
+                    Gui = getInstrumentProp(C, nm, 'Gui');
+                    Fig = findFigure(Gui);
+                    
+                    original_units = Fig.Units;
+                    Fig.Units = 'pixels';
+                    
+                    % Set x and y position of GUI figure
+                    Fig.Position(1) = gui_position(1);
+                    Fig.Position(2) = gui_position(2);
+                    
+                    % Restore the figure settings
+                    Fig.Units = original_units;
+                end
             else
                 eval(ActiveProgList(i).run_bg_expr);
             end
@@ -68,6 +91,8 @@ function runSession(filename)
 
             % Configure the settings of instrument object
             InstrMdt = titleref(Mdt, nm);
+            Instr = getInstrument(C, nm);
+            
             if ~isempty(InstrMdt) && ismethod(Instr, 'writeSettings')
                 if length(InstrMdt) > 1
                     warning(['Duplicated entries are found for the ' ...
@@ -75,8 +100,12 @@ function runSession(filename)
                     InstrMdt = InstrMdt(1);
                 end
                 
-                Instr = getInstrument(C, nm);
-                writeSettings(Instr, InstrMdt);
+                try
+                    writeSettings(Instr, InstrMdt);
+                catch ME
+                    warning(['Error while attempting to write serrings '...
+                        'to ''' nm ''': ' ME.message])
+                end
             end
         catch ME
             warning(['Could not start instrument with name ''' nm ...

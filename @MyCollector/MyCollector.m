@@ -306,8 +306,13 @@ classdef MyCollector < MySingleton
             % Create new metadata if it has not yet been initialized
             if isempty(this.Metadata)
                 this.Metadata = MyMetadata('title', 'SessionInfo');
-                addParam(this.Metadata, 'instruments', {});
-                addParam(this.Metadata, 'Props', struct());
+                
+                addParam(this.Metadata, 'instruments', {}, 'comment', ...
+                    'Instruments active during the session');
+                
+                addParam(this.Metadata, 'Props', struct(), 'comment', ...
+                    ['Instrument properties. gui_position has format ' ...
+                    '[x, y] and is measured in pixels.']);
             end
             
             % Update metadata parameters
@@ -323,8 +328,29 @@ classdef MyCollector < MySingleton
                     ~isempty(this.InstrProps.(fn).global_name);
                 
                 % Indicate if the instrument has gui
-                this.Metadata.ParamList.Props.(fn).has_gui = ...
-                    ~isempty(this.InstrProps.(fn).Gui);
+                has_gui = ~isempty(this.InstrProps.(fn).Gui);
+                
+                this.Metadata.ParamList.Props.(fn).has_gui = has_gui;
+                
+                if has_gui
+                    
+                    % Add the position of GUI on the screen in pixels
+                    Fig = findFigure(this.InstrProps.(fn).Gui);
+                    original_units = Fig.Units;
+                    Fig.Units = 'pixels';
+                    
+                    % We record only x and y position but not the width and
+                    % hight of the window, as the latter is a possible 
+                    % subject to change
+                    pos = Fig.Position(1:2);
+                    
+                    % Restore the figure settings
+                    Fig.Units = original_units;
+                    
+                    this.Metadata.ParamList.Props.(fn).gui_position = pos;
+                else
+                    this.Metadata.ParamList.Props.(fn).gui_position = '';
+                end
             end
             
             Mdt = copy(this.Metadata);
