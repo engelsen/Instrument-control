@@ -160,7 +160,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             
             % Exclude idn from parameter names
             param_names = setdiff(fieldnames(this.Metadata.ParamList), ...
-                'idn');
+                {'idn'});
             
             for i = 1:length(param_names)
                 tag = param_names{i};
@@ -176,15 +176,31 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
                 'Settings must be provided as MyMetadata object.');
             
             % Synchronize the instrument object and write only the settings
-            % which values are different from present 
+            % which new values are different from present 
             sync(this);
             
-            param_names = fieldnames(Mdt.ParamList);
-            for i=1:length(param_names)
+            param_names = setdiff(fieldnames(Mdt.ParamList), {'idn'});
+            
+            for i = 1:length(param_names)
                 tag = param_names{i};
+                new_val = Mdt.ParamList.(tag);
+
+                if ismember(tag, this.command_names)
+                    
+                    % Set command value under the condition that it is
+                    % write accessible and that that the new value is 
+                    % different from present
+                    if ~isempty(this.CommandList.(tag).writeFcn) && ...
+                            ~isequal(this.(tag), new_val)
+                         
+                        this.(tag) = new_val;
+                    end
+                    
+                    continue
+                end
                 
-                if isprop(this, tag) && (this.(tag) ~= Mdt.ParamList.(tag))
-                    this.(tag) = Mdt.ParamList.(tag);
+                if isprop(this, tag) && ~isequal(this.(tag), new_val)
+                    this.(tag) = new_val;
                 end
             end
         end
