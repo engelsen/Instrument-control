@@ -30,21 +30,28 @@ classdef MyDummyScpiInstrument < MyScpiInstrument & MyDataSource
                 cmd = query_cmds{i};
                 if ~isempty(cmd)
                     switch cmd
-                        case 'COMMAND1'
+                        case 'COMMAND1?'
                             tmp_resp = sprintf(this.CommandList.cmd1.format, ...
                                 this.cmd1);
-                        case 'COMMAND2'
+                        case 'COMMAND2?'
                             tmp_resp = sprintf(this.CommandList.cmd2.format, ...
                                 this.cmd2);
-                        case 'COMMAND3'
+                        case 'COMMAND3?'
                             tmp_resp = sprintf(this.CommandList.cmd3.format, ...
                                 this.cmd3);
+                        case 'COMMAND4?'
+                            tmp_resp = sprintf(this.CommandList.cmd4.format, ...
+                                this.cmd4);
                         otherwise
                             tmp_resp = '';
                     end
 
-                    resp_str = [resp_str ';' tmp_resp]; %#ok<AGROW>
+                    resp_str = [resp_str, tmp_resp, ';']; %#ok<AGROW>
                 end
+            end
+            
+            if ~isempty(resp_str)
+                resp_str = resp_str(1:end-1);
             end
         end
         
@@ -73,7 +80,7 @@ classdef MyDummyScpiInstrument < MyScpiInstrument & MyDataSource
                 'format',   '%i,%i,%i,%i,%i', ...
                 'info',     'read/write vector');
             
-            addCommand(this, 'cmd4', 'COMMAND2', ...
+            addCommand(this, 'cmd4', 'COMMAND4', ...
                 'format',   '%s', ...
                 'info',     'regular read/write string command', ...
                 'default',  'val');

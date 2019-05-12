@@ -136,7 +136,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             end
             
             % Calculate width of the name column
-            name_pad_length = min(max(max_nm_arr), this.pad_lim);
+            name_pad_length = max(max_nm_arr);
             
             % Compose a list of parameter values converted to char strings
             val_strs = cell(1, length(par_names));

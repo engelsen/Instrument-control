@@ -289,19 +289,6 @@ classdef MyScpiInstrument < MyInstrument
             format = fmt_spec(min(start):max(stop));
         end
         
-        function createMetadata(this)
-            createMetadata@MyInstrument(this);
-            
-            % Re-iterate the creation of command parameters to add the
-            % format specifier
-            for i = 1:length(this.command_names)
-                cmd = this.command_names{i};
-                addObjProp(this.Metadata, this, cmd, ...
-                    'comment', this.CommandList.(cmd).info, ...
-                    'format', this.CommandList.(cmd).format);
-            end
-        end
-        
         % List validation function with case-insensitive comparison
         function f = createScpiListValidationFcn(~, value_list)
             function listValidationFcn(val)
