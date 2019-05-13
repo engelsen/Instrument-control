@@ -400,8 +400,14 @@ classdef MyDaq < handle
             %etc to the clipboard.
             newFig = figure('visible','off','Units',this.main_plot.Units,...
                 'Position',posn);
+            
             %Copies the current axes into the new figure.
-            newHandle = copyobj(this.main_plot,newFig); %#ok<NASGU>
+            newAxes = copyobj(this.main_plot,newFig);
+            
+            newAxes.Color = 'none';
+            newAxes.XColor = [0, 0, 0];
+            newAxes.YColor = [0, 0, 0];
+            
             %Prints the figure to the clipboard
             print(newFig,'-clipboard','-dbitmap');
             %Deletes the figure

@@ -159,7 +159,7 @@ classdef MyHfWs < handle
             % Print with 9 digits of precision which corresponds to 
             % kHz-scale resolution in the visible range. 
             % This should be safely beyond the instrument resolution.   
-            f_str = sprintf('%.9f', f/1e12);
+            f_str = sprintf('%.9f', f);
             wl_str = sprintf('%.9f', (c/(f*1e12))*1e9);
             
             if f<=0
