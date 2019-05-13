@@ -317,7 +317,10 @@ classdef MyGuiSync < handle
         end
         
         function addToCleanup(this, Obj)
-            this.cleanup_list{end+1} = Obj;
+            
+            % Prepend the new object so that the objects which are added
+            % first would be deleted last
+            this.cleanup_list = [{Obj}, this.cleanup_list];
         end
     end
        

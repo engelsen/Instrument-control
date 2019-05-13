@@ -2,7 +2,6 @@ classdef MyNewportUsbComm < MySingleton
     
     properties (GetAccess = public, SetAccess = private)
         isbusy = false  % driver in use 
-        QueryData       % query buffer
     end
     
     properties (Access = public)
@@ -15,8 +14,6 @@ classdef MyNewportUsbComm < MySingleton
         % the instance method.
         function this = MyNewportUsbComm()
             disp(['Creating a new instance of ' class(this)])
-            
-            this.QueryData = System.Text.StringBuilder(64);
             loadLib(this);
         end
     end
@@ -49,14 +46,20 @@ classdef MyNewportUsbComm < MySingleton
             
             this.isbusy = true;
             
-            % Send query using the QueryData buffer
-            stat = Query(this.Usb, addr, cmd, this.QueryData);
+            % Send query using QueryData buffer. A new buffer needs to be
+            % created every time to ensure the absence of interference 
+            % between different queries.
+            QueryData = System.Text.StringBuilder(64);
+            
+            stat = Query(this.Usb, addr, cmd, QueryData);
+            
             if stat == 0
-                str = char(ToString(this.QueryData));
+                str = char(ToString(QueryData));
             else
                 str = '';
                 warning('Query to Newport usb driver was unsuccessful.');
             end
+            
             this.isbusy = false;
         end
     end
