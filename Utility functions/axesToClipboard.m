@@ -11,6 +11,13 @@ function axesToClipboard(Axes)
         'Units',        Axes.Units, ...
         'OuterPosition',     pos);
     
+    if isa(Axes.XAxis, 'matlab.graphics.axis.decorator.DatetimeRuler')
+        
+        % Convert the x axis to datetime format
+        L = plot(NaT,NaN);
+        delete(L);
+    end
+    
     % Properties, always set to default
     NewAxes.Color = 'none';
     NewAxes.XColor = [0, 0, 0];
@@ -39,9 +46,17 @@ function axesToClipboard(Axes)
     NewAxes.XAxis.FontSize = Axes.XAxis.FontSize;
     NewAxes.YAxis.FontSize = Axes.YAxis.FontSize;
     
-    % Copy axes labels as these are handle objects
+    % Copy axes labels and legend as these are handle objects
     NewAxes.XLabel = copy(Axes.XLabel);
     NewAxes.YLabel = copy(Axes.YLabel);
+    
+    if ~isempty(Axes.Legend)
+        legend(NewAxes, ...
+            'String',       Axes.Legend.String, ...
+            'Location',     Axes.Legend.Location,...
+            'Orientation',  Axes.Legend.Orientation, ...
+            'FontSize',     Axes.Legend.FontSize)
+    end
     
     try
         
