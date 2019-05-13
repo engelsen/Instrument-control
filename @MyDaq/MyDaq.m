@@ -416,7 +416,7 @@ classdef MyDaq < handle
         
         %Resets the axis to be tight around the plots.
         function updateAxis(this)
-            axis(this.main_plot,'tight');
+            axis(this.main_plot, 'tight');
         end
     end
     
