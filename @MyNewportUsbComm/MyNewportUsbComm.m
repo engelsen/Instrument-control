@@ -1,11 +1,24 @@
 classdef MyNewportUsbComm < MySingleton
     
     properties (GetAccess = public, SetAccess = private)
-        isbusy = false  % driver in use 
+        
+        % Driver in use
+        isbusy = false
+        
+        % QueryData objects are stored in order to ensure that these 
+        % objects are not deleted before the Newport driver finishes 
+        % operations on them
+        QueryRecord = {}
     end
     
     properties (Access = public)
-        Usb % Instance of Newport.USBComm.USB class 
+        
+        % An instance of Newport.USBComm.USB class 
+        Usb
+    end
+    
+    properties (Access = private)
+        query_record_max_length = 1e4
     end
     
     methods(Access = private)
@@ -58,6 +71,12 @@ classdef MyNewportUsbComm < MySingleton
             else
                 str = '';
                 warning('Query to Newport usb driver was unsuccessful.');
+            end
+            
+            this.QueryRecord = [this.QueryRecord, {QueryData}];
+            ml = this.query_record_max_length;
+            if length(this.QueryRecord) > ml
+                this.QueryRecord = this.QueryRecord(end-ml+1:end);
             end
             
             this.isbusy = false;
