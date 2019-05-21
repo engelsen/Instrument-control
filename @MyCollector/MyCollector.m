@@ -182,7 +182,7 @@ classdef MyCollector < MySingleton
             
             % Check that event data object is MyNewDataEvent,
             % and fix otherwise
-            if ~isa(InstrEventData,'MyNewDataEvent')
+            if ~isa(InstrEventData, 'MyNewDataEvent')
                 InstrEventData = MyNewDataEvent();
                 InstrEventData.new_header = true;
                 InstrEventData.Trace = copy(src.Trace);

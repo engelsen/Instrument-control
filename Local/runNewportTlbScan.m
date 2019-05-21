@@ -1,12 +1,12 @@
-%show_in_daq=true
-%menu_title=Ecdl850Scan
+%data_source=true
+%title=Ecdl850Scan
 
 function runNewportTlbScan()
 
     % Get the unique instance of MyCollector
     C = MyCollector.instance();
     
-    name = 'Ecdl850Scan';
+    name = 'runNewportTlbScan';
     if ~ismember(name, C.running_instruments)
         
         % Create an instrument instance
