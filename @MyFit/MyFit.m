@@ -346,6 +346,40 @@ classdef MyFit < dynamicprops
                 set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
             end
         end
+        
+                %Generates model-dependent initial parameters, lower and upper
+        %boundaries.
+        function genInitParams(this)
+            assert(validateData(this), ['The data must be vectors of',...
+                ' equal length greater than the number of fit parameters.',...
+                ' Currently the number of fit parameters is %d, the',...
+                ' length of x is %d and the length of y is %d'],...
+                this.n_params,length(this.Data.x),length(this.Data.y));
+            
+            %Cell for putting parameters in to be interpreted in the
+            %parser. Element 1 contains the init params, Element 2 contains
+            %the lower limits and Element 3 contains the upper limits.
+            params=cell(1,3);
+            
+            [params{1},params{2},params{3}]=calcInitParams(this);
+            %Validates the initial parameters
+            p=createFitParser(this.n_params);
+            parse(p,params{:});
+            
+            %Loads the parsed results into the class variables
+            this.init_params=p.Results.init_params;
+            this.lim_lower=p.Results.lower;
+            this.lim_upper=p.Results.upper;
+            
+            %Plots the fit function with the new initial parameters
+            if this.enable_plot; plotInitFun(this); end
+            %Updates the GUI and creates new lookup tables for the init
+            %param sliders
+            if this.enable_gui
+                genSliderVecs(this);
+                updateGui(this);
+            end
+        end
     end
     
     methods (Access=protected)
@@ -486,39 +520,7 @@ classdef MyFit < dynamicprops
                 length(this.Data.x)>=this.n_params;
         end
         
-        %Generates model-dependent initial parameters, lower and upper
-        %boundaries.
-        function genInitParams(this)
-            assert(validateData(this), ['The data must be vectors of',...
-                ' equal length greater than the number of fit parameters.',...
-                ' Currently the number of fit parameters is %d, the',...
-                ' length of x is %d and the length of y is %d'],...
-                this.n_params,length(this.Data.x),length(this.Data.y));
-            
-            %Cell for putting parameters in to be interpreted in the
-            %parser. Element 1 contains the init params, Element 2 contains
-            %the lower limits and Element 3 contains the upper limits.
-            params=cell(1,3);
-            
-            [params{1},params{2},params{3}]=calcInitParams(this);
-            %Validates the initial parameters
-            p=createFitParser(this.n_params);
-            parse(p,params{:});
-            
-            %Loads the parsed results into the class variables
-            this.init_params=p.Results.init_params;
-            this.lim_lower=p.Results.lower;
-            this.lim_upper=p.Results.upper;
-            
-            %Plots the fit function with the new initial parameters
-            if this.enable_plot; plotInitFun(this); end
-            %Updates the GUI and creates new lookup tables for the init
-            %param sliders
-            if this.enable_gui
-                genSliderVecs(this);
-                updateGui(this);
-            end
-        end
+
         
         %Creates an input parser for a fit function with n_arg arguments. Default
         %values are ones for initial parameters and plus and minus inf for upper

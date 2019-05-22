@@ -188,7 +188,7 @@ classdef MyPeakFinder < handle
             Fits=struct();
             for i=1:length(fit_names)
                 Fits.(fit_names{i})=launchFit(fit_names{i},...
-                    'enable_gui',0);
+                    'enable_gui',0,'enable_plot',0);
                 Fits.(fit_names{i}).base_dir=p.Results.base_dir;
                 Fits.(fit_names{i}).session_name=p.Results.session_name;
                 Fits.(fit_names{i}).filename=...
@@ -241,7 +241,7 @@ classdef MyPeakFinder < handle
             fullfilename=fullfile([save_dir,filename,'.txt']);
             
             %Creates the file in the given folder
-            write_flag=createFile(save_dir,fullfilename,overwrite_flag);
+            write_flag=createFile(fullfilename,'overwrite',overwrite_flag);
             
             %Returns if the file is not created for some reason 
             if ~write_flag; return; end
