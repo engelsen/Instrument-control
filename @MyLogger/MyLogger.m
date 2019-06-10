@@ -7,7 +7,7 @@
 
 classdef MyLogger < handle
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         
         % Timer object
         MeasTimer = timer.empty()
