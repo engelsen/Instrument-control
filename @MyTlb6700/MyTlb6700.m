@@ -15,8 +15,8 @@ classdef MyTlb6700 < MyScpiInstrument
         
         % Interface field is not used in this instrument, but keep it
         % for the sake of information
-        interface = 'usb';
-        address = '';
+        interface = 'usb'
+        address = ''
     end
     
     properties (GetAccess = public, SetAccess = protected)

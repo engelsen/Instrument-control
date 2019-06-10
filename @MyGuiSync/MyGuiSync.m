@@ -38,10 +38,7 @@ classdef MyGuiSync < handle
                 'App must be a Matlab app.'));
             
             % Deletion of kernel object triggers the delition of app
-            addParameter(p, 'KernelObj', [], @(x)assert( ...
-                ismember('ObjectBeingDestroyed', events(x)), ...
-                ['Object must define ''ObjectBeingDestroyed'' event ' ...
-                'to be an app kernel.']));
+            addParameter(p, 'KernelObj', []);
             
             % Optional function, executed after an app parameter has been
             % updated (either externally of internally)
@@ -56,13 +53,19 @@ classdef MyGuiSync < handle
             this.Listeners.AppDeleted = addlistener(App, ...
                 'ObjectBeingDestroyed', @(~, ~)delete(this));
             
+            % Kernel objects usually represent objects for which the app
+            % provides user interface. Kernel objects are deleted with 
+            % the app and the app is deleted if a kernel object is.
             if ~isempty(p.Results.KernelObj)
-                
-                KernelObj = p.Results.KernelObj;
-                addToCleanup(this, p.Results.KernelObj);
-                
-                this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
-                    'ObjectBeingDestroyed', @this.kernelDeletedCallback);
+                if iscell(p.Results.KernelObj)
+                    
+                    % A cell containing the list kernel objects is supplied
+                    cellfun(this.addKernelObj, p.Results.KernelObj);
+                else
+                    
+                    % A single kernel object is supplied
+                    addKernelObj(this, p.Results.KernelObj);
+                end
             end
         end
         
@@ -141,10 +144,37 @@ classdef MyGuiSync < handle
             addParameter(p, 'create_elem_callback', true, @islogical);
             addParameter(p, 'event_update', true, @islogical);
             
+            % Option, relevent when Elem is a menu and its chldren items
+            % represent mutually exclusive multiple choices for the value 
+            % of reference
+            addParameter(p, 'submenu_choices', {}, @iscell);
+            
             parse(p, varargin{:});
             
             % Make the list of unmatched name-value pairs for subroutine 
             sub_varargin = struct2namevalue(p.Unmatched);
+            
+            if strcmpi(Elem.Type, 'uimenu') && ...
+                    ~ismember('submenu_choices', p.UsingDefaults)
+                
+                % The children of menu item represent multiple choices,
+                % create separate links for all of them
+                
+                choises = p.Results.submenu_choices;
+                assert(length(choises) == length(Elem.Children), ...
+                    ['The length of the list of supplied multiple ' ...
+                    'choices must be the same as the number of menu ' ...
+                    'children.'])
+                
+                for i = 1:length(Elem.Children)
+                    addLink(this, Elem.Children(i), prop_ref, ...
+                        'outputProcessingFcn', ...
+                            @(x)isequal(x, choises{i}), ...
+                        'inputProcessingFcn', @(x)choises{i});
+                end
+                
+                return
+            end
             
             % Find the handle object which the end property belongs to, 
             % the end property name and, possibly, further subscripts 
@@ -317,11 +347,26 @@ classdef MyGuiSync < handle
         end
         
         function addToCleanup(this, Obj)
-            this.cleanup_list{end+1} = Obj;
+            
+            % Prepend the new object so that the objects which are added
+            % first would be deleted last
+            this.cleanup_list = [{Obj}, this.cleanup_list];
         end
     end
        
     methods (Access = protected)  
+        function addKernelObj(this, KernelObj)
+            assert( ...
+                ismember('ObjectBeingDestroyed', events(KernelObj)), ...
+                ['Object must define ''ObjectBeingDestroyed'' event ' ...
+                'to be an app kernel.'])
+
+            addToCleanup(this, KernelObj);
+
+            this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
+                'ObjectBeingDestroyed', @this.kernelDeletedCallback);
+        end
+        
         function kernelDeletedCallback(this, ~, ~)
             
             % Switch off the AppBeingDeleted callback in order to prevent
@@ -502,9 +547,9 @@ classdef MyGuiSync < handle
             addParameter(p, 'input_prescaler', 1, @isnumeric);
 
             % Arbitrary processing functions can be specified for input and 
-            % output. outputProcessingFcn is applied to values before  
-            % assigning them to gui elements and in_proc_fcn is applied  
-            % before assigning to the linked properties.
+            % output. outputProcessingFcn is applied before assigning 
+            % the new value to gui elements and inputProcessingFcn is 
+            % applied before assigning to the new value to reference.
             addParameter(p, 'outputProcessingFcn', [], ...
                 @(f)isa(f,'function_handle'));
             addParameter(p, 'inputProcessingFcn', [], ...
@@ -647,7 +692,7 @@ classdef MyGuiSync < handle
         function callback_name = findElemCallbackType(~, ...
                 Elem, elem_prop, Hobj, hobj_prop)
             
-            % Check property attributes
+            % Check the reference object property attributes
             Mp = findprop(Hobj, hobj_prop);
             prop_write_accessible = strcmpi(Mp.SetAccess,'public') && ...
                 (~Mp.Constant) && (~Mp.Abstract);
@@ -682,11 +727,10 @@ classdef MyGuiSync < handle
                 
                 % This is the most typical type of callback 
                 callback_name = 'ValueChangedFcn';
-            elseif strcmp(elem_prop, 'Checked') && ...
-                    strcmpi(Elem.Type, 'uimenu') && ...
+            elseif strcmpi(Elem.Type, 'uimenu') && ...
+                    strcmp(elem_prop, 'Checked') && ...
                     isempty(Elem.MenuSelectedFcn)
                 
-                % Callbacks for menus
                 callback_name = 'MenuSelectedFcn';
             else
                 callback_name = '';

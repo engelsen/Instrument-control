@@ -289,19 +289,6 @@ classdef MyScpiInstrument < MyInstrument
             format = fmt_spec(min(start):max(stop));
         end
         
-        function createMetadata(this)
-            createMetadata@MyInstrument(this);
-            
-            % Re-iterate the creation of command parameters to add the
-            % format specifier
-            for i = 1:length(this.command_names)
-                cmd = this.command_names{i};
-                addObjProp(this.Metadata, this, cmd, ...
-                    'comment', this.CommandList.(cmd).info, ...
-                    'fmt_spec', this.CommandList.(cmd).format);
-            end
-        end
-        
         % List validation function with case-insensitive comparison
         function f = createScpiListValidationFcn(~, value_list)
             function listValidationFcn(val)
@@ -319,14 +306,14 @@ classdef MyScpiInstrument < MyInstrument
         function f = createArrayValidationFcn(~, smb)
             function validateNumeric(val)
                 assert((length(val) == length(smb)) && isnumeric(val), ...
-                    ['Value must be a numeric array of length ' ...
-                    length(smb) '.'])
+                    sprintf(['Value must be a numeric array of length ' ...
+                    '%i.'], length(smb)))
             end
             
             function validateInteger(val)
                 assert((length(val) == length(smb)) && ...
-                    all(floor(val) == val), ['Value must be an ' ...
-                    'integer array of length ' length(smb) '.'])
+                    all(floor(val) == val), sprintf(['Value must be ' ...
+                    'an integer array of length %i.'], length(smb)))
             end
             
             function validateLogical(val)

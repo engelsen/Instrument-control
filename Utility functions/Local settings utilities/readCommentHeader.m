@@ -7,7 +7,8 @@ function Info = readCommentHeader(file_name)
     % fields to this structure 
     Info = struct( ...
         'comment_header',   '', ...
-        'first_code_line',  '' ...
+        'first_code_line',  '', ...
+        'ParamList',        struct() ...
         ); 
     
     fid = fopen(file_name,'r');
@@ -24,7 +25,7 @@ function Info = readCommentHeader(file_name)
             % A comment string, try to extract the 'property'='value'
             % pair
             match = regexp(trimstr, '[%\s]*(\S*)\s*=(.*)', 'tokens');
-            try
+            if ~isempty(match)
                 tag = lower(match{1}{1});
                 
                 if ~ismember(tag, fieldnames(Info))
@@ -43,7 +44,6 @@ function Info = readCommentHeader(file_name)
 
                     Info.ParamList.(tag) = val;
                 end
-            catch
             end
         else 
 

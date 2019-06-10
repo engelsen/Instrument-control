@@ -47,7 +47,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             p = inputParser();
             
             % Format specifier for printing the value
-            addParameter(p, 'fmt_spec', '', @ischar);
+            addParameter(p, 'format', '', @ischar);
             
             % Comment to be added to the line
             addParameter(p, 'comment', '', @ischar);
@@ -67,7 +67,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                     'converted to single line.'], param_name);
             end
 
-            this.ParamOptList.(param_name).fmt_spec = p.Results.fmt_spec;
+            this.ParamOptList.(param_name).format = p.Results.format;
             
             S = p.Results.SubStruct;
             if isempty(S)
@@ -106,9 +106,10 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 str = '';
                 return
             elseif length(this) > 1
-                str_arr = arrayfun(@(x)mdt2str(x), this, ...
-                    'UniformOutput', false);
-                str = [str_arr{:}];
+                str_arr = arrayfun(@mdt2str, this, 'UniformOutput', false);
+                
+                % Add an extra line between sections
+                str = strjoin(str_arr, this(1).line_sep);
                 return
             end
             
@@ -135,7 +136,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             end
             
             % Calculate width of the name column
-            name_pad_length = min(max(max_nm_arr), this.pad_lim);
+            name_pad_length = max(max_nm_arr);
             
             % Compose a list of parameter values converted to char strings
             val_strs = cell(1, length(par_names));
@@ -179,14 +180,14 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                             {newline, sprintf('\r')}, ' ');
                     end
                     
-                    fmt_spec = this.ParamOptList.(tmp_nm).fmt_spec;
-                    if isempty(fmt_spec)
+                    format = this.ParamOptList.(tmp_nm).format;
+                    if isempty(format)
                         
                         % Convert to string with format specifier
                         % extracted from the varaible calss
                         val_strs{i}{j} = var2str(tmp_val);
                     else
-                        val_strs{i}{j} = sprintf(fmt_spec, tmp_val);
+                        val_strs{i}{j} = sprintf(format, tmp_val);
                     end
                     
                     % Find maximum length to determine the colum width, 
@@ -205,7 +206,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             % Make the output string. Start by printing the title.
             str = sprintf([this.hdr_spec, this.title, this.hdr_spec, ls]);
 
-            par_fmt_spec = [sprintf('%%-%is', name_pad_length),...
+            par_format = [sprintf('%%-%is', name_pad_length),...
                 cs, sprintf('%%-%is', val_pad_length)];
             
             % Print parameters 
@@ -226,23 +227,33 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                         
                         % Add the comment to first line 
                         str = [str, ...
-                            sprintf([par_fmt_spec, cs, '%s', ls], ...
+                            sprintf([par_format, cs, '%s', ls], ...
                             exp_par_names{i}{j}, val_strs{i}{j}, ...
                             fmt_comment)];                                  %#ok<AGROW>
                     else
-                        str = [str, sprintf([par_fmt_spec, ls],...
+                        str = [str, sprintf([par_format, ls],...
                             exp_par_names{i}{j}, val_strs{i}{j})];          %#ok<AGROW>
                     end
                 end
             end
-            
-            % Prints an extra line separator at the end
-            str = [str, sprintf(ls)];
         end
         
         % Save metadata to a file
-        function save(this, filename)
-            fileID = fopen(filename, 'a');
+        function save(this, filename, varargin)
+            p = inputParser();
+            addParameter(p, 'overwrite', false, @islogical)
+            parse(p, varargin{:});
+            
+            if p.Results.overwrite
+                
+                % Open and delete any existing content of the file
+                fileID = fopen(filename, 'w');
+            else
+                
+                % Open for appending
+                fileID = fopen(filename, 'a');
+            end
+            
             fprintf(fileID, '%s', mdt2str(this));
             fclose(fileID);
         end
@@ -271,20 +282,20 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             end
             
             dv = datevec(datetime('now'));
-            addParam(TimeMdt, 'Year',    dv(1), 'fmt_spec','%i');
-            addParam(TimeMdt, 'Month',   dv(2), 'fmt_spec','%i');
-            addParam(TimeMdt, 'Day',     dv(3), 'fmt_spec','%i');
-            addParam(TimeMdt, 'Hour',    dv(4), 'fmt_spec','%i');
-            addParam(TimeMdt, 'Minute',  dv(5), 'fmt_spec','%i');
-            addParam(TimeMdt, 'Second',  floor(dv(6)), 'fmt_spec','%i');
+            addParam(TimeMdt, 'Year',    dv(1), 'format', '%i');
+            addParam(TimeMdt, 'Month',   dv(2), 'format', '%i');
+            addParam(TimeMdt, 'Day',     dv(3), 'format', '%i');
+            addParam(TimeMdt, 'Hour',    dv(4), 'format', '%i');
+            addParam(TimeMdt, 'Minute',  dv(5), 'format', '%i');
+            addParam(TimeMdt, 'Second',  floor(dv(6)), 'format', '%i');
             addParam(TimeMdt, 'Millisecond',...
-                round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
+                round(1000*(dv(6)-floor(dv(6)))), 'format', '%i');
         end
         
         % Load metadata from file. Return all the entries found and  
         % the number of the last line read.
         function [MdtArr, n_end_line] = load(filename, varargin)
-            fileID = fopen(filename,'r');
+            fileID = fopen(filename, 'r');
             
             MasterMdt = MyMetadata(varargin{:});
             
@@ -324,13 +335,14 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                         
                         % Add a new parameter-value pair to the current 
                         % metadata
-                        [name, value, comment, Subs] = S.match{:};
+                        [name, value, format, comment, Subs] = S.match{:};
                         
                         if ~isparam(TmpMdt, name)
                             
                             % Add new parameter
                             addParam(TmpMdt, name, value, ...
-                                'SubStruct', Subs, 'comment', comment);
+                                'format', format, 'SubStruct', Subs, ...
+                                'comment', comment);
                         else
                             
                             % Assign the value to a new subscript of 
@@ -389,10 +401,10 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 if isvarname(name)
                     
                     % Attempt converting the value to a number
-                    value = str2doubleHedged(pv_token{2});
+                    [value, format] = str2doubleHedged(pv_token{2});
 
                     S.type = 'paramval';
-                    S.match = {name, value, comment, Subs};
+                    S.match = {name, value, format, comment, Subs};
                     return
                 end
             end

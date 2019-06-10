@@ -12,7 +12,12 @@ function Fig = findFigure(Obj)
     if isstruct(Obj)
         prop_names = fieldnames(Obj);
     else
-        prop_names = properties(Obj);
+        if isvalid(Obj)
+            prop_names = properties(Obj);
+        else
+            Fig = [];
+            return
+        end
     end
     
     % Try to find the figure among the properties

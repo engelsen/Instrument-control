@@ -136,6 +136,14 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont
             start(this.Timer);
             this.operation_in_progress = true;
         end
+        
+        % Overload writeSettings method of MyInstrument
+        function writeSettings(this)
+            disp(['The settings of ' class(this) ' cannot be loaded ' ...
+                'for safety considerations. Please configure the ' ...
+                'instrument manually'])
+            return
+        end
     end
     
     methods (Access = protected)

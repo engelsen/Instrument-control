@@ -100,7 +100,7 @@ function RunFiles = readRunFiles(dir)
     is_run = startsWith(all_names.m, 'run', 'IgnoreCase', false);
     run_names = all_names.m(is_run);
     
-    RunFiles = MyProgramDescriptor.empty;
+    RunFiles = MyProgramDescriptor.empty();
     
     % Read headers of all the run*.m files
     for i = 1:length(run_names)
@@ -120,13 +120,15 @@ function RunFiles = readRunFiles(dir)
         RunFiles(i).run_expr = run_name;
         
         % Read the run file comment header and assign the parameters found
-        ParamList = readCommentHeader(fullfile(dir, run_names{i}));
+        Content = readCommentHeader(fullfile(dir, run_names{i}));
         
-        RunFiles(i).info = ParamList.comment_header;
+        RunFiles(i).info = Content.comment_header;
         
-        for fn = fieldnames(ParamList)'
+        par_names = fieldnames(Content.ParamList);
+        for j = 1:length(par_names)
+            fn = par_names{j};
             if isprop(RunFiles, fn)
-                RunFiles(i).(fn) = ParamList.(fn);
+                RunFiles(i).(fn) = Content.ParamList.(fn);
             end
         end
     end

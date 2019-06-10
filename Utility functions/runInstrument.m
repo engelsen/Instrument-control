@@ -13,12 +13,7 @@ function Instr = runInstrument(name, instr_class, varargin)
         disp([name, ' is already running. Assigning the existing ', ...
             'object instead of running a new one.']);
         
-        try
-            Instr = Collector.InstrList.(name);
-        catch
-            error('Could not assign instrument %s from Collector',name);
-        end
-        
+        Instr = getInstrument(Collector, name);
         return
     end
     

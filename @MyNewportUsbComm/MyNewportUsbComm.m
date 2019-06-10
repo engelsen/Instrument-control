@@ -1,12 +1,24 @@
 classdef MyNewportUsbComm < MySingleton
     
     properties (GetAccess = public, SetAccess = private)
-        isbusy = false  % driver in use 
-        QueryData       % query buffer
+        
+        % Driver in use
+        isbusy = false
+        
+        % QueryData objects are stored in order to ensure that these 
+        % objects are not deleted before the Newport driver finishes 
+        % operations on them
+        QueryRecord = {}
     end
     
     properties (Access = public)
-        Usb % Instance of Newport.USBComm.USB class 
+        
+        % An instance of Newport.USBComm.USB class 
+        Usb
+    end
+    
+    properties (Access = private)
+        query_record_max_length = 1e4
     end
     
     methods(Access = private)
@@ -14,7 +26,7 @@ classdef MyNewportUsbComm < MySingleton
         % The constructor of a singleton class should only be invoked from
         % the instance method.
         function this = MyNewportUsbComm()
-            this.QueryData = System.Text.StringBuilder(64);
+            disp(['Creating a new instance of ' class(this)])
             loadLib(this);
         end
     end
@@ -47,14 +59,26 @@ classdef MyNewportUsbComm < MySingleton
             
             this.isbusy = true;
             
-            % Send query using the QueryData buffer
-            stat = Query(this.Usb, addr, cmd, this.QueryData);
+            % Send query using QueryData buffer. A new buffer needs to be
+            % created every time to ensure the absence of interference 
+            % between different queries.
+            QueryData = System.Text.StringBuilder(64);
+            
+            stat = Query(this.Usb, addr, cmd, QueryData);
+            
             if stat == 0
-                str = char(ToString(this.QueryData));
+                str = char(ToString(QueryData));
             else
                 str = '';
                 warning('Query to Newport usb driver was unsuccessful.');
             end
+            
+            this.QueryRecord = [this.QueryRecord, {QueryData}];
+            ml = this.query_record_max_length;
+            if length(this.QueryRecord) > ml
+                this.QueryRecord = this.QueryRecord(end-ml+1:end);
+            end
+            
             this.isbusy = false;
         end
     end
@@ -66,7 +90,6 @@ classdef MyNewportUsbComm < MySingleton
             persistent UniqueInstance
 
             if isempty(UniqueInstance) || ~isvalid(UniqueInstance)
-                disp('Creating a new instance of NewportUsbComm')
                 this = MyNewportUsbComm();
                 UniqueInstance = this;
             else

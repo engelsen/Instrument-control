@@ -59,7 +59,7 @@ function [Lg, Gui] = runLogger(arg)
         createLogFileName(Lg, dir, instr_name);
         
         % Add logger to Collector
-        addInstrument(C, name, Lg, 'collect_header', false);
+        addInstrument(C, name, Lg);
     else
         disp(['Logger for ' instr_name ' is already running. ' ...
             'Returning existing.'])
@@ -68,12 +68,12 @@ function [Lg, Gui] = runLogger(arg)
     end
     
     % Check if the logger already has a GUI
-    Gui = getInstrumentGui(C, name);
-    if isempty(Gui)
+    Gui = getInstrumentProp(C, name, 'Gui');
+    if isempty(Gui) || ~isvalid(Gui)
         
         % Run a new GUI and store it in the collector
         Gui = GuiLogger(Lg);
-        addInstrumentGui(C, name, Gui);
+        setInstrumentProp(C, name, 'Gui', Gui);
         
         % Display the instrument's name 
         Fig = findFigure(Gui);

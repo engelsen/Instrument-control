@@ -2,10 +2,13 @@
 % also be used for analysis of previously acquired traces.
 classdef MyDaq < handle
     properties
-        %Global variable with Daq name is cleared on exit.
-        global_name
         %Contains GUI handles
         Gui
+        %Main figure
+        Figure
+        %main axes
+        main_plot
+        
         %Contains Reference trace (MyTrace object)
         Ref
         %Contains Data trace (MyTrace object)
@@ -37,7 +40,6 @@ classdef MyDaq < handle
     
     properties (Dependent=true)
         save_dir
-        main_plot
         open_fits
         open_crs
     end
@@ -57,17 +59,16 @@ classdef MyDaq < handle
             %We grab the guihandles from a GUI made in Guide.
             this.Gui=guihandles(eval('GuiDaq'));
             
-            %Recolor
-            applyLocalColorScheme(this.Gui.figure1);
+            %Assign the handle of main figure to a property for
+            %compatibility with Matalb apps
+            this.Figure = this.Gui.figure1;
+            this.main_plot = this.Gui.figure1.CurrentAxes;        
             
             % Parse inputs
             p=inputParser;
-            addParameter(p,'global_name','',@ischar);
             addParameter(p,'collector_handle',[]);
             this.ConstructionParser=p;
             parse(p, varargin{:});
-            
-            this.global_name = p.Results.global_name;
             
             %Sets a listener to the collector
             if ~isempty(p.Results.collector_handle)
@@ -137,9 +138,6 @@ classdef MyDaq < handle
                 cellfun(@(x) deleteListeners(this, x),...
                     fieldnames(this.Listeners));
             end
-            
-            % clear global variable, to which Daq handle is assigned
-            evalin('base', sprintf('clear(''%s'')', this.global_name));
             
             %A class destructor should never through errors, so enclose the
             %attempt to close figure into try-catch structure
@@ -402,8 +400,14 @@ classdef MyDaq < handle
             %etc to the clipboard.
             newFig = figure('visible','off','Units',this.main_plot.Units,...
                 'Position',posn);
+            
             %Copies the current axes into the new figure.
-            newHandle = copyobj(this.main_plot,newFig); %#ok<NASGU>
+            newAxes = copyobj(this.main_plot,newFig);
+            
+            newAxes.Color = 'none';
+            newAxes.XColor = [0, 0, 0];
+            newAxes.YColor = [0, 0, 0];
+            
             %Prints the figure to the clipboard
             print(newFig,'-clipboard','-dbitmap');
             %Deletes the figure
@@ -412,7 +416,7 @@ classdef MyDaq < handle
         
         %Resets the axis to be tight around the plots.
         function updateAxis(this)
-            axis(this.main_plot,'tight');
+            axis(this.main_plot, 'tight');
         end
     end
     
@@ -970,11 +974,6 @@ classdef MyDaq < handle
         %Get function from save directory
         function save_dir=get.save_dir(this)
             save_dir=createSessionPath(this.base_dir,this.session_name);
-        end
-        
-        %Get function for the plot handles
-        function main_plot=get.main_plot(this)
-            main_plot=this.Gui.figure1.CurrentAxes; 
         end
         
         %Get function for open fits

@@ -1,21 +1,29 @@
 classdef MyCollector < MySingleton
-    properties (Access = public, SetObservable = true)
-        InstrProps = struct()    % Properties of instruments   
-    end
-    
+
     properties (GetAccess = public, SetAccess = private, ...
             SetObservable = true)
         
-        % Structure accomodating instruments 
-        InstrList = struct()    
+        % Structure accomodating handles of instrument objects 
+        InstrList = struct()
+        
+         % Properties of instruments
+        InstrProps = struct()
+        
+        % Structure accomodating handles of apps which contain user
+        % interface elements (excluding instrument GUIs)
+        AppList = struct()
     end
     
     properties (Access = private)
         Listeners = struct()
+        
+        % Metadata indicating the state of Collector
+        Metadata = MyMetadata.empty()
     end
     
     properties (Dependent = true)
         running_instruments
+        running_apps
     end
     
     events
@@ -24,8 +32,9 @@ classdef MyCollector < MySingleton
     
     methods (Access = private)
         
-        % Constructor of a singleton class must be private
+        % The constructor of a singleton class must be private
         function this = MyCollector()
+            disp(['Creating a new instance of ' class(this)])
         end
     end
     
@@ -115,31 +124,57 @@ classdef MyCollector < MySingleton
         
         % Get existing instrument
         function Instr = getInstrument(this, name)
-            assert(ismember(name, this.running_instruments), ...
-                ['Name does not correspond to any of the running ' ...
+            assert(isfield(this.InstrList, name), ...
+                ['Name must correspond to one of the running ' ...
                 'instruments.'])
+            
             Instr = this.InstrList.(name);
         end
         
-        % Store instrument GUI
-        function addInstrumentGui(this, instr_name, Gui)
-            assert(ismember(instr_name, this.running_instruments), ...
-                'Name must correspond to one of the running instruments.')
-            this.InstrProps.(instr_name).Gui = Gui;
+        % Interface for accessing internally stored instrument properties
+        function val = getInstrumentProp(this, instr_name, prop_name)
+            assert(isfield(this.InstrProps, instr_name), ...
+                ['''instr_name'' must correspond to one of the ' ...
+                'running instruments.'])
+            
+            assert(isfield(this.InstrProps.(instr_name), prop_name), ...
+                ['''prop_name'' must correspond to one of the following'...
+                'instrument properties: ' ...
+                var2str(fieldnames(this.InstrProps.(instr_name)))])
+            
+            val = this.InstrProps.(instr_name).(prop_name);
         end
         
-        % Get existing instrument GUI
-        function Gui = getInstrumentGui(this, instr_name)
-            assert(ismember(instr_name, this.running_instruments), ...
-                'Name must correspond to one of the running instruments.')
+        function setInstrumentProp(this, instr_name, prop_name, val)
+            assert(isfield(this.InstrProps, instr_name), ...
+                ['''instr_name'' must correspond to one of the ' ...
+                'running instruments.'])
             
-            Gui = this.InstrProps.(instr_name).Gui;
+            assert(isfield(this.InstrProps.(instr_name), prop_name), ...
+                ['''prop_name'' must correspond to one of the following'...
+                'instrument properties: ' ...
+                var2str(fieldnames(this.InstrProps.(instr_name)))])
             
-            if ~(ismethod(Gui, 'isvalid') && isvalid(Gui))
-                
-                % Do not return invalid GUIs
-                Gui = [];
-            end
+            this.InstrProps.(instr_name).(prop_name) = val;
+        end
+        
+        function addApp(this, App, app_name)
+            assert(~isfield(this.AppList, app_name), ['App with name ''' ...
+                app_name ''' is already present in the collector.'])
+            
+            this.AppList.(app_name) = App;
+            
+            % Set up a listener that will update the list when the app
+            % is deleted
+            addlistener(App, 'ObjectBeingDestroyed', ...
+                @(~,~)removeApp(this, app_name));
+        end
+        
+        function App = getApp(this, app_name)
+            assert(isfield(this.AppList, app_name), [app_name ...
+                ' does not correspond to any of the running apps.'])
+            
+            App = this.AppList.(app_name);
         end
         
         function acquireData(this, name, InstrEventData)
@@ -147,7 +182,7 @@ classdef MyCollector < MySingleton
             
             % Check that event data object is MyNewDataEvent,
             % and fix otherwise
-            if ~isa(InstrEventData,'MyNewDataEvent')
+            if ~isa(InstrEventData, 'MyNewDataEvent')
                 InstrEventData = MyNewDataEvent();
                 InstrEventData.new_header = true;
                 InstrEventData.Trace = copy(src.Trace);
@@ -160,14 +195,12 @@ classdef MyCollector < MySingleton
             % instrument does not request suppression of header collection
             if InstrEventData.new_header
                 
-                % Add field indicating the time when the trace was acquired
-                TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
-                
+                % Add the name of acquisition instrument
                 AcqInstrMdt = MyMetadata('title', 'AcquiringInstrument');
                 addParam(AcqInstrMdt, 'Name', InstrEventData.src_name);
                 
                 % Make the full metadata
-                Mdt = [AcqInstrMdt, TimeMdt, acquireHeaders(this)];
+                Mdt = [AcqInstrMdt, acquireHeaders(this)];
                 
                 %We copy the MeasHeaders to both copies of the trace - the
                 %one that is with the source and the one that is forwarded
@@ -183,7 +216,7 @@ classdef MyCollector < MySingleton
         function Mdt = acquireHeaders(this)
             Mdt = MyMetadata.empty();
             
-            for i=1:length(this.running_instruments)
+            for i = 1:length(this.running_instruments)
                 name = this.running_instruments{i};
                 
                 if this.InstrProps.(name).collect_header
@@ -192,14 +225,22 @@ classdef MyCollector < MySingleton
                         TmpMdt.title = name;
                         Mdt = [Mdt, TmpMdt]; %#ok<AGROW>
                     catch ME
-                        warning(['Error while reading metadata from %s. '...
-                            'Measurement header collection is switched '...
-                            'off for this instrument.\nError: %s'], ...
-                            name, ME.message)
+                        warning(['Error while reading metadata from ' ...
+                            '%s. Measurement header collection is '...
+                            'switched off for this instrument.' ...
+                            '\nError: %s'], name, ME.message)
                         this.InstrProps.(name).collect_header = false;
                     end
                 end
             end
+            
+            % Add field indicating the time when the trace was acquired
+            TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
+            
+            % Add the state of Collector
+            CollMdt = getMetadata(this);
+            
+            Mdt = [TimeMdt, Mdt, CollMdt];
         end
         
         function bool = isrunning(this, name)
@@ -221,6 +262,23 @@ classdef MyCollector < MySingleton
                 deleteListeners(this, name);
             end
         end
+        
+        function removeApp(this, name)
+            if isfield(this.AppList, name)
+                this.AppList = rmfield(this.AppList, name);
+            end
+        end
+        
+        % Delete all presesently running instruments
+        function flush(this)
+            instr_names = this.running_instruments;
+            for i = 1:length(instr_names)
+                nm = instr_names{i};
+                
+                % We rely on the deletion callbacks to do cleanup
+                delete(this.InstrList.(nm));
+            end
+        end
     end
     
     methods (Access = private)
@@ -240,6 +298,63 @@ classdef MyCollector < MySingleton
             % Remove the instrument entry from Collector
             removeInstrument(this, name);
         end
+        
+        % Create metadata that stores information about the Collector 
+        % state
+        function Mdt = getMetadata(this)
+            
+            % Create new metadata if it has not yet been initialized
+            if isempty(this.Metadata)
+                this.Metadata = MyMetadata('title', 'SessionInfo');
+                
+                addParam(this.Metadata, 'instruments', {}, 'comment', ...
+                    'Instruments active during the session');
+                
+                addParam(this.Metadata, 'Props', struct(), 'comment', ...
+                    ['Instrument properties. gui_position has format ' ...
+                    '[x, y] and is measured in pixels.']);
+            end
+            
+            % Update metadata parameters
+            this.Metadata.ParamList.instruments = this.running_instruments;
+                
+            for i = 1:length(this.running_instruments)
+                fn = this.running_instruments{i};
+                
+                this.Metadata.ParamList.Props.(fn).collect_header = ...
+                    this.InstrProps.(fn).collect_header;
+                
+                this.Metadata.ParamList.Props.(fn).is_global = ...
+                    ~isempty(this.InstrProps.(fn).global_name);
+                
+                % Indicate if the instrument has gui
+                has_gui = ~isempty(this.InstrProps.(fn).Gui);
+                
+                this.Metadata.ParamList.Props.(fn).has_gui = has_gui;
+                
+                if has_gui
+                    
+                    % Add the position of GUI on the screen in pixels
+                    Fig = findFigure(this.InstrProps.(fn).Gui);
+                    original_units = Fig.Units;
+                    Fig.Units = 'pixels';
+                    
+                    % We record only x and y position but not the width and
+                    % hight of the window, as the latter is a possible 
+                    % subject to change
+                    pos = Fig.Position(1:2);
+                    
+                    % Restore the figure settings
+                    Fig.Units = original_units;
+                    
+                    this.Metadata.ParamList.Props.(fn).gui_position = pos;
+                else
+                    this.Metadata.ParamList.Props.(fn).gui_position = '';
+                end
+            end
+            
+            Mdt = copy(this.Metadata);
+        end
     end
     
     methods(Static = true)
@@ -249,7 +364,6 @@ classdef MyCollector < MySingleton
             persistent UniqueInstance
 
             if isempty(UniqueInstance)||(~isvalid(UniqueInstance))
-                disp('Creating a new instance of MyCollector')
                 this = MyCollector();
                 UniqueInstance = this;
             else
@@ -270,6 +384,10 @@ classdef MyCollector < MySingleton
     methods
         function val = get.running_instruments(this)
             val = fieldnames(this.InstrList);
+        end
+        
+        function val = get.running_apps(this)
+            val = fieldnames(this.AppList);
         end
     end
 end
