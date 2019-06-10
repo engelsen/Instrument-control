@@ -38,10 +38,7 @@ classdef MyGuiSync < handle
                 'App must be a Matlab app.'));
             
             % Deletion of kernel object triggers the delition of app
-            addParameter(p, 'KernelObj', [], @(x)assert( ...
-                ismember('ObjectBeingDestroyed', events(x)), ...
-                ['Object must define ''ObjectBeingDestroyed'' event ' ...
-                'to be an app kernel.']));
+            addParameter(p, 'KernelObj', []);
             
             % Optional function, executed after an app parameter has been
             % updated (either externally of internally)
@@ -56,13 +53,19 @@ classdef MyGuiSync < handle
             this.Listeners.AppDeleted = addlistener(App, ...
                 'ObjectBeingDestroyed', @(~, ~)delete(this));
             
+            % Kernel objects usually represent objects for which the app
+            % provides user interface. Kernel objects are deleted with 
+            % the app and the app is deleted if a kernel object is.
             if ~isempty(p.Results.KernelObj)
-                
-                KernelObj = p.Results.KernelObj;
-                addToCleanup(this, p.Results.KernelObj);
-                
-                this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
-                    'ObjectBeingDestroyed', @this.kernelDeletedCallback);
+                if iscell(p.Results.KernelObj)
+                    
+                    % A cell containing the list kernel objects is supplied
+                    cellfun(this.addKernelObj, p.Results.KernelObj);
+                else
+                    
+                    % A single kernel object is supplied
+                    addKernelObj(this, p.Results.KernelObj);
+                end
             end
         end
         
@@ -325,6 +328,18 @@ classdef MyGuiSync < handle
     end
        
     methods (Access = protected)  
+        function addKernelObj(this, KernelObj)
+            assert( ...
+                ismember('ObjectBeingDestroyed', events(KernelObj)), ...
+                ['Object must define ''ObjectBeingDestroyed'' event ' ...
+                'to be an app kernel.'])
+
+            addToCleanup(this, KernelObj);
+
+            this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
+                'ObjectBeingDestroyed', @this.kernelDeletedCallback);
+        end
+        
         function kernelDeletedCallback(this, ~, ~)
             
             % Switch off the AppBeingDeleted callback in order to prevent
