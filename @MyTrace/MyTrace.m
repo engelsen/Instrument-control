@@ -34,19 +34,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         hlines = {}
     end
     
-<<<<<<< HEAD
     properties (Dependent=true)        
-        label_x;
-        label_y;
-        %Z-scored variables (scaled to have mean of 0 and std of 1)
-        scaled_x;
-        scaled_y;
-        
-=======
-    properties (Dependent = true)        
         label_x
         label_y
->>>>>>> NewDaq
+        
+        %Z-scored variables (scaled to have mean of 0 and std of 1)
+        scaled_x
+        scaled_y
     end
     
     methods (Access = public)
