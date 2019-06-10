@@ -1,67 +1,28 @@
 % Class for controlling 2-channel Tektronix TDS scopes. 
-classdef MyTds <MyScpiInstrument
-    properties (Constant=true)
-        N_CHANNELS = 2; % number of channels
-        POINT_NO = 2500; % number of points is fixed for this device
+
+classdef MyTds < MyTekScope
+    
+    properties (Constant = true)
+        point_no = 2500 % number of points is fixed for this device
     end
     
-    methods (Access=public)
-        function this=MyTds(interface, address, varargin)
-            this@MyScpiInstrument(interface, address, varargin{:});
-
+    methods (Access = public)
+        function this = MyTds(varargin)
+            this@MyTekScope(varargin{:});
+            
+            this.channel_no = 2;
+            this.knob_list = lower({'HORZSCALE', 'VERTSCALE1', ...
+                'VERTSCALE2'});
+            
             % 5e3 is the maximum trace size of TDS2022 
             %(2500 point of 2-byte integers)
-            this.Device.InputBufferSize = 1e4; %byte 
-            this.Trace.name_x='Time';
-            this.Trace.name_y='Voltage';
-        end
-        
-        function readTrace(this)
-            %set data format to be signed integer, reversed byte order
-            fprintf(this.Device,'DATA:ENCDG SRIbinary');
-            %2 bytes per measurement point
-            fprintf(this.Device,'DATA:WIDTH 2');
-            % read the entire trace
-            fprintf(this.Device,'DATA:START 1;STOP %i;',this.POINT_NO);
-            fprintf(this.Device,'CURVE?');
-            y_data = int16(binblockread(this.Device,'int16'));
+            this.Comm.InputBufferSize = 1e4; % byte 
             
-            % Reading the relevant parameters from the scope
-            readProperty(this,'unit_y','unit_x',...
-                'step_x','step_y','x_zero');
-                        
-            % Calculating the y data
-            y = double(y_data)*this.step_y; 
-            n_points=length(y);
-            % Calculating the x axis
-            x = linspace(this.x_zero,...
-                this.x_zero+this.step_x*(n_points-1),n_points);
-            
-            this.Trace.x = x;
-            this.Trace.y = y;
-            % Discard "" when assiging the Trace labels
-            this.Trace.unit_x = this.unit_x(2:end-1);
-            this.Trace.unit_y = this.unit_y(2:end-1);
-            triggerNewData(this);
-        end
-        
-        function acquireContinuous(this)
-            openDevice(this);
-            fprintf(this.Device,...
-                'ACQuire:STOPAfter RUNSTop;:ACQuire:STATE ON');
-            closeDevice(this);
-        end
-        
-        function acquireSingle(this)
-            openDevice(this);
-            fprintf(this.Device,...
-                'ACQuire:STOPAfter SEQuence;:ACQuire:STATE ON');
-            closeDevice(this);
+            createCommandList(this);
         end
         
         % Emulates the physical knob turning, works with nturns=+-1
-        function turnKnob(this,knob,nturns)
-            openDevice(this);
+        function turnKnob(this, knob, nturns)
             switch upper(knob)
                 case 'HORZSCALE'
                     % timebase is changed
@@ -72,9 +33,11 @@ classdef MyTds <MyScpiInstrument
                     else
                         return
                     end
-                    fprintf(this.Device,...
+                    
+                    writeString(this, ...
                         sprintf('HORizontal:MAIn:SCAle %i',sc));
                 case {'VERTSCALE1', 'VERTSCALE2'}
+                    
                     % vertical scale is changed
                     n_ch = sscanf(upper(knob), 'VERTSCALE%i');
                     tag = sprintf('scale%i', n_ch);
@@ -85,76 +48,64 @@ classdef MyTds <MyScpiInstrument
                     else
                         return
                     end
-                    fprintf(this.Device, sprintf('CH%i:SCAle %i',n_ch,sc));
+                    
+                    writeString(this, sprintf('CH%i:SCAle %i',n_ch,sc));
             end
-            closeDevice(this);
         end
     end
     
-    %% Protected functions
-    methods (Access=protected)
-        
+    methods (Access = protected)
         function createCommandList(this)
-            % channel from which the data is transferred
-            addCommand(this,'channel',':DATa:SOUrce','default',1,...
-                'fmt_spec','CH%i',...
-                'info','Channel from which the data is transferred');
-            % units and scale for x and y waveform data
-            addCommand(this,'unit_x',':WFMPre:XUNit','access','r',...
-                'classes',{'char'});
-            addCommand(this,'unit_y',':WFMPre:YUNit','access','r',...
-                'classes',{'char'});
-            addCommand(this,'step_y',':WFMPre:YMUlt','access','r',...
-                'classes',{'numeric'});
-            addCommand(this,'step_x',':WFMPre:XINcr','access','r',...
-                'classes',{'numeric'});
-            addCommand(this,'x_zero',':WFMPre:XZEro','access','r',...
-                'classes',{'numeric'});           
-            % time scale in s per div
-            addCommand(this, 'time_scale',':HORizontal:MAIn:SCAle',...
-                'default',10E-3,...
-                'fmt_spec','%e',...
-                'info','Time scale (s/division)');           
-            % trigger level
-            addCommand(this, 'trig_lev', ':TRIGger:MAIn:LEVel',...
-                'default',1,...
-                'fmt_spec','%e');
-            % trigger slope
-            addCommand(this, 'trig_slope', ':TRIGger:MAIn:EDGE:SLOpe',...
-                'default', 'RISe', 'val_list',{'RISe','RIS','FALL'},...
-                'fmt_spec','%s');
-            % trigger source
+            addCommand(this, 'channel', ':DATa:SOUrce', ...
+                'format',       'CH%i', ...
+                'info',         'Channel from which the data is transferred', ...
+                'value_list',   {1, 2});
+            
+            addCommand(this, 'time_scale', ':HORizontal:MAIn:SCAle', ...
+                'format',   '%e', ...
+                'info',     'Time scale (s/div)');
+            
+            % Trigger level
+            addCommand(this, 'trig_lev', ':TRIGger:MAIn:LEVel', ...
+                'format',   '%e', ...
+                'info',     '(V)');
+            
+            addCommand(this, 'trig_slope', ':TRIGger:MAIn:EDGE:SLOpe', ...
+                'format',       '%s', ...
+                'value_list',   {'RISe', 'FALL'});
+            
             addCommand(this, 'trig_source', ':TRIGger:MAIn:EDGE:SOUrce',...
-                'default', 'AUX', 'val_list', {'CH1','CH2',...
-                'EXT','EXT5','EXT10','AC LINE'}, 'fmt_spec','%s');
-            % trigger mode
-            addCommand(this, 'trig_mode', ':TRIGger:MAIn:MODe',...
-                'default', 'AUTO', 'val_list',{'AUTO','NORMal','NORM'},...
-                'fmt_spec','%s');
-            % state of the data acquisition by the scope
-            addCommand(this, 'acq_state', ':ACQuire:STATE',...
-                'default',true, 'fmt_spec','%b',...
-                'info','State of data acquisition by the scope');
+                'format',       '%s', ...
+                'value_list',   {'CH1', 'CH2', 'EXT', 'EXT5', 'EXT10', ...
+                    'AC LINE'});
+            
+            addCommand(this, 'trig_mode', ':TRIGger:MAIn:MODe', ...
+                'format',       '%s', ...
+                'value_list',   {'AUTO','NORMal'});
+ 
+            addCommand(this, 'acq_state', ':ACQuire:STATE', ...
+                'format',   '%b', ...
+                'info',     'State of data acquisition by the scope');
            
             % Parametric commands
-            for i = 1:this.N_CHANNELS
+            for i = 1:this.channel_no
                 i_str = num2str(i);
-                % coupling, AC, DC or GND
+                
                 addCommand(this,...
-                    ['cpl',i_str],[':CH',i_str,':COUP'],...
-                    'default','DC', 'val_list', {'AC','DC','GND'},...
-                    'fmt_spec','%s',...
-                    'info','Channel coupling: AC, DC or GND');              
-                % scale, V/Div
+                    ['cpl',i_str], [':CH',i_str,':COUP'], ...
+                    'format',       '%s', ...
+                    'info',         'Channel coupling: AC, DC or GND', ...
+                    'value_list',   {'DC', 'AC', 'GND'}); 
+                
                 addCommand(this,...
-                    ['scale',i_str],[':CH',i_str,':SCAle'],'default',1,...
-                    'fmt_spec','%e',...
-                    'info','Channel y scale (V/division)');
-                % channel enabled
+                    ['scale',i_str], [':CH',i_str,':SCAle'], ...
+                    'format',   '%e',...
+                    'info',     'Channel y scale (V/div)');
+                
                 addCommand(this,...
-                    ['enable',i_str],[':SEL:CH',i_str],'default',true,...
-                    'fmt_spec','%b',...
-                    'info','Channel enabled');
+                    ['enable',i_str],[':SEL:CH',i_str], ...
+                    'format',   '%b', ...
+                    'info',     'Channel enabled');
             end
         end
     end

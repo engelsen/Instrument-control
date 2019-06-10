@@ -3,8 +3,7 @@
 classdef MyHfWs < handle
     
     properties (Access=public)
-        name = ''
-        
+
         % Files containg the functions for communication with
         % wavelengthmeter, dll and header
         dllname = 'wlmData.dll'
@@ -14,7 +13,8 @@ classdef MyHfWs < handle
         run_server_timeout = 60 % seconds
     end
     
-    properties (GetAccess=public, SetAccess=protected)
+    properties (GetAccess = public, SetAccess = protected)
+        
         % These properties use get methods to read value every time they
         % are addressed
         wavelength = 0  % Wavelength in nm
@@ -23,18 +23,17 @@ classdef MyHfWs < handle
         idn_str = ''
     end
     
-    properties (Dependent=true)
+    properties (Access = protected)
+        Metadata = MyMetadata.empty()
+    end
+    
+    properties (Dependent = true)
         libname
     end
     
-    methods (Access=public)
-        %% Constructor and destructor
-        
-        % Constructor can accept dummy 'interface' and 'address' arguments,
-        % they will be stored in P.unmatched_nv
+    methods (Access = public)
         function this = MyHfWs(varargin)
-            P=MyClassParser(this);
-            P.PartialMatching=false;
+            P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             
             % Load dll library and its header
@@ -48,8 +47,6 @@ classdef MyHfWs < handle
                 startMeas(this);
             end
         end
-        
-        %% Communication methods
         
         function loadWlmLib(this)
             dll_path = which(this.dllname);
@@ -70,38 +67,39 @@ classdef MyHfWs < handle
             end
         end
         
-        function ret_val=readWavelength(this, varargin)
-            p=inputParser();
+        function ret_val = readWavelength(this, varargin)
+            p = inputParser();
             addParameter(p, 'n_ch', 1, @(x)assert( (mod(x,1)==0) && ...
                 (x>=1) && (x<=8), ...
                 'Channel number must be integer between 1 and 8.'))
             parse(p, varargin{:})
             
-            n_ch=p.Results.n_ch;
+            n_ch = p.Results.n_ch;
             
             % read out the measured wavelength
-            ret_val = calllib(this.libname,'GetWavelengthNum',n_ch,0);
+            ret_val = calllib(this.libname, 'GetWavelengthNum', n_ch, 0);
         end
         
-        function ret_val=readFrequency(this, varargin)
-            p=inputParser();
+        function ret_val = readFrequency(this, varargin)
+            p = inputParser();
             addParameter(p, 'n_ch', 1, @(x)assert( (mod(x,1)==0) && ...
                 (x>=1) && (x<=8), ...
                 'Channel number must be integer between 1 and 8.'))
             parse(p, varargin{:})
             
-            n_ch=p.Results.n_ch;
+            n_ch = p.Results.n_ch;
             
             % read out the measured wavelength
-            ret_val = calllib(this.libname,'GetFrequencyNum',n_ch,0);
+            ret_val = calllib(this.libname, 'GetFrequencyNum', n_ch, 0);
         end
         
         % Run the wavelengthmeter control program
         function runServer(this)
-            T=timer('Period',0.5,...
+            T = timer('Period',0.5,...
                 'ExecutionMode','fixedDelay',...
                 'TasksToExecute', ceil(this.run_server_timeout/0.5));
-            T.TimerFcn=@(x,y)this.runServerTimerCallback(x,y);
+            
+            T.TimerFcn = @(x,y)this.runServerTimerCallback(x,y);
             
             % cCtrlWLMShow: 1 - displays the window of wlm server 
             % application if it was hidden and starts the server if it is
@@ -117,66 +115,67 @@ classdef MyHfWs < handle
             delete(T);
         end
         
-        function bool=isServerRunning(this)
-            bool=calllib(this.libname,'Instantiate',0,0,0,0);
+        function bool = isServerRunning(this)
+            bool = calllib(this.libname, 'Instantiate', 0, 0, 0, 0);
         end
         
         % Start continuous measurement on the server
-        function stat=startMeas(this)
-            stat=calllib(this.libname,'Operation',hex2dec('0002'));
+        function stat = startMeas(this)
+            stat = calllib(this.libname, 'Operation', hex2dec('0002'));
         end
         
         % Stop measurement on the server
-        function stat=stopMeas(this)
-            stat=calllib(this.libname,'Operation',hex2dec('0000'));
+        function stat = stopMeas(this)
+            stat = calllib(this.libname, 'Operation', hex2dec('0000'));
         end
         
         % Return the identification string of the device
         function str = idn(this)
+            
             % Get the device information
             % Wavelengthmeter type can be 5 to 8
-            type = calllib(this.libname,'GetWLMVersion',0);
+            type = calllib(this.libname, 'GetWLMVersion', 0);
+            
             % Version number
-            vers = calllib(this.libname,'GetWLMVersion',1);
+            vers = calllib(this.libname, 'GetWLMVersion', 1);
+            
             % Software version
-            soft_vers = calllib(this.libname,'GetWLMVersion',2);
-            str=['WS',num2str(type),', Version ',num2str(vers),...
+            soft_vers = calllib(this.libname, 'GetWLMVersion', 2);
+            str = ['WS' num2str(type) ', Version ' num2str(vers) ...
                 ', Software version ' num2str(soft_vers)];
         end
         
-        %% Measurement headers
-        
-        function Hdr=readHeader(this)
-            Hdr=MyMetadata();
-            % Generate valid field name from instrument name if present and
-            % class name otherwise
-            if ~isempty(this.name)
-                field_name=genvarname(this.name);
-            else
-                field_name=class(this);
+        function Mdt = readSettings(this)
+            if isempty(this.Metadata)
+                createMetadata(this);
             end
-            addField(Hdr, field_name);
-            % Add identification string as parameter
-            addParam(Hdr, field_name, 'idn', this.idn_str);
             
             % Calculate wavelength in vacuum from frequency to avoid 
             % vaccum/air ambiguity
-            f=this.frequency;
-            c=299792458; % (m/s), speed of light
+            f = this.frequency;
+            
+            c = 299792458; % (m/s), speed of light
+            
             % Print with 9 digits of precision which corresponds to 
             % kHz-scale resolution in the visible range. 
             % This should be safely beyond the instrument resolution.   
-            wl=sprintf('%.9f',(c/(f*1e12))*1e9);
+            f_str = sprintf('%.9f', f);
+            wl_str = sprintf('%.9f', (c/(f*1e12))*1e9);
+            
             if f<=0
+                
                 % The last measurement was not ok, so get the error code
                 % instead of the value
-                wl=readErrorFromCode(this, f);
+                f_str = readErrorFromCode(this, f);
+                wl_str = f_str;
             end
-            addParam(Hdr, field_name, 'wavelength', wl, ...
-                'comment', '(nm), in vacuum');
+            
+            this.Metadata.ParamList.idn = this.idn_str;
+            this.Metadata.ParamList.frequency = f_str;
+            this.Metadata.ParamList.wavelength = wl_str;
+            
+            Mdt = copy(this.Metadata);
         end
-        
-        %% Auxiliary functions
         
         %Convert error codes returned by readWavelength and 
         %readFrequency commands to message
@@ -212,12 +211,10 @@ classdef MyHfWs < handle
         end
     end
     
-    %% Auxiliary pivate methods
-    
-    methods (Access=private)
-        
+    methods (Access = protected)
         function runServerTimerCallback(this, Timer, ~)
             if ~isServerRunning(this)
+                
                 % Check if the timer has reached its limit
                 if Timer.TasksExecuted>=Timer.TasksToExecute
                     warning(['Timeout for running the server ',...
@@ -227,11 +224,22 @@ classdef MyHfWs < handle
                 stop(Timer);
             end
         end
-    end
-    
-    %% Set and get methods
-    methods
         
+        function createMetadata(this)
+            this.Metadata = MyMetadata();
+            
+            % Add identification string as parameter
+            addParam(this.Metadata, 'idn', this.idn_str);
+            
+            addParam(this.Metadata, 'frequency', 0, ...
+                'comment', '(THz)');
+            
+            addParam(this.Metadata, 'wavelength', 0, ...
+                'comment', '(nm), in vacuum');
+        end
+    end
+
+    methods
         function set.dllname(this, val)
             assert(ischar(val) && isvector(val), ['''dllname'' must be '...
                 'a character vector.'])
@@ -248,6 +256,7 @@ classdef MyHfWs < handle
         end
         
         function nm=get.libname(this)
+            
             % dll name without extension
             [~,nm,~]=fileparts(this.dllname);
         end

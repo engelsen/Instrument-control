@@ -2,10 +2,13 @@
 % also be used for analysis of previously acquired traces.
 classdef MyDaq < handle
     properties
-        %Global variable with Daq name is cleared on exit.
-        global_name
         %Contains GUI handles
         Gui
+        %Main figure
+        Figure
+        %main axes
+        main_plot
+        
         %Contains Reference trace (MyTrace object)
         Ref
         %Contains Data trace (MyTrace object)
@@ -14,7 +17,7 @@ classdef MyDaq < handle
         Background
 
         %List of all the programs with run files
-        ProgramList=struct()
+        ProgramList= MyProgramDescriptor.empty()
         %Struct containing Cursor objects
         Cursors=struct()
         %Struct containing Cursor labels
@@ -37,7 +40,6 @@ classdef MyDaq < handle
     
     properties (Dependent=true)
         save_dir
-        main_plot
         open_fits
         open_crs
     end
@@ -53,14 +55,20 @@ classdef MyDaq < handle
         %% Class functions
         %Constructor function
         function this=MyDaq(varargin)
+            
+            %We grab the guihandles from a GUI made in Guide.
+            this.Gui=guihandles(eval('GuiDaq'));
+            
+            %Assign the handle of main figure to a property for
+            %compatibility with Matalb apps
+            this.Figure = this.Gui.figure1;
+            this.main_plot = this.Gui.figure1.CurrentAxes;        
+            
             % Parse inputs
             p=inputParser;
-            addParameter(p,'global_name','',@ischar);
             addParameter(p,'collector_handle',[]);
             this.ConstructionParser=p;
             parse(p, varargin{:});
-            
-            this.global_name = p.Results.global_name;
             
             %Sets a listener to the collector
             if ~isempty(p.Results.collector_handle)
@@ -80,27 +88,29 @@ classdef MyDaq < handle
             this.Background=MyTrace();
 
             %The list of instruments is automatically populated from the
-            %run files
-            this.ProgramList = readRunFiles();
+            %run files. Select programs that are enabled and can produce 
+            %traces.
+            FullProgList = getIcPrograms();
+            ind = [FullProgList.enabled] & [FullProgList.data_source];
             
-            %We grab the guihandles from a GUI made in Guide.
-            this.Gui=guihandles(eval('GuiDaq'));
+            this.ProgramList = FullProgList(ind);
+            
             %This function sets all the callbacks for the GUI. If a new
             %button is made, the associated callback must be put in the
             %initGui function
             initGui(this);
-            % Initialize the menu based on the available run files
-            content = menuFromRunFiles(this.ProgramList,...
-                'show_in_daq',true);
-            set(this.Gui.InstrMenu,'String',[{'Select the application'};...
-                content.titles]);
+            
+            % Initialize the menu based on the available programs
+            set(this.Gui.InstrMenu,'String',[{'Select the application'},...
+                {this.ProgramList.title}]);
+            
             % Add a property to the menu for storing the program file
             % names
             if ~isprop(this.Gui.InstrMenu, 'ItemsData')
                 addprop(this.Gui.InstrMenu, 'ItemsData');
             end
-            set(this.Gui.InstrMenu,'ItemsData',[{''};...
-                content.tags]);
+            
+            set(this.Gui.InstrMenu,'ItemsData',0:length(this.ProgramList));
             
             % Add Data, Ref and Bg traces in the proper order on the plot
             % as empty lines.
@@ -128,9 +138,6 @@ classdef MyDaq < handle
                 cellfun(@(x) deleteListeners(this, x),...
                     fieldnames(this.Listeners));
             end
-            
-            % clear global variable, to which Daq handle is assigned
-            evalin('base', sprintf('clear(''%s'')', this.global_name));
             
             %A class destructor should never through errors, so enclose the
             %attempt to close figure into try-catch structure
@@ -393,8 +400,14 @@ classdef MyDaq < handle
             %etc to the clipboard.
             newFig = figure('visible','off','Units',this.main_plot.Units,...
                 'Position',posn);
+            
             %Copies the current axes into the new figure.
-            newHandle = copyobj(this.main_plot,newFig); %#ok<NASGU>
+            newAxes = copyobj(this.main_plot,newFig);
+            
+            newAxes.Color = 'none';
+            newAxes.XColor = [0, 0, 0];
+            newAxes.YColor = [0, 0, 0];
+            
             %Prints the figure to the clipboard
             print(newFig,'-clipboard','-dbitmap');
             %Deletes the figure
@@ -403,7 +416,7 @@ classdef MyDaq < handle
         
         %Resets the axis to be tight around the plots.
         function updateAxis(this)
-            axis(this.main_plot,'tight');
+            axis(this.main_plot, 'tight');
         end
     end
     
@@ -469,22 +482,21 @@ classdef MyDaq < handle
         end
         
         %Callback for the instrument menu
-        function instrMenuCallback(this,hObject,~)
+        function instrMenuCallback(this, hObject,~)
             val=hObject.Value;
             if val==1
                 %Returns if we are on the dummy option ('Select instrument')
                 return
             else
-                tag = hObject.ItemsData{val};
+                ind = hObject.ItemsData(val);
             end
 
             try
-                eval(this.ProgramList.(tag).run_expr);
+                eval(this.ProgramList(ind).run_expr);
             catch
                 errordlg(sprintf('An error occured while running %s',...
-                    this.ProgramList.(tag).name))
+                    this.ProgramList(ind).name))
             end
-
         end
         
         %Select trace callback. If we change the trace being analyzed, the
@@ -521,37 +533,12 @@ classdef MyDaq < handle
             fullfilename=fullfile(this.save_dir,this.filename);
             
             if p.Results.make_unique_name && exist(fullfilename, 'file')~=0
-                fullfilename=makeUniqueFileName(this); 
+                fullfilename = createUniqueFileName( ...
+                    fullfile(this.save_dir, this.filename)); 
             end
             
             %Save in readable format using the method of MyTrace
             save(this.(trace_tag), fullfilename)
-        end
-        
-        % Make the filename unique within the measurement folder
-        % by appending _n. This function does not make sure that the 
-        % filename is valid - i.e. does not contain symbols forbidden by 
-        % the file system.   
-        function fullfilename=makeUniqueFileName(this)
-            [~, fn, ext]=fileparts(this.filename);
-            % List all the existing files in the measurement directory
-            % that have the same extension as our filename
-            DirCont=dir(fullfile(this.save_dir,['*', ext]));
-            file_ind=~[DirCont.isdir];
-            existing_fns={DirCont(file_ind).name};
-
-            % Remove extensions
-            [~,existing_fns,~]=cellfun(@fileparts, existing_fns, ...
-                'UniformOutput',false);
-
-            % Generate a new file name
-            if ~isempty(fn)
-                fn=matlab.lang.makeUniqueStrings(fn, existing_fns);
-            else
-                fn=matlab.lang.makeUniqueStrings('placeholder', ...
-                    existing_fns);
-            end
-            fullfilename=fullfile(this.save_dir,[fn, ext]); 
         end
         
         %Toggle button callback for showing the data trace.
@@ -804,6 +791,7 @@ classdef MyDaq < handle
             end
             
             load_path=[path_name,load_name];
+            
             %Finds the destination trace from the GUI
             dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
             
@@ -811,8 +799,7 @@ classdef MyDaq < handle
             hline=getLineHandle(this.(dest_trc), this.main_plot);
                 
             %Reset and load the destination trace
-            this.(dest_trc)=MyTrace();
-            load(this.(dest_trc), load_path);
+            this.(dest_trc)=MyTrace.load(load_path);
             
             % Assign existing line handle to the trace
             if ~isempty(hline)
@@ -854,8 +841,18 @@ classdef MyDaq < handle
         %Callback function for the NewData listener
         function acquireNewData(this, EventData)
             %Get the currently selected instrument
-            val=this.Gui.InstrMenu.Value;
-            curr_instr_name=this.Gui.InstrMenu.ItemsData{val};
+            
+            val = this.Gui.InstrMenu.Value;
+            
+            ind = this.Gui.InstrMenu.ItemsData(val);
+            
+            if ind == 0
+                
+                % No application selected
+                return
+            end
+            
+            curr_instr_name = this.ProgramList(ind).name;
             
             %Check if the data originates from the currently selected
             %instrument
@@ -971,11 +968,6 @@ classdef MyDaq < handle
         %Get function from save directory
         function save_dir=get.save_dir(this)
             save_dir=createSessionPath(this.base_dir,this.session_name);
-        end
-        
-        %Get function for the plot handles
-        function main_plot=get.main_plot(this)
-            main_plot=this.Gui.figure1.CurrentAxes; 
         end
         
         %Get function for open fits

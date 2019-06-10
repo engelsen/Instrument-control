@@ -2,8 +2,38 @@
 
 function runLogViewer()
     name = 'LogViewer';
-    Lg=MyLogger();
-    Lw=GuiLogger(Lg,'dummy_mode',true);
-    assignin('base',name,Lw);
+    
+    Collector = MyCollector.instance();
+    
+    if ismember(name, Collector.running_instruments)
+        
+        % If LogViewer is already present in the Collector, do not create
+        % a new one, but rather bring focus to the existing one.
+        disp([name, ' is already running.']);
+        
+        Gui = getInstrumentProp(Collector, name, 'Gui');
+        
+        % Bring the window of existing GUI to the front
+        try
+            setFocus(Gui);
+        catch
+        end
+    else
+        
+        % Start GuiLogger in dummy mode
+        GuiLw = GuiLogger();
+        addInstrument(Collector, name, GuiLw.Lg, 'collect_header', false);
+        setInstrumentProp(Collector, name, 'Gui', GuiLw);
+        
+        % Display the instrument's name 
+        Fig = findFigure(GuiLw);
+        Fig.Name = char(name);
+        
+        % Apply color scheme
+        applyLocalColorScheme(Fig);
+        
+        % Move the app figure to the center of the screen
+        centerFigure(Fig);
+    end
 end
 
