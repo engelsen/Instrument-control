@@ -353,6 +353,36 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
                     this.t0 = DemodSample.timestamp(1);
                 end
                 
+<<<<<<< HEAD
+                if this.recording
+                    % If recording is under way, append the new samples to
+                    % the trace
+                    rec_finished = appendSamplesToTrace(this, DemodSample);
+                    
+                    % Recording can be manually stopped by setting
+                    % enable_acq=false
+                    if ~this.enable_acq
+                        rec_finished=true;
+                    end
+                    
+                    % Update elapsed time
+                    this.elapsed_t=this.Trace.x(end);
+                    
+                    % If the adaptive measurement frequency mode is on,
+                    % update the measurement oscillator frequency.
+                    % Make sure that the demodulator record actually
+                    % contains signal by comparing the dispersion of 
+                    % frequency to demodulator bandwidth.
+                    if this.adaptive_meas_osc
+                        [df_avg, df_dev]=calcfreq(this);
+                        if df_dev < this.ad_osc_margin*this.lowpass_bw
+                            this.meas_osc_freq=df_avg;
+                            % Change indicator
+                            this.ad_osc_following=true;
+                        else
+                            this.ad_osc_following=false;
+                        end
+=======
                 % If recording is under way, append the new samples to
                 % the trace
                 rec_finished = appendSamplesToTrace(this, DemodSample);
@@ -376,11 +406,71 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
 
                         % Change indicator
                         this.ad_osc_following = true;
+>>>>>>> NewDaq
                     else
                         this.ad_osc_following = false;
                     end
                 else
+<<<<<<< HEAD
+                    r=sqrt(DemodSample.x.^2+DemodSample.y.^2);
+                    if this.enable_acq && max(r)>this.trig_threshold
+                        % Start acquisition of a new trace if the maximum
+                        % of the signal exceeds threshold
+                        this.recording=true;
+                        
+                        % Find index at which the threshold was
+                        % exceeded
+                        ind0=find(r>this.trig_threshold,1,'first');
+                        
+                        this.t0=DemodSample.timestamp(ind0);
+                        this.elapsed_t=0;
+
+                        % Switch the drive off
+                        this.drive_on=false;
+
+                        % Set the measurement oscillator frequency to be
+                        % the frequency at which triggering occurred
+                        this.meas_osc_freq=this.drive_osc_freq;
+
+                        % Switch the oscillator
+                        this.current_osc=this.meas_osc;
+                        
+                        % Optionally start the auxiliary output timers
+                        if this.enable_aux_out
+                            % Configure measurement periods and delays
+                            T=this.aux_out_on_t+this.aux_out_off_t;
+                            this.AuxOutOffTimer.Period=T;
+                            this.AuxOutOnTimer.Period=T;
+                            
+                            this.AuxOutOffTimer.startDelay=...
+                                this.aux_out_on_t;
+                            this.AuxOutOnTimer.startDelay=T;
+                            
+                            % Start timers
+                            start(this.AuxOutOffTimer)
+                            start(this.AuxOutOnTimer)
+                        end
+                        
+                        % Clear trace and append new data starting from the
+                        % index, at which triggering occurred. 
+                        % Theoretically, a record can be finished with
+                        % this one portion if the record time is set small.
+                        clearData(this.Trace);
+                        
+                        rec_finished = ...
+                            appendSamplesToTrace(this, DemodSample, ind0);
+                        
+                        notify(this, 'RecordingStarted');
+                    else
+                        rec_finished=false;
+                    end
+                    
+                    % Indicator for adaptive measurement is off, since
+                    % recording is not under way
+                    this.ad_osc_following=false;
+=======
                     this.ad_osc_following = false;
+>>>>>>> NewDaq
                 end
             else
                 r = sqrt(DemodSample.x.^2+DemodSample.y.^2);
@@ -515,6 +605,20 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         % Append timestamps vs r=sqrt(x^2+y^2) to the measurement record.
         % Starting index can be supplied as varargin.
         % The output variable tells if the record is finished.
+<<<<<<< HEAD
+        function isfin = appendSamplesToTrace(this, DemodSample, varargin)
+            if isempty(varargin)
+                startind=1;
+            else
+                startind=varargin{1};
+            end
+            
+            r=sqrt(DemodSample.x(startind:end).^2 + ...
+                DemodSample.y(startind:end).^2);
+            % Subtract the reference time, convert timestamps to seconds
+            ts=double(DemodSample.timestamp(startind:end) -...
+                this.t0)/this.clockbase;
+=======
         function isfin = appendSamplesToTrace(this, DemodSample)
             persistent ts_buff r_sq_buff
             
@@ -522,6 +626,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             
             % Subtract the reference time, convert timestamps to seconds
             ts = double(DemodSample.timestamp - this.t0)/this.clockbase;
+>>>>>>> NewDaq
             
             % Check if recording should be stopped
             isfin = (ts(end) >= this.record_time);

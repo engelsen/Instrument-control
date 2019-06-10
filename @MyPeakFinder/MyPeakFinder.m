@@ -180,6 +180,7 @@ classdef MyPeakFinder < handle
             addParameter(p,'base_dir',pwd);
             addParameter(p,'session_name','placeholder');
             addParameter(p,'filename','placeholder');
+            addParameter(p,'fit_width',16)
             parse(p,varargin{:});
             
             fit_names=p.Results.FitNames;
@@ -187,8 +188,8 @@ classdef MyPeakFinder < handle
             %We instantiate the MyFit objects used for the fitting
             Fits=struct();
             for i=1:length(fit_names)
-                Fits.(fit_names{i})=MyFit('fit_name',fit_names{i},...
-                    'enable_gui',0);
+                Fits.(fit_names{i})=launchFit(fit_names{i},...
+                    'enable_gui',0,'enable_plot',0);
                 Fits.(fit_names{i}).base_dir=p.Results.base_dir;
                 Fits.(fit_names{i}).session_name=p.Results.session_name;
                 Fits.(fit_names{i}).filename=...
@@ -198,7 +199,7 @@ classdef MyPeakFinder < handle
             %We fit the peaks 
             for i=1:length(this.Peaks)
                 %First extract the data around the peak
-                [x_fit,y_fit]=extractPeak(this,i);
+                [x_fit,y_fit]=extractPeak(this,i,p.Results.fit_width);
                 
                 for j=1:length(fit_names)
                     Fits.(fit_names{j}).Data.x=x_fit;
@@ -214,10 +215,11 @@ classdef MyPeakFinder < handle
             fprintf('Finished fitting peaks \n');
         end
         
-        function [x_peak,y_peak]=extractPeak(this,peak_no)
+        function [x_peak,y_peak]=extractPeak(this,peak_no,ext_width)
             loc=this.Peaks(peak_no).Location;
             w=this.Peaks(peak_no).Width;
-            ind=(loc-8*w<this.Trace.x) & (loc+8*w>this.Trace.x);
+            ind=(loc-ext_width/2*w<this.Trace.x) &...
+                (loc+ext_width/2*w>this.Trace.x);
             x_peak=this.Trace.x(ind)-loc;
             y_peak=this.Trace.y(ind);
         end
@@ -241,7 +243,7 @@ classdef MyPeakFinder < handle
             fullfilename=fullfile([save_dir,filename,'.txt']);
             
             %Creates the file in the given folder
-            write_flag=createFile(save_dir,fullfilename,overwrite_flag);
+            write_flag=createFile(fullfilename,'overwrite',overwrite_flag);
             
             %Returns if the file is not created for some reason 
             if ~write_flag; return; end

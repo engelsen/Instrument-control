@@ -32,7 +32,7 @@ else
 end
 
 userpanel_h=min_user_h*button_h;
-fig_h=title_h+equation_h+slider_h++savebox_h+userpanel_h;
+fig_h=title_h+equation_h+slider_h+savebox_h+userpanel_h;
 
 %Sets a minimum width
 if this.n_params<4; edit_width=min_fig_width/this.n_params; end
@@ -107,27 +107,28 @@ this.Gui.InitButton=uicontrol('Parent',this.Gui.FitVbox,...
 this.Gui.ClearButton=uicontrol('Parent',this.Gui.FitVbox,...
     'style','pushbutton','Background','w','String','Clear fits','Callback',...
     @(hObject, eventdata) clearFitCallback(this, hObject, eventdata));
+%Creates button for toggling scaling of data if the class has the
+%scale_data property.
+if contains('scale_data',properties(this))
+    this.Gui.ScaleButton=uicontrol('Parent',this.Gui.FitVbox,...
+        'style','togglebutton','Background','w',...
+        'String','Scale data',...
+        'Callback',@(hObject, ~) scaleDataCallback(this,hObject));
+end
 
-
-set(this.Gui.FitVbox,'Heights',[button_h,button_h,button_h]);
+set(this.Gui.FitVbox,...
+    'Heights',button_h*ones(1,length(this.Gui.FitVbox.Heights)));
 
 this.Gui.TabPanel=uix.TabPanel('Parent',this.Gui.UserPanel,...
     'BackgroundColor',rgb_white);
 
-%Creates the user values panel with associated tabs. The cellfun here
-%creates the appropriately named tabs. To add a tab, add a new field to the
-%UserGuiStruct.
-
-usertabs=fieldnames(this.UserGui.Tabs);
-
-if ~isempty(usertabs)
-    cellfun(@(x) createTab(this,x,rgb_white,button_h),usertabs);
-    this.Gui.TabPanel.TabTitles=...
-        cellfun(@(x) this.UserGui.Tabs.(x).tab_title, usertabs,...
-        'UniformOutput',0);
-end
+%Creates the user gui. Made into its own function such that it can be
+%overloaded for future customization
+createUserGui(this, rgb_white, button_h);
 
 
+%This creates the boxes for saving files and for specifying file saving
+%properties
 this.Gui.SavePanel=uix.BoxPanel( 'Parent', this.Gui.SaveHbox,...
     'Padding',0,'BackgroundColor', rgb_white,...
     'Title','Save Panel','TitleColor',rgb_blue);

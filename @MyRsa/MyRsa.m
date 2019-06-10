@@ -139,12 +139,24 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
             % Calculate the frequency axis
             this.Trace.x = linspace(this.start_freq, this.stop_freq,...
                 this.point_no);
+<<<<<<< HEAD
+            %Calculates the power spectrum from the data, which is in dBm.
+            %Output is in V^2/Hz
+            readProperty(this,'rbw');
+            power_spectrum = (10.^(data/10))/this.rbw*50*0.001;
+            %Trace object is created containing the data and its units
+            this.Trace.x = x_vec;
+            this.Trace.y = power_spectrum;
+            
+            this.acq_trace=n_trace;
+=======
             
             % Calculates the power spectrum from the data, which is in dBm.
             % Output is in V^2/Hz
             this.Trace.y = (10.^(data/10))/this.rbw_act*50*0.001;
             
             this.acq_trace = n_trace;
+>>>>>>> NewDaq
 
             % Trigger acquired data event 
             triggerNewData(this);

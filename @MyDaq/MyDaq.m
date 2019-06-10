@@ -674,14 +674,6 @@ classdef MyDaq < handle
             end
         end
         
-        %Callback for filename edit box. Sets the file name. Also
-        %updates fit objects with the new file name.
-        function fileNameCallback(this, ~,~)
-            for i=1:length(this.open_fits)
-                this.Fits.(this.open_fits{i}).filename=this.filename;
-            end
-        end
-       
         %Callback for the analyze menu (popup menu for selecting fits).
         %Opens the correct MyFit object.
         function analyzeMenuCallback(this, hObject, ~)
@@ -720,8 +712,8 @@ classdef MyDaq < handle
                 %with the vertical cursors
                 DataTrace=getFitData(this,'VertData');
                 %Makes an instance of MyFit with correct parameters.
-                this.Fits.(fit_name)=MyFit(...
-                    'fit_name',fit_name,...
+                this.Fits.(fit_name)=launchFit(...
+                    fit_name,...
                     'enable_plot',1,...
                     'plot_handle',this.main_plot,...
                     'Data',DataTrace,...
@@ -876,8 +868,10 @@ classdef MyDaq < handle
                     'Color',this.data_color,...
                     'make_labels',true)
                 updateAxis(this);
-                updateCursors(this);
+                %Clears the fits when new data is acquired.
+                structfun(@(x) clearFit(x), this.Fits);
                 updateFits(this);
+                updateCursors(this);
                 
                 % If the save flag is on in EventData, save the new trace
                 % making sure that a unique filename is generated to not
