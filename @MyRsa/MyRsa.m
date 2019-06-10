@@ -26,8 +26,8 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
             
             % We define commands for both the nominal and actual resolution
             % bandwidths as these two are useful in different
-            % circumstances. The nominal on unlike the actual one takes 
-            % an effect immediately after it is set to a new value, whereas
+            % circumstances. The nominal one unlike the actual one takes 
+            % effect immediately after it is set to a new value, whereas
             % the actual one is the true rbw if the device does not follow 
             % the nominal one (usually if the nominal rbw is is too small).
             addCommand(this, 'rbw', ':DPX:BANDwidth:RESolution', ...
