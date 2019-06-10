@@ -335,13 +335,14 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                         
                         % Add a new parameter-value pair to the current 
                         % metadata
-                        [name, value, comment, Subs] = S.match{:};
+                        [name, value, format, comment, Subs] = S.match{:};
                         
                         if ~isparam(TmpMdt, name)
                             
                             % Add new parameter
                             addParam(TmpMdt, name, value, ...
-                                'SubStruct', Subs, 'comment', comment);
+                                'format', format, 'SubStruct', Subs, ...
+                                'comment', comment);
                         else
                             
                             % Assign the value to a new subscript of 
@@ -400,10 +401,10 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 if isvarname(name)
                     
                     % Attempt converting the value to a number
-                    value = str2doubleHedged(pv_token{2});
+                    [value, format] = str2doubleHedged(pv_token{2});
 
                     S.type = 'paramval';
-                    S.match = {name, value, comment, Subs};
+                    S.match = {name, value, format, comment, Subs};
                     return
                 end
             end
