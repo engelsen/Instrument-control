@@ -116,12 +116,21 @@ classdef MyCommCont < handle
             try
                 fopen(this.Comm);
             catch
+                if isa(this.Comm, 'serial')
+                    
+                    % Try to find and close all the serial objects
+                    % connected to the same port
+                    instr_list = instrfind('Port', this.Comm.Port);
+                else
+                    
+                    % Try to find and close all the devices with the same
+                    % VISA resource name
+                    instr_list = instrfind('RsrcName', this.Comm.RsrcName);
+                end
                 
-                % try to find and close all the devices with the same
-                % VISA resource name
-                instr_list = instrfind('RsrcName', this.Comm.RsrcName);
                 fclose(instr_list);
                 fopen(this.Comm);
+                
                 warning(['Multiple instrument objects of ' ...
                     'address %s exist'], this.address);
             end
