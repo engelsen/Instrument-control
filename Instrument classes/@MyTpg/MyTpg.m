@@ -81,8 +81,8 @@ classdef MyTpg < MyInstrument & MyCommCont
         % Attempt communication and identification of the device
         function [str, msg] = idn(this)
             try
-                queryString(['AYT', this.CR, this.LF]);
-                str = queryString(this.ENQ);
+                queryString(this, ['AYT', this.CR, this.LF]);
+                str = queryString(this, this.ENQ);
             catch ME
                 str = '';
                 msg = ME.message;
