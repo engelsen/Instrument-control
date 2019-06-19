@@ -1018,7 +1018,9 @@ classdef MyDaq < handle
             try
                 filename=this.Gui.FileName.String;
                 [~,~,ext]=fileparts(filename);
-                if isempty(ext)
+                
+                if isempty(ext) || (length(ext) > 5) || any(isspace(ext))
+                    
                     % Add default file extension
                     filename=[filename, this.default_ext];
                 end
