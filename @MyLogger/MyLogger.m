@@ -279,6 +279,11 @@ classdef MyLogger < handle
             % Append measurement result together with time stamp
             appendData(this.Record, Time, meas_result);
             notify(this, 'NewMeasurement');
+            
+            % Wait for any changes in data display to take an effect, this
+            % is needed to prevent an infinite accumulation of callbacks 
+            % in case of slow graphics update 
+            drawnow();
         end
     end
     

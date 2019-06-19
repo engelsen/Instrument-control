@@ -12,7 +12,7 @@ classdef MyNewportUsbComm < MySingleton
         Usb
     end
     
-    methods(Access = private)
+    methods (Access = private)
         
         % The constructor of a singleton class should only be invoked from
         % the instance method.
@@ -22,7 +22,7 @@ classdef MyNewportUsbComm < MySingleton
         end
     end
     
-    methods(Access = public)
+    methods (Access = public)
         
         % Load dll
         function loadLib(this)
@@ -62,18 +62,38 @@ classdef MyNewportUsbComm < MySingleton
             
             stat = Query(this.Usb, addr, cmd, QueryData);
             
-            if stat == 0
-                str = char(ToString(QueryData));
-            else
-                str = '';
-                warning('Query to Newport usb driver was unsuccessful.');
+            if stat ~= 0
+                warning(['Query to Newport usb driver was unsuccessful.'...
+                    errorCodeToMessage(this, stat)]);
             end
+            
+            str = char(ToString(QueryData));
             
             this.isbusy = false;
         end
     end
+    
+    methods (Access = private)
+        
+        % Convert the code returned by read/write/query functions to
+        % a message
+        function str = errorCodeToMessage(~, stat)
+            switch stat
+                case 0
+                    
+                    % No error
+                    str = ''; 
+                case -2
+                    str = 'Error: Device timeout';
+                case 1
+                    str = 'Error: Duplicate USB address';
+                otherwise
+                    str = sprintf('Error Code = %i', stat);
+            end
+        end
+    end
    
-    methods(Static)
+    methods (Static)
         
         % Concrete implementation of the singleton constructor.
         function this = instance()
