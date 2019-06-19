@@ -40,18 +40,11 @@ classdef MyNewportUsbComm < MySingleton
         end
         
         function str = query(this, addr, cmd)
-            try
-                waitfor(this, 'isbusy', false);
-            catch ME
-                warning(ME.message)
-            end
             
             % Check if the driver is already being used by another process.
             % A race condition with various strange consequences is 
             % potentially possible if it is.
-            if this.isbusy
-                warning('NewportUsbComm is already in use')
-            end
+            assert(~this.isbusy, 'NewportUsbComm is already in use.')
             
             this.isbusy = true;
             
