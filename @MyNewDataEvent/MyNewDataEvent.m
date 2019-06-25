@@ -22,15 +22,11 @@ classdef MyNewDataEvent < event.EventData
         % transferring an existing trace to Daq by triggering NewData.
         new_header = true
         
-        % If the new data should be automatically saved by Daq.
+        % If the new data should be automatically saved by Daq
         save = false
         
-        % If 'save' is true and 'filename_ending' is not empty, Daq appends  
-        % the ending to the file name before saving. In this way the  
-        % default way of generating unique file names by Daq can be 
-        % overwritten.
-        filename_ending = ''
-        
+        % Trace name to be used by Daq
+        trace_name = ''
     end
     
     methods 
