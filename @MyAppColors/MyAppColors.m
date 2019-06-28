@@ -6,6 +6,10 @@ classdef (Abstract) MyAppColors
         %% Predefined colors
         % Colors are represented by rgb triplets returned by static methods
         
+        function rgb = ok()
+            rgb = [0.47, 0.67, 0.19]; % Green
+        end
+        
         function rgb = warning()
             rgb = [0.93, 0.69, 0.13]; % Orange
         end
