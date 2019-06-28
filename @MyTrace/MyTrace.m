@@ -114,71 +114,61 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
         function plot(this, varargin)
+            
             % Do nothing if there is no data in the trace
-            if isempty(this)
+            if isDataEmpty(this)
                 return
             end
             
-            %Checks that x and y are the same size
+            % Checks that x and y are the same size
             assert(validatePlot(this),...
                 'The length of x and y must be identical to make a plot')
-            %Parses inputs 
-            p=inputParser();
+            
+            % Parses inputs 
+            p = inputParser();
+            p.KeepUnmatched = true;
             
             % Axes in which log should be plotted
-            addOptional(p, 'plot_axes', [], @(x)assert( ...
+            addOptional(p, 'Axes', [], @(x)assert( ...
                 isa(x,'matlab.graphics.axis.Axes')||...
                 isa(x,'matlab.ui.control.UIAxes'),...
                 'Argument must be axes or uiaxes.'));
             
-            validateColor=@(x) assert(iscolor(x),...
-                'Input must be a valid color. See iscolor function');
-            addParameter(p,'Color','b',validateColor);
+            addParameter(p, 'make_labels', true, @islogical);
             
-            validateMarker=@(x) assert(ismarker(x),...
-                'Input must be a valid marker. See ismarker function');
-            addParameter(p,'Marker','none',validateMarker);
-            
-            validateLine=@(x) assert(isline(x),...
-                'Input must be a valid linestyle. See isline function');
-            addParameter(p,'LineStyle','-',validateLine);
-            
-            addParameter(p,'MarkerSize',6,...
-                @(x) validateattributes(x,{'numeric'},{'positive'}));
-            
-            addParameter(p,'make_labels',false,@islogical);
-            
-            interpreters={'none','tex','latex'};
-            validateInterpreter=@(x) assert(contains(x,interpreters),...
+            interpreters = {'none', 'tex', 'latex'};
+            validateInterpreter = @(x) assert(contains(x,interpreters), ...
                 'Interpreter must be none, tex or latex');
-            addParameter(p,'Interpreter','latex',validateInterpreter);
-            parse(p,varargin{:});
+            addParameter(p, 'Interpreter', 'latex', validateInterpreter);
+            parse(p, varargin{:});
+            
+            line_opts = struct2namevalue(p.Unmatched);
             
             %If axes are not supplied get current
-            if ~isempty(p.Results.plot_axes)
-                plot_axes=p.Results.plot_axes;
+            if ~isempty(p.Results.Axes)
+                Axes = p.Results.Axes;
             else
-                plot_axes=gca();
+                Axes = gca();
             end
             
-            ind=findLineInd(this, plot_axes);
+            ind = findLineInd(this, Axes);
             if ~isempty(ind) && any(ind)
-                set(this.hlines{ind},'XData',this.x,'YData',this.y);
+                set(this.hlines{ind}, 'XData', this.x, 'YData', this.y);
             else
-                this.hlines{end+1}=plot(plot_axes,this.x,this.y);
-                ind=length(this.hlines);
+                this.hlines{end+1} = plot(Axes, this.x, this.y);
+                ind = length(this.hlines);
             end
             
             %Sets the correct color and label options
-            set(this.hlines{ind},'Color',p.Results.Color,'LineStyle',...
-                p.Results.LineStyle,'Marker',p.Results.Marker,...
-                'MarkerSize',p.Results.MarkerSize);
+            set(this.hlines{ind}, line_opts{:});
             
             if p.Results.make_labels
-                interpreter=p.Results.Interpreter;
-                xlabel(plot_axes,this.label_x,'Interpreter',interpreter);
-                ylabel(plot_axes,this.label_y,'Interpreter',interpreter);
-                set(plot_axes,'TickLabelInterpreter',interpreter);
+                
+                % Add labels to the axes
+                interpreter = p.Results.Interpreter;
+                xlabel(Axes, this.label_x, 'Interpreter', interpreter);
+                ylabel(Axes, this.label_y, 'Interpreter', interpreter);
+                set(Axes, 'TickLabelInterpreter', interpreter);
             end
         end
         
