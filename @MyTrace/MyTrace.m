@@ -51,6 +51,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             this.MeasHeaders = MyMetadata.empty();
         end
         
+        function delete(this)
+            
+            % Delete lines from all the axes the trace is plotted in
+            cellfun(@delete, this.hlines);
+        end
+        
         %Defines the save function for the class.
         function save(this, filename, varargin)
             
@@ -152,6 +158,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             ind = findLineInd(this, Axes);
+            
             if ~isempty(ind) && any(ind)
                 set(this.hlines{ind}, 'XData', this.x, 'YData', this.y);
             else
@@ -159,8 +166,10 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 ind = length(this.hlines);
             end
             
-            %Sets the correct color and label options
-            set(this.hlines{ind}, line_opts{:});
+            % Sets the correct color and label options
+            if ~isempty(line_opts)
+                set(this.hlines{ind}, line_opts{:});
+            end
             
             if p.Results.make_labels
                 
@@ -275,12 +284,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 && length(this.x)==length(this.y);
         end
         
-        function hline = getLineHandle(this,ax)
-            ind=findLineInd(this,ax);
+        function hline = getLine(this, Ax)
+            ind = findLineInd(this, Ax);
             if ~isempty(ind)
-                hline=this.hlines{ind}; 
+                hline = this.hlines{ind}; 
             else
-                hline=[];
+                hline = [];
             end
         end
     end

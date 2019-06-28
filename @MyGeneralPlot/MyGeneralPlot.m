@@ -572,7 +572,7 @@ classdef MyDaq < handle
             if this.Data.validatePlot
                 % Copy Data to Reference and pass Reference the handle to 
                 % the line in the main plot
-                hline=getLineHandle(this.Ref, this.main_plot);
+                hline=getLine(this.Ref, this.main_plot);
                 this.Ref=copy(this.Data);
                 if ~isempty(hline)
                     this.Ref.hlines{1}=hline;
@@ -595,7 +595,7 @@ classdef MyDaq < handle
         %Callback for ref to bg button. Sends the reference to background
         function refToBgCallback(this, ~, ~)
             if this.Ref.validatePlot
-                hline=getLineHandle(this.Background, this.main_plot);
+                hline=getLine(this.Background, this.main_plot);
                 this.Background=copy(this.Ref);
                 if ~isempty(hline)
                     this.Background.hlines{1}=hline;
@@ -611,7 +611,7 @@ classdef MyDaq < handle
         %Callback for data to bg button. Sends the data to background
         function dataToBgCallback(this, ~, ~)
             if this.Data.validatePlot
-                hline=getLineHandle(this.Background, this.main_plot);
+                hline=getLine(this.Background, this.main_plot);
                 this.Background=copy(this.Data);
                 if ~isempty(hline)
                     this.Background.hlines{1}=hline;
@@ -796,7 +796,7 @@ classdef MyDaq < handle
             dest_trc=this.Gui.DestTrc.String{this.Gui.DestTrc.Value};
             
             %Get the line handle from the trace to not create a new line
-            hline=getLineHandle(this.(dest_trc), this.main_plot);
+            hline=getLine(this.(dest_trc), this.main_plot);
                 
             %Reset and load the destination trace
             this.(dest_trc)=MyTrace.load(load_path);
@@ -857,7 +857,7 @@ classdef MyDaq < handle
             %Check if the data originates from the currently selected
             %instrument
             if strcmp(EventData.src_name, curr_instr_name)
-                hline=getLineHandle(this.Data,this.main_plot);
+                hline=getLine(this.Data,this.main_plot);
                 %Copy the data from the source instrument
                 this.Data=copy(EventData.Trace);
                 %We give the new trace object the right line handle to plot in

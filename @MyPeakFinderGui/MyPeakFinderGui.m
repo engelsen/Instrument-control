@@ -133,7 +133,7 @@ classdef MyPeakFinderGui < handle
         end
         
         function clearCallback(this, ~, ~)
-            delete(getLineHandle(this.PeakFinder.Trace,this.axis_handle));
+            delete(getLine(this.PeakFinder.Trace,this.axis_handle));
             clearData(this.PeakFinder.Trace);
             cla(this.axis_handle);
         end
@@ -217,7 +217,7 @@ classdef MyPeakFinderGui < handle
     
     methods
         function trace_handle=get.trace_handle(this)
-            trace_handle=getLineHandle(this.PeakFinder.Trace,this.axis_handle);
+            trace_handle=getLine(this.PeakFinder.Trace,this.axis_handle);
         end
         
         function base_dir=get.base_dir(this)
