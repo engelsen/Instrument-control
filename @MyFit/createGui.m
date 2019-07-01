@@ -1,7 +1,12 @@
 function createGui(this)
 
-%Makes the fit name have the first letter capitalized
-fit_name=[upper(this.fit_name(1)),this.fit_name(2:end)];
+if ~isempty(this.fit_name)
+    
+    %Makes the fit name have the first letter capitalized
+    fit_name=[upper(this.fit_name(1)),this.fit_name(2:end)];
+else
+    fit_name='';
+end
 
 %Defines the colors for the Gui
 rgb_blue=[0.1843,0.4157,1];
@@ -35,7 +40,15 @@ userpanel_h=min_user_h*button_h;
 fig_h=title_h+equation_h+slider_h+savebox_h+userpanel_h;
 
 %Sets a minimum width
-if this.n_params<4; edit_width=min_fig_width/this.n_params; end
+if this.n_params < 4 
+    if this.n_params ~= 0
+        edit_width=min_fig_width/this.n_params; 
+    else
+        
+        % Support the case of dummy fit with no parameters
+        edit_width=min_fig_width;
+    end
+end
 fig_width=edit_width*this.n_params;
 
 %Name sets the title of the window, NumberTitle turns off the FigureN text

@@ -236,7 +236,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         %Integrates the trace numerically
         function area=integrate(this,varargin)
-            assert(validatePlot(this),['MyTrace object must contain',...
+            assert(validatePlot(this), ['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to integrate'])
             
             %Input parser for optional inputs

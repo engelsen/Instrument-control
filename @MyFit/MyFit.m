@@ -5,14 +5,15 @@ classdef MyFit < dynamicprops
         init_params=[]; %Contains the initial parameters
         lim_lower; %Lower limits for fit parameters
         lim_upper; %Upper limits for fit parameters
-        enable_plot; %If enabled, plots initial parameters in the plot_handle
-        plot_handle; %The handle which fits and init params are plotted in
+        enable_plot; %If enabled, plots initial parameters in the Axes
+        Axes; %The handle which fits and init params are plotted in
         init_color='c'; %Color of plot of initial parameters
     end
     
     properties (GetAccess=public, SetAccess=protected)
         Fit; %MyTrace object containing the fit
         Gui; %Gui handles
+        
         %Output structures from fit:
         Fitdata;
         Gof;
@@ -78,7 +79,7 @@ classdef MyFit < dynamicprops
         function createParser(this)
             p=inputParser;
             addParameter(p,'fit_name','')
-            addParameter(p,'fit_function','')
+            addParameter(p,'fit_function','x')
             addParameter(p,'fit_tex','')
             addParameter(p,'fit_params',{})
             addParameter(p,'fit_param_names',{})
@@ -88,7 +89,7 @@ classdef MyFit < dynamicprops
             addParameter(p,'y',[]);
             addParameter(p,'enable_gui',1);
             addParameter(p,'enable_plot',1);
-            addParameter(p,'plot_handle',[]);
+            addParameter(p,'Axes',[]);
             addParameter(p,'base_dir',this.SaveInfo.filename);
             addParameter(p,'session_name',this.SaveInfo.session_name);
             addParameter(p,'filename',this.SaveInfo.base_dir);
@@ -114,7 +115,7 @@ classdef MyFit < dynamicprops
             %Generates the anonymous fit function from the input fit
             %function. This is used for fast plotting of the initial
             %values.
-            args=['@(x,', strjoin(this.fit_params,','),')'];
+            args=['@(', strjoin([{'x'}, this.fit_params], ','),')'];
             this.anon_fit_fun=...
                 str2func(vectorize([args,this.fit_function]));
             
@@ -324,10 +325,10 @@ classdef MyFit < dynamicprops
         %calculating the new values
         function plotFit(this,varargin)
             calcFit(this);
-            assert((isa(this.plot_handle,'matlab.graphics.axis.Axes')||...
-                isa(this.plot_handle,'matlab.ui.control.UIAxes')),...
-                'plot_handle property must be defined to valid axis in order to plot')
-            this.Fit.plot(this.plot_handle,varargin{:});
+            assert((isa(this.Axes,'matlab.graphics.axis.Axes')||...
+                isa(this.Axes,'matlab.ui.control.UIAxes')),...
+                'Axes property must be defined to valid axis in order to plot')
+            this.Fit.plot(this.Axes,varargin{:});
             clearInitFun(this);
         end
         
@@ -340,7 +341,7 @@ classdef MyFit < dynamicprops
             y_vec=feval(this.anon_fit_fun,...
                 this.x_vec,input_cell{:});
             if isempty(this.hline_init)
-                this.hline_init=plot(this.plot_handle,this.x_vec,y_vec,...
+                this.hline_init=plot(this.Axes,this.x_vec,y_vec,...
                     'Color',this.init_color);
             else
                 set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
@@ -372,7 +373,10 @@ classdef MyFit < dynamicprops
             this.lim_upper=p.Results.upper;
             
             %Plots the fit function with the new initial parameters
-            if this.enable_plot; plotInitFun(this); end
+            if this.enable_plot 
+                plotInitFun(this) 
+            end
+            
             %Updates the GUI and creates new lookup tables for the init
             %param sliders
             if this.enable_gui
@@ -388,8 +392,8 @@ classdef MyFit < dynamicprops
         
         %Does the fit with the currently set parameters
         function doFit(this)
-            ft=fittype(this.fit_function,'coefficients',this.fit_params);
-            opts=fitoptions('Method','NonLinearLeastSquares',...
+            Ft=fittype(this.fit_function,'coefficients',this.fit_params);
+            Opts=fitoptions('Method','NonLinearLeastSquares',...
                 'Lower',this.lim_lower,...
                 'Upper',this.lim_upper,...
                 'StartPoint',this.init_params,...
@@ -399,7 +403,7 @@ classdef MyFit < dynamicprops
                 'TolX',1e-6);
             %Fits with the below properties. Chosen for maximum accuracy.
             [this.Fitdata,this.Gof,this.FitInfo]=...
-                fit(this.Data.x,this.Data.y,ft,opts);
+                fit(this.Data.x,this.Data.y,Ft,Opts);
             %Puts the coeffs into the class variable.
             this.coeffs=coeffvalues(this.Fitdata);
         end
@@ -589,7 +593,9 @@ classdef MyFit < dynamicprops
                 %Updates the edit box with the new value from the slider
                 set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
                     'String',sprintf('%3.3e',this.init_params(param_ind)));
-                if this.enable_plot; plotInitFun(this); end
+                if this.enable_plot 
+                    plotInitFun(this); 
+                end
             end
         end
         

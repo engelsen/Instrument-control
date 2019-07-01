@@ -142,5 +142,4 @@ classdef MyLorentzianFit < MyFit
             s_c(4)=(r_c(4)-mean_y)/std_y;
         end
     end
-    
 end
