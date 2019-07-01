@@ -2,8 +2,10 @@
 
 classdef MyDummyInstrument < MyInstrument & MyDataSource
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         point_no = 1000
+        
+        trace_type = 'zero'
     end
     
     methods (Access = public)
@@ -14,8 +16,36 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource
         function readTrace(this)
             
             % Generate a random trace with the length equal to point_no
-            this.Trace.x = 1:this.point_no;
+            this.Trace.x = (0:this.point_no-1)/(this.point_no-1);
             this.Trace.y = rand(1, this.point_no);
+            
+            switch this.trace_type
+                case 'zero'
+                    
+                    % Do nothing
+                case 'exp'
+                    
+                    % Add exponential "signal"
+                    a = 5+rand();
+                    b = 10*rand();
+                    
+                    sig = a*exp(-b*this.Trace.x);
+                    
+                    this.Trace.y = this.Trace.y + sig;
+                case 'lorentz'
+                    
+                    % Add lorentzian "signal"
+                    a = 10+rand();
+                    b = 10*rand();
+                    x0 = rand();
+                    dx = 0.05*rand();
+                    
+                    sig = a-b*dx^2./((this.Trace.x-x0).^2+dx^2);
+                    
+                    this.Trace.y = this.Trace.y + sig(:);
+                otherwise
+                    error(['Unsupported trace type ' this.trace_type])
+            end
             
             triggerNewData(this);
         end
@@ -55,6 +85,16 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource
             addCommand(this, 'cmd3', ...
                 'readFcn',  @()rand(1,5), ...
                 'info',     'read only vector');
+        end
+    end
+    
+    methods 
+        function set.trace_type(this, val)
+            assert(strcmpi(val, 'zero')|| ...
+                strcmpi(val, 'exp')|| ...
+                strcmpi(val, 'lorentz'), ...
+                'Trace type must be ''zero'', ''exp'' or ''lorentz''.')
+            this.trace_type = lower(val);
         end
     end
 end
