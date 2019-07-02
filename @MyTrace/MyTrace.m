@@ -28,10 +28,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         save_prec   = 15        % Maximum digits of precision in saved data 
     end
     
-    properties (Access = public, NonCopyable = true)
+    properties (GetAccess = public, SetAccess = protected, ...
+            NonCopyable = true)
         
-        % Cell that contains handles the trace is plotted in
-        hlines = {}
+        % Cell that contains the handles of Line objects the trace 
+        % is plotted in
+        PlotLines = {}
     end
     
     properties (Dependent=true)        
@@ -54,7 +56,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function delete(this)
             
             % Delete lines from all the axes the trace is plotted in
-            cellfun(@delete, this.hlines);
+            cellfun(@delete, this.PlotLines);
         end
         
         %Defines the save function for the class.
@@ -134,7 +136,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             p = inputParser();
             p.KeepUnmatched = true;
             
-            % Axes in which log should be plotted
+            % Axes in which the trace should be plotted
             addOptional(p, 'Axes', [], @(x)assert( ...
                 isa(x,'matlab.graphics.axis.Axes')||...
                 isa(x,'matlab.ui.control.UIAxes'),...
@@ -160,15 +162,15 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             ind = findLineInd(this, Axes);
             
             if ~isempty(ind) && any(ind)
-                set(this.hlines{ind}, 'XData', this.x, 'YData', this.y);
+                set(this.PlotLines{ind}, 'XData', this.x, 'YData', this.y);
             else
-                this.hlines{end+1} = plot(Axes, this.x, this.y);
-                ind = length(this.hlines);
+                this.PlotLines{end+1} = plot(Axes, this.x, this.y);
+                ind = length(this.PlotLines);
             end
             
             % Sets the correct color and label options
             if ~isempty(line_opts)
-                set(this.hlines{ind}, line_opts{:});
+                set(this.PlotLines{ind}, line_opts{:});
             end
             
             if p.Results.make_labels
@@ -192,7 +194,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             ind=findLineInd(this, Axes);
             if ~isempty(ind) && any(ind)
-                set(this.hlines{ind},'Visible',vis)
+                set(this.PlotLines{ind},'Visible',vis)
             end
         end
         
@@ -284,12 +286,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 && length(this.x)==length(this.y);
         end
         
-        function hline = getLine(this, Ax)
+        function Line = getLine(this, Ax)
             ind = findLineInd(this, Ax);
             if ~isempty(ind)
-                hline = this.hlines{ind}; 
+                Line = this.PlotLines{ind}; 
             else
-                hline = [];
+                Line = [];
             end
         end
     end
@@ -431,9 +433,9 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         % Finds the hline handle that is plotted in the specified axes
         function ind = findLineInd(this, Axes)
-            if ~isempty(this.hlines)
+            if ~isempty(this.PlotLines)
                 ind = cellfun(@(x) ismember(x, findall(Axes, ...
-                    'Type','Line')), this.hlines);
+                    'Type','Line')), this.PlotLines);
             else
                 ind = [];
             end
@@ -529,6 +531,5 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function scaled_y=get.scaled_y(this)
             scaled_y=zscore(this.y);
         end
-        
     end
 end
