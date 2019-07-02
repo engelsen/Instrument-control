@@ -1,16 +1,16 @@
 classdef MyFit < dynamicprops
     %Note that dynamicprops classes are handle classes.
     properties (Access=public)
-        Data;           %MyTrace object contains the data to be fitted to
+        Data;               %MyTrace object contains the data to be fitted to
         
-        lim_lower;      %Lower limits for fit parameters
-        lim_upper;      %Upper limits for fit parameters
+        lim_lower;          %Lower limits for fit parameters
+        lim_upper;          %Upper limits for fit parameters
         
-        enable_plot;    %If enabled, plots initial parameters in the Axes
+        enable_plot;        %If enabled, plots initial parameters in the Axes
         
-        Axes;           %The handle which the fit is plotted in
-        fit_color='c';  %Color of the fit line
-        fit_length=1e3; %Number of points in the fit trace
+        Axes;               %The handle which the fit is plotted in
+        fit_color='black';  %Color of the fit line
+        fit_length=1e3;     %Number of points in the fit trace
     end
     
     properties (GetAccess=public, SetAccess=protected)
@@ -36,7 +36,6 @@ classdef MyFit < dynamicprops
     properties (Access=protected)
         %Structure used for initializing GUI of userpanel
         UserGui;
-        Parser; %Input parser for constructor
         enable_gui=1;
         
         %Private struct used for saving file information when there is no
@@ -111,6 +110,8 @@ classdef MyFit < dynamicprops
                 end
             end
             
+            this.Fit = MyTrace();
+            
             %Generates the anonymous fit function from the input fit
             %function. This is used for fast plotting of the initial
             %values.
@@ -119,6 +120,7 @@ classdef MyFit < dynamicprops
                 str2func(vectorize([args,this.fit_function]));
             
             %Sets dummy values for the GUI
+            this.param_vals=zeros(1,this.n_params);
             this.lim_lower=-Inf(1,this.n_params);
             this.lim_upper=Inf(1,this.n_params);
             
@@ -130,7 +132,7 @@ classdef MyFit < dynamicprops
                 this.Data.x=p.Results.x;
                 this.Data.y=p.Results.y;
             end
-            
+                      
             %Creates the structure that contains variables for calibration
             %of fit results
             createUserGuiStruct(this);
@@ -161,8 +163,8 @@ classdef MyFit < dynamicprops
                 %Removes the figure handle to prevent memory leaks
                 this.Gui=[];
             end
-            if ~isempty(this.Fit.hlines); 
-                delete(this.Fit.hlines{:}); 
+            if ~isempty(this.Fit.PlotLines); 
+                delete(this.Fit.PlotLines{:}); 
             end
         end
         
@@ -320,8 +322,7 @@ classdef MyFit < dynamicprops
         
         %Clears the plots
         function clearFit(this)
-            cellfun(@(x) delete(x), this.Fit.hlines);
-            this.Fit.hlines={}
+            cellfun(@(x) delete(x), this.Fit.PlotLines);
         end
         
         %Plots the trace contained in the Fit MyTrace object after
@@ -331,24 +332,7 @@ classdef MyFit < dynamicprops
                 isa(this.Axes,'matlab.ui.control.UIAxes')),...
                 'Axes property must be defined to valid axis in order to plot')
             
-            plot(this.Fit, this.Axes, varargin{:});
-        end
-        
-        %Function for plotting fit model with current initial parameters.
-        function plotInitFun(this)
-            %Substantially faster than any alternative - generating
-            %anonymous functions is very cpu intensive.
-            
-            input_cell=num2cell(this.init_params)
-            y_vec=feval(this.anon_fit_fun,...
-                this.x_vec,input_cell{:})
-            if isempty(this.hline_init)
-                this.hline_init=plot(this.Axes,this.x_vec,y_vec,...
-                    'Color',this.fit_color)
-            else
-                a=
-                set(this.hline_init,'XData',this.x_vec,'YData',y_vec);
-            end
+            plot(this.Fit, this.Axes, 'Color', this.fit_color, varargin{:});
         end
         
         %Generates model-dependent initial parameters, lower and upper
@@ -356,44 +340,12 @@ classdef MyFit < dynamicprops
         function genInitParams(this)
             validateData(this);
             
-            %Cell for putting parameters in to be interpreted in the
-            %parser. Element 1 contains the init params, Element 2 contains
-            %the lower limits and Element 3 contains the upper limits.
-            params=cell(1,3);
-            
-            [params{1},params{2},params{3}]=calcInitParams(this);
-            
-            %For the ease of debugging, validate the calculated parameters 
-            %using parser. I.e. check that the number of generated 
-            %parameters is correct and that all of them fall into the 
-            %specified limits. 
-            n_arg = this.n_params;
-            
-            p=inputParser()
-            validateStart=@(x) assert(isnumeric(x) && isvector(x) && ...
-                length(x)==n_arg, ['Starting points must be given as ' ...
-                'a vector of size %d'],n_arg);
-            validateLower=@(x) assert(isnumeric(x) && isvector(x) && ...
-                length(x)==n_arg, ['Lower limits must be given as ' ...
-                'a vector of size %d'],n_arg);
-            validateUpper=@(x) assert(isnumeric(x) && isvector(x) && ...
-                length(x)==n_arg, ['Upper limits must be given as ' ...
-                'a vector of size %d'], n_arg);
-
-            addOptional(p,'init_params',ones(1,n_arg),validateStart)
-            addOptional(p,'lower',-Inf*ones(1,n_arg),validateLower)
-            addOptional(p,'upper',Inf*ones(1,n_arg),validateUpper)
-
-            parse(p, params{:});
-            
-            %Loads the parsed results into the class variables
-            this.init_params=p.Results.init_params;
-            this.lim_lower=p.Results.lower;
-            this.lim_upper=p.Results.upper
+            calcInitParams(this);
+            calcFit(this);
             
             %Plots the fit function with the new initial parameters
             if this.enable_plot 
-                plotInitFun(this) 
+                plotFit(this) 
             end
             
             %Updates the GUI and creates new lookup tables for the init
@@ -425,9 +377,11 @@ classdef MyFit < dynamicprops
                 'MaxIter',2000,...
                 'TolFun',1e-6,...
                 'TolX',1e-6);
+            
             %Fits with the below properties. Chosen for maximum accuracy.
             [this.Fitdata,this.Gof,this.FitInfo]=...
                 fit(this.Data.x,this.Data.y,Ft,Opts);
+            
             %Puts the coefficients into the class variable.
             this.param_vals=coeffvalues(this.Fitdata);
         end
@@ -516,7 +470,6 @@ classdef MyFit < dynamicprops
             this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
         end
         
-        
         %Creates the user values panel with associated tabs. The cellfun here
         %creates the appropriately named tabs. To add a tab, add a new field to the
         %UserGuiStruct using the class functions in MyFit. This function
@@ -541,7 +494,7 @@ classdef MyFit < dynamicprops
             %Sets the cell to the default value
             for i=1:this.n_params
                 this.slider_vecs{i}=def_vec*this.param_vals(i);
-                set(this.Gui.(sprintf('Slider_%s',this.fit_params{i})),...
+                set(this.Gui.(sprintf('Slider_%s', this.fit_params{i})),...
                     'Value',50);
             end
         end
@@ -563,7 +516,7 @@ classdef MyFit < dynamicprops
             this.Fit.x=linspace(min(this.Data.x), max(this.Data.x), ...
                 this.fit_length);
             input_coeffs=num2cell(this.param_vals);
-            this.Fit.y=this.anon_fit_fun(this.Fit.x,input_coeffs{:});
+            this.Fit.y=this.anon_fit_fun(this.Fit.x, input_coeffs{:});
         end
     end
     
@@ -608,8 +561,12 @@ classdef MyFit < dynamicprops
                 %Updates the edit box with the new value from the slider
                 set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
                     'String',sprintf('%3.3e',this.param_vals(param_ind)));
-                if this.enable_plot 
-                    plotInitFun(this); 
+                
+                %Re-calculate the fit curve.
+                calcFit(this);
+                
+                if this.enable_plot
+                    plotFit(this); 
                 end
             end
         end
@@ -626,7 +583,7 @@ classdef MyFit < dynamicprops
             %Updates the correct initial parameter
             this.param_vals(param_ind)=val;
             if this.enable_plot
-                plotInitFun(this)
+                plotFit(this)
             end
             
             %Triggers event for new init values

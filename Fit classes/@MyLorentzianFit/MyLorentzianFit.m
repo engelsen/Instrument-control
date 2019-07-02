@@ -32,7 +32,7 @@ classdef MyLorentzianFit < MyFit
                 opts=fitoptions('Method','NonLinearLeastSquares',...
                     'Lower',convRealToScaledCoeffs(this,this.lim_lower),...
                     'Upper',convRealToScaledCoeffs(this,this.lim_upper),...
-                    'StartPoint',convRealToScaledCoeffs(this,this.init_params),...
+                    'StartPoint',convRealToScaledCoeffs(this,this.param_vals),...
                     'MaxFunEvals',2000,...
                     'MaxIter',2000,...
                     'TolFun',1e-6,...
@@ -41,7 +41,7 @@ classdef MyLorentzianFit < MyFit
                 [this.Fitdata,this.Gof,this.FitInfo]=...
                     fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
                 %Puts the coeffs into the class variable.
-                this.coeffs=convScaledToRealCoeffs(this,...
+                this.param_vals=convScaledToRealCoeffs(this,...
                     coeffvalues(this.Fitdata));
             else
                 %Do the default fitting if we are not scaling.
@@ -63,14 +63,18 @@ classdef MyLorentzianFit < MyFit
                 [init_params,lim_lower,lim_upper]=...
                     initParamLorentzian(this.Data.x,this.Data.y);
             end
+            
+            this.param_vals = init_params;
+            this.lim_lower = lim_lower;
+            this.lim_upper = lim_upper;
         end
         
         %Function for calculating the parameters shown in the user panel
         function calcUserParams(this)
-            this.mech_lw=this.coeffs(2); 
-            this.mech_freq=this.coeffs(3); 
+            this.mech_lw=this.param_vals(2); 
+            this.mech_freq=this.param_vals(3); 
             this.Q=this.mech_freq/this.mech_lw; 
-            this.opt_lw=convOptFreq(this,this.coeffs(2)); 
+            this.opt_lw=convOptFreq(this,this.param_vals(2)); 
             this.Qf=this.mech_freq*this.Q;
         end
         
@@ -103,18 +107,20 @@ classdef MyLorentzianFit < MyFit
         function genSliderVecs(this)
             genSliderVecs@MyFit(this);
             
-            if validateData(this)
+            try 
+                
                 %We choose to have the slider go over the range of
                 %the x-values of the plot for the center of the
                 %Lorentzian.
                 this.slider_vecs{3}=...
-                    linspace(this.x_vec(1),this.x_vec(end),101);
+                    linspace(this.Fit.x(1),this.Fit.x(end),101);
                 %Find the index closest to the init parameter
                 [~,ind]=...
-                    min(abs(this.init_params(3)-this.slider_vecs{3}));
+                    min(abs(this.param_vals(3)-this.slider_vecs{3}));
                 %Set to ind-1 as the slider goes from 0 to 100
                 set(this.Gui.(sprintf('Slider_%s',...
                     this.fit_params{3})),'Value',ind-1);
+            catch 
             end
         end
         
