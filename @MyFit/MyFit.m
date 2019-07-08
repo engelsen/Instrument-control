@@ -1,5 +1,8 @@
+% Class that implements fitting routines with interactive capabilities.
+
 classdef MyFit < dynamicprops
     %Note that dynamicprops classes are handle classes.
+    
     properties (Access=public)
         Data;               %MyTrace object contains the data to be fitted to
         
@@ -71,7 +74,6 @@ classdef MyFit < dynamicprops
     %Events for communicating with outside entities
     events
         NewFit;
-        NewInitVal;
     end
     
     methods (Access=public)
@@ -305,6 +307,9 @@ classdef MyFit < dynamicprops
             %Calculate the fit curve.
             calcFit(this);
             
+            %Calculate user parameters
+            calcUserParams(this);
+            
             %Updates the gui if it is enabled
             if this.enable_gui
                 genSliderVecs(this);
@@ -406,6 +411,11 @@ classdef MyFit < dynamicprops
             this.param_vals=init_params;
             this.lim_lower=lim_lower;
             this.lim_upper=lim_upper;
+        end
+        
+        %Calculate user parameters from fit parameters.
+        %Dummy method that needs to be overloaded in subclasses.
+        function calcUserParams(this) %#ok<MANU>
         end
         
         %Parent is the parent tab for the userfield, tag is the tag given
@@ -521,7 +531,8 @@ classdef MyFit < dynamicprops
     end
     
     %Callbacks
-    methods
+    methods (Access = protected)
+        
         %Save fit function callback
         function saveFitCallback(this,~,~)
             assert(~isempty(this.base_dir),'Save directory is not specified');
@@ -538,78 +549,104 @@ classdef MyFit < dynamicprops
             saveParams(this);
         end
         
-        
-        
-        %Callback functions for sliders in GUI. Uses param_ind to find out
-        %which slider the call is coming from, this was implemented to
-        %speed up the callback. Note that this gets triggered whenever the
-        %value of the slider is changed.
-        function sliderCallback(this, param_ind, hObject, ~)
-            %Gets the value from the slider
-            val=get(hObject,'Value');
+        %Creates callback functions for sliders in GUI. Uses ind to find 
+        %out which slider the call is coming from. Note that this gets 
+        %triggered whenever the value of the slider is changed.
+        function f = createSliderStateChangedCallback(this, ind)
+            edit_field_name = sprintf('Edit_%s',this.fit_params{ind});
             
-            %Find out if the current slider value is correct for the
-            %current init param value. If so, do not change anything. This
-            %is required as the callback also gets called when the slider
-            %values are changed programmatically
-            [~,ind]=...
-                min(abs(this.param_vals(param_ind)-this.slider_vecs{param_ind}));
-            if ind~=(val+1)
-                %Updates the scale with a new value from the lookup table
-                this.param_vals(param_ind)=...
-                    this.slider_vecs{param_ind}(val+1);
-                %Updates the edit box with the new value from the slider
-                set(this.Gui.(sprintf('Edit_%s',this.fit_params{param_ind})),...
-                    'String',sprintf('%3.3e',this.param_vals(param_ind)));
+            function sliderStateChangedCallback(hObject, ~)
+                %Gets the value from the slider
+                val=hObject.Value;
+
+                %Find out if the current slider value is correct for the
+                %current init param value. If so, do not change anything. 
+                %This is required as the callback also gets called when 
+                %the slider values are changed programmatically
+                [~, slider_ind]=...
+                    min(abs(this.param_vals(ind)-this.slider_vecs{ind}));
                 
-                %Re-calculate the fit curve.
-                calcFit(this);
-                
-                if this.enable_plot
-                    plotFit(this); 
+                if slider_ind~=(val+1)
+                    %Updates the scale with a new value from the lookup 
+                    %table
+                    this.param_vals(ind)=...
+                        this.slider_vecs{ind}(val+1);
+                    %Updates the edit box with the new value from the 
+                    %slider
+                    set(this.Gui.(edit_field_name),...
+                        'String', sprintf('%3.3e',this.param_vals(ind)));
+
+                    %Re-calculate the fit curve.
+                    calcFit(this);
+
+                    if this.enable_plot
+                        plotFit(this); 
+                    end
                 end
             end
+            
+            f = @sliderStateChangedCallback;
         end
         
-        %Callback function for edit boxes in GUI
-        function editCallback(this, hObject, ~)
-            val=str2double(hObject.String);
-            param_ind=str2double(hObject.Tag);
+        function f = createParamFieldEditedCallback(this, ind)
+            function paramEditFieldCallback(hObject, ~)
+                val=str2double(hObject.String);
+                updateParamVal(this, ind, val);
+            end
             
-            %Centers the slider
-            set(this.Gui.(sprintf('Slider_%s',this.fit_params{param_ind})),...
-                'Value',50);
+            f = @paramEditFieldCallback;
+        end
+        
+        function f = createSliderMouseReleasedCallback(this, ind)
+            function sliderMouseReleasedCallback(hObject, ~)
+                slider_ind=hObject.Value;
+                val = this.slider_vecs{ind}(slider_ind+1);
+                updateParamVal(this, ind, val);
+            end
+            
+            f = @sliderMouseReleasedCallback;
+        end
+        
+        %Callback function for the manual update of the values of fit 
+        %parameters in GUI. Triggered when values in the boxes are editted
+        %and when pulling a slider is over.
+        function updateParamVal(this, ind, new_val)
             
             %Updates the correct initial parameter
-            this.param_vals(param_ind)=val;
+            this.param_vals(ind)=new_val;
+            
+            %Re-calculate the fit curve.
+            calcFit(this);
+                
             if this.enable_plot
                 plotFit(this)
             end
             
-            %Triggers event for new init values
-            triggerNewInitVal(this);
+            %Centers the slider
+            set(this.Gui.(sprintf('Slider_%s',this.fit_params{ind})),...
+                'Value',50);
             
             %Generate the new slider vectors
             genSliderVecs(this);
+            
+            %Calculate user parameters
+            calcUserParams(this);
         end
         
-        %Callback function for editing limits in the GUI
-        function limEditCallback(this, hObject,~)
-            lim = str2double(hObject.String);
-            %Regexp finds type (lower or upper bound) and index
-            expr = '(?<type>Upper|Lower)(?<ind>\d+)';
-            s=regexp(hObject.Tag,expr,'names');
-            ind=str2double(s.ind);
-            
-            switch s.type
-                case 'Lower'
-                    this.lim_lower(ind)=lim;
-                case 'Upper'
-                    this.lim_upper(ind)=lim;
-                otherwise
-                    error('%s is not properly named for assignment of limits',...
-                        hObject.Tag);
+        function f = createLowerLimEditCallback(this, ind)
+            function lowerLimEditCallback(hObject, ~)
+                this.lim_lower(ind)=str2double(hObject.String);
             end
+            
+            f = @lowerLimEditCallback;
+        end
+        
+        function f = createUpperLimEditCallback(this, ind)
+            function upperLimEditCallback(hObject, ~)
+                this.lim_upper(ind)=str2double(hObject.String);
+            end
+            
+            f = @upperLimEditCallback;
         end
         
         %Callback function for analyze button in GUI. Checks if the data is
@@ -658,11 +695,6 @@ classdef MyFit < dynamicprops
         %e.g. plot new fits
         function triggerNewFit(this)
             notify(this,'NewFit');
-        end
-        
-        %Triggers the NewInitVal event
-        function triggerNewInitVal(this)
-            notify(this,'NewInitVal');
         end
         
         %Updates the GUI if the edit or slider boxes are changed from
