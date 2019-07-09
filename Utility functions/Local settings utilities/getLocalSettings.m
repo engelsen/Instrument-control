@@ -17,6 +17,10 @@ function Settings = getLocalSettings(varargin)
                 'settings are the following:\n%s'], varargin{1}, ...
                 var2str(fieldnames(AllSettings)));
         end
+    else
+        
+        % Return all settings as a structure
+        Settings = AllSettings;
     end
 end
 

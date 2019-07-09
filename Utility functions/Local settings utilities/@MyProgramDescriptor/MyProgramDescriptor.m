@@ -21,37 +21,37 @@ classdef MyProgramDescriptor
 
     methods 
         function this = set.name(this, val)
-         assert(isvarname(val), '''name'' must be valid variable name')
-         this.name = val;
+            assert(isvarname(val), '''name'' must be valid variable name')
+            this.name = val;
         end
 
         % If title is not specified, return name
         function val = get.title(this)
-         if isempty(this.title)
-             val = this.name;
-         else
-             val = this.title;
-         end
+            if isempty(this.title)
+                val = this.name;
+            else
+                val = this.title;
+            end
         end
 
         function this = set.enabled(this, val)
 
-         % Attempt convertion to logical
-         val = logical(val);
+            % Attempt convertion to logical
+            val = logical(val);
 
-         assert(islogical(val) && isscalar(val), ['Value assigned ' ...
+            assert(islogical(val) && isscalar(val), ['Value assigned ' ...
              'to ''enabled'' must be a logical scalar.']);
-         this.enabled = val;
+            this.enabled = val;
         end
 
         function this = set.data_source(this, val)
 
-         % Attempt convertion to logical
-         val = logical(val);
+            % Attempt convertion to logical
+            val = logical(val);
 
-         assert(islogical(val) && isscalar(val), ['Value assigned ' ...
+            assert(islogical(val) && isscalar(val), ['Value assigned ' ...
              'to ''data_source'' must be a logical scalar.']);
-         this.data_source = val;
+            this.data_source = val;
         end
     end
 end
