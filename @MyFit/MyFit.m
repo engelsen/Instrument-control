@@ -10,7 +10,7 @@ classdef MyFit < dynamicprops
         lim_upper;          %Upper limits for fit parameters
         
         enable_plot;        %If enabled, plots initial parameters in the Axes
-        
+                            
         Axes;               %The handle which the fit is plotted in
         fit_color='black';  %Color of the fit line
         fit_length=1e3;     %Number of points in the fit trace
@@ -37,6 +37,7 @@ classdef MyFit < dynamicprops
     end
     
     properties (Access=protected)
+        
         %Structure used for initializing GUI of userpanel
         UserGui;
         enable_gui=1;
@@ -44,7 +45,9 @@ classdef MyFit < dynamicprops
         %Private struct used for saving file information when there is no
         %gui
         SaveInfo
-        slider_vecs; %Vectors for varying the range of the sliders for different fits
+        
+        %Vectors for varying the range of the sliders for different fits
+        slider_vecs; 
     end
     
     %Dependent variables with no set methods
@@ -78,6 +81,7 @@ classdef MyFit < dynamicprops
     
     methods (Access=public)
         function this=MyFit(varargin)
+            
             %Sets the default parameters for the save directory and
             %filename.
             this.SaveInfo.filename='placeholder';
@@ -86,7 +90,7 @@ classdef MyFit < dynamicprops
             
             %We now create the parser for parsing the arguments to the
             %constructor, and parse the variables.
-            p=inputParser;
+            p=inputParser();
             addParameter(p,'fit_name','')
             addParameter(p,'fit_function','x')
             addParameter(p,'fit_tex','')
@@ -98,6 +102,8 @@ classdef MyFit < dynamicprops
             addParameter(p,'enable_gui',1);
             addParameter(p,'enable_plot',1);
             addParameter(p,'Axes',[]);
+            addParameter(p,'standalone_mode',true,@islogical);
+            
             addParameter(p,'base_dir',this.SaveInfo.filename);
             addParameter(p,'session_name',this.SaveInfo.session_name);
             addParameter(p,'filename',this.SaveInfo.base_dir);
@@ -165,8 +171,12 @@ classdef MyFit < dynamicprops
                 %Removes the figure handle to prevent memory leaks
                 this.Gui=[];
             end
-            if ~isempty(this.Fit.PlotLines); 
-                delete(this.Fit.PlotLines{:}); 
+            
+            if ismethod(this.Fit, 'delete')
+                
+                % Delete the fit trace, in particular, inrder to remove the
+                % fit curve from the axes
+                delete(this.Fit); 
             end
         end
         
@@ -309,6 +319,8 @@ classdef MyFit < dynamicprops
             
             %Calculate user parameters
             calcUserParams(this);
+            
+            updateFitMetadata(this);
             
             %Updates the gui if it is enabled
             if this.enable_gui
@@ -528,6 +540,50 @@ classdef MyFit < dynamicprops
             input_coeffs=num2cell(this.param_vals);
             this.Fit.y=this.anon_fit_fun(this.Fit.x, input_coeffs{:});
         end
+        
+        % Create metadata with all the fitting and user-defined parameters
+        function createMetadata(this)
+            MdtFit = MyMetadata('title', 'FittingParameters');
+            
+            addObjProp(MdtFit, this, 'fit_name');
+            addObjProp(MdtFit, this, 'fit_function');
+            
+            for i=1:length(this.fit_params)
+                addParam(MdtFit, this.fit_params{i}, this.param_vals(i),...
+                    'comment', this.fit_param_names{i});
+            end
+            
+            MdtUser = MyMetadata('title', 'UserParameters');
+            
+            user_params = fieldnames(this.UserGui.Fields);
+            for i=1:length(user_params)
+                tag = user_params{i};
+                addParam(MdtUser, tag, this.(tag), ...
+                    'comment', this.UserGui.Fields.(tag).title);
+            end
+            
+            this.Fit.MeasHeaders = [MdtFit, MdtUser];
+        end
+        
+        function updateFitMetadata(this)
+            if isempty(this.Fit.MeasHeaders)
+                createMetadata(this);
+            end
+            
+            MdtFit = this.Fit.MeasHeaders(1);
+            MdtUser = this.Fit.MeasHeaders(2);
+            
+            % Update metadata parameters 
+            for i=1:length(this.fit_params)
+                MdtFit.ParamList.(this.fit_params{i}) = this.param_vals(i);
+            end
+            
+            user_params = fieldnames(this.UserGui.Fields);
+            for i=1:length(user_params)
+                tag = user_params{i};
+                MdtUser.ParamList.(tag) = this.(tag);
+            end
+        end
     end
     
     %Callbacks
@@ -631,6 +687,8 @@ classdef MyFit < dynamicprops
             
             %Calculate user parameters
             calcUserParams(this);
+            
+            updateFitMetadata(this);
         end
         
         function f = createLowerLimEditCallback(this, ind)
