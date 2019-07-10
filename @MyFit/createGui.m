@@ -57,7 +57,11 @@ fig_width=edit_width*this.n_params;
 %HandleVisibility refers to whether gcf, gca etc will grab this figure.
 this.Gui.Window = figure('Name', 'MyFit', 'NumberTitle', 'off', ...
     'MenuBar', 'none', 'Toolbar', 'none', 'HandleVisibility', 'off',...
-    'Units','Pixels','Position',[500,500,fig_width,fig_h]);
+    'Units','Pixels','Position',[100,100,fig_width,fig_h]);
+
+%Place the figure in the center of the screen
+centerFigure(this.Gui.Window);
+
 %Sets the close function (runs when x is pressed) to be class function
 set(this.Gui.Window, 'CloseRequestFcn',...
     @(hObject,eventdata) closeFigure(this, hObject,eventdata));

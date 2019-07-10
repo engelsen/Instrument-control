@@ -1,6 +1,6 @@
 % Class that implements fitting routines with interactive capabilities.
 
-classdef MyFit < dynamicprops
+classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     %Note that dynamicprops classes are handle classes.
     
     properties (Access=public)
@@ -584,10 +584,21 @@ classdef MyFit < dynamicprops
                 UserParMdt.ParamList.(tag) = this.(tag);
             end
         end
+        
+        %Overload a method of matlab.mixin.CustomDisplay in order to
+        %separate the display of user properties from the others.
+        function PrGroups = getPropertyGroups(this)
+            user_params = fieldnames(this.UserGui.Fields);
+            
+            props = setdiff(properties(this), user_params);
+            
+            PrGroups = [matlab.mixin.util.PropertyGroup(props), ...
+                matlab.mixin.util.PropertyGroup(user_params)];
+        end
     end
     
     %Callbacks
-    methods (Access = protected)
+    methods (Access=protected)
         
         %Save fit function callback
         function saveFitCallback(this,~,~)
