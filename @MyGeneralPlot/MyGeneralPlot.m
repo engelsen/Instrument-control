@@ -524,7 +524,7 @@ classdef MyGeneralPlot < handle
             
             %Check if the trace is valid (i.e. x and y are equal length)
             %before saving
-            if ~this.(trace_tag).validatePlot
+            if ~validateData(this.(trace_tag))
                 errordlg(sprintf('%s trace was empty, could not save',...
                     trace_tag));
                 return
@@ -569,7 +569,7 @@ classdef MyGeneralPlot < handle
         
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
-            if this.Data.validatePlot
+            if validateData(this.Data)
                 % Copy Data to Reference and pass Reference the handle to 
                 % the line in the main plot
                 hline=getLine(this.Ref, this.main_plot);
@@ -594,7 +594,7 @@ classdef MyGeneralPlot < handle
         
         %Callback for ref to bg button. Sends the reference to background
         function refToBgCallback(this, ~, ~)
-            if this.Ref.validatePlot
+            if this.Ref.validateData
                 hline=getLine(this.Background, this.main_plot);
                 this.Background=copy(this.Ref);
                 if ~isempty(hline)
@@ -610,7 +610,7 @@ classdef MyGeneralPlot < handle
         
         %Callback for data to bg button. Sends the data to background
         function dataToBgCallback(this, ~, ~)
-            if this.Data.validatePlot
+            if validateData(this.Data)
                 hline=getLine(this.Background, this.main_plot);
                 this.Background=copy(this.Data);
                 if ~isempty(hline)

@@ -543,45 +543,45 @@ classdef MyFit < dynamicprops
         
         % Create metadata with all the fitting and user-defined parameters
         function createMetadata(this)
-            MdtFit = MyMetadata('title', 'FittingParameters');
+            FitMdt = MyMetadata('title', 'FittingParameters');
             
-            addObjProp(MdtFit, this, 'fit_name');
-            addObjProp(MdtFit, this, 'fit_function');
+            addObjProp(FitMdt, this, 'fit_name');
+            addObjProp(FitMdt, this, 'fit_function');
             
             for i=1:length(this.fit_params)
-                addParam(MdtFit, this.fit_params{i}, this.param_vals(i),...
+                addParam(FitMdt, this.fit_params{i}, this.param_vals(i),...
                     'comment', this.fit_param_names{i});
             end
             
-            MdtUser = MyMetadata('title', 'UserParameters');
+            UserParMdt = MyMetadata('title', 'UserParameters');
             
             user_params = fieldnames(this.UserGui.Fields);
             for i=1:length(user_params)
                 tag = user_params{i};
-                addParam(MdtUser, tag, this.(tag), ...
+                addParam(UserParMdt, tag, this.(tag), ...
                     'comment', this.UserGui.Fields.(tag).title);
             end
             
-            this.Fit.MeasHeaders = [MdtFit, MdtUser];
+            this.Fit.UserMetadata = [FitMdt, UserParMdt];
         end
         
         function updateFitMetadata(this)
-            if isempty(this.Fit.MeasHeaders)
+            if isempty(this.Fit.UserMetadata)
                 createMetadata(this);
             end
             
-            MdtFit = this.Fit.MeasHeaders(1);
-            MdtUser = this.Fit.MeasHeaders(2);
+            FitMdt = this.Fit.UserMetadata(1);
+            UserParMdt = this.Fit.UserMetadata(2);
             
             % Update metadata parameters 
             for i=1:length(this.fit_params)
-                MdtFit.ParamList.(this.fit_params{i}) = this.param_vals(i);
+                FitMdt.ParamList.(this.fit_params{i}) = this.param_vals(i);
             end
             
             user_params = fieldnames(this.UserGui.Fields);
             for i=1:length(user_params)
                 tag = user_params{i};
-                MdtUser.ParamList.(tag) = this.(tag);
+                UserParMdt.ParamList.(tag) = this.(tag);
             end
         end
     end
