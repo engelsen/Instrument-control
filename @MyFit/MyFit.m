@@ -35,6 +35,11 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         fit_param_names;
         anon_fit_fun;
     end
+     
+    %Dependent variables with no set methods
+    properties (Dependent=true, GetAccess=public, SetAccess=private)
+        n_params;
+    end
     
     properties (Access=protected)
         
@@ -42,36 +47,16 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         UserGui;
         enable_gui=1;
         
-        %Private struct used for saving file information when there is no
-        %gui
-        SaveInfo
-        
         %Vectors for varying the range of the sliders for different fits
         slider_vecs; 
     end
     
-    %Dependent variables with no set methods
-    properties (Dependent=true, SetAccess=private)
-        n_params;
-        
-        %Variables used for saving, linked to the GUI
-        fullpath;
-        save_path;
-    end
-    
     properties (Dependent=true, Access=protected)
+        
         %These are used to create the usergui
         n_user_fields;
         user_field_tags;
         user_field_names;
-        user_field_vals;
-    end
-    
-    %Dependent variables with associated set methods
-    properties (Dependent=true)
-        filename;
-        base_dir;
-        session_name;
     end
     
     %Events for communicating with outside entities
@@ -82,14 +67,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     methods (Access=public)
         function this=MyFit(varargin)
             
-            %Sets the default parameters for the save directory and
-            %filename.
-            this.SaveInfo.filename='placeholder';
-            this.SaveInfo.session_name='placeholder';
-            this.SaveInfo.base_dir=getLocalSettings('measurement_base_dir');
-            
-            %We now create the parser for parsing the arguments to the
-            %constructor, and parse the variables.
+            %Parse the arguments supplied to the constructor
             p=inputParser();
             addParameter(p,'fit_name','')
             addParameter(p,'fit_function','x')
@@ -102,11 +80,13 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             addParameter(p,'enable_gui',1);
             addParameter(p,'enable_plot',1);
             addParameter(p,'Axes',[]);
+            
             addParameter(p,'standalone_mode',true,@islogical);
             
-            addParameter(p,'base_dir',this.SaveInfo.filename);
-            addParameter(p,'session_name',this.SaveInfo.session_name);
-            addParameter(p,'filename',this.SaveInfo.base_dir);
+            % These parameters are only active when GUI is enabled
+            addParameter(p,'base_dir', '');
+            addParameter(p,'session_name','placeholder');
+            addParameter(p,'file_name','placeholder');
             
             parse(p, varargin{:});
             
@@ -151,6 +131,21 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 createGui(this)
                 %Generates the slider lookup table
                 genSliderVecs(this);
+                
+                if isempty(p.Results.base_dir)
+                    try
+                        bd = getLocalSettings('measurement_base_dir');
+                    catch ME
+                        warning(ME.message)
+                        bd = '';
+                    end
+                else
+                    bd = '';
+                end
+                
+                this.Gui.BaseDir.String = bd;
+                this.Gui.SessionName.String = p.Results.session_name;
+                this.Gui.FileName.String = p.Results.file_name;
             end
             
             %If data was supplied, generates initial fit parameters
@@ -216,7 +211,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                     'UniformOutput',0)';
                 %Appends the user headers and data to the save data
                 headers=[headers, user_field_headers];
-                save_data=[save_data,this.user_field_vals'];
+                save_data=[save_data,this.user_field_vals']
             end
             
             if save_gof
@@ -242,13 +237,15 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 mkdir(this.save_path)
             end
             
+            fullpath=[this.save_path,this.filename,'.txt'];
+            
             %We automatically append to the file if it already exists,
             %otherwise create a new file
-            if exist(this.fullpath,'file')
-                fileID=fopen(this.fullpath,'a');
-                fprintf('Appending data to %s \n',this.fullpath);
+            if exist(fullpath,'file')
+                fileID=fopen(fullpath,'a');
+                fprintf('Appending data to %s \n',fullpath);
             else
-                fileID=fopen(this.fullpath,'w');
+                fileID=fopen(fullpath,'w');
                 pre_fmt_str=repmat('%%%is\\t',1,n_columns);
                 fmt_str=sprintf([pre_fmt_str,'\r\n'],col_width);
                 fprintf(fileID,fmt_str,headers{:});
@@ -264,7 +261,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %We can load a fit from a file with appropriately formatted columns
         %We simply load the coefficients from the file into the fit.
         function loadFit(this,fullfilename,varargin)
-            p=inputParser;
+            p=inputParser
             addParameter(p,'line_no',1);
             parse(p,varargin{:})
             n=p.Results.line_no;
@@ -555,7 +552,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             
             UserParMdt = MyMetadata('title', 'UserParameters');
             
-            user_params = fieldnames(this.UserGui.Fields);
+            user_params = this.user_field_tags;
             for i=1:length(user_params)
                 tag = user_params{i};
                 addParam(UserParMdt, tag, this.(tag), ...
@@ -578,7 +575,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 FitMdt.ParamList.(this.fit_params{i}) = this.param_vals(i);
             end
             
-            user_params = fieldnames(this.UserGui.Fields);
+            user_params = this.user_field_tags;
             for i=1:length(user_params)
                 tag = user_params{i};
                 UserParMdt.ParamList.(tag) = this.(tag);
@@ -588,11 +585,10 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %Overload a method of matlab.mixin.CustomDisplay in order to
         %separate the display of user properties from the others.
         function PrGroups = getPropertyGroups(this)
-            user_params = fieldnames(this.UserGui.Fields);
+            user_params = this.user_field_tags;
+            static_props = setdiff(properties(this), user_params);
             
-            props = setdiff(properties(this), user_params);
-            
-            PrGroups = [matlab.mixin.util.PropertyGroup(props), ...
+            PrGroups = [matlab.mixin.util.PropertyGroup(static_props), ...
                 matlab.mixin.util.PropertyGroup(user_params)];
         end
     end
@@ -602,13 +598,25 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         
         %Save fit function callback
         function saveFitCallback(this,~,~)
-            assert(~isempty(this.base_dir),'Save directory is not specified');
-            assert(ischar(this.base_dir),...
+            base_dir=this.Gui.BaseDir.String;
+            session_name=this.Gui.SessionName.String;
+            file_name=this.Gui.FileName.String;
+            
+            % Add extension to the file name if missing
+            [~,~,ext]=fileparts(file_name);  
+            if isempty(ext) || (length(ext) > 5) || any(isspace(ext))
+                file_name=[file_name, '.txt'];
+            end
+            
+            save_path=createSessionPath(base_dir, session_name);
+            
+            assert(~isempty(base_dir),'Save directory is not specified');
+            assert(ischar(base_dir),...
                 ['Save directory is not specified.',...
                 ' Should be of type char but is %s.'], ...
-                class(this.base_dir))
-            this.Fit.save('name',this.filename,...
-                'base_dir',this.save_path)
+                class(base_dir))
+
+            save(this.Fit, fullfile(save_path, file_name));
         end
         
         %Callback for saving parameters
@@ -774,9 +782,9 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 set(this.Gui.(sprintf('Edit_%s',str)),...
                     'String',sprintf('%3.3e',this.param_vals(i)));
                 set(this.Gui.(sprintf('Lim_%s_upper',str)),...
-                    'String',sprintf('%3.3e',this.lim_upper(i)))
+                    'String',sprintf('%3.3e',this.lim_upper(i)));
                 set(this.Gui.(sprintf('Lim_%s_lower',str)),...
-                    'String',sprintf('%3.3e',this.lim_lower(i)))
+                    'String',sprintf('%3.3e',this.lim_lower(i)));
             end
         end
     end
@@ -802,73 +810,6 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         function user_field_names=get.user_field_names(this)
             user_field_names=cellfun(@(x) this.UserGui.Fields.(x).title,...
                 this.user_field_tags,'UniformOutput',0);
-        end
-        
-        %Finds all the values of the user fields
-        function user_field_vals=get.user_field_vals(this)
-            user_field_vals=cellfun(@(x) this.(x), this.user_field_tags);
-        end
-        
-        %Generates a full path for saving
-        function fullpath=get.fullpath(this)
-            fullpath=[this.save_path,this.filename,'.txt'];
-        end
-        
-        %Generates a base path for saving
-        function save_path=get.save_path(this)
-            save_path=createSessionPath(this.base_dir,this.session_name);
-        end
-    end
-    
-    %Set and get functions for dependent variables with SetAccess
-    methods
-        %Gets the base dir from the gui
-        function base_dir=get.base_dir(this)
-            if this.enable_gui
-                base_dir=this.Gui.BaseDir.String;
-            else
-                base_dir=this.SaveInfo.base_dir;
-            end
-        end
-        
-        function set.base_dir(this,base_dir)
-            if this.enable_gui
-                this.Gui.BaseDir.String=base_dir;
-            else
-                this.SaveInfo.base_dir=base_dir;
-            end
-        end
-        
-        function session_name=get.session_name(this)
-            if this.enable_gui
-                session_name=this.Gui.SessionName.String;
-            else
-                session_name=this.SaveInfo.session_name;
-            end
-        end
-        
-        function set.session_name(this,session_name)
-            if this.enable_gui
-                this.Gui.SessionName.String=session_name;
-            else
-                this.SaveInfo.session_name=session_name;
-            end
-        end
-        
-        function filename=get.filename(this)
-            if this.enable_gui
-                filename=this.Gui.FileName.String;
-            else
-                filename=this.SaveInfo.filename;
-            end
-        end
-        
-        function set.filename(this,filename)
-            if this.enable_gui
-                this.Gui.FileName.String=filename;
-            else
-                this.SaveInfo.filename=filename;
-            end
         end
     end
 end
