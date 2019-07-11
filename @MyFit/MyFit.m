@@ -4,64 +4,65 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     %Note that dynamicprops classes are handle classes.
     
     properties (Access=public)
-        Data;               %MyTrace object contains the data to be fitted to
+        Data MyTrace        %MyTrace object contains the data to be fitted to
         
-        lim_lower;          %Lower limits for fit parameters
-        lim_upper;          %Upper limits for fit parameters
+        lim_lower           %Lower limits for fit parameters
+        lim_upper           %Upper limits for fit parameters
         
-        enable_plot;        %If enabled, plots initial parameters in the Axes
+        enable_plot         %If enabled, plots initial parameters in the Axes
                             
-        Axes;               %The handle which the fit is plotted in
-        fit_color='black';  %Color of the fit line
-        fit_length=1e3;     %Number of points in the fit trace
+        Axes                %The handle which the fit is plotted in
+        fit_color='black'   %Color of the fit line
+        fit_length=1e3      %Number of points in the fit trace
     end
     
     properties (GetAccess=public, SetAccess=protected)
-        Fit; %MyTrace object containing the fit
+        Fit  %MyTrace object containing the fit
         
-        Gui; %Gui handles
+        Gui  %Gui handles
         
         %Output structures from fit:
-        Fitdata;
-        Gof;
-        FitInfo;
-        param_vals; %Values of fit parameters
+        FitResult   cfit
+        Gof         struct
+        FitInfo     struct
+        param_vals  %Values of fit parameters
         
         %Parameters of the specific fit.
-        fit_name;
-        fit_function;
-        fit_tex;
-        fit_params;
-        fit_param_names;
-        anon_fit_fun;
+        fit_name 
+        fit_function 
+        fit_tex 
+        fit_params 
+        fit_param_names
+        anon_fit_fun
     end
      
     %Dependent variables with no set methods
     properties (Dependent=true, GetAccess=public, SetAccess=private)
-        n_params;
+        n_params
     end
     
     properties (Access=protected)
         
         %Structure used for initializing GUI of userpanel
-        UserGui;
-        enable_gui=1;
+        UserGui struct
+        
+        enable_gui=1
         
         %Vectors for varying the range of the sliders for different fits
-        slider_vecs; 
+        slider_vecs
     end
     
     properties (Dependent=true, Access=protected)
         
         %These are used to create the usergui
-        n_user_fields;
-        user_field_tags;
-        user_field_names;
+        n_user_fields
+        user_field_tags
+        user_field_names
     end
     
     %Events for communicating with outside entities
     events
-        NewFit;
+        NewFit
     end
     
     methods (Access=public)
@@ -393,11 +394,11 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 'TolX',1e-6);
             
             %Fits with the below properties. Chosen for maximum accuracy.
-            [this.Fitdata,this.Gof,this.FitInfo]=...
+            [this.FitResult,this.Gof,this.FitInfo]=...
                 fit(this.Data.x,this.Data.y,Ft,Opts);
             
             %Puts the coefficients into the class variable.
-            this.param_vals=coeffvalues(this.Fitdata);
+            this.param_vals=coeffvalues(this.FitResult);
         end
         
         %This struct is used to generate the UserGUI. Fields are seen under

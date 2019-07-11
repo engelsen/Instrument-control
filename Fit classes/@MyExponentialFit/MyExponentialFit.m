@@ -36,11 +36,11 @@ classdef MyExponentialFit < MyFit
                     'TolFun',1e-6,...
                     'TolX',1e-6);
                 %Fits with the below properties. Chosen for maximum accuracy.
-                [this.Fitdata,this.Gof,this.FitInfo]=...
+                [this.FitResult,this.Gof,this.FitInfo]=...
                     fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
                 %Puts the coeffs into the class variable.
                 this.coeffs=convScaledToRealCoeffs(this,...
-                    coeffvalues(this.Fitdata));
+                    coeffvalues(this.FitResult));
             else
                 %Do the default fitting if we are not scaling.
                 doFit@MyFit(this);

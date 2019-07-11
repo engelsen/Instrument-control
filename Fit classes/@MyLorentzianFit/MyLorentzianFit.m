@@ -38,11 +38,11 @@ classdef MyLorentzianFit < MyFit
                     'TolFun',1e-6,...
                     'TolX',1e-6);
                 %Fits with the below properties. Chosen for maximum accuracy.
-                [this.Fitdata,this.Gof,this.FitInfo]=...
+                [this.FitResult,this.Gof,this.FitInfo]=...
                     fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
                 %Puts the coeffs into the class variable.
                 this.param_vals=convScaledToRealCoeffs(this,...
-                    coeffvalues(this.Fitdata));
+                    coeffvalues(this.FitResult));
             else
                 %Do the default fitting if we are not scaling.
                 doFit@MyFit(this);
@@ -79,6 +79,8 @@ classdef MyLorentzianFit < MyFit
         end
         
         function createUserGuiStruct(this)
+            createUserGuiStruct@MyFit(this);
+            
             %Parameters for the tab relating to mechanics
             this.UserGui.Tabs.Mech.tab_title='Mech.';
             this.UserGui.Tabs.Mech.Children={};
