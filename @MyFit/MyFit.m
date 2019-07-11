@@ -540,6 +540,8 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         
         % Create metadata with all the fitting and user-defined parameters
         function createMetadata(this)
+            
+            % Field for the fit parameters
             FitMdt = MyMetadata('title', 'FittingParameters');
             
             addObjProp(FitMdt, this, 'fit_name');
@@ -550,6 +552,22 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                     'comment', this.fit_param_names{i});
             end
             
+            % Field for the goodness of fit which copies the fields of
+            % corresponding structure
+            GofMdt = MyMetadata('title', 'GoodnessOfFit');
+            
+            addParam(GofMdt, 'sse', [], 'comment', ...
+                'Sum of squares due to error');
+            addParam(GofMdt, 'rsquare', [], 'comment', ...
+                'R-squared (coefficient of determination)');
+            addParam(GofMdt, 'dfe', [], 'comment', ...
+                'Degrees of freedom in the error');
+            addParam(GofMdt, 'adjrsquare', [], 'comment', ...
+                'Degree-of-freedom adjusted coefficient of determination');
+            addParam(GofMdt, 'rmse', [], 'comment', ...
+                'Root mean squared error (standard error)');
+            
+            % Field for the user parameters
             UserParMdt = MyMetadata('title', 'UserParameters');
             
             user_params = this.user_field_tags;
@@ -559,7 +577,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                     'comment', this.UserGui.Fields.(tag).title);
             end
             
-            this.Fit.UserMetadata = [FitMdt, UserParMdt];
+            this.Fit.UserMetadata = [FitMdt, UserParMdt, GofMdt];
         end
         
         function updateFitMetadata(this)
@@ -569,6 +587,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             
             FitMdt = this.Fit.UserMetadata(1);
             UserParMdt = this.Fit.UserMetadata(2);
+            GofMdt = this.Fit.UserMetadata(3);
             
             % Update metadata parameters 
             for i=1:length(this.fit_params)
@@ -579,6 +598,12 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             for i=1:length(user_params)
                 tag = user_params{i};
                 UserParMdt.ParamList.(tag) = this.(tag);
+            end
+            
+            gof_params = fieldnames(this.Gof);
+            for i=1:length(gof_params)
+                tag = gof_params{i};
+                GofMdt.ParamList.(tag) = this.Gof.(tag);
             end
         end
         
