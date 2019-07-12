@@ -25,7 +25,9 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         FitResult   cfit
         Gof         struct
         FitInfo     struct
-        param_vals  %Values of fit parameters
+        
+        %Values of fit parameters
+        param_vals 
         
         %Parameters of the specific fit.
         fit_name 
@@ -318,7 +320,8 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             %Calculate user parameters
             calcUserParams(this);
             
-            updateFitMetadata(this);
+            %Update fit metadata
+            this.Fit.UserMetadata = createMetadata(this);
             
             %Updates the gui if it is enabled
             if this.enable_gui
@@ -369,6 +372,93 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 genSliderVecs(this);
                 updateGui(this);
             end
+        end
+               
+        %Triggers the NewFit event such that other objects can use this to
+        %e.g. plot new fits
+        function triggerNewFit(this)
+            notify(this,'NewFit');
+        end
+        
+        % Create metadata with all the fitting and user-defined parameters
+        function Mdt = createMetadata(this)
+            
+            % Field for the fit parameters
+            InfoMdt = MyMetadata('title', 'FitInfo');
+            
+            addObjProp(InfoMdt, this, 'fit_name');
+            addObjProp(InfoMdt, this, 'fit_function');
+            
+            % Indicate if the parameter values were obtained manually or
+            % from performing a fit
+            if isempty(this.Gof)
+                param_val_mode = 'manual';
+            else
+                param_val_mode = 'fit';
+            end
+            
+            addParam(InfoMdt, 'param_val_mode', param_val_mode, ...
+                'comment', ['If the parameter values were set manually '...
+                'or obtained from fit']);
+            
+            % Field for the fit parameters
+            ParValMdt = MyMetadata('title', 'FittingParameters');
+            
+            if ~isempty(this.Gof)
+                
+                % Add fit parameters with confidence intervals
+                ci = confint(this.FitResult, 0.95);
+ 
+                for i=1:length(this.fit_params)
+                    str = sprintf('%8.4g  (%.4g, %.4g)', ...
+                        this.param_vals(i), ci(1,i), ci(2,i));
+                    
+                    addParam(ParValMdt, this.fit_params{i}, str, ...
+                        'comment', [this.fit_param_names{i} ...
+                        ' (95% confidence interval)']);
+                end
+            else
+                
+                % Add only fit parameters
+                for i=1:length(this.fit_params)
+                    addParam(ParValMdt, this.fit_params{i}, ...
+                        this.param_vals(i), 'comment', ...
+                        this.fit_param_names{i});
+                end
+            end
+            
+            % Field for the user parameters
+            UserParMdt = MyMetadata('title', 'UserParameters');
+            
+            user_params = this.user_field_tags;
+            for i=1:length(user_params)
+                tag = user_params{i};
+                addParam(UserParMdt, tag, this.(tag), ...
+                    'comment', this.UserGui.Fields.(tag).title);
+            end
+            
+            if ~isempty(this.Gof)
+                
+                % Field for the goodness of fit which copies the fields of
+                % corresponding structure
+                GofMdt = MyMetadata('title', 'GoodnessOfFit');
+
+                addParam(GofMdt, 'sse', this.Gof.sse, 'comment', ...
+                    'Sum of squares due to error');
+                addParam(GofMdt, 'rsquare', this.Gof.rsquare, 'comment',...
+                    'R-squared (coefficient of determination)');
+                addParam(GofMdt, 'dfe', this.Gof.dfe, 'comment', ...
+                    'Degrees of freedom in the error');
+                addParam(GofMdt, 'adjrsquare', this.Gof.adjrsquare, ...
+                    'comment', ['Degree-of-freedom adjusted ' ...
+                    'coefficient of determination']);
+                addParam(GofMdt, 'rmse', this.Gof.rmse, 'comment', ...
+                    'Root mean squared error (standard error)');
+            else
+                GofMdt = MyMetadata.empty();
+            end
+            
+            Mdt = [InfoMdt, ParValMdt, UserParMdt, GofMdt];
         end
     end
     
@@ -539,75 +629,6 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             this.Fit.y=this.anon_fit_fun(this.Fit.x, input_coeffs{:});
         end
         
-        % Create metadata with all the fitting and user-defined parameters
-        function createMetadata(this)
-            
-            % Field for the fit parameters
-            FitMdt = MyMetadata('title', 'FittingParameters');
-            
-            addObjProp(FitMdt, this, 'fit_name');
-            addObjProp(FitMdt, this, 'fit_function');
-            
-            for i=1:length(this.fit_params)
-                addParam(FitMdt, this.fit_params{i}, this.param_vals(i),...
-                    'comment', this.fit_param_names{i});
-            end
-            
-            % Field for the goodness of fit which copies the fields of
-            % corresponding structure
-            GofMdt = MyMetadata('title', 'GoodnessOfFit');
-            
-            addParam(GofMdt, 'sse', [], 'comment', ...
-                'Sum of squares due to error');
-            addParam(GofMdt, 'rsquare', [], 'comment', ...
-                'R-squared (coefficient of determination)');
-            addParam(GofMdt, 'dfe', [], 'comment', ...
-                'Degrees of freedom in the error');
-            addParam(GofMdt, 'adjrsquare', [], 'comment', ...
-                'Degree-of-freedom adjusted coefficient of determination');
-            addParam(GofMdt, 'rmse', [], 'comment', ...
-                'Root mean squared error (standard error)');
-            
-            % Field for the user parameters
-            UserParMdt = MyMetadata('title', 'UserParameters');
-            
-            user_params = this.user_field_tags;
-            for i=1:length(user_params)
-                tag = user_params{i};
-                addParam(UserParMdt, tag, this.(tag), ...
-                    'comment', this.UserGui.Fields.(tag).title);
-            end
-            
-            this.Fit.UserMetadata = [FitMdt, UserParMdt, GofMdt];
-        end
-        
-        function updateFitMetadata(this)
-            if isempty(this.Fit.UserMetadata)
-                createMetadata(this);
-            end
-            
-            FitMdt = this.Fit.UserMetadata(1);
-            UserParMdt = this.Fit.UserMetadata(2);
-            GofMdt = this.Fit.UserMetadata(3);
-            
-            % Update metadata parameters 
-            for i=1:length(this.fit_params)
-                FitMdt.ParamList.(this.fit_params{i}) = this.param_vals(i);
-            end
-            
-            user_params = this.user_field_tags;
-            for i=1:length(user_params)
-                tag = user_params{i};
-                UserParMdt.ParamList.(tag) = this.(tag);
-            end
-            
-            gof_params = fieldnames(this.Gof);
-            for i=1:length(gof_params)
-                tag = gof_params{i};
-                GofMdt.ParamList.(tag) = this.Gof.(tag);
-            end
-        end
-        
         %Overload a method of matlab.mixin.CustomDisplay in order to
         %separate the display of user properties from the others.
         function PrGroups = getPropertyGroups(this)
@@ -692,7 +713,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         function f = createParamFieldEditedCallback(this, ind)
             function paramEditFieldCallback(hObject, ~)
                 val=str2double(hObject.String);
-                updateParamVal(this, ind, val);
+                manSetParamVal(this, ind, val);
             end
             
             f = @paramEditFieldCallback;
@@ -702,7 +723,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             function sliderMouseReleasedCallback(hObject, ~)
                 slider_ind=hObject.Value;
                 val = this.slider_vecs{ind}(slider_ind+1);
-                updateParamVal(this, ind, val);
+                manSetParamVal(this, ind, val);
             end
             
             f = @sliderMouseReleasedCallback;
@@ -711,7 +732,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %Callback function for the manual update of the values of fit 
         %parameters in GUI. Triggered when values in the boxes are editted
         %and when pulling a slider is over.
-        function updateParamVal(this, ind, new_val)
+        function manSetParamVal(this, ind, new_val)
             
             %Updates the correct initial parameter
             this.param_vals(ind)=new_val;
@@ -730,10 +751,17 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             %Generate the new slider vectors
             genSliderVecs(this);
             
+            %Reset fit structures to indicate that the current parameters
+            %were set manually
+            this.FitResult=cfit.empty();
+            this.Gof=struct.empty();
+            this.FitInfo=struct.empty();
+            
             %Calculate user parameters
             calcUserParams(this);
             
-            updateFitMetadata(this);
+            %Update fit metadata
+            this.Fit.UserMetadata=createMetadata(this);
         end
         
         function f = createLowerLimEditCallback(this, ind)
@@ -793,12 +821,6 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %Creates an edit box inside a UnitDisp for showing label and value of
         %a quantity. Used in conjunction with createUnitBox
         createUnitDisp(this,varargin);
-        
-        %Triggers the NewFit event such that other objects can use this to
-        %e.g. plot new fits
-        function triggerNewFit(this)
-            notify(this,'NewFit');
-        end
         
         %Updates the GUI if the edit or slider boxes are changed from
         %elsewhere.
