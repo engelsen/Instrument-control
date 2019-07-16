@@ -64,7 +64,8 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     
     %Events for communicating with outside entities
     events
-        NewFit
+        NewFit          %Triggered any time fitting is performed
+        NewAcceptedFit  %Triggered when fitting is accepted by the user
     end
     
     methods (Access=public)
@@ -378,6 +379,10 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %e.g. plot new fits
         function triggerNewFit(this)
             notify(this,'NewFit');
+        end
+        
+        function triggerNewAcceptedFit(this)
+            notify(this,'NewAcceptedFit');
         end
         
         % Create metadata with all the fitting and user-defined parameters
@@ -784,6 +789,10 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %ready for fitting.
         function analyzeCallback(this, ~, ~)
             fitTrace(this);
+        end
+        
+        function acceptFitCallback(this,~,~)
+            triggerNewAcceptedFit(this);
         end
         
         %Callback for clearing the fits on the axis.
