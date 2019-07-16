@@ -85,9 +85,11 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             addParameter(p,'enable_plot',1);
             addParameter(p,'Axes',[]);
             
-            addParameter(p,'standalone_mode',true,@islogical);
+            % The parameters below are only active when GUI is enabled
             
-            % These parameters are only active when GUI is enabled
+            % If true, adds save trace panel to the fit gui 
+            addParameter(p,'save_panel',true,@islogical);
+    
             addParameter(p,'base_dir', '');
             addParameter(p,'session_name','placeholder');
             addParameter(p,'file_name','placeholder');
@@ -132,7 +134,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             %Creates the gui if the flag is enabled. This function is in a
             %separate file.
             if this.enable_gui
-                createGui(this)
+                createGui(this, 'save_panel', p.Results.save_panel)
                 %Generates the slider lookup table
                 genSliderVecs(this);
                 
@@ -469,7 +471,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     
     methods (Access=protected)
         %Creates the GUI of MyFit, in separate file.
-        createGui(this);
+        createGui(this, varargin);
         
         %Does the fit with the currently set parameters. This method is 
         %often overloaded in subclasses to improve performance.
