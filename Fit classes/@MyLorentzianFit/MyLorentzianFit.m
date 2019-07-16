@@ -2,10 +2,9 @@ classdef MyLorentzianFit < MyFit
     properties (Access=public)
         %Logical value that determines whether the data should be scaled or
         %not
-        scale_data;
+        scale_data=true;
         %For calibration of optical frequencies using reference lines
         tot_spacing=1;
-        
     end
     
     %Public methods
@@ -100,7 +99,7 @@ classdef MyLorentzianFit < MyFit
             addUserField(this,'Opt','line_spacing',...
                 'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
                 'Callback', @(~,~) calcUserParams(this));
-            addUserField(this,'Opt','line_no','Number of lines',10,...
+            addUserField(this,'Opt','line_no','Number of lines',1,...
                 'Callback', @(~,~) calcUserParams(this));
             addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
                 'enable_flag','off','conv_factor',1e6);

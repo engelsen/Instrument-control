@@ -648,7 +648,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     %Callbacks
     methods (Access=protected)
         
-        %Save fit function callback
+        %Callback for saving the fit trace
         function saveFitCallback(this,~,~)
             base_dir=this.Gui.BaseDir.String;
             session_name=this.Gui.SessionName.String;
@@ -660,20 +660,9 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 file_name=[file_name, '.txt'];
             end
             
-            save_path=createSessionPath(base_dir, session_name);
-            
             assert(~isempty(base_dir),'Save directory is not specified');
-            assert(ischar(base_dir),...
-                ['Save directory is not specified.',...
-                ' Should be of type char but is %s.'], ...
-                class(base_dir))
-
+            save_path=createSessionPath(base_dir, session_name);
             save(this.Fit, fullfile(save_path, file_name));
-        end
-        
-        %Callback for saving parameters
-        function saveParamCallback(this,~,~)
-            saveParams(this);
         end
         
         %Creates callback functions for sliders in GUI. Uses ind to find 
@@ -800,20 +789,9 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             clearFit(this);
         end
         
-        %Callback function for generate init parameters button.
+        %Callback function for the button that generates init parameters.
         function initParamCallback(this,~,~)
             genInitParams(this);
-        end
-        
-        %Callback function for scaleData button
-        function scaleDataCallback(this,hObject)
-            if hObject.Value
-                hObject.BackgroundColor=0.9*[1,1,1];
-                this.scale_data=true;
-            else
-                hObject.BackgroundColor=[1,1,1];
-                this.scale_data=false;
-            end
         end
     end
     
