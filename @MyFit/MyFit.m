@@ -1,89 +1,98 @@
-% Class that implements fitting routines with interactive capabilities.
+% Class that implements fitting routines with GUI capabilities.
 
 classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
-    %Note that dynamicprops classes are handle classes.
     
-    properties (Access=public)
-        Data MyTrace        %MyTrace object contains the data to be fitted to
+    properties (Access = public)
         
-        lim_lower           %Lower limits for fit parameters
-        lim_upper           %Upper limits for fit parameters
+        % MyTrace object contains the data to be fitted to
+        Data    MyTrace    
         
-        enable_plot         %If enabled, plots initial parameters in the Axes
-                            
-        Axes                %The handle which the fit is plotted in
-        fit_color='black'   %Color of the fit line
-        fit_length=1e3      %Number of points in the fit trace
+        lim_lower           % Lower limits for fit parameters
+        lim_upper           % Upper limits for fit parameters
+        
+        % If enabled, plots fit curve in the Axes every time the parameter 
+        % values are updated
+        enable_plot             
+        
+        fit_color = 'black'   % Color of the fit line
+        fit_length = 1e3      % Number of points in the fit trace  
     end
     
-    properties (GetAccess=public, SetAccess=protected)
-        Fit  %MyTrace object containing the fit
+    properties (GetAccess = public, SetAccess = protected)
+        Axes                % The handle which the fit is plotted in
+        Fit                 % MyTrace object containing the fit
+        Gui = struct()      % Handles of GUI elements
         
-        Gui  %Gui handles
+        % Array of cursors with length=2 for the selection of fitting range 
+        RangeCursors     MyCursor    
         
-        %Output structures from fit:
+        % Output structures from fit() function:
         FitResult   cfit
         Gof         struct
         FitInfo     struct
         
-        %Values of fit parameters
-        param_vals 
+        param_vals  % Numeric values of fit parameters 
         
-        %Parameters of the specific fit.
         fit_name 
-        fit_function 
-        fit_tex 
-        fit_params 
-        fit_param_names
-        anon_fit_fun
+        fit_tex         % tex representation of the fit formula 
+        fit_function    % fit expression represented by character string
+        fit_params      % character names of fit parameters in fit_function
+        fit_param_names % long informative names of fit parameters
+        anon_fit_fun    % fit expression represented by anonimous function
     end
      
-    %Dependent variables with no set methods
-    properties (Dependent=true, GetAccess=public, SetAccess=private)
+    properties (Dependent = true, GetAccess = public)
         n_params
+        
+        % Indices of data points selected for fitting
+        data_selection
+        
+        % Enable cursors for the selection of fit range   
+        enable_range_cursors 
     end
     
-    properties (Access=protected)
+    properties (Access = protected)
         
-        %Structure used for initializing GUI of userpanel
+        % Structure used for initializing GUI of userpanel
         UserGui struct
         
         enable_gui=1
         
-        %Vectors for varying the range of the sliders for different fits
+        % Vectors for varying the range of the sliders in GUI
         slider_vecs
     end
     
-    properties (Dependent=true, Access=protected)
+    properties (Dependent = true, Access = protected)
         
-        %These are used to create the usergui
+        % These are used to create the usergui
         n_user_fields
         user_field_tags
         user_field_names
     end
     
-    %Events for communicating with outside entities
+    % Events for communicating with outside entities
     events
-        NewFit          %Triggered any time fitting is performed
-        NewAcceptedFit  %Triggered when fitting is accepted by the user
+        NewFit          % Triggered any time fitting is performed
+        NewAcceptedFit  % Triggered when fitting is accepted by the user
     end
     
-    methods (Access=public)
-        function this=MyFit(varargin)
+    methods (Access = public)
+        function this = MyFit(varargin)
             
-            %Parse the arguments supplied to the constructor
-            p=inputParser();
-            addParameter(p,'fit_name','')
-            addParameter(p,'fit_function','x')
-            addParameter(p,'fit_tex','')
-            addParameter(p,'fit_params',{})
-            addParameter(p,'fit_param_names',{})
-            addParameter(p,'Data', MyTrace());
-            addParameter(p,'x',[]);
-            addParameter(p,'y',[]);
-            addParameter(p,'enable_gui',1);
-            addParameter(p,'enable_plot',1);
-            addParameter(p,'Axes',[]);
+            % Parse the arguments supplied to the constructor
+            p = inputParser();
+            addParameter(p, 'fit_name', '')
+            addParameter(p, 'fit_function', 'x')
+            addParameter(p, 'fit_tex', '')
+            addParameter(p, 'fit_params', {})
+            addParameter(p, 'fit_param_names', {})
+            addParameter(p, 'Data', MyTrace());
+            addParameter(p, 'x', []);
+            addParameter(p, 'y', []);
+            addParameter(p, 'Axes', [], @isaxes);
+            addParameter(p, 'enable_gui', true);
+            addParameter(p, 'enable_plot', true);
+            addParameter(p, 'enable_range_cursors', false)
             
             % The parameters below are only active when GUI is enabled
             
@@ -97,10 +106,11 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             parse(p, varargin{:});
             
             for i=1:length(p.Parameters)
-                %Takes the value from the inputParser to the appropriate
-                %property.
+                
+                % Takes the value from the inputParser to the appropriate
+                % property.
                 if isprop(this, p.Parameters{i})
-                    this.(p.Parameters{i})= p.Results.(p.Parameters{i});
+                    this.(p.Parameters{i}) = p.Results.(p.Parameters{i});
                 end
             end
             
@@ -135,6 +145,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             %separate file.
             if this.enable_gui
                 createGui(this, 'save_panel', p.Results.save_panel)
+                
                 %Generates the slider lookup table
                 genSliderVecs(this);
                 
@@ -154,10 +165,27 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 this.Gui.FileName.String = p.Results.file_name;
             end
             
+            if ~isempty(this.Axes)
+                
+                % Add two vertical cursors to the axes
+                xlim = this.Axes.XLim;
+                x1 = xlim(1)+0.1*(xlim(2)-xlim(1));
+                x2 = xlim(2)-0.1*(xlim(2)-xlim(1));
+                
+                this.RangeCursors = ...
+                    [MyCursor(this.Axes, x1, 'orientation', 'vertical', ...
+                    'Label','Fit range 1'),...
+                    MyCursor(this.Axes, x2, 'orientation', 'vertical', ...
+                    'Label','Fit range 2')];
+                
+                % Enabling/disabling of the cursors by setting the class 
+                % property can be done only after the cursors are
+                % initialized
+                this.enable_range_cursors = p.Results.enable_range_cursors;
+            end
+            
             %If data was supplied, generates initial fit parameters
-            if ~ismember('Data', p.UsingDefaults) || ...
-                    ~ismember('x', p.UsingDefaults) || ...
-                    ~ismember('y', p.UsingDefaults) 
+            if ~isDataEmpty(this.Data) 
                 genInitParams(this) 
             end
         end
@@ -175,9 +203,13 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             
             if ismethod(this.Fit, 'delete')
                 
-                % Delete the fit trace, in particular, inrder to remove the
-                % fit curve from the axes
+                % Delete the fit trace, in particular, in order to remove 
+                % the fit curve from the axes
                 delete(this.Fit); 
+            end
+            
+            if ~isempty(this.RangeCursors)
+                delete(this.RangeCursors);
             end
         end
         
@@ -346,13 +378,8 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             cellfun(@(x) delete(x), this.Fit.PlotLines);
         end
         
-        %Plots the trace contained in the Fit MyTrace object after
-        %calculating the new values
+        %Plots the trace contained in the Fit MyTrace object 
         function plotFit(this, varargin)
-            assert((isa(this.Axes,'matlab.graphics.axis.Axes')||...
-                isa(this.Axes,'matlab.ui.control.UIAxes')),...
-                'Axes property must be defined to valid axis in order to plot')
-            
             plot(this.Fit, this.Axes, 'Color', this.fit_color, varargin{:});
         end
         
@@ -491,8 +518,9 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 'TolX',1e-6);
             
             %Fits with the below properties. Chosen for maximum accuracy.
-            [this.FitResult,this.Gof,this.FitInfo]=...
-                fit(this.Data.x,this.Data.y,Ft,Opts);
+            ind = this.data_selection;
+            [this.FitResult,this.Gof,this.FitInfo] = ...
+                fit(this.Data.x(ind), this.Data.y(ind), Ft, Opts);
             
             %Puts the coefficients into the class variable.
             this.param_vals=coeffvalues(this.FitResult);
@@ -630,8 +658,18 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         
         %Calculates the trace object that represents the fitted curve
         function calcFit(this)
-            this.Fit.x=linspace(min(this.Data.x), max(this.Data.x), ...
-                this.fit_length);
+            xmin = this.Data.x(1);
+            xmax = this.Data.x(end);
+            
+            if this.enable_range_cursors
+                
+                % If range cursors are active, restrict to the selected
+                % range
+                xmin = max(xmin, min(this.RangeCursors.value));
+                xmax = min(xmax, max(this.RangeCursors.value));
+            end
+            
+            this.Fit.x=linspace(xmin, xmax, this.fit_length);
             input_coeffs=num2cell(this.param_vals);
             this.Fit.y=this.anon_fit_fun(this.Fit.x, input_coeffs{:});
         end
@@ -786,6 +824,10 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             triggerNewAcceptedFit(this);
         end
         
+        function enableCursorsCallback(this, hObject, ~)
+            this.enable_range_cursors = hObject.Value;
+        end
+        
         %Callback for clearing the fits on the axis.
         function clearFitCallback(this,~,~)
             clearFit(this);
@@ -826,8 +868,50 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         end
     end
     
-    % Get functions for dependent variables
     methods
+        
+        % Can set enable_plot to true only if Axes are present
+        function set.enable_plot(this, val)
+            val = logical(val);
+            this.enable_plot = val & ~isempty(this.Axes); %#ok<MCSUP>
+        end
+        
+        function set.enable_range_cursors(this, val)
+            if ~isempty(this.RangeCursors)
+                for i=1:length(this.RangeCursors)
+                    this.RangeCursors(i).Line.Visible = val;
+                end
+            end
+            
+            try
+                if this.enable_gui && ...
+                        this.Gui.CursorsCheckbox.Value ~= val
+                    this.Gui.CursorsCheckbox.Value = val;
+                end
+            catch
+            end
+        end
+        
+        % Visibility of the range cursors is the reference if they are
+        % enabled or not
+        function val = get.enable_range_cursors(this)
+            if ~isempty(this.RangeCursors)
+                val = strcmpi(this.RangeCursors(1).Line.Visible, 'on');
+            else
+                val = false;
+            end
+        end
+        
+        function ind = get.data_selection(this)
+            if this.enable_range_cursors
+                xmin = min(this.RangeCursors.value);
+                xmax = max(this.RangeCursors.value);
+                ind = (this.Data.x>xmin & this.Data.x<=xmax);
+            else
+                ind = true(1, length(this.Data.x));
+            end
+        end
+        
         %Calculates the number of parameters in the fit function
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);
