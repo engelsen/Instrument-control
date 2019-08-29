@@ -1,12 +1,15 @@
 classdef MyCursor < handle
     
     properties (GetAccess = public, SetAccess = protected)
-        Figure              % Figure that contains axes
         Axes                % Axes in which the cursor is plotted
-        Line                % Plotted line object
+        Line                % Line object that represents the cursor
     end
     
     properties (Access = protected)
+        Figure              % Figure that contains Axes
+        
+        % Variables for the temporary storage of information during
+        % processing the interaction callbacks
         originalWbmFcn
         originalWbuFcn
         originalXLimMode
@@ -14,7 +17,10 @@ classdef MyCursor < handle
     end
     
     properties (Dependent = true)
+        
+        % User-friendly ways to refer to the properties of Line
         orientation         % vertical/horizontal
+        value               % cursor position
     end
     
     methods (Access = public)
@@ -115,6 +121,14 @@ classdef MyCursor < handle
                 end
             catch
                 val = '';
+            end
+        end
+        
+        function val = get.value(this)
+            try
+                val = this.Line.Value;
+            catch
+                val = NaN;
             end
         end
     end
