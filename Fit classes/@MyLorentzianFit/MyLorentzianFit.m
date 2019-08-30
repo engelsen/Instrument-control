@@ -1,15 +1,10 @@
 classdef MyLorentzianFit < MyFit
     properties (Access=public)
-        %Logical value that determines whether the data should be scaled or
-        %not
+        %Whether the data should be scaled before fitting or not
         scale_data=true;
-        %For calibration of optical frequencies using reference lines
-        tot_spacing=1;
     end
     
-    %Public methods
     methods (Access=public)
-        %Constructor function
         function this=MyLorentzianFit(varargin)
             this@MyFit(...
                 'fit_name','Lorentzian',...
@@ -21,7 +16,12 @@ classdef MyLorentzianFit < MyFit
         end
     end
     
-    methods (Access=protected)
+    methods (Access = protected)
+        function createUserParamList(this)
+            addUserParam(this, 'Q', 'title', 'Qualify Factor', ...
+                'editable', 'off');
+        end
+        
         %Overload the doFit function to do scaled fits.
         %We here have the choice of whether to scale the data or not.
         function doFit(this)
@@ -70,39 +70,9 @@ classdef MyLorentzianFit < MyFit
         
         %Function for calculating the parameters shown in the user panel
         function calcUserParams(this)
-            this.mech_lw=this.param_vals(2); 
-            this.mech_freq=this.param_vals(3); 
-            this.Q=this.mech_freq/this.mech_lw; 
-            this.opt_lw=convOptFreq(this,this.param_vals(2)); 
-            this.Qf=this.mech_freq*this.Q;
-        end
-        
-        function createUserGuiStruct(this)
-            createUserGuiStruct@MyFit(this);
-            
-            %Parameters for the tab relating to mechanics
-            this.UserGui.Tabs.Mech.tab_title='Mech.';
-            this.UserGui.Tabs.Mech.Children={};
-            addUserField(this,'Mech','mech_lw','Linewidth (Hz)',1,...
-                'enable_flag','off')
-            addUserField(this,'Mech','Q',...
-                'Qualify Factor (x10^6)',1e6,...
-                'enable_flag','off','conv_factor',1e6)
-            addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
-                'conv_factor',1e6, 'enable_flag','off')
-            addUserField(this,'Mech','Qf','Q\times f (10^{14} Hz)',1e14,...
-                'conv_factor',1e14,'enable_flag','off');
-            
-            %Parameters for the tab relating to optics
-            this.UserGui.Tabs.Opt.tab_title='Optical';
-            this.UserGui.Tabs.Opt.Children={};
-            addUserField(this,'Opt','line_spacing',...
-                'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
-                'Callback', @(~,~) calcUserParams(this));
-            addUserField(this,'Opt','line_no','Number of lines',1,...
-                'Callback', @(~,~) calcUserParams(this));
-            addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
-                'enable_flag','off','conv_factor',1e6);
+            lw = this.param_vals(2); 
+            freq = this.param_vals(3); 
+            this.Q = freq/lw; 
         end
         
         function genSliderVecs(this)
@@ -123,11 +93,6 @@ classdef MyLorentzianFit < MyFit
                     this.fit_params{3})),'Value',ind-1);
             catch 
             end
-        end
-        
-        %This function is used to convert the x-axis to frequency.
-        function real_freq=convOptFreq(this,freq)
-            real_freq=freq*this.line_spacing*this.line_no/this.tot_spacing;
         end
     end
     

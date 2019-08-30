@@ -35,10 +35,15 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         
         fit_name 
         fit_tex         % tex representation of the fit formula 
-        fit_function    % fit expression represented by character string
+        fit_function    % fit formula as character string
         fit_params      % character names of fit parameters in fit_function
         fit_param_names % long informative names of fit parameters
         anon_fit_fun    % fit expression represented by anonimous function
+        
+        % Additional parameters that are calculated from the fit parameters
+        % or inputed externally. Properties of user parameters including 
+        % long name and write attribute
+        UserParamList
     end
      
     properties (Dependent = true, GetAccess = public)
@@ -52,22 +57,10 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     end
     
     properties (Access = protected)
-        
-        % Structure used for initializing GUI of userpanel
-        UserGui struct
-        
-        enable_gui=1
+        enable_gui = 1
         
         % Vectors for varying the range of the sliders in GUI
         slider_vecs
-    end
-    
-    properties (Dependent = true, Access = protected)
-        
-        % These are used to create the usergui
-        n_user_fields
-        user_field_tags
-        user_field_names
     end
     
     % Events for communicating with outside entities
@@ -139,7 +132,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                       
             %Creates the structure that contains variables for calibration
             %of fit results
-            createUserGuiStruct(this);
+            createUserParamList(this);
             
             %Creates the gui if the flag is enabled. This function is in a
             %separate file.
@@ -211,11 +204,6 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             if ~isempty(this.RangeCursors)
                 delete(this.RangeCursors);
             end
-        end
-        
-        %Close figure callback simply calls delete function for class
-        function closeFigure(this,~,~)
-            delete(this);
         end
         
         %Saves the metadata
@@ -390,6 +378,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             
             calcInitParams(this);
             calcFit(this);
+            calcUserParams(this);
             
             %Plots the fit function with the new initial parameters
             if this.enable_plot 
@@ -464,11 +453,11 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             % Field for the user parameters
             UserParMdt = MyMetadata('title', 'UserParameters');
             
-            user_params = this.user_field_tags;
+            user_params = fieldnames(this.UserParamList);
             for i=1:length(user_params)
                 tag = user_params{i};
                 addParam(UserParMdt, tag, this.(tag), ...
-                    'comment', this.UserGui.Fields.(tag).title);
+                    'comment', this.UserParamList.(tag).title);
             end
             
             if ~isempty(this.Gof)
@@ -496,7 +485,8 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         end
     end
     
-    methods (Access=protected)
+    methods (Access = protected)
+        
         %Creates the GUI of MyFit, in separate file.
         createGui(this, varargin);
         
@@ -526,14 +516,6 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             this.param_vals=coeffvalues(this.FitResult);
         end
         
-        %This struct is used to generate the UserGUI. Fields are seen under
-        %tabs in the GUI. To create a new tab, you have to enter it under
-        %this.UserGui.Tabs. A tab must have a tab_title and a field to add
-        %Children. To add a field, use the addUserField function.
-        function createUserGuiStruct(this)
-            this.UserGui=struct('Fields',struct(),'Tabs',struct());
-        end
-        
         %Low level function that generates initial parameters. 
         %The default version of this function is not meaningful, it
         %should be overloaded in subclasses.
@@ -548,89 +530,50 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             this.lim_upper=lim_upper;
         end
         
-        %Calculate user parameters from fit parameters.
-        %Dummy method that needs to be overloaded in subclasses.
+        % Calculate user parameters from fit parameters.
+        % Dummy method that needs to be overloaded in subclasses.
         function calcUserParams(this) %#ok<MANU>
         end
         
-        %Parent is the parent tab for the userfield, tag is the tag given
-        %to the GUI element, title is the text written next to the field,
-        %initial value is the initial value of the property and change_flag
-        %determines whether the gui element is enabled for writing or not.
-        %conv_factor is used to have different units in the field. In the
-        %program, the value is always saved as the bare value.
-        function addUserField(this, parent, tag, title, ...
-                init_val,varargin)
-            %Parsing inputs
-            p=inputParser();
-            addRequired(p,'Parent');
-            addRequired(p,'Tag');
-            addRequired(p,'Title');
-            addRequired(p,'init_val');
-            addParameter(p,'enable_flag','on');
-            addParameter(p,'Callback','');
-            addParameter(p,'conv_factor',1);
+        function addUserParam(this, name, varargin)
             
-            parse(p,parent,tag,title,init_val,varargin{:});
-            tag=p.Results.Tag;
+            % Process inputs
+            p = inputParser();
+            addRequired(p, 'name', @ischar);
+            addParameter(p, 'title', '');
+            addParameter(p, 'editable', @(x)assert(isequal(x, 'on') || ...
+                isequal(x, 'off'), ['''editable'' property must be ' ...
+                '''on'' or ''off''']));
             
-            %Populates the UserGui struct
-            this.UserGui.Fields.(tag).parent=p.Results.Parent;
-            this.UserGui.Fields.(tag).title=p.Results.Title;
-            this.UserGui.Fields.(tag).init_val=p.Results.init_val;
-            this.UserGui.Fields.(tag).enable_flag=...
-                p.Results.enable_flag;
-            this.UserGui.Fields.(tag).conv_factor=p.Results.conv_factor;
-            this.UserGui.Fields.(tag).Callback=...
-                p.Results.Callback;
+            % Value in GUI is displayed as val/conv_factor
+            addParameter(p, 'gui_conv_factor', 1);
             
-            this.UserGui.Tabs.(p.Results.Parent).Children{end+1}=tag;
-            %Adds the new property to the class
-            addUserProp(this, tag);
-        end
-        
-        %Every user field has an associated property, which is added by
-        %this function. The get and set functions are set to use the GUI
-        %through the getUserVal and setUserVal functions if the GUI is
-        %enabled.
-        function addUserProp(this,tag)
-            prop=addprop(this,tag);
-            if this.enable_gui
-                prop.GetMethod=@(this) getUserVal(this,tag);
-                prop.SetMethod=@(this, val) setUserVal(this, val, tag);
-                prop.Dependent=true;
+            parse(p, name, varargin{:});
+            
+            % Store the information about the user parameter
+            this.UserParamList.(name).title = p.Results.title;
+            this.UserParamList.(name).editable = p.Results.editable;
+            this.UserParamList.(name).gui_conv_factor = ...
+                p.Results.gui_conv_factor;
+            
+            % Create a dynamic property for easy access
+            Mp = addprop(this, name);
+            this.UserParamList.(name).Metaprop = Mp;
+            
+            Mp.GetAccess = 'public';
+            
+            if this.UserParamList.(name).editable
+                Mp.SetAccess = 'public';
+            else
+                Mp.SetAccess = 'private';
             end
         end
         
-        %This function gets the value of the userprop from the GUI. The GUI
-        %is the single point of truth
-        function val=getUserVal(this, tag)
-            conv_factor=this.UserGui.Fields.(tag).conv_factor;
-            val=str2double(this.Gui.([tag,'Edit']).String)*conv_factor;
+        % addUserParam statements must be contained in this function
+        % overloaded in subclasses.
+        function createUserParamList(this) %#ok<MANU>
         end
         
-        %As above, but instead we set the GUI through setting the property
-        function setUserVal(this, val, tag)
-            conv_factor=this.UserGui.Fields.(tag).conv_factor;
-            this.Gui.([tag,'Edit']).String=num2str(val/conv_factor);
-        end
-        
-        %Creates the user values panel with associated tabs. The cellfun here
-        %creates the appropriately named tabs. To add a tab, add a new field to the
-        %UserGuiStruct using the class functions in MyFit. This function
-        %can be overloaded, though some care must be taken to not exceed
-        %the size given by the GUI
-        function createUserGui(this, bg_color, button_h)
-            usertabs=fieldnames(this.UserGui.Tabs);
-            if ~isempty(usertabs)
-                cellfun(@(x) createTab(this,x,bg_color,button_h),usertabs);
-                this.Gui.TabPanel.TabTitles=...
-                    cellfun(@(x) this.UserGui.Tabs.(x).tab_title, usertabs,...
-                    'UniformOutput',0);
-            end
-        end
-        
-        %Can be overloaded to have more convenient sliders
         function genSliderVecs(this)
             %Return values of the slider
             slider_vals=1:101;
@@ -677,7 +620,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %Overload a method of matlab.mixin.CustomDisplay in order to
         %separate the display of user properties from the others.
         function PrGroups = getPropertyGroups(this)
-            user_params = this.user_field_tags;
+            user_params = fieldnames(this.UserParamList);
             static_props = setdiff(properties(this), user_params);
             
             PrGroups = [matlab.mixin.util.PropertyGroup(static_props), ...
@@ -686,7 +629,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     end
     
     %Callbacks
-    methods (Access=protected)
+    methods (Access = protected)
         
         %Callback for saving the fit trace
         function saveFitCallback(this,~,~)
@@ -814,13 +757,25 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             f = @upperLimEditCallback;
         end
         
+        %Create a callback that is executed when an editable user parameter 
+        %is set in the GUI
+        function f = createUserParamCallback(this, param_name)
+            function userParamCallback(hObject, ~)
+                conv_factor = UserParamList.(param_name).gui_conv_factor;
+                this.(param_name) = str2double(hObject.String)*conv_factor;
+                calcUserParams(this);
+            end
+            
+            f = @userParamCallback; 
+        end
+        
         %Callback function for analyze button in GUI. Checks if the data is
         %ready for fitting.
         function analyzeCallback(this, ~, ~)
             fitTrace(this);
         end
         
-        function acceptFitCallback(this,~,~)
+        function acceptFitCallback(this, ~, ~)
             triggerNewAcceptedFit(this);
         end
         
@@ -829,29 +784,26 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         end
         
         %Callback for clearing the fits on the axis.
-        function clearFitCallback(this,~,~)
+        function clearFitCallback(this, ~, ~)
             clearFit(this);
         end
         
         %Callback function for the button that generates init parameters.
-        function initParamCallback(this,~,~)
+        function initParamCallback(this, ~, ~)
             genInitParams(this);
+        end
+        
+        %Close figure callback simply calls delete function for class
+        function closeFigureCallback(this,~,~)
+            delete(this);
         end
     end
     
     %Private methods
-    methods(Access=private)
+    methods(Access = private)
         
         %Creates a panel for the GUI, in separate file
-        createTab(this, tab_tag, bg_color, button_h);
-        
-        %Creats two vboxes (from GUI layouts) to display values of
-        %quantities
-        createUnitBox(this, bg_color, h_parent, name);
-        
-        %Creates an edit box inside a UnitDisp for showing label and value of
-        %a quantity. Used in conjunction with createUnitBox
-        createUnitDisp(this,varargin);
+        createUserControls(this, varargin);
         
         %Updates the GUI if the edit or slider boxes are changed from
         %elsewhere.
@@ -915,22 +867,6 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %Calculates the number of parameters in the fit function
         function n_params=get.n_params(this)
             n_params=length(this.fit_params);
-        end
-        
-        %Used when creating the UserGUI, finds the number of user fields.
-        function n_user_fields=get.n_user_fields(this)
-            n_user_fields=length(this.user_field_tags);
-        end
-        
-        %Finds all the user field tags
-        function user_field_tags=get.user_field_tags(this)
-            user_field_tags=fieldnames(this.UserGui.Fields);
-        end
-        
-        %Finds all the titles of the user field tags
-        function user_field_names=get.user_field_names(this)
-            user_field_names=cellfun(@(x) this.UserGui.Fields.(x).title,...
-                this.user_field_tags,'UniformOutput',0);
         end
     end
 end
