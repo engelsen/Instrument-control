@@ -38,7 +38,7 @@ n_user_params = length(fieldnames(this.UserParamList));
 if n_user_params>3
     userpanel_h=(n_user_params+2)*button_h;
 else
-    userpanel_h=5*button_h;
+    userpanel_h=6*button_h; % 6 is the number of buttons in the fit panel
 end
 
 if enable_save_panel

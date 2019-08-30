@@ -68,10 +68,7 @@ end
 function f = createSetUserParamFcn(param_name, GuiElement)
     function setUserParam(this, val)
         this.(param_name) = val;
-
-        conv_factor = ...
-            this.UserParamList.(param_name).gui_conv_factor;
-        GuiElement.String = num2str(val/conv_factor);
+        GuiElement.String = num2str(val);
     end
 
     f = @setUserParam;

@@ -545,16 +545,11 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 isequal(x, 'off'), ['''editable'' property must be ' ...
                 '''on'' or ''off''']));
             
-            % Value in GUI is displayed as val/conv_factor
-            addParameter(p, 'gui_conv_factor', 1);
-            
             parse(p, name, varargin{:});
             
             % Store the information about the user parameter
             this.UserParamList.(name).title = p.Results.title;
             this.UserParamList.(name).editable = p.Results.editable;
-            this.UserParamList.(name).gui_conv_factor = ...
-                p.Results.gui_conv_factor;
             
             % Create a dynamic property for easy access
             Mp = addprop(this, name);
@@ -761,8 +756,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         %is set in the GUI
         function f = createUserParamCallback(this, param_name)
             function userParamCallback(hObject, ~)
-                conv_factor = UserParamList.(param_name).gui_conv_factor;
-                this.(param_name) = str2double(hObject.String)*conv_factor;
+                this.(param_name) = str2double(hObject.String);
                 calcUserParams(this);
             end
             
