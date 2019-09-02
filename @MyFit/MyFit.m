@@ -167,9 +167,9 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 
                 this.RangeCursors = ...
                     [MyCursor(this.Axes, x1, 'orientation', 'vertical', ...
-                    'Label','Fit range 1'),...
+                    'Label','Fit range 1', 'Color', [0.6, 0, 0]),...
                     MyCursor(this.Axes, x2, 'orientation', 'vertical', ...
-                    'Label','Fit range 2')];
+                    'Label','Fit range 2', 'Color', [0.6, 0, 0])];
                 
                 % Enabling/disabling of the cursors by setting the class 
                 % property can be done only after the cursors are
@@ -544,6 +544,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             addParameter(p, 'editable', @(x)assert(isequal(x, 'on') || ...
                 isequal(x, 'off'), ['''editable'' property must be ' ...
                 '''on'' or ''off''']));
+            addParameter(p, 'default', []);
             
             parse(p, name, varargin{:});
             
@@ -556,6 +557,10 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             this.UserParamList.(name).Metaprop = Mp;
             
             Mp.GetAccess = 'public';
+            
+            if ~isempty(p.Results.default)
+                this.(name) = p.Results.default;
+            end
             
             if this.UserParamList.(name).editable
                 Mp.SetAccess = 'public';
