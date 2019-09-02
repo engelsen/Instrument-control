@@ -1,10 +1,11 @@
 function createGui(this, varargin)
 
 p=inputParser();
+
 %Parameter that tells the function if save panel should be created
 addParameter(p,'save_panel',true,@islogical);
 parse(p,varargin{:});
-enable_save_panel = p.Results.save_panel;
+enable_save_panel=p.Results.save_panel;
 
 if ~isempty(this.fit_name)
     
@@ -13,6 +14,8 @@ if ~isempty(this.fit_name)
 else
     fit_name='';
 end
+
+%% Calculate the dimensions of GUI panels
 
 %Defines the colors for the Gui
 rgb_blue=[0.1843,0.4157,1];
@@ -24,9 +27,10 @@ edit_width=140;
 %Height of buttons in GUI
 button_h=25;
 
-%Minimum height of the four vboxes composing the gui.
+%Minimum height of the hboxes composing the gui.
 title_h=40;
 equation_h=100;
+fitbox_h=3*button_h;
 savebox_h=100; %Only relevant when save_panel input argument is true
 slider_h=130;
 
@@ -34,17 +38,18 @@ min_fig_width=560;
 
 %Finds the height in button heights of the user field panel. This
 %is used to calculate the height of the figure.
-n_user_params = length(fieldnames(this.UserParamList));
-if n_user_params>3
-    userpanel_h=(n_user_params+2)*button_h;
+n_user_pars = length(fieldnames(this.UserParamList));
+if n_user_pars>0
+    userpanel_h = button_h*(n_user_pars+1);
 else
-    userpanel_h=6*button_h; % 6 is the number of buttons in the fit panel
+    % Skip the user panel completely
+    userpanel_h = 0;
 end
 
 if enable_save_panel
-    fig_h=title_h+equation_h+slider_h+savebox_h+userpanel_h;
+    fig_h=title_h+equation_h+fitbox_h+slider_h+savebox_h+userpanel_h;
 else
-    fig_h=title_h+equation_h+slider_h+userpanel_h;
+    fig_h=title_h+equation_h+fitbox_h+slider_h+userpanel_h;
 end
 
 %Sets a minimum width
@@ -58,6 +63,8 @@ if this.n_params < 4
     end
 end
 fig_width=edit_width*this.n_params;
+
+%% Create GUI elements
 
 %Name sets the title of the window, NumberTitle turns off the FigureN text
 %that would otherwise be before the title, MenuBar is the menu normally on
@@ -76,7 +83,8 @@ set(this.Gui.Window, 'CloseRequestFcn', @this.closeFigureCallback);
 %The main vertical box. The four main panes of the GUI are stacked in the
 %box. We create these four boxes first so that we do not need to redraw
 %them later
-this.Gui.MainVbox=uix.VBox('Parent',this.Gui.Window,'BackgroundColor',rgb_white);
+this.Gui.MainVbox=uix.VBox('Parent',this.Gui.Window, ...
+    'BackgroundColor',rgb_white);
 
 %The title box
 this.Gui.Title=annotation(this.Gui.MainVbox,'textbox',[0.5,0.5,0.3,0.3],...
@@ -91,9 +99,15 @@ this.Gui.Equation=annotation(this.Gui.MainVbox,'textbox',[0.5,0.5,0.3,0.3],...
     'HorizontalAlignment','center','VerticalAlignment','middle',...
     'FontSize',20,'BackgroundColor',rgb_white);
 
-%Creates an HBox for extracted parameters and user interactions with GUI
-this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,...
+%Creates an HBox for the buttons providing basic fit functionality
+this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox,...
     'BackgroundColor',rgb_white);
+
+if ~isempty(fieldnames(this.UserParamList))
+    %Creates an HBox for extracted parameters and user interactions with GUI
+    this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,...
+        'BackgroundColor',rgb_white);
+end
 
 %Sets the heights and minimum heights of the five vertical boxes. -1 means
 %it resizes with the window
@@ -104,55 +118,87 @@ if enable_save_panel
 end
 
 %Creates the HBox for the fitting parameters
-this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox,'BackgroundColor',...
-    rgb_white);
+this.Gui.SliderHbox=uix.HBox('Parent',this.Gui.MainVbox, ...
+    'BackgroundColor',rgb_white);
 
-if enable_save_panel
-    set(this.Gui.MainVbox,'Heights',[title_h,-1,userpanel_h,savebox_h,slider_h],...
-        'MinimumHeights',[title_h,equation_h,userpanel_h,savebox_h,slider_h]);
-else
-    set(this.Gui.MainVbox,'Heights',[title_h,-1,userpanel_h,slider_h],...
-        'MinimumHeights',[title_h,equation_h,userpanel_h,slider_h]);
+% Set the hights of the main box elements
+% -1 stands for the element that is resized with the window
+h_list = [title_h,-1,fitbox_h,slider_h];
+min_h_list = [title_h,equation_h,fitbox_h,slider_h];
+
+if ~isempty(fieldnames(this.UserParamList))
+    % Add space for the panel with user parameters
+    h_list = [h_list(1:end-1), userpanel_h, h_list(end)];
+    min_h_list = [min_h_list(1:end-1), userpanel_h, min_h_list(end)];
 end
 
+if enable_save_panel
+    % Add space for the save panel
+    h_list = [h_list(1:end-1), savebox_h, h_list(end)];
+    min_h_list = [min_h_list(1:end-1), savebox_h, min_h_list(end)];
+end 
+
+set(this.Gui.MainVbox, 'Heights', h_list, 'MinimumHeights', min_h_list);
+
 %Here we create the fit panel in the GUI.
-this.Gui.FitPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
+this.Gui.FitPanel=uix.BoxPanel('Parent', this.Gui.FitHbox,...
     'Padding',0,'BackgroundColor', rgb_white,...
     'Title','Fit Panel','TitleColor',rgb_blue);
-%Here we create the panel for the useful parameters
-this.Gui.UserPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
-    'Padding',0,'BackgroundColor', 'w',...
-    'Title','Calculated parameters','TitleColor',rgb_blue);
-%Sets the widths of the above
-set(this.Gui.UserHbox,'Widths',[-1,-2],'MinimumWidths',[0,375]);
+this.Gui.FitInnerHbox = uix.HBox('Parent', this.Gui.FitPanel, ...
+    'BackgroundColor', rgb_white);
+this.Gui.FitVbox1 = uix.VBox('Parent', this.Gui.FitInnerHbox, ...
+    'BackgroundColor', rgb_white);
+this.Gui.FitVbox2 = uix.VBox('Parent', this.Gui.FitInnerHbox, ...
+    'BackgroundColor', rgb_white);
+this.Gui.FitVbox3 = uix.VBox('Parent', this.Gui.FitInnerHbox, ...
+    'BackgroundColor', rgb_white);
 
-%This makes the buttons that go inside the FitPanel
-this.Gui.FitVbox=uix.VBox('Parent',this.Gui.FitPanel,'BackgroundColor',...
-    rgb_white);
+% %Sets the widths of the above, negative numbers mean resizing with the main
+% %window
+% set(this.Gui.UserHbox,'Widths',[-1,-2],'MinimumWidths',[0,375]);
+x='tmp'
+
+% %This makes the buttons that go inside the FitPanel
+% this.Gui.FitVbox=uix.VBox('Parent',this.Gui.FitPanel,'BackgroundColor',...
+%     rgb_white);
+x='tmp'
+
 %Creates the button for analysis inside the VBox
-this.Gui.AnalyzeButton=uicontrol('Parent',this.Gui.FitVbox,...
+this.Gui.AnalyzeButton=uicontrol('Parent',this.Gui.FitVbox1,...
     'style','pushbutton','Background','w','String','Analyze', ...
     'Callback', @this.analyzeCallback);
 %Creates button for generating new initial parameters
-this.Gui.InitButton=uicontrol('Parent',this.Gui.FitVbox,...
+this.Gui.InitButton=uicontrol('Parent',this.Gui.FitVbox1,...
     'style','pushbutton','Background','w',...
     'String','Generate initial parameters', ...
     'Callback', @this.initParamCallback);
 %Creates button for clearing fits
-this.Gui.ClearButton=uicontrol('Parent',this.Gui.FitVbox,...
+this.Gui.ClearButton=uicontrol('Parent',this.Gui.FitVbox2,...
     'style','pushbutton','Background','w','String','Clear fit', ...
     'Callback', @this.clearFitCallback);
 %Button for triggering NewAcceptedFit event
-this.Gui.AcceptFitButton=uicontrol('Parent',this.Gui.FitVbox,...
+this.Gui.AcceptFitButton=uicontrol('Parent',this.Gui.FitVbox2,...
     'style','pushbutton','Background','w','String','Accept fit', ...
     'Callback', @this.acceptFitCallback);
 %Checkbox for enabling cursors
-this.Gui.CursorsCheckbox=uicontrol('Parent',this.Gui.FitVbox,...
-    'style','checkbox','Background','w','String', ...
-    'Range selection cursors','Callback', @this.enableCursorsCallback);
+this.Gui.CursorsCheckbox=uicontrol('Parent',this.Gui.FitVbox3,...
+    'style','checkbox','Background','w', ...
+    'String', 'Range selection cursors', ...
+    'Units', 'normalized', ...
+    'Position', [0.5,0.05,0.3,0.3], ...
+    'Callback', @this.enableCursorsCallback);
 
-set(this.Gui.FitVbox,...
-    'Heights', button_h*ones(1,length(this.Gui.FitVbox.Children)));
+set(this.Gui.FitVbox1,...
+    'Heights', button_h*ones(1,length(this.Gui.FitVbox1.Children)));
+set(this.Gui.FitVbox2,...
+    'Heights', button_h*ones(1,length(this.Gui.FitVbox2.Children)));
+set(this.Gui.FitVbox3,...
+    'Heights', button_h*ones(1,length(this.Gui.FitVbox3.Children)));
+
+%Here we create the panel for the user parameters
+this.Gui.UserPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
+    'Padding',0,'BackgroundColor', 'w',...
+    'Title','Calculated parameters','TitleColor',rgb_blue);
 
 %Fill the user panel with controls
 createUserControls(this, 'field_hight', button_h, 'background_color', 'w');
@@ -225,7 +271,7 @@ for i=1:this.n_params
     %Generates the string for the panel handle
     panel_str{i}=sprintf('Panel_%s',this.fit_params{i});
     %Creates the panels
-    this.Gui.(panel_str{i})=uix.BoxPanel( 'Parent', this.Gui.FitHbox ,...
+    this.Gui.(panel_str{i})=uix.BoxPanel( 'Parent', this.Gui.SliderHbox ,...
         'Padding',0,'BackgroundColor', 'w',...
         'Title',sprintf('%s (%s)',this.fit_param_names{i},this.fit_params{i}),...
         'TitleColor',rgb_blue,...

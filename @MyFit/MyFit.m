@@ -43,7 +43,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         % Additional parameters that are calculated from the fit parameters
         % or inputed externally. Properties of user parameters including 
         % long name and write attribute
-        UserParamList
+        UserParamList = struct()
     end
      
     properties (Dependent = true, GetAccess = public)
