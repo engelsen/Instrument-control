@@ -25,6 +25,12 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
                     'Label','Ref 2', 'Color', [0, 0, 0.6])];
             end
         end
+        
+        function delete(this)
+            if ~isempty(this.RefCursors)
+                delete(this.RefCursors);
+            end
+        end
     end
     
     methods (Access = protected)
