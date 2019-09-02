@@ -32,17 +32,14 @@ slider_h=130;
 
 min_fig_width=560;
 
-%Finds the minimum height in button heights of the user field panel. This
+%Finds the height in button heights of the user field panel. This
 %is used to calculate the height of the figure.
-tab_fields=fieldnames(this.UserGui.Tabs);
-max_fields=max(cellfun(@(x) length(this.UserGui.Tabs.(x).Children),tab_fields));
-if max_fields>3
-    min_user_h=max_fields+2;
+n_user_params = length(fieldnames(this.UserParamList));
+if n_user_params>3
+    userpanel_h=(n_user_params+2)*button_h;
 else
-    min_user_h=5;
+    userpanel_h=6*button_h; % 6 is the number of buttons in the fit panel
 end
-
-userpanel_h=min_user_h*button_h;
 
 if enable_save_panel
     fig_h=title_h+equation_h+slider_h+savebox_h+userpanel_h;
@@ -74,23 +71,26 @@ this.Gui.Window = figure('Name', 'MyFit', 'NumberTitle', 'off', ...
 centerFigure(this.Gui.Window);
 
 %Sets the close function (runs when x is pressed) to be class function
-set(this.Gui.Window, 'CloseRequestFcn',...
-    @(hObject,eventdata) closeFigure(this, hObject,eventdata));
+set(this.Gui.Window, 'CloseRequestFcn', @this.closeFigureCallback);
+
 %The main vertical box. The four main panes of the GUI are stacked in the
 %box. We create these four boxes first so that we do not need to redraw
 %them later
 this.Gui.MainVbox=uix.VBox('Parent',this.Gui.Window,'BackgroundColor',rgb_white);
+
 %The title box
 this.Gui.Title=annotation(this.Gui.MainVbox,'textbox',[0.5,0.5,0.3,0.3],...
     'String',fit_name,'Units','Normalized',...
     'HorizontalAlignment','center','VerticalAlignment','middle',...
     'FontSize',16,'BackgroundColor',rgb_white);
+
 %Displays the fitted equation
 this.Gui.Equation=annotation(this.Gui.MainVbox,'textbox',[0.5,0.5,0.3,0.3],...
     'String',this.fit_tex,...
     'Units','Normalized','Interpreter','LaTeX',...
     'HorizontalAlignment','center','VerticalAlignment','middle',...
     'FontSize',20,'BackgroundColor',rgb_white);
+
 %Creates an HBox for extracted parameters and user interactions with GUI
 this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,...
     'BackgroundColor',rgb_white);
@@ -131,35 +131,31 @@ this.Gui.FitVbox=uix.VBox('Parent',this.Gui.FitPanel,'BackgroundColor',...
     rgb_white);
 %Creates the button for analysis inside the VBox
 this.Gui.AnalyzeButton=uicontrol('Parent',this.Gui.FitVbox,...
-    'style','pushbutton','Background','w','String','Analyze','Callback',...
-    @(hObject, eventdata) analyzeCallback(this, hObject, eventdata));
+    'style','pushbutton','Background','w','String','Analyze', ...
+    'Callback', @this.analyzeCallback);
 %Creates button for generating new initial parameters
 this.Gui.InitButton=uicontrol('Parent',this.Gui.FitVbox,...
     'style','pushbutton','Background','w',...
-    'String','Generate initial parameters','Callback',...
-    @(hObject, eventdata) initParamCallback(this, hObject, eventdata));
+    'String','Generate initial parameters', ...
+    'Callback', @this.initParamCallback);
 %Creates button for clearing fits
 this.Gui.ClearButton=uicontrol('Parent',this.Gui.FitVbox,...
-    'style','pushbutton','Background','w','String','Clear fit','Callback',...
-    @(hObject, eventdata) clearFitCallback(this, hObject, eventdata));
+    'style','pushbutton','Background','w','String','Clear fit', ...
+    'Callback', @this.clearFitCallback);
 %Button for triggering NewAcceptedFit event
 this.Gui.AcceptFitButton=uicontrol('Parent',this.Gui.FitVbox,...
-    'style','pushbutton','Background','w','String','Accept fit','Callback',...
-    @(hObject, eventdata) acceptFitCallback(this, hObject, eventdata));
+    'style','pushbutton','Background','w','String','Accept fit', ...
+    'Callback', @this.acceptFitCallback);
 %Checkbox for enabling cursors
 this.Gui.CursorsCheckbox=uicontrol('Parent',this.Gui.FitVbox,...
     'style','checkbox','Background','w','String', ...
     'Range selection cursors','Callback', @this.enableCursorsCallback);
 
 set(this.Gui.FitVbox,...
-    'Heights',button_h*ones(1,length(this.Gui.FitVbox.Children)));
+    'Heights', button_h*ones(1,length(this.Gui.FitVbox.Children)));
 
-this.Gui.TabPanel=uix.TabPanel('Parent',this.Gui.UserPanel,...
-    'BackgroundColor',rgb_white);
-
-%Creates the user gui. Made into its own function such that it can be
-%overloaded for future customization
-createUserGui(this, rgb_white, button_h);
+%Fill the user panel with controls
+createUserControls(this, 'field_hight', button_h, 'background_color', 'w');
 
 if enable_save_panel
     %This creates the boxes for saving files and for specifying file saving
