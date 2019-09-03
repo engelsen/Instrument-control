@@ -1,53 +1,25 @@
-classdef MyBeta < handle
-    properties (Access=public)
-        name;
-        %Trace
-        Data
+% Routine for the calibration of beta-factor characterizing the phase 
+% modulation of light. Data is a heterodyne signal spectrum.
+
+classdef MyPhaseModCal < MyAnalysisRoutine
+    
+    properties (Access = public)
+        Data    MyTrace
     end
     
-    properties (GetAccess=public, SetAccess=private)
-        %Struct containing GUI handles
-        Gui;
-        
-        beta;
-        enable_gui;
+    properties (GetAccess = public, SetAccess = protected)
+        Axes
     end
     
-    properties (Access=private)
-        %Input parser
-        Parser;
-    end
-    
-    methods (Access=public)
-        function this=MyBeta(varargin)
-            %Parses inputs to the constructor
-            createParser(this);
-            parse(this.Parser,varargin{:});
-            this.Data=this.Parser.Results.Data;
-            this.enable_gui=this.Parser.Results.enable_gui;
+    methods (Access = public)
+        function this = MyPhaseModCal(varargin)
+            p = inputParser();
+            addParameter(p, 'Data', MyTrace());
+            addParameter(p, 'Axes', [], @isaxes);
+            parse(p, varargin{:});
             
-            %Default enables gui
-            if this.enable_gui
-                this.Gui=guihandles(eval('GuiBeta'));
-                initGui(this);
-            end
-            
-        end
-        
-        %Deletion function for cleanup
-        function delete(this)
-            if this.enable_gui
-                set(this.Gui.figure1,'CloseRequestFcn','');
-                %Deletes the figure
-                delete(this.Gui.figure1);
-                %Removes the figure handle to prevent memory leaks
-                this.Gui=[];
-            end
-        end
-        
-        %Callback for analyze button
-        function analyzeCallback(this)
-            calcBeta(this);
+            this.Data = p.Data;
+            this.Axes = p.Axes;
         end
         
         %Calculates beta, updates the gui with the value and stores it in
@@ -99,26 +71,5 @@ classdef MyBeta < handle
             set(this.Gui.Beta01,'String',num2str(beta_01,5));
         end
     end
-    
-    methods (Access=private)
-        %Initializes the GUI with correct callbacks
-        function initGui(this)
-            this.Gui.AnalyzeButton.Callback=@(~,~) analyzeCallback(this);
-            this.Gui.figure1.CloseRequestFcn=@(~,~) closeFigure(this);
-        end
-        
-        %The close figure function calls the deletion method.
-        function closeFigure(this)
-            delete(this);
-        end
-        
-        %Creates input parser for constructor
-        function createParser(this)
-            p=inputParser;
-            addParameter(p,'Data',MyTrace())
-            addParameter(p,'enable_gui',true);
-            this.Parser=p;
-        end
-    end
-    
 end
+

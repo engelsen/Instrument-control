@@ -14,9 +14,5 @@ classdef MyAnalysisRoutine < handle
     events
         NewAnalysisTrace
     end
-    
-    methods (Abstract)
-        triggerNewAnalysisTrace(this)
-    end
 end
 
