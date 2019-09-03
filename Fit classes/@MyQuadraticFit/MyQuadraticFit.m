@@ -1,8 +1,7 @@
 classdef MyQuadraticFit < MyFit
-    %Public methods
-    methods (Access=public)
-        %Constructor function
-        function this=MyQuadraticFit(varargin)
+
+    methods (Access = public)
+        function this = MyQuadraticFit(varargin)
             this@MyFit(...
                 'fit_name','Quadratic',...
                 'fit_function','a*x^2+b*x+c',...
@@ -11,16 +10,14 @@ classdef MyQuadraticFit < MyFit
                 'fit_param_names',{'Quadratic coeff.','Linear coeff.','Offset'},...
                 varargin{:});
         end
-        
     end
     
-    methods (Access=protected)
-        %Overload the doFit function to do polyFit instead of nonlinear
-        %fitting. We here have the choice of whether to scale the data or
-        %not.
+    methods (Access = protected)
         
-        function doFit(this)
-                this.coeffs=polyfit(this.Data.x,this.Data.y,2);
+        %Overload the doFit function to do polyFit instead of nonlinear
+        %fitting. 
+        function fitted_vals = doFit(~, x, y, varargin)
+            fitted_vals = polyfit(x, y, 2);
         end
     end   
 end
