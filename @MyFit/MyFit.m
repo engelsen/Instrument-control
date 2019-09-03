@@ -65,8 +65,8 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     
     % Events for communicating with outside entities
     events
-        NewFit          % Triggered any time fitting is performed
-        NewAcceptedFit  % Triggered when fitting is accepted by the user
+        NewFit              % Triggered any time fitting is performed
+        NewAnalysisTrace    % Truggered for transferring of the fit trace to DAQ
     end
     
     methods (Access = public)
@@ -90,7 +90,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             % The parameters below are only active when GUI is enabled
             
             % If true, adds save trace panel to the fit gui 
-            addParameter(p,'save_panel',true,@islogical);
+            addParameter(p,'save_panel',false,@islogical);
     
             addParameter(p,'base_dir', '');
             addParameter(p,'session_name','placeholder');
@@ -402,8 +402,9 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             notify(this,'NewFit');
         end
         
-        function triggerNewAcceptedFit(this)
-            notify(this,'NewAcceptedFit');
+        function triggerNewAnalysisTrace(this)
+            EventData = MyNewAnalysisTraceEvent('Trace', copy(this.Fit));
+            notify(this, 'NewAnalysisTrace', EventData);
         end
         
         % Create metadata with all the fitting and user-defined parameters
@@ -773,7 +774,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         end
         
         function acceptFitCallback(this, ~, ~)
-            triggerNewAcceptedFit(this);
+            triggerNewAnalysisTrace(this);
         end
         
         function enableCursorsCallback(this, hObject, ~)
