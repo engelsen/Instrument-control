@@ -116,23 +116,23 @@ classdef MyLorentzianFit < MyFit
     end
     
     methods (Access = private)
-        function scaled_vals = scaleFitParams(~, vals, scaling_coeffs)
+        function sc_vals = scaleFitParams(~, vals, scaling_coeffs)
             [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
             
-            scaled_vals(1)=vals(1)/(std_y*std_x);
-            scaled_vals(2)=vals(2)/std_x;
-            scaled_vals(3)=(vals(3)-mean_x)/std_x;
-            scaled_vals(4)=(vals(4)-mean_y)/std_y;
+            sc_vals(1)=vals(1)/(std_y*std_x);
+            sc_vals(2)=vals(2)/std_x;
+            sc_vals(3)=(vals(3)-mean_x)/std_x;
+            sc_vals(4)=(vals(4)-mean_y)/std_y;
         end
         
         %Converts scaled coefficients to real coefficients
-        function vals = unscaleFitParams(~, scaled_vals, scaling_coeffs)
+        function vals = unscaleFitParams(~, sc_vals, scaling_coeffs)
             [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
             
-            vals(1)=scaled_vals(1)*std_y*std_x;
-            vals(2)=scaled_vals(2)*std_x;
-            vals(3)=scaled_vals(3)*std_x+mean_x;
-            vals(4)=scaled_vals(4)*std_y+mean_y;
+            vals(1)=sc_vals(1)*std_y*std_x;
+            vals(2)=sc_vals(2)*std_x;
+            vals(3)=sc_vals(3)*std_x+mean_x;
+            vals(4)=sc_vals(4)*std_y+mean_y;
         end
     end
 end
