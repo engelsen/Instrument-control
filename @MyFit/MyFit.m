@@ -1,6 +1,7 @@
 % Class that implements fitting routines with GUI capabilities.
 
-classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
+classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
+        matlab.mixin.CustomDisplay
     
     properties (Access = public)
         
@@ -66,7 +67,6 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
     % Events for communicating with outside entities
     events
         NewFit              % Triggered any time fitting is performed
-        NewAnalysisTrace    % Truggered for transferring of the fit trace to DAQ
     end
     
     methods (Access = public)
@@ -402,6 +402,7 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
             notify(this,'NewFit');
         end
         
+        %Triggered for transferring of the fit trace to DAQ
         function triggerNewAnalysisTrace(this)
             EventData = MyNewAnalysisTraceEvent('Trace', copy(this.Fit));
             notify(this, 'NewAnalysisTrace', EventData);
