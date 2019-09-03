@@ -450,14 +450,18 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 end
             end
             
-            % Field for the user parameters
-            UserParMdt = MyMetadata('title', 'UserParameters');
-            
             user_params = fieldnames(this.UserParamList);
-            for i=1:length(user_params)
-                tag = user_params{i};
-                addParam(UserParMdt, tag, this.(tag), ...
-                    'comment', this.UserParamList.(tag).title);
+            if ~isempty(user_params)
+                
+                % Add a field with the user parameters
+                UserParMdt = MyMetadata('title', 'UserParameters');
+                for i=1:length(user_params)
+                    tag = user_params{i};
+                    addParam(UserParMdt, tag, this.(tag), ...
+                        'comment', this.UserParamList.(tag).title);
+                end
+            else
+                UserParMdt = MyMetadata.empty();
             end
             
             if ~isempty(this.Gof)

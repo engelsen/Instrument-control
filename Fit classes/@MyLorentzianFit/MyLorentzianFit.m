@@ -17,10 +17,6 @@ classdef MyLorentzianFit < MyFit
     end
     
     methods (Access = protected)
-        function createUserParamList(this)
-            addUserParam(this, 'Q', 'title', 'Qualify Factor', ...
-                'editable', 'off');
-        end
         
         %Overload the doFit function to do scaled fits.
         %We here have the choice of whether to scale the data or not.
@@ -54,6 +50,7 @@ classdef MyLorentzianFit < MyFit
             if this.scale_data
                 [init_params,lim_lower,lim_upper]=...
                     initParamLorentzian(this.Data.scaled_x,this.Data.scaled_y);
+                
                 %Convertion back to real values for display.
                 init_params=convScaledToRealCoeffs(this,init_params);
                 lim_lower=convScaledToRealCoeffs(this,lim_lower);
@@ -66,13 +63,6 @@ classdef MyLorentzianFit < MyFit
             this.param_vals = init_params;
             this.lim_lower = lim_lower;
             this.lim_upper = lim_upper;
-        end
-        
-        %Function for calculating the parameters shown in the user panel
-        function calcUserParams(this)
-            lw = this.param_vals(2); 
-            freq = this.param_vals(3); 
-            this.Q = freq/lw; 
         end
         
         function genSliderVecs(this)
