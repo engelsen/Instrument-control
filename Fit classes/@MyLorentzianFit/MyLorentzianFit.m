@@ -1,17 +1,13 @@
 classdef MyLorentzianFit < MyFit
-    properties (Access=public)
-        %Whether the data should be scaled before fitting or not
-        scale_data=true;
-    end
     
-    methods (Access=public)
-        function this=MyLorentzianFit(varargin)
-            this@MyFit(...
-                'fit_name','Lorentzian',...
-                'fit_function','1/pi*a*b/2/((x-c)^2+(b/2)^2)+d',...
-                'fit_tex','$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$',...
-                'fit_params',  {'a','b','c','d'},...
-                'fit_param_names',{'Amplitude','Width','Center','Offset'},...
+    methods (Access = public)
+        function this = MyLorentzianFit(varargin)
+            this@MyFit( ...
+                'fit_name',         'Lorentzian', ...
+                'fit_function',     '1/pi*a*b/2/((x-c)^2+(b/2)^2)+d', ...
+                'fit_tex',          '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$', ...
+                'fit_params',       {'a','b','c','d'}, ...
+                'fit_param_names',  {'Amplitude','Width','Center','Offset'}, ...
                 varargin{:});
         end
     end
@@ -19,50 +15,83 @@ classdef MyLorentzianFit < MyFit
     methods (Access = protected)
         
         %Overload the doFit function to do scaled fits.
-        %We here have the choice of whether to scale the data or not.
-        function doFit(this)
-            if this.scale_data
-                ft=fittype(this.fit_function,'coefficients',...
-                    this.fit_params);
-                opts=fitoptions('Method','NonLinearLeastSquares',...
-                    'Lower',convRealToScaledCoeffs(this,this.lim_lower),...
-                    'Upper',convRealToScaledCoeffs(this,this.lim_upper),...
-                    'StartPoint',convRealToScaledCoeffs(this,this.param_vals),...
-                    'MaxFunEvals',2000,...
-                    'MaxIter',2000,...
-                    'TolFun',1e-6,...
-                    'TolX',1e-6);
-                %Fits with the below properties. Chosen for maximum accuracy.
-                [this.FitResult,this.Gof,this.FitInfo]=...
-                    fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
-                %Puts the coeffs into the class variable.
-                this.param_vals=convScaledToRealCoeffs(this,...
-                    coeffvalues(this.FitResult));
-            else
-                %Do the default fitting if we are not scaling.
-                doFit@MyFit(this);
-            end
-            calcUserParams(this);
+        function fitted_vals = doFit(this, x, y, init_vals, lim_lower, ...
+                lim_upper)
+            
+            % Scale x and y data
+            [scaled_x, mean_x, std_x] = zscore(x);
+            [scaled_y, mean_y, std_y] = zscore(y);
+            
+            % Scaling coefficients
+            sc = {mean_x, std_x, mean_y, std_y};
+            
+            scaled_fitted_vals = doFit@MyFit(this, scaled_x, scaled_y, ...
+                scaleFitParams(this, init_vals, sc), ...
+                scaleFitParams(this, lim_lower, sc), ...
+                scaleFitParams(this, lim_upper, sc));
+            
+            fitted_vals = unscaleFitParams(this, scaled_fitted_vals, sc);
         end
         
-        %Calculates the initial parameters using an external function.
-        function [init_params,lim_lower,lim_upper]=calcInitParams(this)
-            if this.scale_data
-                [init_params,lim_lower,lim_upper]=...
-                    initParamLorentzian(this.Data.scaled_x,this.Data.scaled_y);
-                
-                %Convertion back to real values for display.
-                init_params=convScaledToRealCoeffs(this,init_params);
-                lim_lower=convScaledToRealCoeffs(this,lim_lower);
-                lim_upper=convScaledToRealCoeffs(this,lim_upper);
-            else
-                [init_params,lim_lower,lim_upper]=...
-                    initParamLorentzian(this.Data.x,this.Data.y);
-            end
+        function calcInitParams(this)
+            ind = this.data_selection;
             
-            this.param_vals = init_params;
-            this.lim_lower = lim_lower;
-            this.lim_upper = lim_upper;
+            x = this.Data.x(ind);
+            y = this.Data.y(ind);
+
+            this.lim_upper=[Inf,Inf,Inf,Inf];
+            this.lim_lower=[-Inf,0,-Inf,-Inf];
+
+            %Finds peaks on the positive signal (max 1 peak)
+            try
+                [~,locs(1),widths(1),proms(1)]=findpeaks(y,x,...
+                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
+                    'NPeaks',1);
+            catch
+                proms(1)=0;
+            end
+
+            %Finds peaks on the negative signal (max 1 peak)
+            try
+                [~,locs(2),widths(2),proms(2)]=findpeaks(-y,x,...
+                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
+                    'NPeaks',1);
+            catch
+                proms(2)=0;
+            end
+
+            if proms(1)==0 && proms(2)==0
+                warning(['No peaks were found in the data, giving ' ...
+                    'default initial parameters to fit function'])
+                this.param_vals=[1,1,1,1];
+                this.lim_lower=-[Inf,0,Inf,Inf];
+                this.lim_upper=[Inf,Inf,Inf,Inf];
+                return
+            end
+
+            %If the prominence of the peak in the positive signal is 
+            %greater, we adapt our limits and parameters accordingly, 
+            %if negative signal has a greater prominence, we use this 
+            %for fitting.
+            if proms(1)>proms(2)
+                ind=1;
+                p_in(4)=min(y);
+            else
+                ind=2;
+                p_in(4)=max(y);
+                proms(2)=-proms(2);
+            end
+
+            p_in(2)=widths(ind);
+            
+            %Calculates the amplitude, as when x=c, the amplitude 
+            %is 2a/(pi*b)
+            p_in(1)=proms(ind)*pi*p_in(2)/2;
+            p_in(3)=locs(ind);
+
+            this.param_vals = p_in;
+            this.lim_lower(2)=0.01*p_in(2);
+            this.lim_upper(2)=100*p_in(2);
         end
         
         function genSliderVecs(this)
@@ -86,22 +115,24 @@ classdef MyLorentzianFit < MyFit
         end
     end
     
-    methods (Access=private)
-        %Converts scaled coefficients to real coefficients
-        function r_c=convScaledToRealCoeffs(this,s_c)
-            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
-            r_c(1)=s_c(1)*std_y*std_x;
-            r_c(2)=s_c(2)*std_x;
-            r_c(3)=s_c(3)*std_x+mean_x;
-            r_c(4)=s_c(4)*std_y+mean_y;
+    methods (Access = private)
+        function scaled_vals = scaleFitParams(~, vals, scaling_coeffs)
+            [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
+            
+            scaled_vals(1)=vals(1)/(std_y*std_x);
+            scaled_vals(2)=vals(2)/std_x;
+            scaled_vals(3)=(vals(3)-mean_x)/std_x;
+            scaled_vals(4)=(vals(4)-mean_y)/std_y;
         end
         
-        function s_c=convRealToScaledCoeffs(this,r_c)
-            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
-            s_c(1)=r_c(1)/(std_y*std_x);
-            s_c(2)=r_c(2)/std_x;
-            s_c(3)=(r_c(3)-mean_x)/std_x;
-            s_c(4)=(r_c(4)-mean_y)/std_y;
+        %Converts scaled coefficients to real coefficients
+        function vals = unscaleFitParams(~, scaled_vals, scaling_coeffs)
+            [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
+            
+            vals(1)=scaled_vals(1)*std_y*std_x;
+            vals(2)=scaled_vals(2)*std_x;
+            vals(3)=scaled_vals(3)*std_x+mean_x;
+            vals(4)=scaled_vals(4)*std_y+mean_y;
         end
     end
 end
