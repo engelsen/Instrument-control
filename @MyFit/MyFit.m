@@ -334,13 +334,16 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
                 length(this.lim_upper)==this.n_params, ['Upper limits must be given as ' ...
                 'a vector of size %d'], this.n_params);
             
-            %Perform the fit.
-            doFit(this);
+            %Perform the fit with current parameters as a starting point
+            ind = this.data_selection;
+            this.param_vals = doFit(this, ...
+                this.Data.x(ind), this.Data.y(ind), this.param_vals, ...
+                this.lim_lower, this.lim_upper);
             
-            %Calculate the fit curve.
+            %Calculate the fit curve
             calcFit(this);
             
-            %Calculate user parameters
+            %Calculate user parameters that depend on the fit parameters
             calcUserParams(this);
             
             %Update fit metadata
@@ -496,42 +499,33 @@ classdef MyFit < dynamicprops & matlab.mixin.CustomDisplay
         
         %Does the fit with the currently set parameters. This method is 
         %often overloaded in subclasses to improve performance.
-        function doFit(this)
-            
-            %Use current coefficients as initial paramters
-            init_params = this.param_vals;
-            
-            Ft=fittype(this.fit_function,'coefficients',this.fit_params);
-            Opts=fitoptions('Method','NonLinearLeastSquares',...
-                'Lower',this.lim_lower,...
-                'Upper',this.lim_upper,...
-                'StartPoint',init_params,...
-                'MaxFunEvals',2000,...
-                'MaxIter',2000,...
-                'TolFun',1e-6,...
-                'TolX',1e-6);
-            
+        function fitted_vals = doFit(this, x, y, init_vals, lim_lower, ...
+                lim_upper)
+
             %Fits with the below properties. Chosen for maximum accuracy.
-            ind = this.data_selection;
-            [this.FitResult,this.Gof,this.FitInfo] = ...
-                fit(this.Data.x(ind), this.Data.y(ind), Ft, Opts);
+            Ft = fittype(this.fit_function,'coefficients',this.fit_params);
+            Opts = fitoptions('Method','NonLinearLeastSquares',...
+                'Lower',        lim_lower,...
+                'Upper',        lim_upper,...
+                'StartPoint',   init_vals,...
+                'MaxFunEvals',  2000,...
+                'MaxIter',      2000,...
+                'TolFun',       1e-6,...
+                'TolX',         1e-6);
             
-            %Puts the coefficients into the class variable.
-            this.param_vals=coeffvalues(this.FitResult);
+            [this.FitResult, this.Gof, this.FitInfo] = fit(x, y, Ft, Opts);
+            
+            %Return the coefficients 
+            fitted_vals = coeffvalues(this.FitResult);
         end
         
         %Low level function that generates initial parameters. 
         %The default version of this function is not meaningful, it
         %should be overloaded in subclasses.
-        function [init_params,lim_lower,lim_upper]=calcInitParams(this)
-            init_params=ones(1,this.n_params);
-            lim_lower=-Inf(1,this.n_params);
-            lim_upper=Inf(1,this.n_params);
-            
-            %Loads the results into the class variables
-            this.param_vals=init_params;
-            this.lim_lower=lim_lower;
-            this.lim_upper=lim_upper;
+        function calcInitParams(this)
+            this.param_vals=ones(1,this.n_params);
+            this.lim_lower=-Inf(1,this.n_params);
+            this.lim_upper=Inf(1,this.n_params);
         end
         
         % Calculate user parameters from fit parameters.
