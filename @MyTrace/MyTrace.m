@@ -39,10 +39,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     properties (Dependent=true)        
         label_x
         label_y
-        
-        %Z-scored variables (scaled to have mean of 0 and std of 1)
-        scaled_x
-        scaled_y
     end
     
     methods (Access = public)
@@ -515,16 +511,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %Get function for label_y, creates label from name_y and unit_y.
         function label_y=get.label_y(this)
             label_y=sprintf('%s (%s)', this.name_y, this.unit_y);
-        end
-        
-        %Get function for scaled_x, zscores x
-        function scaled_x=get.scaled_x(this)
-            scaled_x=zscore(this.x);
-        end
-        
-        %Get function for scaled_x, zscores x
-        function scaled_y=get.scaled_y(this)
-            scaled_y=zscore(this.y);
         end
     end
 end
