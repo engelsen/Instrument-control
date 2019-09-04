@@ -228,20 +228,52 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             std_y=std(this.y);
         end
         
-        %Integrates the trace numerically
-        function area=integrate(this,varargin)
+        % Integrates the trace numerically. Two possible ways to call the
+        % function:
+        %
+        % integrate(Trace)              - integrate the entire data
+        % integrate(Trace, xmin, xmax)  - integrate over [xmin, xmax]
+        % integrate(Trace, ind)         - integrate data with indices ind
+        function area = integrate(this, varargin)
             assert(validateData(this), ['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to integrate'])
             
-            %Input parser for optional inputs
-            p=inputParser;
-            %Default is to use all the data in the trace
-            addOptional(p,'ind',true(1,length(this.x)));
-            parse(p,varargin{:});
-            ind=p.Results.ind;
+            switch nargin()
+                case 1
+                
+                    % The function is called as integrate(Trace), integrate
+                    % the entire trace
+                    xvals = this.x;
+                    yvals = this.y;
+                case 2
             
-            %Integrates the data contained in the indexed part.
-            area=trapz(this.x(ind),this.y(ind));
+                    % The function is called as integrate(Trace, ind)
+                    ind = varargin{1};
+                    xvals = this.x(ind);
+                    yvals = this.y(ind);
+                case 3
+                    
+                    % The function is called as integrate(Trace,xmin,xmax)
+                    xmin = varargin{1};
+                    xmax = varargin{2};
+                    
+                    % Select all data points within the integration range
+                    ind = (this.x > xmin) & (this.x < xmax);
+                    xvals = this.x(ind);
+                    yvals = this.y(ind);
+                    
+                    % Add the two points corresponding to the interval ends
+                    yb = interp1(this.x, this.y, [xmin, xmax]);
+                    xvals = [xmin, xvals, xmax];
+                    yvals = [yb(1), yvals, yb(2)];
+                otherwise
+                    error(['Unrecognized function signature. Check ' ...
+                        'the function definition to see acceptable ' ...
+                        'input argument.'])
+            end
+            
+            % Integrates the data using the trapezoidal method
+            area = trapz(xvals, yvals);
         end
         
         % Picks every n-th element from the trace,
