@@ -8,28 +8,34 @@
 
 classdef MyPhaseModCal < MyAnalysisRoutine
     
-    properties (Access = public)
+    properties (Access = public, SetObservable = true)
         Data    MyTrace
         
         % Minimum thereshold for peak search. If MinHeightCursor exists, it
         % has priority over the programmatically set value.
-        min_peak_height     double
+        min_peak_height     double   
+        
+        mod_freq = 0    % modulation frequency (Hz)
+    end
+    
+    properties (Access = public, Dependent = true, SetObservable = true)
+        enable_cursor 
     end
     
     properties (GetAccess = public, SetAccess = protected, ...
             SetObservable = true)
         Axes
+        Gui
         
         MinHeightCursor    MyCursor
         
-        beta        % Phase modulation depth
-        mod_freq    % modulation frequency (Hz)
+        beta = 0        % Phase modulation depth
     end
     
     properties (Access = protected)
         
         % Line that displays the positions of peaks found
-        PlottedPeaks    Line
+        PlottedPeaks 
     end
     
     methods (Access = public)
@@ -37,6 +43,8 @@ classdef MyPhaseModCal < MyAnalysisRoutine
             p = inputParser();
             addParameter(p, 'Data', MyTrace());
             addParameter(p, 'Axes', [], @isaxes);
+            addParameter(p, 'enable_cursor', true, @islogical);
+            addParameter(p, 'enable_gui', true, @islogical);
             parse(p, varargin{:});
             
             this.Data = p.Results.Data;
@@ -52,8 +60,16 @@ classdef MyPhaseModCal < MyAnalysisRoutine
                     'Color',        [0.6, 0, 0]);
                 
                 this.min_peak_height = pos;
+                
+                this.enable_cursor = p.Results.enable_cursor;
             else
                 this.min_peak_height = 1e-12;
+            end
+            
+            % Gui is created right before the construction of object 
+            % is over 
+            if p.Results.enable_gui
+                this.Gui = GuiPhaseModCal(this);
             end
         end
         
@@ -100,7 +116,7 @@ classdef MyPhaseModCal < MyAnalysisRoutine
             % Check if the peaks are rougly equally spaced harmonics, if
             % not, use the pre-specified value of modulation frequency to
             % select the right peaks.
-            peak_x_diff = peak_x(2:n_peaks)-peak_(1:n_peaks-1);
+            peak_x_diff = peak_x(2:n_peaks)-peak_x(1:n_peaks-1);
             mod_f = mean(peak_x_diff);
             
             % Specify the tolerance to the mismatch of frequencies between 
@@ -115,9 +131,9 @@ classdef MyPhaseModCal < MyAnalysisRoutine
                     'regular, will use the pre-defined value of ' ...
                     'modulation frequency to post select peaks.']);
                 
-                assert(~isempty(this.mod_freq), ['An approximate value '...
-                    'for modulation frequency must be specified by ' ...
-                    'setting mod_freq property'])
+                assert(~isempty(this.mod_freq) && this.mod_freq>0, ...
+                    ['An approximate value for modulation frequency ' ...
+                    'must be specified by setting mod_freq property'])
                 
                 mod_f = this.mod_freq;
             end
@@ -159,13 +175,14 @@ classdef MyPhaseModCal < MyAnalysisRoutine
                 if ~isempty(this.PlottedPeaks)&&isvalid(this.PlottedPeaks)
                     set(this.PlottedPeaks,'XData',peak_x,'YData',peak_y);
                 else
-                    this.PlottedPeaks = Line(this.Axes, 'Color', 'r', ...
+                    this.PlottedPeaks = line(this.Axes, ...
+                        'XData', peak_x, 'YData', peak_y, 'Color', 'r', ...
                         'LineStyle', 'none', 'Marker', 'o');
                 end
             end
             
             % Calculate areas under the peaks
-            peak_int = zero(1, n_peaks);
+            peak_int = zeros(1, n_peaks);
             for i = 1:n_peaks
                 peak_int(i) = integrate(this.Data, peak_x(i)-int_w/2, ...
                     peak_x(i)+int_w/2);
@@ -178,23 +195,42 @@ classdef MyPhaseModCal < MyAnalysisRoutine
             Ft = fittype('a*besselj(n, beta)^2', 'independent', 'n', ...
                 'coefficients', {'a', 'beta'});
             Opts = fitoptions('Method', 'NonLinearLeastSquares',...
-                'StartPoint',   init_vals,...
+                'StartPoint',   [1, 0.1],...
                 'MaxFunEvals',  2000,...
                 'MaxIter',      2000,...
-                'TolFun',       1e-6,...
-                'TolX',         1e-6);
+                'TolFun',       1e-10,...
+                'TolX',         1e-10);
             
             peak_ord = -floor(n_peaks/2):floor(n_peaks/2);
-            FitResult = fit(peak_ord, peak_int, Ft, Opts);
+            FitResult = fit(peak_ord(:), peak_int(:), Ft, Opts);
             
             % Store the result in class variables
-            this.beta = FitResult.beta;
+            this.beta = abs(FitResult.beta);
             this.mod_freq = mod_f;
         end
         
         function clearPeakDisp(this)
             if ~isempty(this.PlottedPeaks)
                 delete(this.PlottedPeaks)
+            end
+        end
+    end
+    
+    % Set and get methods
+    methods
+        function set.enable_cursor(this, val)
+            if ~isempty(this.MinHeightCursor) && ...
+                    isvalid(this.MinHeightCursor)
+                this.MinHeightCursor.Line.Visible = val;
+            end
+        end
+        
+        function val = get.enable_cursor(this)
+            if ~isempty(this.MinHeightCursor) && ...
+                    isvalid(this.MinHeightCursor)
+                val = strcmpi(this.MinHeightCursor.Line.Visible, 'on');
+            else
+                val = false;
             end
         end
     end

@@ -266,14 +266,14 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                     % if the interval is within data range
                     if xmin >= this.x(1)
                         yb = interp1(this.x, this.y, xmin);
-                        xvals = [xmin, xvals];
-                        yvals = [yb, yvals];
+                        xvals = [xmin; xvals];
+                        yvals = [yb; yvals];
                     end
                     
                     if xmax <= this.x(end)
                         yb = interp1(this.x, this.y, xmax);
-                        xvals = [xvals, xmax];
-                        yvals = [yvals, yb];
+                        xvals = [xvals; xmax];
+                        yvals = [yvals; yb];
                     end
                 otherwise
                     error(['Unrecognized function signature. Check ' ...
