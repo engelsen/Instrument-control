@@ -263,9 +263,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                     yvals = this.y(ind);
                     
                     % Add the two points corresponding to the interval ends
-                    yb = interp1(this.x, this.y, [xmin, xmax]);
-                    xvals = [xmin, xvals, xmax];
-                    yvals = [yb(1), yvals, yb(2)];
+                    % if the interval is within data range
+                    if xmin >= this.x(1)
+                        yb = interp1(this.x, this.y, xmin);
+                        xvals = [xmin, xvals];
+                        yvals = [yb, yvals];
+                    end
+                    
+                    if xmax <= this.x(end)
+                        yb = interp1(this.x, this.y, xmax);
+                        xvals = [xvals, xmax];
+                        yvals = [yvals, yb];
+                    end
                 otherwise
                     error(['Unrecognized function signature. Check ' ...
                         'the function definition to see acceptable ' ...
