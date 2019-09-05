@@ -52,7 +52,7 @@ classdef MyPhaseModCal < MyAnalysisRoutine
             
             if ~isempty(this.Axes) && isvalid(this.Axes)
                 ylim = this.Axes.YLim;
-                pos = ylim(1)+0.1*(ylim(2)-ylim(1));
+                pos = min(ylim(1)+0.1*(ylim(2)-ylim(1)), 10*ylim(1));
                 
                 this.MinHeightCursor = MyCursor(this.Axes, pos, ...
                     'orientation',  'horizontal', ...
@@ -131,9 +131,26 @@ classdef MyPhaseModCal < MyAnalysisRoutine
                     'regular, will use the pre-defined value of ' ...
                     'modulation frequency to post select peaks.']);
                 
-                assert(~isempty(this.mod_freq) && this.mod_freq>0, ...
-                    ['An approximate value for modulation frequency ' ...
-                    'must be specified by setting mod_freq property'])
+                if isempty(this.mod_freq) || this.mod_freq<=0
+                    
+                    % Prompt user to specify approximate modulation
+                    % frequency. Show warning dialog if running in a gui
+                    % mode or output warning in the command line otherwise.                        
+                    if ~isempty(this.Gui)
+                        Wd = warndlg(['Cannot identify modulation ' ...
+                            'sidebands automatically. Please input ' ...
+                            'an approximate value of modulation ' ...
+                            'frequency and try again.'], 'Warning');
+                        centerFigure(Wd);
+                    else
+                        warning(['An approximate value on modulation ' ...
+                            'frequency must be specified by setting ' ...
+                            'mod_freq property. Please specify the ' ...
+                            'frequency and try again.']);
+                    end
+                    
+                    return
+                end
                 
                 mod_f = this.mod_freq;
             end
