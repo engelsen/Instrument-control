@@ -371,7 +371,11 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         
         %Plots the trace contained in the Fit MyTrace object 
         function plotFit(this, varargin)
-            plot(this.Fit, this.Axes, 'Color', this.fit_color, varargin{:});
+            
+            % Fit trace does not make its own labels in order to keep the
+            % labels made by the data trace
+            plot(this.Fit, this.Axes, 'Color', this.fit_color, ...
+                'make_labels', false, varargin{:});
         end
         
         %Generates model-dependent initial parameters, lower and upper
