@@ -85,12 +85,12 @@ classdef MyPhaseModCal < MyAnalysisRoutine
         % Calculate the depth of phase modulation from the hights of peaks
         % in the spectrum
         function calcBeta(this)
+            min_y = this.min_peak_height;
             
             % Find peaks above the given threshold
             % Returned values: [y, x, widths, prominences]
             [peak_y, peak_x, peak_w, ~] = findpeaks( ...
-                this.Data.y, this.Data.x, ...
-                'MinPeakHeight',    this.min_peak_height);
+                this.Data.y, this.Data.x, 'MinPeakHeight', min_y);
             
             n_peaks = length(peak_y);
             
