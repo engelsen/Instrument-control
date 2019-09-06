@@ -86,18 +86,11 @@ classdef MyPhaseModCal < MyAnalysisRoutine
         % in the spectrum
         function calcBeta(this)
             
-            % Determine the threshold for peak search
-            if ~isempty(this.MinHeightCursor) && ...
-                    isvalid(this.MinHeightCursor)
-                this.min_peak_height = this.MinHeightCursor.value;
-            end
-            min_y = this.min_peak_height;
-            
             % Find peaks above the given threshold
             % Returned values: [y, x, widths, prominences]
             [peak_y, peak_x, peak_w, ~] = findpeaks( ...
                 this.Data.y, this.Data.x, ...
-                'MinPeakHeight',    min_y);
+                'MinPeakHeight',    this.min_peak_height);
             
             n_peaks = length(peak_y);
             
@@ -248,6 +241,15 @@ classdef MyPhaseModCal < MyAnalysisRoutine
                 val = strcmpi(this.MinHeightCursor.Line.Visible, 'on');
             else
                 val = false;
+            end
+        end
+        
+        function val = get.min_peak_height(this)
+            if ~isempty(this.MinHeightCursor) && ...
+                    isvalid(this.MinHeightCursor)
+                val = this.MinHeightCursor.value;
+            else
+                val = this.min_peak_height;
             end
         end
     end
