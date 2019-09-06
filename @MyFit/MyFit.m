@@ -82,8 +82,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             addParameter(p, 'Data', MyTrace());
             addParameter(p, 'x', []);
             addParameter(p, 'y', []);
-            addParameter(p, 'Axes', matlab.graphics.axis.Axes.empty(), ...
-                @isaxes);
+            addParameter(p, 'Axes', [], @isaxes);
             addParameter(p, 'enable_gui', true);
             addParameter(p, 'enable_plot', true);
             addParameter(p, 'enable_range_cursors', false)

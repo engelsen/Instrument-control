@@ -7,55 +7,58 @@ classdef Myg0Cal < MyAnalysisRoutine
         Data            MyTrace
         
         % Cursors for the selection of calibration tone
-        RefCursors      MyCursor
+        CalCursors      MyCursor
+        cal_range = [0, 0]
         
         % Cursors for the integration of thermomechanical noise
         MechCursors     MyCursor
+        mech_range = [0, 0]
         
         % Fitting routine used in the method is 'fit'
-        LorFit          MyLorenzianFit
+        LorFit          MyLorentzianFit
         
         % method of finding the area under the mechanical noise peak, 
         % integration or fit
         method = 'integration'
         
         % Calibration parameters set by the user
-        beta    % Phase modulation depth of the reference tone
-        T       % Temperature (K)
+        beta = 0.1    % Phase modulation depth of the reference tone
+        T = 300       % Temperature (K)
         
         % Correction for dynamic backaction. Requires 'fit' method 
         % and reference quality factor. 
         correct_dba = false 
-        ref_Q
+        ref_Q = 0
         
         % Calibration result, g0l = g0/2pi
-        g0l
+        g0l = 0
     end
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (GetAccess = public, SetAccess = protected, ...
+            SetObservable = true)
+        Axes
         Gui
         
         % Parameters of the fitted mechanical Lorentzian
-        Q=
-        lw
-        freq
+        Q = 0
+        lw = 0
+        freq = 0
     end
     
     properties (Access = protected)
-        cal_tone_freq
-        
         Psl     % listener to the PostSet event of 'method' property
     end
     
     methods (Access = public)
         function this = Myg0Cal(varargin)
-            P = MyClassParser(this);
-            addParameter(P, 'Axes', @isaxes);
-            addParameter(P, 'enable_gui', @islogical);
-            processInputs(this);
+            p = inputParser();
+            addParameter(p, 'Data', MyTrace());
+            addParameter(p, 'Axes', matlab.graphics.axis.Axes.empty(), ...
+                @isaxes);
+            addParameter(p, 'enable_gui', true, @islogical);
+            parse(p, varargin{:});
             
-            % Protected properties of the class must be assigned explicitly
-            % while the public ones were assigned in processInputs
+            this.Data = p.Results.Data;
             this.Axes = p.Results.Axes;
 
             if ~isempty(this.Axes)
@@ -63,17 +66,17 @@ classdef Myg0Cal < MyAnalysisRoutine
                 % Add two sets of vertical cursors for the selection of
                 % integration ranges
                 xlim = this.Axes.XLim;
-                x1 = xlim(1)+0.2*(xlim(2)-xlim(1));
-                x2 = xlim(2)-0.2*(xlim(2)-xlim(1));
+                x1 = xlim(1)+0.4*(xlim(2)-xlim(1));
+                x2 = xlim(1)+0.45*(xlim(2)-xlim(1));
                 
-                this.RefCursors = ...
+                this.CalCursors = ...
                     [MyCursor(this.Axes, x1, 'orientation', 'vertical', ...
-                    'Label','Ref 1', 'Color', [0, 0, 0.6]), ...
+                    'Label','Cal 1', 'Color', [0, 0, 0.6]), ...
                     MyCursor(this.Axes, x2, 'orientation', 'vertical', ...
-                    'Label','Ref 2', 'Color', [0, 0, 0.6])];
+                    'Label','Cal 2', 'Color', [0, 0, 0.6])];
                 
-                x1 = xlim(1)+0.1*(xlim(2)-xlim(1));
-                x2 = xlim(2)-0.1*(xlim(2)-xlim(1));
+                x1 = xlim(2)-0.45*(xlim(2)-xlim(1));
+                x2 = xlim(2)-0.4*(xlim(2)-xlim(1));
                 
                 this.MechCursors = ...
                     [MyCursor(this.Axes, x1, 'orientation', 'vertical', ...
@@ -82,11 +85,10 @@ classdef Myg0Cal < MyAnalysisRoutine
                     'Label','Mech 2', 'Color', [0.6, 0, 0])];
             end
             
-            % This listener handles the switching between the analysis
-            % methods
-            this.Psl = addListener(this, 'method', 'PostSet', ...
-                @(~,~)updateMethod(this));
-            updateMethod(this);
+            % This listener handles the initialization of fitting routine
+            % when the method is switched to 'fit' for the first time 
+            this.Psl = addlistener(this, 'method', 'PostSet', ...
+                @(~,~)initFit(this));
             
             % Gui is created right before the construction of object 
             % is over 
@@ -99,25 +101,62 @@ classdef Myg0Cal < MyAnalysisRoutine
             if ~isempty(this.Psl)
                 delete(this.Psl);
             end
-            if ~isempty(this.RefCursors)
-                delete(this.RefCursors);
+            if ~isempty(this.CalCursors)
+                delete(this.CalCursors);
             end
             if ~isempty(this.MechCursors)
                 delete(this.MechCursors);
+            end
+            if ~isempty(this.LorFit)
+                delete(this.LorFit)
             end
         end
         
         % Calculate g0
         function calcg0(this)
+            cr = this.cal_range;
             
-            xmin = ;
-            xmax = ;
+            % Find the frequency of calibration tone
+            ind = (this.Data.x>cr(1) & this.Data.x<=cr(2));
+            cal_tone_freq = sum(this.Data.x(ind) .* this.Data.y(ind))/ ...
+                sum(this.Data.y(ind));
             
             % Calculate area under the calibration tone peak
-            cal_tone_area = integrate(this.Data, xmin, xmax);
+            cal_tone_area = integrate(this.Data, cr(1), cr(2));
+            
+            mr = this.mech_range;
             
             if isequal(this.method, 'integration')
+                mech_area = integrate(this.Data, mr(1), mr(2));
+                
+                % Estimate mechanical frequency
+                ind = (this.Data.x>mr(1) & this.Data.x<=mr(2));
+                this.freq = sum(this.Data.x(ind) .* this.Data.y(ind))/ ...
+                    sum(this.Data.y(ind));
             elseif isequal(this.method, 'fit')
+                
+                % Select data within the mechanics range
+                ind = (this.Data.x>mr(1) & this.Data.x<=mr(2));
+                this.LorFit.Data.x = this.Data.x(ind);
+                this.LorFit.Data.y = this.Data.y(ind);
+                
+                fitTrace(this.LorFit);
+                
+                % Extract fitted parameters
+                this.lw = this.LorFit.param_vals(2);     % Linewidth in Hz
+                this.freq = this.LorFit.param_vals(3);   % Frequency in Hz
+                this.Q = (this.freq/this.lw);            % Q in millions  
+                
+                % Our Lorentzian is normalized such that the area under 
+                % the curve is equal to the amplitude parameter
+                mech_area = this.LorFit.param_vals(1);
+                
+                if this.correct_dba
+                    
+                    % Apply correction for the cooling or amplification 
+                    % of mechanical motion by dynamic backaction
+                    mech_area = mech_area*this.ref_Q/this.Q;
+                end
             end
             
             % Boltzmann and Planck constants
@@ -125,10 +164,10 @@ classdef Myg0Cal < MyAnalysisRoutine
             h = 6.62607e-34;      % m^2*kg/s
             
             % Equilibrium thermal occupation of the oscillator
-            n_th = k_b*this.T/(h*this.mech_freq);
+            n_th = k_b*this.T/(h*this.freq);
             
             % Calculate g0
-            this.g0l = this.beta*this.cal_tone_freq* ...
+            this.g0l = this.beta*cal_tone_freq* ...
                 sqrt(mech_area/(cal_tone_area*4*n_th));
         end
     end
@@ -137,82 +176,30 @@ classdef Myg0Cal < MyAnalysisRoutine
         
         % Initialize a new fit object if it was not created yet and if the
         % method is 'fit'
-        function updateMethod(this)
+        function initFit(this)
             if isequal(this.method, 'fit')
                 
                 % Make sure that the fit object is initialized
                 if isempty(this.LorFit) || ~isvalid(this.LorFit)
-                    this.LorFit = MyLorenzianFit('Axes', this.Axes, ...
-                        'Data', this.Data, 'enable_range_cursors', true);
+                    
+                    % Select data within the mechanics range
+                    ind = (this.Data.x>this.mech_range(1) & ...
+                        this.Data.x<=this.mech_range(2));
+
+                    this.LorFit = MyLorentzianFit('Axes', this.Axes, ...
+                        'x', this.Data.x(ind), 'y', this.Data.y(ind), ...
+                        'enable_range_cursors', false, ...
+                        'enable_gui', false);
                 end
                 
-                % Hide the integration cursors
-                set(this.MechCursors.Visible, 'off');
-                
-                % Show the fit range cursors and set them to the same
-                % position as the integration cursors
-                this.LorFit.enable_range_cursors = true;
-                set(this.LorFit.RangeCursors.value,this.MechCursors.value);
-                
                 genInitParams(this.LorFit);
-            elseif isequal(this.method, 'integration')
-                
-                % Show the integration cursors
-                set(this.MechCursors.Visible, 'on');
-                
-                % Make sure that the fit object is initialized
+            else
                 if ~isempty(this.LorFit) && isvalid(this.LorFit)
                     
-                    % Set integration cursors to the same position as fit
-                    % range cursors
-                    set(this.MechCursors.value, ...
-                        this.LorFit.RangeCursors.value);
-                    
-                    % Hide the fit range cursors and delete the fit curve
-                    this.LorFit.enable_range_cursors = false;
+                    % Remove the fit curve from the plot
                     clearFit(this.LorFit);
                 end
             end
-        end
-        
-        % Function for calculating the parameters shown in the user panel
-        function calcUserParams(this)
-            lw = this.param_vals(2); 
-            freq = this.param_vals(3); 
-            
-            this.lw = lw;                % Linewidth in Hz
-            this.freq = freq/1e6;        % Frequency in MHz
-            this.Q = (freq/lw)/1e6;      % Q in millions  
-
-        end
-        
-        function createUserParamList(this)
-            addUserParam(this, 'lw', 'title', 'Linewidth (Hz)', ...
-                'editable', 'off');
-            addUserParam(this, 'freq', 'title', 'Frequency (MHz)', ...
-                'editable', 'off');
-            addUserParam(this, 'Q', 'title', 'Qualify Factor (x10^6)', ...
-                'editable', 'off');
-            
-            % Parameters inputed externally
-            addUserParam(this, 'beta', ...
-                'title',        'Modulation depth \beta', ...
-                'editable',     'on', ...
-                'default',      0.1);
-            addUserParam(this, 'T', ...
-                'title',        'Temperature (K)', ...
-                'editable',     'on', ...
-                'default',      300);
-            addUserParam(this, 'refQ', 'title', ...
-                'Independently measured qualify Factor (x10^6)', ...
-                'editable',     'on', ...
-                'default',      1);
-            
-            % Calibrated values
-            addUserParam(this, 'g0_int', 'title', 'g_0 from integration', ...
-                'editable', 'off');
-            addUserParam(this, 'g0_fit', 'title', 'g_0 from fit', ...
-                'editable', 'off');
         end
     end
     
@@ -225,12 +212,40 @@ classdef Myg0Cal < MyAnalysisRoutine
             assert(isequal(val, 'integration') || isequal(val, 'fit'), ...
                 '''method'' must be ''integration'' or ''fit''')
             
-            if ~isequal(this.method, val)
+            this.method = val;
+        end
+        
+        % Get the integration range for the calibration tone
+        function val = get.cal_range(this)
+            if ~isempty(this.CalCursors) && all(isvalid(this.CalCursors))
                 
-                % We only set the property when its value has actually
-                % changes in order to prevent redundant executions of the
-                % post set listener
-                this.method = val;
+                % If cursors exist, return the range between the
+                % cursors
+                xmin = min(this.CalCursors.value);
+                xmax = max(this.CalCursors.value);
+                
+                val = [xmin, xmax];
+            else
+                
+                % Otherwise the value can be set programmatically
+                val = this.cal_range;
+            end
+        end
+        
+        % Get the range for the mechanical peak
+        function val = get.mech_range(this)
+            if ~isempty(this.MechCursors) && all(isvalid(this.MechCursors))
+                
+                % If cursors exist, return the range between the
+                % cursors
+                xmin = min(this.MechCursors.value);
+                xmax = max(this.MechCursors.value);
+                
+                val = [xmin, xmax];
+            else
+                
+                % Otherwise the value can be set programmatically
+                val = this.mech_range;
             end
         end
     end
