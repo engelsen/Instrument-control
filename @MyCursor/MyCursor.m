@@ -12,8 +12,11 @@ classdef MyCursor < handle
         % processing the interaction callbacks
         originalWbmFcn
         originalWbuFcn
+        originalWbdFcn
         originalXLimMode
         originalYLimMode
+        
+        was_dragged = false
     end
     
     properties (Dependent = true)
@@ -24,11 +27,13 @@ classdef MyCursor < handle
     end
     
     methods (Access = public)
-        function this = MyCursor(Axes, position, varargin)
+        function this = MyCursor(Axes, varargin)
             p = inputParser();
             p.KeepUnmatched = true;
+            addRequired(p, 'Axes', @isaxes);
+            addParameter(p, 'position', []);
             addParameter(p, 'orientation', 'vertical', @ischar);
-            parse(p, varargin{:});
+            parse(p, Axes, varargin{:});
             
             % All the unmatched parameters will be passed to the line
             % constructor
@@ -39,9 +44,21 @@ classdef MyCursor < handle
             
             % Draw the cursor line
             if strcmpi(p.Results.orientation, 'vertical')
-                this.Line = xline(Axes, position, line_nv{:});
+                if ~isempty(p.Results.position)
+                    pos = p.Results.position;
+                else
+                    pos = (this.Axes.XLim(1)+this.Axes.XLim(2))/2;
+                end
+                
+                this.Line = xline(Axes, pos, line_nv{:});
             else
-                this.Line = yline(Axes, position, line_nv{:});
+                if ~isempty(p.Results.position)
+                    pos = p.Results.position;
+                else
+                    pos = (this.Axes.YLim(1)+this.Axes.YLim(2))/2;
+                end
+                
+                this.Line = yline(Axes, pos, line_nv{:});
             end
             
             % Configure the line
@@ -68,14 +85,47 @@ classdef MyCursor < handle
             % Replace figure callbacks
             this.originalWbmFcn = this.Figure.WindowButtonMotionFcn;
             this.originalWbuFcn = this.Figure.WindowButtonUpFcn;
+            this.originalWbdFcn = this.Figure.WindowButtonDownFcn;
             
             this.Figure.WindowButtonMotionFcn = @this.localWbmFcn;
             this.Figure.WindowButtonUpFcn = @this.localWbuFcn;
+            this.Figure.WindowButtonDownFcn = @this.localWbdFcn;
+            
+            this.Line.Selected = 'on';
         end
         
         % Replacement callback that is active when the cursor is being 
         % dragged 
         function localWbmFcn(this, ~, ~)
+            this.was_dragged = true;
+            moveLineToMouseTip(this);
+        end
+        
+        % Replacement callback that is active when the cursor is being 
+        % dragged
+        function localWbuFcn(this, ~, ~)
+            if this.was_dragged
+                
+                % If the cursor was dragged while the mouse button was 
+                % down, finish the interaction 
+                this.was_dragged = false;
+                restoreAxes(this);
+            else
+                
+                % If it was not dragged, disable the mouse motion callback 
+                % and wait for a new mouse click to move the cursor
+                this.Figure.WindowButtonMotionFcn = this.originalWbmFcn;
+            end
+        end
+        
+        % Replacement callback that is active when the cursor is being 
+        % dragged 
+        function localWbdFcn(this, ~, ~)
+            moveLineToMouseTip(this);
+            restoreAxes(this);
+        end
+        
+        function moveLineToMouseTip(this)
             
             % Move the cursor line to the current position of the mouse
             % tip withing the plot area.
@@ -93,18 +143,20 @@ classdef MyCursor < handle
             end
         end
         
-        % Replacement callback that is active when the cursor is being 
-        % dragged
-        function localWbuFcn(this, ~, ~)
+        % Restore the axes in the state before user interaction
+        function restoreAxes(this)
             
             % Restore the original figure callbacks when the cursor drag is
             % finished
             this.Figure.WindowButtonMotionFcn = this.originalWbmFcn;
             this.Figure.WindowButtonUpFcn = this.originalWbuFcn;
-            
+            this.Figure.WindowButtonDownFcn = this.originalWbdFcn;
+
             % Restore the axes limits mode
             this.Axes.XLimMode = this.originalXLimMode;
             this.Axes.YLimMode = this.originalYLimMode;
+
+            this.Line.Selected = 'off';
         end
     end
     
