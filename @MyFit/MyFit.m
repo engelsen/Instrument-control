@@ -356,7 +356,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             %Updates the gui if it is enabled
             if this.enable_gui
                 genSliderVecs(this);
-                updateGui(this);
+                updateSliderPanel(this);
             end
             
             %Plots the fit if the flag is on
@@ -400,7 +400,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             %param sliders
             if this.enable_gui
                 genSliderVecs(this);
-                updateGui(this);
+                updateSliderPanel(this);
             end
         end
                
@@ -408,12 +408,6 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         %e.g. plot new fits
         function triggerNewFit(this)
             notify(this,'NewFit');
-        end
-        
-        %Triggered for transferring of the fit trace to DAQ
-        function triggerNewAnalysisTrace(this)
-            EventData = MyNewAnalysisTraceEvent('Trace', copy(this.Fit));
-            notify(this, 'NewAnalysisTrace', EventData);
         end
         
         % Create metadata with all the fitting and user-defined parameters
@@ -783,7 +777,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         end
         
         function acceptFitCallback(this, ~, ~)
-            triggerNewAnalysisTrace(this);
+            triggerNewAnalysisTrace(this, 'Trace', copy(this.Fit));
         end
         
         function enableCursorsCallback(this, hObject, ~)
@@ -814,7 +808,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         
         %Updates the GUI if the edit or slider boxes are changed from
         %elsewhere.
-        function updateGui(this)
+        function updateSliderPanel(this)
             for i=1:this.n_params
                 str=this.fit_params{i};
                 set(this.Gui.(sprintf('Edit_%s',str)),...

@@ -14,5 +14,14 @@ classdef MyAnalysisRoutine < handle
     events
         NewAnalysisTrace
     end
+    
+    methods (Access = public)
+                
+        %Triggered for transferring of the fit trace to DAQ
+        function triggerNewAnalysisTrace(this, varargin)
+            EventData = MyNewAnalysisTraceEvent(varargin{:});
+            notify(this, 'NewAnalysisTrace', EventData);
+        end
+    end
 end
 
