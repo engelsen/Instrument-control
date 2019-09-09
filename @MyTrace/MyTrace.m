@@ -136,10 +136,11 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             addParameter(p, 'make_labels', true, @islogical);
             
-            interpreters = {'none', 'tex', 'latex'};
-            validateInterpreter = @(x) assert(contains(x,interpreters), ...
+            validateInterpreter = @(x) assert( ...
+                ismember(x, {'none', 'tex', 'latex'}),...
                 'Interpreter must be none, tex or latex');
             addParameter(p, 'Interpreter', 'latex', validateInterpreter);
+            
             parse(p, varargin{:});
             
             line_opts = struct2namevalue(p.Unmatched);
@@ -166,13 +167,19 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             if p.Results.make_labels
-                
-                % Add labels to the axes
-                interpreter = p.Results.Interpreter;
-                xlabel(Axes, this.label_x, 'Interpreter', interpreter);
-                ylabel(Axes, this.label_y, 'Interpreter', interpreter);
-                set(Axes, 'TickLabelInterpreter', interpreter);
+                makeLabels(this, Axes, p.Results.Interpreter)
             end
+        end
+        
+        % Add labels to the axes
+        function makeLabels(this, Axes, interpreter)
+            if exist('interpreter', 'var') == 0
+                interpreter = 'latex';
+            end
+            
+            xlabel(Axes, this.label_x, 'Interpreter', interpreter);
+            ylabel(Axes, this.label_y, 'Interpreter', interpreter);
+            set(Axes, 'TickLabelInterpreter', interpreter);
         end
         
         %If there is a line object from the trace in the figure, this sets
