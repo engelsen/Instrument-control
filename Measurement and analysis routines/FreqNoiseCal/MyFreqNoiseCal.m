@@ -32,6 +32,10 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
         Gui
         
         cal_freq
+        
+        % Conversion factor between S_V and S_\omega defined such that
+        % S_\omega = cf*S_V
+        cf = 1
     end
     
     methods (Access = public)
@@ -71,8 +75,14 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             end
         end
         
+        function delete(this)
+            if ~isempty(this.CalCursors)
+                delete(this.CalCursors);
+            end
+        end
+        
         % Calculates the frequency noise spectrum
-        function calcFreqSpectrum(this)
+        function calcConvFactor(this)
             if isempty(this.Data) || isDataEmpty(this.Data)
                 warning('Data is empty');
                 return
@@ -94,6 +104,15 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             % tone 
             vSqCt = this.beta^2*(2*pi*freq)^2/2;
             
+            this.cf = vSqCt/area;
+        end
+        
+        function convertSpectrum(this)
+            if isempty(this.Data) || isDataEmpty(this.Data)
+                warning('Data is empty');
+                return
+            end
+            
             this.FreqSpectrum.x = this.Data.x;
             this.FreqSpectrum.name_x = this.Data.name_x;
             this.FreqSpectrum.unit_x = 'Hz';
@@ -103,19 +122,19 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
                     this.FreqSpectrum.name_y = '$S_{\omega}$';
                     this.FreqSpectrum.unit_y = 'rad$^2$/Hz';
                     
-                    this.FreqSpectrum.y = this.Data.y*vSqCt/area;
+                    this.FreqSpectrum.y = this.Data.y*this.cf;
                 case 'S_f'
                     this.FreqSpectrum.name_y = '$S_{\omega}/(2\pi)^2$';
                     this.FreqSpectrum.unit_y = 'Hz$^2$/Hz';
                     
                     this.FreqSpectrum.y = ...
-                        this.Data.y*(vSqCt/area)/(2*pi)^2;
+                        this.Data.y*this.cf/(2*pi)^2;
                 case 'sqrt(S_f)'
                     this.FreqSpectrum.name_y ='$\sqrt{S_{\omega}}/(2\pi)$';
                     this.FreqSpectrum.unit_y ='Hz/$\sqrt{\mathrm{Hz}}$';
                     
                     this.FreqSpectrum.y = ...
-                        sqrt(this.Data.y*(vSqCt/area))/(2*pi);
+                        sqrt(this.Data.y*this.cf)/(2*pi);
                 otherwise
                     error(['Unknown frequency spectrum type ' ...
                         this.spectrum_type])
@@ -123,7 +142,7 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             
             % Update metadata
             this.FreqSpectrum.UserMetadata = createMetadata(this);
-            
+
             triggerNewAnalysisTrace(this,'Trace',copy(this.FreqSpectrum));
         end
     end
@@ -145,6 +164,8 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             addParam(Mdt, 'cal_freq', this.cal_freq, ...
                 'comment', ['Calibration tone frequency (' ...
                 this.Data.unit_x ')']);
+            addParam(Mdt, 'cf', this.cf, ...
+                'comment', 'Conversion factor S_\omega = cf*S_V');
         end
     end
     
