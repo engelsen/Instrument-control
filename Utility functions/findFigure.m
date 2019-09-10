@@ -8,6 +8,16 @@ function Fig = findFigure(Obj)
         return
     end
     
+    % If the object contains 'Gui' property, search over it instead of the
+    % object itself.
+    gui_prop_name_list = {'gui', 'Gui', 'GUI'};
+    ind = ismember(gui_prop_name_list, properties(Obj));
+    if nnz(ind) == 1
+        tag = gui_prop_name_list{ind};
+        Fig = findFigure(Obj.(tag));
+        return
+    end
+    
     % Find figure among the object properties
     if isstruct(Obj)
         prop_names = fieldnames(Obj);

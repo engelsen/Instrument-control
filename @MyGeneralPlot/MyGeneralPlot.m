@@ -1,6 +1,6 @@
 % Acquisition and analysis program that receives data from Collector. Can
 % also be used for analysis of previously acquired traces.
-classdef MyDaq < handle
+classdef MyGeneralPlot < handle
     properties
         %Contains GUI handles
         Gui
@@ -524,7 +524,7 @@ classdef MyDaq < handle
             
             %Check if the trace is valid (i.e. x and y are equal length)
             %before saving
-            if ~this.(trace_tag).validatePlot
+            if ~validateData(this.(trace_tag))
                 errordlg(sprintf('%s trace was empty, could not save',...
                     trace_tag));
                 return
@@ -569,7 +569,7 @@ classdef MyDaq < handle
         
         %Callback for moving the data to reference.
         function dataToRefCallback(this, ~, ~)
-            if this.Data.validatePlot
+            if validateData(this.Data)
                 % Copy Data to Reference and pass Reference the handle to 
                 % the line in the main plot
                 hline=getLine(this.Ref, this.main_plot);
@@ -594,7 +594,7 @@ classdef MyDaq < handle
         
         %Callback for ref to bg button. Sends the reference to background
         function refToBgCallback(this, ~, ~)
-            if this.Ref.validatePlot
+            if this.Ref.validateData
                 hline=getLine(this.Background, this.main_plot);
                 this.Background=copy(this.Ref);
                 if ~isempty(hline)
@@ -610,7 +610,7 @@ classdef MyDaq < handle
         
         %Callback for data to bg button. Sends the data to background
         function dataToBgCallback(this, ~, ~)
-            if this.Data.validatePlot
+            if validateData(this.Data)
                 hline=getLine(this.Background, this.main_plot);
                 this.Background=copy(this.Data);
                 if ~isempty(hline)
@@ -715,7 +715,7 @@ classdef MyDaq < handle
                 this.Fits.(fit_name)=launchFit(...
                     fit_name,...
                     'enable_plot',1,...
-                    'plot_handle',this.main_plot,...
+                    'Axes',this.main_plot,...
                     'Data',DataTrace,...
                     'base_dir',this.base_dir,...
                     'session_name',this.session_name,...
@@ -1012,7 +1012,9 @@ classdef MyDaq < handle
             try
                 filename=this.Gui.FileName.String;
                 [~,~,ext]=fileparts(filename);
-                if isempty(ext)
+                
+                if isempty(ext) || (length(ext) > 5) || any(isspace(ext))
+                    
                     % Add default file extension
                     filename=[filename, this.default_ext];
                 end

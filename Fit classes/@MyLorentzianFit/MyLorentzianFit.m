@@ -1,146 +1,138 @@
 classdef MyLorentzianFit < MyFit
-    properties (Access=public)
-        %Logical value that determines whether the data should be scaled or
-        %not
-        scale_data;
-        %For calibration of optical frequencies using reference lines
-        tot_spacing=1;
-        
-    end
     
-    %Public methods
-    methods (Access=public)
-        %Constructor function
-        function this=MyLorentzianFit(varargin)
-            this@MyFit(...
-                'fit_name','Lorentzian',...
-                'fit_function','1/pi*a*b/2/((x-c)^2+(b/2)^2)+d',...
-                'fit_tex','$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$',...
-                'fit_params',  {'a','b','c','d'},...
-                'fit_param_names',{'Amplitude','Width','Center','Offset'},...
+    methods (Access = public)
+        function this = MyLorentzianFit(varargin)
+            this@MyFit( ...
+                'fit_name',         'Lorentzian', ...
+                'fit_function',     '1/pi*a*b/2/((x-c)^2+(b/2)^2)+d', ...
+                'fit_tex',          '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$', ...
+                'fit_params',       {'a','b','c','d'}, ...
+                'fit_param_names',  {'Amplitude','Width','Center','Offset'}, ...
                 varargin{:});
         end
     end
     
-    methods (Access=protected)
+    methods (Access = protected)
+        
         %Overload the doFit function to do scaled fits.
-        %We here have the choice of whether to scale the data or not.
-        function doFit(this)
-            if this.scale_data
-                ft=fittype(this.fit_function,'coefficients',...
-                    this.fit_params);
-                opts=fitoptions('Method','NonLinearLeastSquares',...
-                    'Lower',convRealToScaledCoeffs(this,this.lim_lower),...
-                    'Upper',convRealToScaledCoeffs(this,this.lim_upper),...
-                    'StartPoint',convRealToScaledCoeffs(this,this.init_params),...
-                    'MaxFunEvals',2000,...
-                    'MaxIter',2000,...
-                    'TolFun',1e-6,...
-                    'TolX',1e-6);
-                %Fits with the below properties. Chosen for maximum accuracy.
-                [this.Fitdata,this.Gof,this.FitInfo]=...
-                    fit(this.Data.scaled_x,this.Data.scaled_y,ft,opts);
-                %Puts the coeffs into the class variable.
-                this.coeffs=convScaledToRealCoeffs(this,...
-                    coeffvalues(this.Fitdata));
-            else
-                %Do the default fitting if we are not scaling.
-                doFit@MyFit(this);
-            end
-            calcUserParams(this);
-        end
-        
-        %Calculates the initial parameters using an external function.
-        function [init_params,lim_lower,lim_upper]=calcInitParams(this)
-            if this.scale_data
-                [init_params,lim_lower,lim_upper]=...
-                    initParamLorentzian(this.Data.scaled_x,this.Data.scaled_y);
-                %Convertion back to real values for display.
-                init_params=convScaledToRealCoeffs(this,init_params);
-                lim_lower=convScaledToRealCoeffs(this,lim_lower);
-                lim_upper=convScaledToRealCoeffs(this,lim_upper);
-            else
-                [init_params,lim_lower,lim_upper]=...
-                    initParamLorentzian(this.Data.x,this.Data.y);
-            end
-        end
-        
-        %Function for calculating the parameters shown in the user panel
-        function calcUserParams(this)
-            this.mech_lw=this.coeffs(2); 
-            this.mech_freq=this.coeffs(3); 
-            this.Q=this.mech_freq/this.mech_lw; 
-            this.opt_lw=convOptFreq(this,this.coeffs(2)); 
-            this.Qf=this.mech_freq*this.Q;
-        end
-        
-        function createUserGuiStruct(this)
-            %Parameters for the tab relating to mechanics
-            this.UserGui.Tabs.Mech.tab_title='Mech.';
-            this.UserGui.Tabs.Mech.Children={};
-            addUserField(this,'Mech','mech_lw','Linewidth (Hz)',1,...
-                'enable_flag','off')
-            addUserField(this,'Mech','Q',...
-                'Qualify Factor (x10^6)',1e6,...
-                'enable_flag','off','conv_factor',1e6)
-            addUserField(this,'Mech','mech_freq','Frequency (MHz)',1e6,...
-                'conv_factor',1e6, 'enable_flag','off')
-            addUserField(this,'Mech','Qf','Q\times f (10^{14} Hz)',1e14,...
-                'conv_factor',1e14,'enable_flag','off');
+        function fitted_vals = doFit(this, x, y, init_vals, lim_lower, ...
+                lim_upper)
             
-            %Parameters for the tab relating to optics
-            this.UserGui.Tabs.Opt.tab_title='Optical';
-            this.UserGui.Tabs.Opt.Children={};
-            addUserField(this,'Opt','line_spacing',...
-                'Line Spacing (MHz)',1e6,'conv_factor',1e6,...
-                'Callback', @(~,~) calcUserParams(this));
-            addUserField(this,'Opt','line_no','Number of lines',10,...
-                'Callback', @(~,~) calcUserParams(this));
-            addUserField(this,'Opt','opt_lw','Linewidth (MHz)',1e6,...
-                'enable_flag','off','conv_factor',1e6);
+            % Scale x and y data
+            [scaled_x, mean_x, std_x] = zscore(x);
+            [scaled_y, mean_y, std_y] = zscore(y);
+            
+            % Scaling coefficients
+            sc = {mean_x, std_x, mean_y, std_y};
+            
+            scaled_fitted_vals = doFit@MyFit(this, scaled_x, scaled_y, ...
+                scaleFitParams(this, init_vals, sc), ...
+                scaleFitParams(this, lim_lower, sc), ...
+                scaleFitParams(this, lim_upper, sc));
+            
+            fitted_vals = unscaleFitParams(this, scaled_fitted_vals, sc);
+        end
+        
+        function calcInitParams(this)
+            ind = this.data_selection;
+            
+            x = this.Data.x(ind);
+            y = this.Data.y(ind);
+
+            this.lim_upper=[Inf,Inf,Inf,Inf];
+            this.lim_lower=[-Inf,0,-Inf,-Inf];
+
+            %Finds peaks on the positive signal (max 1 peak)
+            try
+                [~,locs(1),widths(1),proms(1)]=findpeaks(y,x,...
+                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
+                    'NPeaks',1);
+            catch
+                proms(1)=0;
+            end
+
+            %Finds peaks on the negative signal (max 1 peak)
+            try
+                [~,locs(2),widths(2),proms(2)]=findpeaks(-y,x,...
+                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
+                    'NPeaks',1);
+            catch
+                proms(2)=0;
+            end
+
+            if proms(1)==0 && proms(2)==0
+                warning(['No peaks were found in the data, giving ' ...
+                    'default initial parameters to fit function'])
+                this.param_vals=[1,1,1,1];
+                this.lim_lower=-[Inf,0,Inf,Inf];
+                this.lim_upper=[Inf,Inf,Inf,Inf];
+                return
+            end
+
+            %If the prominence of the peak in the positive signal is 
+            %greater, we adapt our limits and parameters accordingly, 
+            %if negative signal has a greater prominence, we use this 
+            %for fitting.
+            if proms(1)>proms(2)
+                ind=1;
+                p_in(4)=min(y);
+            else
+                ind=2;
+                p_in(4)=max(y);
+                proms(2)=-proms(2);
+            end
+
+            p_in(2)=widths(ind);
+            
+            %Calculates the amplitude, as when x=c, the amplitude 
+            %is 2a/(pi*b)
+            p_in(1)=proms(ind)*pi*p_in(2)/2;
+            p_in(3)=locs(ind);
+
+            this.param_vals = p_in;
+            this.lim_lower(2)=0.01*p_in(2);
+            this.lim_upper(2)=100*p_in(2);
         end
         
         function genSliderVecs(this)
             genSliderVecs@MyFit(this);
             
-            if validateData(this)
+            try 
+                
                 %We choose to have the slider go over the range of
                 %the x-values of the plot for the center of the
                 %Lorentzian.
                 this.slider_vecs{3}=...
-                    linspace(this.x_vec(1),this.x_vec(end),101);
+                    linspace(this.Fit.x(1),this.Fit.x(end),101);
                 %Find the index closest to the init parameter
                 [~,ind]=...
-                    min(abs(this.init_params(3)-this.slider_vecs{3}));
+                    min(abs(this.param_vals(3)-this.slider_vecs{3}));
                 %Set to ind-1 as the slider goes from 0 to 100
                 set(this.Gui.(sprintf('Slider_%s',...
                     this.fit_params{3})),'Value',ind-1);
+            catch 
             end
         end
-        
-        %This function is used to convert the x-axis to frequency.
-        function real_freq=convOptFreq(this,freq)
-            real_freq=freq*this.line_spacing*this.line_no/this.tot_spacing;
-        end
     end
     
-    methods (Access=private)
+    methods (Access = private)
+        function sc_vals = scaleFitParams(~, vals, scaling_coeffs)
+            [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
+            
+            sc_vals(1)=vals(1)/(std_y*std_x);
+            sc_vals(2)=vals(2)/std_x;
+            sc_vals(3)=(vals(3)-mean_x)/std_x;
+            sc_vals(4)=(vals(4)-mean_y)/std_y;
+        end
+        
         %Converts scaled coefficients to real coefficients
-        function r_c=convScaledToRealCoeffs(this,s_c)
-            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
-            r_c(1)=s_c(1)*std_y*std_x;
-            r_c(2)=s_c(2)*std_x;
-            r_c(3)=s_c(3)*std_x+mean_x;
-            r_c(4)=s_c(4)*std_y+mean_y;
-        end
-        
-        function s_c=convRealToScaledCoeffs(this,r_c)
-            [mean_x,std_x,mean_y,std_y]=calcZScore(this.Data);
-            s_c(1)=r_c(1)/(std_y*std_x);
-            s_c(2)=r_c(2)/std_x;
-            s_c(3)=(r_c(3)-mean_x)/std_x;
-            s_c(4)=(r_c(4)-mean_y)/std_y;
+        function vals = unscaleFitParams(~, sc_vals, scaling_coeffs)
+            [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
+            
+            vals(1)=sc_vals(1)*std_y*std_x;
+            vals(2)=sc_vals(2)*std_x;
+            vals(3)=sc_vals(3)*std_x+mean_x;
+            vals(4)=sc_vals(4)*std_y+mean_y;
         end
     end
-    
 end

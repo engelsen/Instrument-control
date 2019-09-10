@@ -113,9 +113,19 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 return
             end
             
+            cs = this.column_sep;
+            ls = this.line_sep;
+            
+            % Make the output string. Start by printing the title.
+            str = sprintf([this.hdr_spec, this.title, this.hdr_spec, ls]);
+            
             % Compose the list of parameter names expanded over subscripts
             % except for those which are already character arrays
             par_names = fieldnames(this.ParamList);
+            
+            if isempty(par_names)
+                return
+            end
             
             % Expand parameters over subscripts, except for the arrays of 
             % characters
@@ -143,7 +153,6 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             
             % Width of the values column will be the maximum parameter
             % string width
-            val_pad_length = 0;
             for i=1:length(par_names)
                 tmp_nm = par_names{i};
                 
@@ -189,22 +198,17 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                     else
                         val_strs{i}{j} = sprintf(format, tmp_val);
                     end
-                    
-                    % Find maximum length to determine the colum width, 
-                    % but, for beauty, do not account for variables with 
-                    % excessively long value strings
-                    tmplen = length(val_strs{i}{j});
-                    if (val_pad_length<tmplen) && (tmplen<=this.pad_lim)
-                        val_pad_length = tmplen;
-                    end
                 end
             end
-            
-            cs = this.column_sep;
-            ls = this.line_sep;
-            
-            % Make the output string. Start by printing the title.
-            str = sprintf([this.hdr_spec, this.title, this.hdr_spec, ls]);
+                                
+            % Find the maximum string length to determine the colum width, 
+            % but, for beauty, exclude excessively long value strings
+            val_str_len = cellfun(@length, [val_strs{:}]);
+            if max(val_str_len)-min(val_str_len)<=this.pad_lim
+                val_pad_length = max(val_str_len);
+            else
+                val_pad_length = min(val_str_len)+this.pad_lim;
+            end
 
             par_format = [sprintf('%%-%is', name_pad_length),...
                 cs, sprintf('%%-%is', val_pad_length)];

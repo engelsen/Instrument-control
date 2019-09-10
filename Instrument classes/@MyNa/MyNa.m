@@ -41,7 +41,7 @@ classdef MyNa < MyScpiInstrument & MyCommCont & MyDataSource
             trace_tag = sprintf('Trace%i', n_trace);
             
             % Assign either Trace1 or 2 to Trace while keeping the metadata 
-            this.(trace_tag).MeasHeaders = copy(this.Trace.MeasHeaders);
+            this.(trace_tag).UserMetadata = copy(this.Trace.UserMetadata);
             this.Trace = copy(this.(trace_tag));
             
             triggerNewData(this, 'new_header', false);

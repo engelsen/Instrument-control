@@ -202,11 +202,11 @@ classdef MyCollector < MySingleton
                 % Make the full metadata
                 Mdt = [AcqInstrMdt, acquireHeaders(this)];
                 
-                %We copy the MeasHeaders to both copies of the trace - the
-                %one that is with the source and the one that is forwarded
-                %to Daq.
-                InstrEventData.Trace.MeasHeaders = copy(Mdt);
-                src.Trace.MeasHeaders = copy(Mdt);
+                %We copy the metadata to both copies of the trace - the
+                %one that remains within the source and the one that is 
+                %passed to Daq.
+                InstrEventData.Trace.UserMetadata = copy(Mdt);
+                src.Trace.UserMetadata = copy(Mdt);
             end
             
             triggerNewDataWithHeaders(this, InstrEventData);

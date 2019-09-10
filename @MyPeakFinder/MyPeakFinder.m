@@ -25,7 +25,7 @@ classdef MyPeakFinder < handle
         end
         
         function searchPeaks(this,varargin)
-            assert(validatePlot(this.Trace),...
+            assert(validateData(this.Trace),...
                 'The Trace is not valid for finding peaks, make sure a proper trace is loaded');
             p=inputParser;
             %Some validation functions

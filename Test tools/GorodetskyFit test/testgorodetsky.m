@@ -1,7 +1,7 @@
 load('testmat')
 figure(124)
 ax=gca;
-testfit=MyFit('fit_name','Gorodetsky2000','x',xf,'y',yf,'plot_handle',ax,...
+testfit=MyFit('fit_name','Gorodetsky2000','x',xf,'y',yf,'Axes',ax,...
     'enable_gui',true,'enable_plot',true);
 testfit.Data.plot(ax);
 hold on
