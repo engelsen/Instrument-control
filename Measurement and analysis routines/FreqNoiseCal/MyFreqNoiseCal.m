@@ -1,5 +1,8 @@
-% Routine that calibrates noise spectrum in frequency units using a
-% calibration tone with known phase modulation depth beta
+% Routine for the calibration of frequency noise spectrum using a
+% calibration tone with known phase modulation depth, beta, defined as
+% follows:
+%
+% E_0(t) = A*Exp(-i\beta \cos(\Omega_{cal} t))
 
 classdef MyFreqNoiseCal < MyAnalysisRoutine
 
@@ -16,13 +19,14 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
         
         % The type of calculated frequency spectrum, 
         % S_\omega, S_f or sqrt(S_f) 
-        spectrum_type = 'sqrt(S_f)' 
+        spectrum_type = 'S_f' 
         
         % Cursors for the selection of calibration tone
         CalCursors      MyCursor
         cal_range = [0, 0]
         
-        % Phase modulation depth of calibration tone
+        % Phase modulation depth of the calibration tone, supplied
+        % externally
         beta = 0.1
     end
     
@@ -31,6 +35,7 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
         Axes
         Gui
         
+        % Frequency of the calibration tone, found in the cal_range 
         cal_freq
         
         % Conversion factor between S_V and S_\omega defined such that
@@ -81,7 +86,7 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             end
         end
         
-        % Calculates the frequency noise spectrum
+        % Calculates cf
         function calcConvFactor(this)
             if isempty(this.Data) || isDataEmpty(this.Data)
                 warning('Data is empty');

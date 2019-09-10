@@ -1,10 +1,10 @@
 % Routine for the calibration of beta-factor, characterizing the phase 
 % modulation of light, using heterodyne signal spectrum.
 %
-% Beta in the following expression for phase-modulated complex amplitude of
-% light:
+% Beta is defined in the following expression for phase-modulated complex 
+% amplitude of light:
 %
-% A*Exp(-i\beta \cos(\Omega_{cal} t))
+% E_0(t) = A*Exp(-i\beta \cos(\Omega_{cal} t))
 
 classdef MyPhaseModCal < MyAnalysisRoutine
     
@@ -103,7 +103,7 @@ classdef MyPhaseModCal < MyAnalysisRoutine
             mean_freq = sum(peak_x.*peak_y)/sum(peak_y);
             [~, cent_ind] = min(abs(peak_x-mean_freq));
             
-            % Take the integration width to a few times the width of the
+            % Take the integration width to be a few times the width of the
             % central peak.
             int_w = 6*peak_w(cent_ind);
             
@@ -246,8 +246,7 @@ classdef MyPhaseModCal < MyAnalysisRoutine
         end
         
         function val = get.min_peak_height(this)
-            if ~isempty(this.MinHeightCursor) && ...
-                    isvalid(this.MinHeightCursor)
+            if this.enable_cursor
                 val = this.MinHeightCursor.value;
             else
                 val = this.min_peak_height;
