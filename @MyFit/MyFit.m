@@ -64,11 +64,6 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         slider_vecs
     end
     
-    % Events for communicating with outside entities
-    events
-        NewFit              % Triggered any time fitting is performed
-    end
-    
     methods (Access = public)
         function this = MyFit(varargin)
             
@@ -364,9 +359,6 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             if this.enable_plot 
                 plotFit(this); 
             end
-            
-            %Triggers new fit event
-            triggerNewFit(this);
         end
         
         %Clears the plots
@@ -403,12 +395,6 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
                 genSliderVecs(this);
                 updateSliderPanel(this);
             end
-        end
-               
-        %Triggers the NewFit event such that other objects can use this to
-        %e.g. plot new fits
-        function triggerNewFit(this)
-            notify(this,'NewFit');
         end
         
         % Create metadata with all the fitting and user-defined parameters
@@ -592,6 +578,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         
         %Checks if the class is ready to perform a fit
         function validateData(this)
+            assert(~isempty(this.Data), 'Data is empty');
             assert(~isempty(this.Data.x) && ~isempty(this.Data.y) && ...
                 length(this.Data.x)==length(this.Data.y) && ...
                 length(this.Data.x)>=this.n_params, ...
@@ -778,7 +765,8 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         end
         
         function acceptFitCallback(this, ~, ~)
-            triggerNewAnalysisTrace(this, 'Trace', copy(this.Fit));
+            triggerNewAnalysisTrace(this, 'Trace', copy(this.Fit), ...
+                'analysis_type', 'fit');
         end
         
         function enableCursorsCallback(this, hObject, ~)
