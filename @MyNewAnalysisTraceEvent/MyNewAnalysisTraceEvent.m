@@ -4,7 +4,9 @@
 classdef MyNewAnalysisTraceEvent < event.EventData
     
     properties (Access = public)
-        Trace   MyTrace
+        analysis_type   char
+        Trace           MyTrace
+        trace_name      char
     end
     
     methods (Access = public)

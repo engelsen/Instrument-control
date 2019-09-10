@@ -148,7 +148,8 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             % Update metadata
             this.FreqSpectrum.UserMetadata = createMetadata(this);
 
-            triggerNewAnalysisTrace(this,'Trace',copy(this.FreqSpectrum));
+            triggerNewAnalysisTrace(this, 'Trace', ...
+                copy(this.FreqSpectrum), 'analysis_type', 'freq_noise');
         end
     end
     

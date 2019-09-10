@@ -124,7 +124,8 @@ classdef MyAmplNoiseCal < MyAnalysisRoutine
             % Update metadata
             this.AmplSpectrum.UserMetadata = createMetadata(this);
 
-            triggerNewAnalysisTrace(this,'Trace',copy(this.AmplSpectrum));
+            triggerNewAnalysisTrace(this, ...
+                'Trace', copy(this.AmplSpectrum), 'analysis_type', 'rin');
         end
     end
     
