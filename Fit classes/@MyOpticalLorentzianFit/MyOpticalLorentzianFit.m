@@ -57,8 +57,8 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
             if ~isempty(this.RefCursors)
                 
                 % Get the reference spacing from the position of cursors
-                xmin = min(this.RangeCursors.value);
-                xmax = max(this.RangeCursors.value);
+                xmin = min(this.RefCursors.value);
+                xmax = max(this.RefCursors.value);
                 ref_spacing = xmax - xmin;
             else
                 
