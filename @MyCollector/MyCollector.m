@@ -35,6 +35,9 @@ classdef MyCollector < MySingleton
         % The constructor of a singleton class must be private
         function this = MyCollector()
             disp(['Creating a new instance of ' class(this)])
+            
+            disp('Switching opengl to software mode')
+            opengl('software');
         end
     end
     
@@ -69,8 +72,7 @@ classdef MyCollector < MySingleton
             % Configure instrument properties
             this.InstrProps.(name) = struct( ...
                 'collect_header',   p.Results.collect_header, ...
-                'global_name',      '', ...
-                'Gui',              []);
+                'global_name',      '');
             
             if p.Results.make_global
                 global_name = name;
@@ -328,7 +330,7 @@ classdef MyCollector < MySingleton
                     ~isempty(this.InstrProps.(fn).global_name);
                 
                 % Indicate if the instrument has gui
-                has_gui = ~isempty(this.InstrProps.(fn).Gui);
+                has_gui = false
                 
                 this.Metadata.ParamList.Props.(fn).has_gui = has_gui;
                 

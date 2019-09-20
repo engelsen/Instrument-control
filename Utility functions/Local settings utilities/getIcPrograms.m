@@ -36,15 +36,14 @@ function ProgList = getIcPrograms()
             catch
                 ProgList(j).enabled = true;
             end  
+            
+            % Command for running the instrument without GUI
+            ProgList(j).run_bg_expr = sprintf( ...
+                'runInstrument(''%s'', ''enable_gui'', false);', nm);
 
-            ProgList(j).run_bg_expr = sprintf('runInstrument(''%s'');',nm);
-
-            if ~isempty(InstrumentList(i).gui)
-
-                % Add command for running the instrument with gui
-                ProgList(j).run_expr = ...
-                    sprintf('runInstrumentWithGui(''%s'');', nm);
-            end
+            % Command for running the instrument with GUI
+            ProgList(j).run_expr = sprintf( ...
+                'runInstrument(''%s'', ''enable_gui'', true);', nm);
 
             j = j+1;
         end
