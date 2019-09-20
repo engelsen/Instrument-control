@@ -380,8 +380,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             % Instantiate an appropriate type of Trace
-            fh = str2func(class_name);
-            Trace = fh(trace_opts{:});
+            Trace = feval(class_name, trace_opts{:});           %#ok<FVAL>
             
             setMetadata(Trace, Mdt);
             

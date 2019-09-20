@@ -3,38 +3,16 @@
 % tcpip and serial objects or any other objects that have a similar usage. 
 
 classdef MyCommCont < handle
-    
-    % Giving explicit set access to this class makes properties protected 
-    % instead of private
-    properties (GetAccess=public, SetAccess={?MyClassParser,?MyCommCont})     
+
+    properties (Access = public)     
         interface   = 'serial'
         address     = 'placeholder' 
+    
+        % Communication object
+        Comm     
     end
     
-    properties (GetAccess = public, SetAccess = protected)
-        Comm % Communication object    
-    end
-    
-    methods (Access = public)
-        
-        %% Constructor and destructor
-        
-        function this = MyCommCont(varargin)
-            P = MyClassParser(this);
-            processInputs(P, this, varargin{:});
-            
-            try
-                connect(this);
-            catch ME
-                warning(ME.message);
-                
-                % Create a dummy
-                this.Comm = serial('placeholder');
-            end
-            
-            configureCommDefault(this);
-        end
-        
+    methods (Access = public)       
         function delete(this) 
             
             % Close the connection to the device
@@ -44,9 +22,11 @@ classdef MyCommCont < handle
                 warning('Connection could not be closed.');
             end
             
-            % Delete the device object
+            % Delete the device object. The .delete() syntax will fail if
+            % the Comm object does not have a delete method 
+            % (e.g. if its a filename)
             try
-                delete(this.Comm);
+                this.Comm.delete();
             catch
                 warning('Communication object could not be deleted.');
             end
@@ -56,33 +36,48 @@ classdef MyCommCont < handle
         
         % Create an interface object
         function connect(this)
-            switch lower(this.interface)
+            if ~isempty(this.Comm)
                 
-                % Use 'constructor' interface to create an object with
-                % more that one parameter passed to the constructor
-                case 'constructor'
-                    
-                    % In this case 'address' is a MATLAB command that  
-                    % creates communication object when executed. 
-                    % Such commands, for example, are returned by  
-                    % instrhwinfo as ObjectConstructorName.
-                    this.Comm = eval(this.address);
-                case 'visa'
-                    
-                    % visa brand is 'ni' by default
-                    this.Comm = visa('ni', this.address);
-                case 'tcpip'
-                    
-                    % Works only with default socket. Use 'constructor'
-                    % if socket or other options need to be specified
-                    this.Comm = tcpip(this.address);
-                case 'serial'
-                    this.Comm = serial(this.address);
-                otherwise
-                    error(['Unknown interface ''' this.interface ...
-                        ''', a communication object is not created.' ...
-                        ' Valid interfaces are ',...
-                        '''constructor'', ''visa'', ''tcpip'' and ''serial'''])
+                % Delete the existing object before creating a new one
+                this.Comm.delete();
+            end
+            
+            try
+                switch lower(this.interface)
+
+                    % Use 'constructor' interface to create an object with
+                    % more that one parameter passed to the constructor
+                    case 'constructor'
+
+                        % In this case 'address' is a MATLAB command that  
+                        % creates communication object when executed. 
+                        % Such commands, for example, are returned by  
+                        % instrhwinfo as ObjectConstructorName.
+                        this.Comm = eval(this.address);
+                    case 'visa'
+
+                        % visa brand is 'ni' by default
+                        this.Comm = visa('ni', this.address);
+                    case 'tcpip'
+
+                        % Works only with default socket. Use 'constructor'
+                        % if socket or other options need to be specified
+                        this.Comm = tcpip(this.address);
+                    case 'serial'
+                        this.Comm = serial(this.address);
+                    otherwise
+                        error(['Unknown interface ''' this.interface ...
+                            ''', a communication object is not created.'...
+                            ' Valid interfaces are ''constructor'', ' ...
+                            '''visa'', ''tcpip'' and ''serial'''])
+                end
+                
+                configureCommDefault(this);
+            catch ME
+                warning(ME.message);
+                
+                % Create a dummy
+                this.Comm = serial('placeholder');
             end
         end
         
