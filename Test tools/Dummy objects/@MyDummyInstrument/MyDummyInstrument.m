@@ -1,6 +1,6 @@
 % Object for testing data acquisition and header collection functionality
 
-classdef MyDummyInstrument < MyInstrument & MyDataSource
+classdef MyDummyInstrument < MyInstrument & MyDataSource & MyGuiCont
     
     properties (Access = public, SetObservable = true)
         point_no = 1000
@@ -9,7 +9,12 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource
     end
     
     methods (Access = public)
-        function this = MyDummyInstrument()
+        function this = MyDummyInstrument(varargin)
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
+            
+            this.gui_name = 'GuiDummyInstrument';
+
             createCommandList(this);
         end
         

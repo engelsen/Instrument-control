@@ -1,27 +1,38 @@
 % Class for controlling Tektronix RSA5103 and RSA5106 spectrum analyzers 
 
-classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
+classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont & MyGuiCont
 
     properties (SetAccess = protected, GetAccess = public)
-        acq_trace = [] % The number of last read trace
+        acq_trace  % The number of last read trace
     end
 
     methods (Access = public)
         function this = MyRsa(varargin)
-            this@MyCommCont(varargin{:});
-
+            P = MyClassParser(this);
+            addParameter(p, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
+            
             this.Trace.unit_x = 'Hz';
             this.Trace.unit_y = '$\mathrm{V}^2/\mathrm{Hz}$';
             this.Trace.name_y = 'Power';
             this.Trace.name_x = 'Frequency';
+            
+            % Set default GUI name
+            this.gui_name = 'GuiRsa';
 
+            % Create communication object
+            connect(this);              
+            
+            % Set up the list of communication commands
             createCommandList(this);
+            
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
     end
 
-
     methods (Access = protected)
-
         function createCommandList(this)
 
             % We define commands for both the nominal and actual resolution
@@ -120,7 +131,7 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
     end
 
 
-    methods (Access = public)
+    methods (Access = public)        
         function readTrace(this, varargin)
             if ~isempty(varargin)
                 n_trace = varargin{1};
@@ -165,11 +176,11 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont
             val = queryString(this, '*OPC?');
         end
 
-        % Extend readHeader function
-        function Hdr = readHeader(this)
+        % Extend readSettings function
+        function Hdr = readSettings(this)
 
             %Call parent class method and then append parameters
-            Hdr = readHeader@MyScpiInstrument(this);
+            Hdr = readSettings@MyScpiInstrument(this);
 
             %Hdr should contain single field
             addParam(Hdr, Hdr.field_names{1}, ...
