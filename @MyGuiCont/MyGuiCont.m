@@ -4,7 +4,8 @@ classdef MyGuiCont < handle
     
     properties (Access = public)
         
-        % GUI object that is stored for reference only
+        % GUI object that is stored for reference only. Should include the
+        % main figure.
         Gui
         
         % Name of the GUI class that can be used with the instrument
@@ -19,6 +20,15 @@ classdef MyGuiCont < handle
             if isempty(this.Gui) || ~isvalid(this.Gui)
                 this.Gui = feval(this.gui_name, this);
             end
+        end
+    end
+    
+    methods
+        function set.Gui(this, Val)
+            assert(~isempty(findFigure(Val)), ...
+                'Value assigned to Gui property must include a figure');
+            
+            this.Gui = Val;
         end
     end
 end
