@@ -5,24 +5,24 @@
 % in text format or display it. With other kinds of returned values the 
 % log can still be recorded, but not saved or dispalyed.
 
-classdef MyLogger < handle
+classdef MyLogger < MyGuiCont
     
     properties (Access = public, SetObservable = true)
         
         % Timer object
-        MeasTimer = timer.empty()
+        MeasTimer   timer
         
         % Function that provides data to be recorded
         measFcn = @()0
         
         % MyLog object to store the recorded data
-        Record = MyLog.empty()
+        Record      MyLog
         
         % Format for displaying readings (column name: value)
         disp_fmt = '\t%15s:\t%.5g'
         
         % Option for daily/weekly creation of a new log file 
-        FileCreationInterval = duration.empty()
+        FileCreationInterval  duration
     end
     
     properties (SetAccess = protected, GetAccess = public)
@@ -50,6 +50,7 @@ classdef MyLogger < handle
         function this = MyLogger(varargin)
             P = MyClassParser(this);
             addParameter(P, 'log_opts', {}, @iscell);
+            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.Record = MyLog(P.Results.log_opts{:});
@@ -63,6 +64,12 @@ classdef MyLogger < handle
             % function execution delays
             this.MeasTimer.ExecutionMode = 'fixedSpacing';
             this.MeasTimer.TimerFcn = @this.loggerFcn;
+            
+            % Create GUI if necessary
+            this.gui_name = 'GuiLogger';
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         function delete(this)
@@ -288,28 +295,6 @@ classdef MyLogger < handle
             assert(isa(val, 'function_handle'), ...
                 '''measFcn'' must be a function handle.');
             this.measFcn = val;
-        end
-        
-        function set.Record(this, val)
-            assert(isa(val, 'MyLog'), '''Record'' must be a MyLog object')
-            this.Record = val;
-        end
-        
-        function set.MeasTimer(this, val)
-            assert(isa(val, 'timer'), ...
-                '''MeasTimer'' must be a timer object')
-            this.MeasTimer = val;
-        end
-        
-        function set.FileCreationInterval(this, Val)
-            assert(isa(Val, 'duration'), ['''FileCreationInterval'' ' ...
-                'must be a duration object.'])
-            
-            if ~isempty(Val)
-                Val.Format = 'dd:hh:mm:ss';
-            end
-            
-            this.FileCreationInterval = Val;
         end
     end
 end
