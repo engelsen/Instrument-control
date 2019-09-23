@@ -1,14 +1,16 @@
 % Class for controlling 2-channel Tektronix TDS scopes. 
 
-classdef MyTds < MyTekScope
+classdef MyTekTds < MyTekScope
     
     properties (Constant = true)
         point_no = 2500 % number of points is fixed for this device
     end
     
     methods (Access = public)
-        function this = MyTds(varargin)
-            this@MyTekScope(varargin{:});
+        function this = MyTekTds(varargin)
+            P = MyClassParser(this);
+            addParameter(p, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             this.channel_no = 2;
             this.knob_list = lower({'HORZSCALE', 'VERTSCALE1', ...
@@ -18,7 +20,12 @@ classdef MyTds < MyTekScope
             %(2500 point of 2-byte integers)
             this.Comm.InputBufferSize = 1e4; % byte 
             
+            connect(this);
             createCommandList(this);
+            
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         % Emulates the physical knob turning, works with nturns=+-1

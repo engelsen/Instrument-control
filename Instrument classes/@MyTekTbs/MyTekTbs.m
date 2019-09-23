@@ -1,11 +1,13 @@
 % Class for controlling 4-channel Tektronix TBS scopes. 
 % Tested with TBS2074
 
-classdef MyTbs < MyTekScope
+classdef MyTekTbs < MyTekScope
     
     methods (Access = public)
-        function this = MyTbs(varargin)
-            this@MyTekScope(varargin{:});
+        function this = MyTekTbs(varargin)
+            P = MyClassParser(this);
+            addParameter(p, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             % 4e7 is the maximum trace size of DPO4034-3034 
             % (20 mln point of 2-byte integers)
@@ -14,7 +16,12 @@ classdef MyTbs < MyTekScope
             this.knob_list = lower({'GPKNOB','HORZPos','HORZScale', ...
                 'TRIGLevel','VERTPOS','VERTSCALE'});
             
+            connect(this);
             createCommandList(this);
+            
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
     end
     

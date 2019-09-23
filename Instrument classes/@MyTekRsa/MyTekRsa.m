@@ -1,13 +1,14 @@
 % Class for controlling Tektronix RSA5103 and RSA5106 spectrum analyzers 
 
-classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont & MyGuiCont
+classdef MyTekRsa < MyScpiInstrument & MyDataSource & MyCommCont ...
+        & MyGuiCont
 
     properties (SetAccess = protected, GetAccess = public)
         acq_trace  % The number of last read trace
     end
 
     methods (Access = public)
-        function this = MyRsa(varargin)
+        function this = MyTekRsa(varargin)
             P = MyClassParser(this);
             addParameter(p, 'enable_gui', false);
             processInputs(P, this, varargin{:});
@@ -18,7 +19,7 @@ classdef MyRsa < MyScpiInstrument & MyDataSource & MyCommCont & MyGuiCont
             this.Trace.name_x = 'Frequency';
             
             % Set default GUI name
-            this.gui_name = 'GuiRsa';
+            this.gui_name = 'GuiTekRsa';
 
             % Create communication object
             connect(this);              

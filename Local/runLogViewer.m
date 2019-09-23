@@ -1,5 +1,5 @@
 % Start a logger gui in dummy mode, which allows to browse existing logs,
-% andadd it to the collector as an app.
+% and add it to the collector as an app.
 
 function runLogViewer()
     name = 'ViewerLogger';

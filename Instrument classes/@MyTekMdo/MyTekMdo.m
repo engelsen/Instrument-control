@@ -4,7 +4,9 @@ classdef MyTekMdo < MyTekScope
     
     methods (Access = public)
         function this = MyTekMdo(varargin)
-            this@MyTekScope(varargin{:});
+            P = MyClassParser(this);
+            addParameter(p, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             % 2e7 is the maximum trace size of MDO3034 
             %(10 mln point of 2-byte integers)
@@ -16,7 +18,12 @@ classdef MyTekMdo < MyTekScope
                 'VERTPOS1', 'VERTPOS2', 'VERTPOS3', 'VERTPOS4', ...
                 'VERTSCALE1', 'VERTSCALE2', 'VERTSCALE3', 'VERTSCALE4'});
             
+            connect(this);
             createCommandList(this);
+            
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
     end
     
