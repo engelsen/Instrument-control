@@ -4,7 +4,7 @@
 % Start instrument as MyTlb6700('address','USBaddr'), where USBaddr
 % is indicated in the instrument menu. Example: MyTlb6700('address', '1').
 %
-% This class uses MyNewportUsbComm, an instance of which needs to be shared
+% This class uses MyNewpUsbComm, an instance of which needs to be shared
 % between multiple devices, as the Newport driver, apparently, cannot 
 % handle concurrent calls.
 
@@ -35,7 +35,7 @@ classdef MyNewpTlb6700 < MyScpiInstrument & MyGuiCont
             this.address = str2double(this.address);
             
             % Get the unique instance of control class for Newport driver 
-            this.UsbComm = MyNewportUsbComm.instance();
+            this.UsbComm = MyNewpUsbComm.instance();
             
             createCommandList(this);
             

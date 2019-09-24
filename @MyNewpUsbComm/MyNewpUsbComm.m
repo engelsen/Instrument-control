@@ -1,4 +1,4 @@
-classdef MyNewportUsbComm < MySingleton
+classdef MyNewpUsbComm < MySingleton
     
     properties (GetAccess = public, SetAccess = private)
         
@@ -16,7 +16,7 @@ classdef MyNewportUsbComm < MySingleton
         
         % The constructor of a singleton class should only be invoked from
         % the instance method.
-        function this = MyNewportUsbComm()
+        function this = MyNewpUsbComm()
             disp(['Creating a new instance of ' class(this)])
             loadLib(this);
         end
@@ -80,7 +80,7 @@ classdef MyNewportUsbComm < MySingleton
             persistent UniqueInstance
 
             if isempty(UniqueInstance) || ~isvalid(UniqueInstance)
-                this = MyNewportUsbComm();
+                this = MyNewpUsbComm();
                 UniqueInstance = this;
             else
                 this = UniqueInstance;
