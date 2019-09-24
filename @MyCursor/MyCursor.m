@@ -183,6 +183,10 @@ classdef MyCursor < handle
                 val = NaN;
             end
         end
+        
+        function set.value(this, val)
+            this.Line.Value = val;
+        end
     end
 end
 
