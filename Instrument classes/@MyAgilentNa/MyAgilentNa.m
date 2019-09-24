@@ -1,15 +1,16 @@
 % The class for communication with Agilent E5061B Network Analyzer
 
-classdef MyNa < MyScpiInstrument & MyCommCont & MyDataSource    
-    properties(Access = public, SetObservable = true)
+classdef MyAgilentNa < MyScpiInstrument & MyCommCont & MyDataSource ...
+        & MyGuiCont
+    
+    properties(Access = public, SetObservable)
         Trace1
         Trace2
         
         transf_n = 1 % trace that triggers NewData event
     end
     
-    properties (SetAccess = protected, GetAccess = public, ...
-            SetObservable = true)
+    properties (SetAccess = protected, GetAccess = public, SetObservable)
         
         % Manipulating active traces seems unavoidable for data format
         % selection. -1 stands for unknown.
@@ -23,8 +24,10 @@ classdef MyNa < MyScpiInstrument & MyCommCont & MyDataSource
     end
 
     methods
-        function this = MyNa(varargin)
-            this@MyCommCont(varargin{:});
+        function this = MyAgilentNa(varargin)
+            P = MyClassParser(this);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             this.Trace1 = MyTrace();
             this.Trace2 = MyTrace();
@@ -33,7 +36,13 @@ classdef MyNa < MyScpiInstrument & MyCommCont & MyDataSource
             this.Trace2.unit_x = 'Hz';
             this.Trace2.name_x = 'Frequency';
             
+            connect(this);
             createCommandList(this);
+            
+            this.gui_name = 'GuiAgilentNa';
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         % Generate a new data event with header collection suppressed
