@@ -293,8 +293,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         end
         
         % Picks every n-th element from the trace,
-        % performing a running average first if opt=='avg'
-        function downsample(this, n, opt)
+        % performing a running average first if opt=='avg' 
+        function NewTrace = downsample(this, n, opt)
             n0 = ceil(n/2);
             
             if exist('opt', 'var') && ...
@@ -305,14 +305,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 % discarded by starting the indexing from n0.
                 tmpy = movmean(this.y, n, 'Endpoints', 'shrink');
                 
-                this.x = this.x(n0:n:end);
-                this.y = tmpy(n0:n:end);
+                new_x = this.x(n0:n:end);
+                new_y = tmpy(n0:n:end);
             else
                 
                 % Downsample without averaging
-                this.x = this.x(n0:n:end);
-                this.y = this.y(n0:n:end);
+                new_x = this.x(n0:n:end);
+                new_y = this.y(n0:n:end);
             end
+            
+            NewTrace = MyTrace('x', new_x, 'y', new_y, ...
+                'unit_x',this.unit_x,'unit_y',this.unit_y, ...
+                'name_x',this.name_x,'name_y',this.name_y);
         end
         
         %Checks if the object is empty
