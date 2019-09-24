@@ -3,7 +3,7 @@
 
 classdef MyNewDataEvent < event.EventData
     
-    properties (Access=public)
+    properties (Access = public)
         
         % Name of the instrument that triggered the event. Usefult for
         % passing the event data forward, e.g. by triggering 

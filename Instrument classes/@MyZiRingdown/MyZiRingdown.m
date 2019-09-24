@@ -104,8 +104,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
     end
     
     % Internal variables
-    properties (GetAccess = public, SetAccess = protected, ...
-            SetObservable = true)
+    properties (GetAccess = public, SetAccess = protected, SetObservable)
         
         recording = false % true if a ringdown is being recorded
         
@@ -153,6 +152,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
         DemodRecord = struct('t',[],'z',[],'osc_freq',[])
         
         AvgTrace % MyAvgTrace object used for averaging ringdowns
+        
+        % Buffers for the acquisition of ringdown trace
+        ts_buff 
+        r_sq_buff
     end
     
     events
@@ -474,10 +477,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                 avg_compl = addAverage(this.AvgTrace, this.Trace);
 
                 % Trigger NewData
-                if this.n_avg>1
+                if this.n_avg > 1
                     end_str = sprintf('_%i', this.AvgTrace.avg_count);
                 else
-                    end_str = '';
+                    end_str = ''
                 end
                 triggerNewData(this, 'save', this.auto_save, ...
                     'filename_ending', end_str);
@@ -488,7 +491,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                     this.enable_acq = false;
                     this.drive_on = false;
 
-                    if this.n_avg>1
+                    if this.n_avg > 1
                         end_str = '_avg';
 
                         % Trigger one more time to transfer the average
@@ -516,8 +519,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
         % Starting index can be supplied as varargin.
         % The output variable tells if the record is finished.
         function isfin = appendSamplesToTrace(this, DemodSample)
-            persistent ts_buff r_sq_buff
-            
             r_sq = DemodSample.x.^2 + DemodSample.y.^2;
             
             % Subtract the reference time, convert timestamps to seconds
@@ -534,15 +535,15 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
             end
             
             % Add new data to the averaging buffer
-            r_sq_buff = [r_sq_buff; r_sq(:)];
-            ts_buff = [ts_buff; ts(:)];
+            this.r_sq_buff = [this.r_sq_buff; r_sq(:)];
+            this.ts_buff = [this.ts_buff; ts(:)];
             
-            n = floor(length(r_sq_buff)/this.downsample_n);
+            n = floor(length(this.r_sq_buff)/this.downsample_n);
             
             % Average over downsample_n consecutive points
-            new_r_sq = mean(reshape(r_sq_buff(1:n*this.downsample_n), ...
+            new_r_sq = mean(reshape(this.r_sq_buff(1:n*this.downsample_n), ...
                 [this.downsample_n, n]), 1);
-            new_ts = mean(reshape(ts_buff(1:n*this.downsample_n), ...
+            new_ts = mean(reshape(this.ts_buff(1:n*this.downsample_n), ...
                 [this.downsample_n, n]), 1);
             
             % Append the new downsampled data to the trace
@@ -555,11 +556,11 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
             
             % Reset the averaging buffers
             if isfin
-                r_sq_buff = [];
-                ts_buff = [];
+                this.r_sq_buff = [];
+                this.ts_buff = [];
             else
-                r_sq_buff = r_sq_buff(n*this.downsample_n+1:end);
-                ts_buff = ts_buff(n*this.downsample_n+1:end);
+                this.r_sq_buff = this.r_sq_buff(n*this.downsample_n+1:end);
+                this.ts_buff = this.ts_buff(n*this.downsample_n+1:end);
             end
         end
         
