@@ -10,7 +10,7 @@ classdef MyTekRsa < MyScpiInstrument & MyDataSource & MyCommCont ...
     methods (Access = public)
         function this = MyTekRsa(varargin)
             P = MyClassParser(this);
-            addParameter(p, 'enable_gui', false);
+            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.Trace.unit_x = 'Hz';

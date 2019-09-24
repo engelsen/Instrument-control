@@ -9,7 +9,7 @@ classdef MyTekTds < MyTekScope
     methods (Access = public)
         function this = MyTekTds(varargin)
             P = MyClassParser(this);
-            addParameter(p, 'enable_gui', false);
+            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.channel_no = 2;

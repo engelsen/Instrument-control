@@ -3,44 +3,51 @@
 
 classdef MyZiLockIn < MyInstrument
     
-    properties (GetAccess = public, ...
-            SetAccess = {?MyClassParser, ?MyZiLockIn}, SetObservable)
+    properties (Access = public, SetObservable)
         
+        % Used to establish connection with the instrument
         dev_serial = 'dev4090'
+    end
+    
+    properties (GetAccess = public, SetAccess = protected, SetObservable)
         
-        % The string that specifies the device name as appears 
-        % in the server's node tree. Can be the same as dev_serial.
+        % This string gives the device name as it appears in 
+        % the server's node tree. It is read out during the creation 
+        % of session and is typically the same as dev_serial.
         dev_id
         
         % Device clock frequency, i.e. the number of timestamps per second
         clockbase
     end
     
+    properties (Access = public, Dependent, Hidden)
+        
+        % Address is another alias for dev_serial which is kept for
+        % compatibility with other instrument classes
+        address
+    end
+    
     methods (Access = public)
-        function this = MyZiLockIn(varargin)    
-            P = MyClassParser(this);
-            addParameter(P, 'address', '', @ischar);
-            processInputs(P, this, varargin{:});
-            
-            % address is another alias for dev_serial
-            if ~ismember('address', P.UsingDefaults)
-                this.dev_serial = P.Results.address;
-            end
+        function createApiSession(this)
             
             % Check the ziDAQ MEX (DLL) and Utility functions can be found 
             % in Matlab's path.
             if ~(exist('ziDAQ', 'file') == 3) && ...
                     ~(exist('ziCreateAPISession', 'file') == 2)
-                fprintf('Failed to either find the ziDAQ mex file or ziDevices() utility.\n')
-                fprintf('Please configure your path using the ziDAQ function ziAddPath().\n')
-                fprintf('This can be found in the API subfolder of your LabOne installation.\n');
+                fprintf(['Failed to either find the ziDAQ mex file ' ...
+                    'or ziDevices() utility.\n'])
+                fprintf(['Please configure your path using the ziDAQ ' ...
+                    'function ziAddPath().\n'])
+                fprintf(['This can be found in the API subfolder of ' ...
+                    'your LabOne installation.\n']);
                 fprintf('On Windows this is typically:\n');
-                fprintf('C:\\Program Files\\Zurich Instruments\\LabOne\\API\\MATLAB2012\\\n');
+                fprintf(['C:\\Program Files\\Zurich Instruments' ...
+                    '\\LabOne\\API\\MATLAB2012\\\n']);
                 return
             end
             
-            % Do not throw errors in the constructor to allow creating an
-            % instance when the physical device is disconnected
+            % Do not throw errors in the constructor to allow creating a
+            % class instance when the physical device is disconnected
             try
                 
                 % Create an API session and connect to the correct Data  
@@ -87,6 +94,18 @@ classdef MyZiLockIn < MyInstrument
             addObjProp(this.Metadata, this, 'clockbase', 'comment', ...
                 ['Device clock frequency, i.e. the number of ', ...
                 'timestamps per second']);
+        end
+    end
+    
+    methods
+        
+        % Alias for the device serial
+        function val = get.address(this)
+            val = this.dev_serial;
+        end
+        
+        function set.address(this, val)
+            this.dev_serial = val;
         end
     end
 end

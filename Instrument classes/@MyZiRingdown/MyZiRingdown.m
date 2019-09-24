@@ -20,7 +20,7 @@
 % to the output consisting of intermittent on and off periods
 % starting from on. 
 
-classdef MyZiRingdown < MyZiLockIn & MyDataSource
+classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
     
     properties (Access = public, SetObservable = true)
         
@@ -164,15 +164,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
         
         %% Constructor and destructor
         function this = MyZiRingdown(varargin)
-            
-            % Extract poll period from varargin
-            p = inputParser();
-            p.KeepUnmatched = true;
-            addParameter(p, 'poll_period', 0.1, @isnumeric);
-            parse(p, varargin{:});
-            varargin = struct2namevalue(p.Unmatched);
-            
-            this = this@MyZiLockIn(varargin{:});
+            P = MyClassParser(this);
+            addParameter(P, 'poll_period', 0.1, @isnumeric);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             % Create and configure trace objects
             % Trace is inherited from the superclass
@@ -202,7 +197,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             this.PollTimer = timer(...
                 'BusyMode',         'drop',...
                 'ExecutionMode',    'fixedSpacing',...
-                'Period',           p.Results.poll_period,...
+                'Period',           P.Results.poll_period,...
                 'TimerFcn',         @this.pollTimerCallback);
             
             % Aux out timers use fixedRate mode for more precise timing.
@@ -220,7 +215,13 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource
             this.demod_path = sprintf('/%s/demods/%i', this.dev_id, ...
                 this.demod-1);
             
+            createApiSession(this);
             createCommandList(this);
+            
+            this.gui_name = 'GuiZiRingdown';
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         function delete(this)

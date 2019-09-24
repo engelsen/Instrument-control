@@ -6,7 +6,7 @@ classdef MyTekDpo < MyTekScope
     methods (Access = public)
         function this = MyTekDpo(varargin)
             P = MyClassParser(this);
-            addParameter(p, 'enable_gui', false);
+            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             % 2e7 is the maximum trace size of DPO4034-3034 

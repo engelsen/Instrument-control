@@ -1,17 +1,17 @@
 % Spectrum analyzer based on Zurich Instruments UHFLI or MFLI
 
-classdef MyZiScopeFt < MyZiLockIn & MyDataSource
+classdef MyZiScopeFt < MyZiLockIn & MyDataSource & MyGuiCont
     
-    properties (GetAccess=public, SetAccess={?MyClassParser})
+    properties (GetAccess = public, SetAccess = {?MyClassParser})
         n_scope = 1   % number of hardware scope
         n_ch = 1      % number of scope channel
         
         % Input numbers between 1 and 148 correspond to various signals 
         % including physical inputs, outputs, demodulator channels and 
-        % results of arthmetic operations. See the LabOne user interface 
-        % for the complete list of choices and corresponding numbers.
-        % This number is shifted by +1 compare to the hardware node
-        % enumeration as usual.
+        % the results of arthmetic operations. See the LabOne user  
+        % interface for the complete list of choices and corresponding 
+        % numbers. This number is shifted by +1 compare to the hardware 
+        % node enumeration as usual.
         signal_in = 1 
         
         % Deas time between scope frame acquisitions. Smaller time results 
@@ -21,7 +21,7 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource
     end
     
     properties (Access = private)
-         scope_module % 'handle' (in quotes) to a ZI software scope module 
+         scope_module % 'handle' (in quotes) of a ZI software scope module 
          PollTimer    % Timer that regularly reads data drom the scope
          TmpTrace     % Temporary variable used for averaging
     end
@@ -39,15 +39,10 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource
     methods (Access = public)
         
         function this = MyZiScopeFt(varargin)
-            
-            % Extract poll period from varargin
-            p = inputParser();
-            p.KeepUnmatched = true;
-            addParameter(p, 'poll_period', 0.1, @isnumeric);
-            parse(p, varargin{:});
-            varargin = struct2namevalue(p.Unmatched);
-            
-            this = this@MyZiLockIn(varargin{:});
+            P = MyClassParser(this);
+            addParameter(P, 'poll_period', 0.1, @isnumeric);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             % Trace object in this case is directly used for averaging
             this.Trace = MyAvgTrace(...
@@ -59,10 +54,16 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource
             
             this.PollTimer = timer(...
                 'ExecutionMode',    'fixedSpacing',...
-                'Period',           p.Results.poll_period,...
+                'Period',           P.Results.poll_period,...
                 'TimerFcn',         @(~,~)pollTimerCallback(this));
             
+            createApiSession(this);
             createCommandList(this);
+            
+            this.gui_name = 'GuiZiScopeFt';
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         function delete(this)
