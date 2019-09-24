@@ -8,7 +8,7 @@
 % between multiple devices, as the Newport driver, apparently, cannot 
 % handle concurrent calls.
 
-classdef MyTlb6700 < MyScpiInstrument
+classdef MyNewpTlb6700 < MyScpiInstrument & MyGuiCont
     
     properties (GetAccess = public, ...
             SetAccess = {?MyClassParser, ?MyTlb6700})
@@ -27,7 +27,7 @@ classdef MyTlb6700 < MyScpiInstrument
     end
     
     methods (Access = public)
-        function this = MyTlb6700(varargin)
+        function this = MyNewpTlb6700(varargin)
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             
@@ -38,6 +38,11 @@ classdef MyTlb6700 < MyScpiInstrument
             this.UsbComm = MyNewportUsbComm.instance();
             
             createCommandList(this);
+            
+            this.gui_name = 'GuiNewpTlb';
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
     end
     

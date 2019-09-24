@@ -1,11 +1,20 @@
 % Class for communication with NewFocus TLB6300 tunable laser controllers
 
-classdef MyTlb6300 < MyScpiInstrument & MyCommCont
+classdef MyNewpTlb6300 < MyScpiInstrument & MyCommCont & MyGuiCont
     
     methods (Access = public)
-        function this = MyTlb6300(varargin)
-            this@MyCommCont(varargin{:});
+        function this = MyNewpTlb6300(varargin)
+            P = MyClassParser(this);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
+            
+            connect(this);
             createCommandList(this);
+            
+            this.gui_name = 'GuiNewpTlb';
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         % Need to overwrite the standard query function as 
