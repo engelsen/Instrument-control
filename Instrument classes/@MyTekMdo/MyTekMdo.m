@@ -8,10 +8,6 @@ classdef MyTekMdo < MyTekScope
             addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
-            % 2e7 is the maximum trace size of MDO3034 
-            %(10 mln point of 2-byte integers)
-            this.Comm.InputBufferSize = 2.1e7; %byte 
-            
             this.channel_no = 4;
             this.knob_list = lower({'GPKNOB1', 'GPKNOB2', 'HORZPos', ...
                 'HORZScale', 'TRIGLevel', 'PANKNOB1', 'ZOOM', ...
@@ -19,6 +15,11 @@ classdef MyTekMdo < MyTekScope
                 'VERTSCALE1', 'VERTSCALE2', 'VERTSCALE3', 'VERTSCALE4'});
             
             connect(this);
+            
+            % 2e7 is the maximum trace size of MDO3034 
+            %(10 mln point of 2-byte integers)
+            this.Comm.InputBufferSize = 2.1e7; %byte 
+            
             createCommandList(this);
             
             if P.Results.enable_gui

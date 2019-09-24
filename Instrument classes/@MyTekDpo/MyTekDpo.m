@@ -9,10 +9,6 @@ classdef MyTekDpo < MyTekScope
             addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
-            % 2e7 is the maximum trace size of DPO4034-3034 
-            %(10 mln point of 2-byte integers)
-            this.Comm.InputBufferSize = 2.1e7; %byte 
-            
             this.knob_list = lower({'GPKNOB1', 'GPKNOB2', 'HORZPos', ...
                 'HORZScale', 'TRIGLevel', 'PANKNOB1', 'ZOOM', ...
                 'VERTPOS1', 'VERTPOS2', 'VERTPOS3', 'VERTPOS4', ...
@@ -20,6 +16,10 @@ classdef MyTekDpo < MyTekScope
             
             % Create communication object
             connect(this);  
+            
+            % 2e7 is the maximum trace size of DPO4034-3034 
+            %(10 mln point of 2-byte integers)
+            this.Comm.InputBufferSize = 2.1e7; %byte 
             
             createCommandList(this);
             

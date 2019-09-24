@@ -16,11 +16,12 @@ classdef MyTekTds < MyTekScope
             this.knob_list = lower({'HORZSCALE', 'VERTSCALE1', ...
                 'VERTSCALE2'});
             
+            connect(this);
+            
             % 5e3 is the maximum trace size of TDS2022 
             %(2500 point of 2-byte integers)
             this.Comm.InputBufferSize = 1e4; % byte 
             
-            connect(this);
             createCommandList(this);
             
             if P.Results.enable_gui

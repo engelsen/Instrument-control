@@ -1,15 +1,23 @@
 % Class for Thorlabs PM100D powermeters 
 
-classdef MyPm < MyScpiInstrument & MyCommCont
+classdef MyThorlabsPm < MyScpiInstrument & MyCommCont & MyGuiCont
  
     methods (Access = public)
-        function this = MyPm(varargin)
-            this@MyCommCont(varargin{:});
+        function this = MyThorlabsPm(varargin)
+            P = MyClassParser(this);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
+            
+            connect(this);
             
             % reading from powermeter is quick
             this.Comm.Timeout = 1; 
             
             createCommandList(this);
+            
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
 
         % Appantly, this device sometimemes fails if it receives very long 

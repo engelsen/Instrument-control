@@ -18,8 +18,6 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont ...
             % Set default GUI name
             this.gui_name = 'GuiTekScope';
             
-            this.Comm.InputBufferSize = 4.1e7; % byte 
-            
             this.Trace.name_x = 'Time';
             this.Trace.name_y = 'Voltage';
         end
