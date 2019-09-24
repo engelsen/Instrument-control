@@ -53,7 +53,12 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
         
         fft_length = 128
         
-        auto_save = false % if all ringdowns should be automatically saved
+        % If all ringdowns should be automatically saved
+        auto_save = false
+        
+        % Name of the ringdown trace. It is used to produce the filename 
+        % in the case if the ringdowns are auto saved
+        trace_name = 'ringdown'
         
         % In adaptive measurement oscillator mode the oscillator frequency
         % is continuously changed to follow the signal frequency during
@@ -480,10 +485,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                 if this.n_avg > 1
                     end_str = sprintf('_%i', this.AvgTrace.avg_count);
                 else
-                    end_str = ''
+                    end_str = '';
                 end
                 triggerNewData(this, 'save', this.auto_save, ...
-                    'filename_ending', end_str);
+                    'trace_name', [this.trace_name, end_str]);
 
                 % If the ringdown averaging is complete, disable
                 % further triggering to exclude data overwriting 
@@ -501,8 +506,9 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                         % minimum.
                         triggerNewData(this, ...
                             'Trace', copy(this.AvgTrace), ...
+                            'new_header', false, ...
                             'save', this.auto_save, ...
-                            'filename_ending', end_str);
+                            'trace_name', [this.trace_name, end_str]);
                     end
                 else
                     

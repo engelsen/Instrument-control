@@ -26,7 +26,7 @@ classdef MyNewDataEvent < event.EventData
         save = false
         
         % Trace name to be used by Daq
-        trace_name = ''
+        trace_name  char
     end
     
     methods 
@@ -37,7 +37,6 @@ classdef MyNewDataEvent < event.EventData
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
         end
-        
     end
     
     %% Set and get methods
