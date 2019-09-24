@@ -1,7 +1,8 @@
 % Class for controlling 4-channel Agilent DSO scopes. 
 % Tested with DSO7034A
 
-classdef MyAgilentDso < MyScpiInstrument & MyDataSource & MyCommCont
+classdef MyAgilentDso < MyScpiInstrument & MyDataSource & MyCommCont ...
+        & MyGuiCont
     
     properties (Constant = true)
         channel_no = 4 % number of channels
@@ -9,7 +10,9 @@ classdef MyAgilentDso < MyScpiInstrument & MyDataSource & MyCommCont
     
     methods (Access = public)
         function this = MyAgilentDso(varargin)
-            this@MyCommCont(varargin{:});
+            P = MyClassParser(this);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             % 1.6e7 is the maximum trace size of DSO7034A 
             %(8 mln point of 2-byte integers)
@@ -19,7 +22,14 @@ classdef MyAgilentDso < MyScpiInstrument & MyDataSource & MyCommCont
             this.Trace.unit_x = 's';
             this.Trace.unit_y = 'V';
             
+            connect(this);
             createCommandList(this);
+            
+            % There is high compatibility with Tektronix scope classes
+            this.gui_name = 'GuiTekScope'; 
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         function readTrace(this)

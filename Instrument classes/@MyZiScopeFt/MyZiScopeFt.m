@@ -60,7 +60,6 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource & MyGuiCont
             createApiSession(this);
             createCommandList(this);
             
-            this.gui_name = 'GuiZiScopeFt';
             if P.Results.enable_gui
                 createGui(this);
             end

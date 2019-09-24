@@ -39,7 +39,6 @@ classdef MyAgilentNa < MyScpiInstrument & MyCommCont & MyDataSource ...
             connect(this);
             createCommandList(this);
             
-            this.gui_name = 'GuiAgilentNa';
             if P.Results.enable_gui
                 createGui(this);
             end

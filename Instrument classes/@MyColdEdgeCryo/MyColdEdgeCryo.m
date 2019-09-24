@@ -2,7 +2,7 @@
 % The manifold is managed by an Arduino board that communicates with 
 % computer via serial protocol. 
 
-classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont
+classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont & MyGuiCont
     
     properties (GetAccess = public, SetAccess = protected, ...
             SetObservable = true)
@@ -22,7 +22,9 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont
     
     methods (Access = public)
         function this = MyColdEdgeCryo(varargin)
-            this@MyCommCont(varargin{:});
+            P = MyClassParser(this);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
             
             this.Timer = timer();
             
@@ -30,7 +32,12 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont
             this.Device.InputBufferSize = 2^16;
             this.Device.OutputBufferSize = 2^16;
             
+            connect(this);
             createCommandList(this);
+             
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         function delete(this)

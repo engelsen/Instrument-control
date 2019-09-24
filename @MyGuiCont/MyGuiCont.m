@@ -13,6 +13,24 @@ classdef MyGuiCont < handle
     end
     
     methods (Access = public)
+        function this = MyGuiCont()
+            
+            % Create default name of the GUI based on the class name
+            class_name = class(this);
+            
+            % Optionally remove 'My' in front of the class name
+            tok = regexp(class_name, '(My)?(.+)','tokens');
+            
+            try
+                if ~isempty(tok)
+                    this.gui_name = ['Gui' tok{1}{2}];
+                end
+            catch ME
+                warning(['Could not create default GUI name for ' ...
+                    'the class ' class_name '. Error:' ME.message]);
+            end
+        end
+        
         function createGui(this)
             assert(~isempty(this.gui_name), ['GUI name is not ' ...
                 'specified for the instrument class ' class(this)]);

@@ -17,9 +17,6 @@ classdef MyTekRsa < MyScpiInstrument & MyDataSource & MyCommCont ...
             this.Trace.unit_y = '$\mathrm{V}^2/\mathrm{Hz}$';
             this.Trace.name_y = 'Power';
             this.Trace.name_x = 'Frequency';
-            
-            % Set default GUI name
-            this.gui_name = 'GuiTekRsa';
 
             % Create communication object
             connect(this);              

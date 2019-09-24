@@ -16,7 +16,7 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont ...
         function this = MyTekScope(varargin)
             
             % Set default GUI name
-            this.gui_name = 'GuiTekRsa';
+            this.gui_name = 'GuiTekScope';
             
             this.Comm.InputBufferSize = 4.1e7; % byte 
             
