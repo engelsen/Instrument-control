@@ -607,6 +607,20 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             this.Fit.y=this.anon_fit_fun(this.Fit.x, input_coeffs{:});
         end
         
+        % Bring the cursors within the axes limits
+        function centerCursors(this)
+            if ~isempty(this.Axes) && ~isempty(this.RangeCursors) ...
+                    && all(isvalid(this.RangeCursors))
+                xlim = this.Axes.XLim;
+                
+                x1 = xlim(1)+0.1*(xlim(2)-xlim(1));
+                x2 = xlim(2)-0.1*(xlim(2)-xlim(1));
+                
+                this.RangeCursors(1).value = x1;
+                this.RangeCursors(2).value = x2;
+            end
+        end
+        
         %Overload a method of matlab.mixin.CustomDisplay in order to
         %separate the display of user properties from the others.
         function PrGroups = getPropertyGroups(this)
@@ -771,6 +785,14 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         
         function enableCursorsCallback(this, hObject, ~)
             this.enable_range_cursors = hObject.Value;
+            
+            if this.enable_gui
+                if hObject.Value
+                    this.Gui.CenterCursorsButton.Enable = 'on';
+                else
+                    this.Gui.CenterCursorsButton.Enable = 'off';
+                end
+            end
         end
         
         %Callback for clearing the fits on the axis.
