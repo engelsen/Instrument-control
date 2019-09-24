@@ -5,6 +5,12 @@
 
 classdef (Abstract) MyFitParamScaling < MyFit
     
+     methods (Access = public)
+        function this = MyFitParamScaling(varargin)
+            this@MyFit(varargin{:});
+        end
+     end
+     
     methods (Access = protected)
         
         % Overload the doFit function to fit scaled data.

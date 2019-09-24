@@ -397,6 +397,21 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             end
         end
         
+        
+        % Bring the cursors within the axes limits
+        function centerCursors(this)
+            if ~isempty(this.Axes) && ~isempty(this.RangeCursors) ...
+                    && all(isvalid(this.RangeCursors))
+                xlim = this.Axes.XLim;
+                
+                x1 = xlim(1)+0.1*(xlim(2)-xlim(1));
+                x2 = xlim(2)-0.1*(xlim(2)-xlim(1));
+                
+                this.RangeCursors(1).value = x1;
+                this.RangeCursors(2).value = x2;
+            end
+        end
+        
         % Create metadata with all the fitting and user-defined parameters
         function Mdt = createMetadata(this)
             
@@ -605,20 +620,6 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             this.Fit.x=linspace(xmin, xmax, this.fit_length);
             input_coeffs=num2cell(this.param_vals);
             this.Fit.y=this.anon_fit_fun(this.Fit.x, input_coeffs{:});
-        end
-        
-        % Bring the cursors within the axes limits
-        function centerCursors(this)
-            if ~isempty(this.Axes) && ~isempty(this.RangeCursors) ...
-                    && all(isvalid(this.RangeCursors))
-                xlim = this.Axes.XLim;
-                
-                x1 = xlim(1)+0.1*(xlim(2)-xlim(1));
-                x2 = xlim(2)-0.1*(xlim(2)-xlim(1));
-                
-                this.RangeCursors(1).value = x1;
-                this.RangeCursors(2).value = x2;
-            end
         end
         
         %Overload a method of matlab.mixin.CustomDisplay in order to
