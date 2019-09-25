@@ -1,7 +1,8 @@
 % Calibration routine for the vacuum optomechanical coupling rate g0 
 
-classdef Myg0Cal < MyAnalysisRoutine
-    properties (Access = public, SetObservable = true)
+classdef Myg0Cal < MyAnalysisRoutine & MyGuiCont
+    
+    properties (Access = public, SetObservable)
         
         % Thermomechanical spectrum
         Data            MyTrace
@@ -22,27 +23,25 @@ classdef Myg0Cal < MyAnalysisRoutine
         method = 'integration'
         
         % Calibration parameters set by the user
-        beta = 0.1    % Phase modulation depth of the reference tone
+        beta = 0      % Phase modulation depth of the reference tone
         T = 300       % Temperature (K)
         
         % Correction for dynamic backaction. Requires 'fit' method 
         % and reference quality factor. 
         correct_dba = false 
         ref_Q = 0
-        
-        % Calibration result, g0l = g0/2pi
-        g0l = 0
     end
     
-    properties (GetAccess = public, SetAccess = protected, ...
-            SetObservable = true)
-        Axes
-        Gui
+    properties (GetAccess = public, SetAccess = protected, SetObservable)
+        Axes = matlab.graphics.axis.Axes.empty()
         
         % Parameters of the fitted mechanical Lorentzian
         Q = 0
         lw = 0
         freq = 0
+        
+        % Calibration result, g0l = g0/2pi
+        g0l = 0
     end
     
     properties (Access = protected)
@@ -51,15 +50,9 @@ classdef Myg0Cal < MyAnalysisRoutine
     
     methods (Access = public)
         function this = Myg0Cal(varargin)
-            p = inputParser();
-            addParameter(p, 'Data', MyTrace());
-            addParameter(p, 'Axes', matlab.graphics.axis.Axes.empty(), ...
-                @isaxes);
-            addParameter(p, 'enable_gui', true, @islogical);
-            parse(p, varargin{:});
-            
-            this.Data = p.Results.Data;
-            this.Axes = p.Results.Axes;
+            P = MyClassParser(this);
+            addParameter(P, 'enable_gui', true, @islogical);
+            processInputs(P, this, varargin{:});
 
             if ~isempty(this.Axes)
                 
@@ -96,8 +89,8 @@ classdef Myg0Cal < MyAnalysisRoutine
             
             % Gui is created right before the construction of object 
             % is over 
-            if p.Results.enable_gui
-                this.Gui = Guig0Cal(this);
+            if P.Results.enable_gui
+                createGui(this);
             end
         end
         
@@ -120,6 +113,11 @@ classdef Myg0Cal < MyAnalysisRoutine
         function calcg0(this)
             if isempty(this.Data) || isDataEmpty(this.Data)
                 warning('Data is empty');
+                return
+            end
+            
+            if this.beta <= 0
+                warning('Phase modulation depth beta must be specified')
                 return
             end
             
