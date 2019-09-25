@@ -22,11 +22,9 @@ classdef MyCommCont < handle
                 warning('Connection could not be closed.');
             end
             
-            % Delete the device object. The .delete() syntax will fail if
-            % the Comm object does not have a delete method 
-            % (e.g. if its a filename)
+            % Delete the device object
             try
-                this.Comm.delete();
+                 delete(this.Comm);
             catch
                 warning('Communication object could not be deleted.');
             end
@@ -39,7 +37,7 @@ classdef MyCommCont < handle
             if ~isempty(this.Comm)
                 
                 % Delete the existing object before creating a new one
-                this.Comm.delete();
+                delete(this.Comm);
             end
             
             try

@@ -29,6 +29,7 @@ classdef MyNewpTlb6700 < MyScpiInstrument & MyGuiCont
     methods (Access = public)
         function this = MyNewpTlb6700(varargin)
             P = MyClassParser(this);
+            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             % Convert address to number

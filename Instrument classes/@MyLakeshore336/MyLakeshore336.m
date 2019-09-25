@@ -1,6 +1,6 @@
 % Class communication with Lakeshore Model 336 temperature controller.
 
-classdef MyLakeshore336 < MyScpiInstrument & MyCommCont 
+classdef MyLakeshore336 < MyScpiInstrument & MyCommCont & MyGuiCont
     properties (GetAccess = public, ...
             SetAccess = {?MyClassParser, ?MyLakeshore336}, SetObservable)
         
@@ -28,8 +28,16 @@ classdef MyLakeshore336 < MyScpiInstrument & MyCommCont
     
     methods (Access = public)
         function this = MyLakeshore336(varargin)
-            this@MyCommCont(varargin{:});
+            P = MyClassParser(this);
+            addParameter(P, 'enable_gui', false);
+            processInputs(P, this, varargin{:});
+            
+            connect(this);
             createCommandList(this);
+            
+            if P.Results.enable_gui
+                createGui(this);
+            end
         end
         
         % Create temperature logger

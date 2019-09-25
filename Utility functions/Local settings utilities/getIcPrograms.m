@@ -1,7 +1,7 @@
 function ProgList = getIcPrograms()
 
     % [run files, instruments, loggers]
-    ProgList = MyProgramDescriptor.empty;
+    ProgList = MyProgramDescriptor.empty();
     
     RunFiles = readRunFiles();
     

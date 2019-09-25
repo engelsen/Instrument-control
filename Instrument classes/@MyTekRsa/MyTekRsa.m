@@ -175,14 +175,13 @@ classdef MyTekRsa < MyScpiInstrument & MyDataSource & MyCommCont ...
         end
 
         % Extend readSettings function
-        function Hdr = readSettings(this)
+        function Mdt = readSettings(this)
 
             %Call parent class method and then append parameters
-            Hdr = readSettings@MyScpiInstrument(this);
+            Mdt = readSettings@MyScpiInstrument(this);
 
             %Hdr should contain single field
-            addParam(Hdr, Hdr.field_names{1}, ...
-                'acq_trace', this.acq_trace, ...
+            addParam(Mdt, 'acq_trace', this.acq_trace, ...
                 'comment', 'The number of last read trace');
         end
     end
