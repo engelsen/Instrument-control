@@ -1,6 +1,6 @@
 % Descriptor for local data acquisition programs
 
-classdef MyProgramDescriptor    
+classdef MyProgramDescriptor < handle    
     properties (Access = public)
         name        = ''     % Identifier that is a MATLAB variable name
         title       = ''     % Title displayed in menus
@@ -20,7 +20,7 @@ classdef MyProgramDescriptor
     end
 
     methods 
-        function this = set.name(this, val)
+        function set.name(this, val)
             assert(isvarname(val), '''name'' must be valid variable name')
             this.name = val;
         end
@@ -34,7 +34,7 @@ classdef MyProgramDescriptor
             end
         end
 
-        function this = set.enabled(this, val)
+        function set.enabled(this, val)
 
             % Attempt convertion to logical
             val = logical(val);
@@ -44,7 +44,7 @@ classdef MyProgramDescriptor
             this.enabled = val;
         end
 
-        function this = set.data_source(this, val)
+        function set.data_source(this, val)
 
             % Attempt convertion to logical
             val = logical(val);
