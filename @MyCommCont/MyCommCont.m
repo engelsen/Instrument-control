@@ -12,21 +12,28 @@ classdef MyCommCont < handle
         Comm     
     end
     
-    methods (Access = public)       
+    methods (Access = public)
+        function this = MyCommCont(varargin)
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
+        end
+        
         function delete(this) 
             
             % Close the connection to the device
             try 
                 closeComm(this);
-            catch
-                warning('Connection could not be closed.');
+            catch ME
+                warning(['Connection could not be closed. Error: ' ...
+                    ME.message]);
             end
             
             % Delete the device object
             try
                  delete(this.Comm);
-            catch
-                warning('Communication object could not be deleted.');
+            catch ME
+                warning(['Communication object could not be deleted. ' ...
+                    'Error: ' ME.message]);
             end
         end 
         
@@ -36,7 +43,7 @@ classdef MyCommCont < handle
         function connect(this)
             if ~isempty(this.Comm)
                 
-                % Delete the existing object before creating a new one
+                % Delete the existing object before creating a new one.
                 delete(this.Comm);
             end
             
