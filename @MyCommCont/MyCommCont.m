@@ -96,7 +96,7 @@ classdef MyCommCont < handle
                 this.Comm.InputBufferSize = 1e7; % bytes
             end
             if ismember('Timeout',comm_props)
-                this.Comm.Timeout = 5; % s
+                this.Comm.Timeout = 10; % s
             end
         end
         
