@@ -220,10 +220,13 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                 'ExecutionMode',    'fixedRate',...
                 'TimerFcn',         @this.auxOutOnTimerCallback);
            
+            createApiSession(this);
+            
+            % After the session is created and device_id is known, create
+            % the demodulator path.
             this.demod_path = sprintf('/%s/demods/%i', this.dev_id, ...
                 this.demod-1);
             
-            createApiSession(this);
             createCommandList(this);
             
             if P.Results.enable_gui
@@ -237,17 +240,17 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
             % statements with try-catch
             try
                 stopPoll(this)
-            catch
+            catch ME
                 warning(['Could not usubscribe from the demodulator ', ...
-                    'or stop the poll timer.'])
+                    'or stop the poll timer. Error: ' ME.message])
             end
             
             % Delete timers to prevent them from running indefinitely in
             % the case of program crash
             try
                 delete(this.PollTimer)
-            catch
-                warning('Could not delete the poll timer.')
+            catch ME
+                warning(['Could not delete the poll timer.' ME.message])
             end
             
             try

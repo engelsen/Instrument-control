@@ -13,16 +13,18 @@ classdef MyAgilentDso < MyScpiInstrument & MyDataSource & MyCommCont ...
             P = MyClassParser(this);
             addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
-            
-            % 1.6e7 is the maximum trace size of DSO7034A 
-            %(8 mln point of 2-byte integers)
-            this.Comm.InputBufferSize = 2e7; %byte 
+           
             this.Trace.name_x = 'Time';
             this.Trace.name_y = 'Voltage';
             this.Trace.unit_x = 's';
             this.Trace.unit_y = 'V';
             
             connect(this);
+            
+            % 1.6e7 is the maximum trace size of DSO7034A 
+            %(8 mln point of 2-byte integers)
+            this.Comm.InputBufferSize = 2e7; %byte 
+            
             createCommandList(this);
             
             % There is high compatibility with Tektronix scope classes

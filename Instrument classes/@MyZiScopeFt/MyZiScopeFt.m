@@ -71,16 +71,17 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource & MyGuiCont
             % statements with try-catch
             try
                 stopPoll(this)
-            catch
+            catch ME
                 warning(['Could not usubscribe from the scope node ', ...
-                    'or stop the poll timer.'])
+                    'or stop the poll timer. Error: ' ME.message])
             end
             
             % Clear the module's thread.
             try 
                 ziDAQ('clear', this.scope_module);
-            catch
-                warning('Could not clear the scope module.')
+            catch ME
+                warning(['Could not clear the scope module. Error: ' ...
+                    ME.message])
             end
             
             % Delete timers to prevent them from running indefinitely in
