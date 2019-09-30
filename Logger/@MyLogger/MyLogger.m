@@ -236,7 +236,7 @@ classdef MyLogger < MyGuiCont
         % Configure the logger settings from metadata
         function writeSettings(this, Mdt)
             
-            % Stop the logger if presently running
+            % Stop the logger if it is presently running
             stop(this);
             
             if isparam(Mdt, 'meas_period')

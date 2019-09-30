@@ -8,6 +8,8 @@ function runSession(filename)
     assert(~isempty(Mdt), ['Metadata is not found in the file ''' ...
         filename '''.']);
     
+    disp(['Loading session info from file ' filename '...'])
+    
     % SessionInfo contains information about the state of Collector
     CollMdt = titleref(Mdt, 'SessionInfo');
     
@@ -37,11 +39,16 @@ function runSession(filename)
     
     % Delete all the instruments present in the collector
     C = MyCollector.instance();
+    
+    disp('Closing the current session...')
+    
     flush(C);
     
     % Run new instruments and configure their settings
     for i = 1:length(ActiveProgList)
         nm = ActiveProgList(i).name;
+        
+        disp(['Starting ' nm '...'])
         
         % Extract instument options from the collector metadata or assign
         % default values
@@ -141,5 +148,7 @@ function runSession(filename)
             warning(['Error while attempting to run an app: ' ME.message])
         end
     end
+    
+    disp('Finished loading session.')
 end
 
