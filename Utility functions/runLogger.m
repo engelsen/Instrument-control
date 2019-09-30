@@ -9,7 +9,7 @@
 %   runLogger(Instrument) where Instrument is an object that is 
 %       already present in the collector
 
-function [Lg, Gui] = runLogger(arg)
+function Lg = runLogger(arg)
 
     % Get the instance of collector
     C = MyCollector.instance();
@@ -68,15 +68,13 @@ function [Lg, Gui] = runLogger(arg)
     end
     
     % Check if the logger already has a GUI
-    Gui = getInstrumentProp(C, name, 'Gui');
-    if isempty(Gui) || ~isvalid(Gui)
+    if isempty(Lg.Gui) || ~isvalid(Lg.Gui)
         
         % Run a new GUI and store it in the collector
-        Gui = GuiLogger(Lg);
-        setInstrumentProp(C, name, 'Gui', Gui);
+        createGui(Lg);
         
         % Display the instrument's name 
-        Fig = findFigure(Gui);
+        Fig = findFigure(Lg.Gui);
         if ~isempty(Fig)
            Fig.Name = char(name);
         else
@@ -92,7 +90,7 @@ function [Lg, Gui] = runLogger(arg)
         
         % Bring the window of existing GUI to the front
         try
-            setFocus(Gui);
+            setFocus(Lg.Gui);
         catch
         end
     end

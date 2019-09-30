@@ -4,17 +4,20 @@ classdef MyTekMdo < MyTekScope
     
     methods (Access = public)
         function this = MyTekMdo(varargin)
-            this@MyTekScope(varargin{:});
-            
-            % 2e7 is the maximum trace size of MDO3034 
-            %(10 mln point of 2-byte integers)
-            this.Comm.InputBufferSize = 2.1e7; %byte 
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
             
             this.channel_no = 4;
             this.knob_list = lower({'GPKNOB1', 'GPKNOB2', 'HORZPos', ...
                 'HORZScale', 'TRIGLevel', 'PANKNOB1', 'ZOOM', ...
                 'VERTPOS1', 'VERTPOS2', 'VERTPOS3', 'VERTPOS4', ...
                 'VERTSCALE1', 'VERTSCALE2', 'VERTSCALE3', 'VERTSCALE4'});
+            
+            connect(this);
+            
+            % 2e7 is the maximum trace size of MDO3034 
+            %(10 mln point of 2-byte integers)
+            this.Comm.InputBufferSize = 2.1e7; %byte 
             
             createCommandList(this);
         end

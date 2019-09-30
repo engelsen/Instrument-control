@@ -16,7 +16,8 @@ function [name, ext] = splitFilename(filename)
     % A candidate for the extension
     ext = filename_split{end};
 
-    if ~isempty(ext) && ~any(isspace(ext)) && length(ext)<4
+    if ~isempty(ext) && ~any(isspace(ext)) && length(ext)<4 && ...
+            ~all(ismember(ext(2:end), '0123456789'))
         
         % ext is actual extension
         % Add a point to conform with the convention of fileparts()

@@ -17,7 +17,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
     properties (SetAccess = protected, GetAccess = public)
         CommandList = struct()
         
-        % identification string
+        % Identification string
         idn_str = ''
     end
     
@@ -36,10 +36,6 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
     end
     
     methods (Access = public)
-        function this = MyInstrument(varargin)
-            P = MyClassParser(this);
-            processInputs(P, this, varargin{:});
-        end
         
         % Read all parameters of the physical device
         function sync(this)

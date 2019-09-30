@@ -34,6 +34,24 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
                 delete(this.RefCursors);
             end
         end
+        
+        function centerCursors(this)
+            
+            % Center the range cursors
+            centerCursors@MyFit(this);
+            
+            % Center the ref cursors
+            if ~isempty(this.Axes) && ~isempty(this.RefCursors) ...
+                    && all(isvalid(this.RefCursors))
+                xlim = this.Axes.XLim;
+                
+                x1 = xlim(1)+0.2*(xlim(2)-xlim(1));
+                x2 = xlim(2)-0.2*(xlim(2)-xlim(1));
+                
+                this.RefCursors(1).value = x1;
+                this.RefCursors(2).value = x2;
+            end
+        end
     end
     
     methods (Access = protected)

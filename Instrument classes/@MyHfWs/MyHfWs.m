@@ -143,6 +143,8 @@ classdef MyHfWs < handle
             soft_vers = calllib(this.libname, 'GetWLMVersion', 2);
             str = ['WS' num2str(type) ', Version ' num2str(vers) ...
                 ', Software version ' num2str(soft_vers)];
+            
+            this.idn_str = str;
         end
         
         function Mdt = readSettings(this)

@@ -1,13 +1,18 @@
 % Object for testing data acquisition and header collection functionality
 
-classdef MyDummyScpiInstrument < MyScpiInstrument & MyDataSource
+classdef MyDummyScpiInstrument < MyScpiInstrument & MyDataSource & MyGuiCont
     
     properties (Access = public)
         point_no = 1000
     end
     
     methods (Access = public)
-        function this = MyDummyScpiInstrument()
+        function this = MyDummyScpiInstrument(varargin)
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
+            
+            this.gui_name = 'GuiDummyInstrument';
+
             createCommandList(this);
         end
         

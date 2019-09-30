@@ -11,15 +11,15 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         unit_x = ''
         unit_y = ''
         
-        file_name = ''
+        file_name       char
         
         % Array of MyMetadata objects with information about the trace. 
         % The full metadata also contains information about the trace 
         % properties like units etc.  
-        UserMetadata = MyMetadata.empty() 
+        UserMetadata    MyMetadata
         
         % Formatting options for the metadata
-        metadata_opts = {} 
+        metadata_opts   cell
         
         % Data formatting options
         column_sep  = '\t'      % Data column separator
@@ -293,8 +293,8 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         end
         
         % Picks every n-th element from the trace,
-        % performing a running average first if opt=='avg'
-        function downsample(this, n, opt)
+        % performing a running average first if opt=='avg' 
+        function NewTrace = downsample(this, n, opt)
             n0 = ceil(n/2);
             
             if exist('opt', 'var') && ...
@@ -305,14 +305,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 % discarded by starting the indexing from n0.
                 tmpy = movmean(this.y, n, 'Endpoints', 'shrink');
                 
-                this.x = this.x(n0:n:end);
-                this.y = tmpy(n0:n:end);
+                new_x = this.x(n0:n:end);
+                new_y = tmpy(n0:n:end);
             else
                 
                 % Downsample without averaging
-                this.x = this.x(n0:n:end);
-                this.y = this.y(n0:n:end);
+                new_x = this.x(n0:n:end);
+                new_y = this.y(n0:n:end);
             end
+            
+            NewTrace = MyTrace('x', new_x, 'y', new_y, ...
+                'unit_x',this.unit_x,'unit_y',this.unit_y, ...
+                'name_x',this.name_x,'name_y',this.name_y);
         end
         
         %Checks if the object is empty
@@ -380,7 +384,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             % Instantiate an appropriate type of Trace
-            Trace = feval(class_name, trace_opts{:});
+            Trace = feval(class_name, trace_opts{:});           %#ok<FVAL>
             
             setMetadata(Trace, Mdt);
             
@@ -497,11 +501,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     %% Set and get methods
     
     methods
-        function set.UserMetadata(this, Val)
-            assert(isa(Val, 'MyMetadata'),...
-                'UserMetadata must be an array of MyMetadata objects');
-            this.UserMetadata = Val;
-        end
         
         %Set function for x, checks if it is a vector of doubles and
         %reshapes into a column vector
@@ -545,12 +544,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             assert(ischar(name_y),'Name must be a char, not a %s',...
                 class(name_y));
             this.name_y=name_y;
-        end
-        
-        function set.file_name(this, file_name)
-            assert(ischar(file_name),'File path must be a char, not a %s',...
-                class(file_name));
-            this.file_name=file_name;
         end
         
         %Get function for label_x, creates label from name_x and unit_x.

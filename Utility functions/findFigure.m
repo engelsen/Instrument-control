@@ -2,7 +2,13 @@
 
 function Fig = findFigure(Obj)
     
-    % First check if the object itself is a figure
+    % First check if the object is empty
+    if isempty(Obj)
+        Fig = [];
+        return
+    end
+
+    % Check if the object itself is a figure
     if isa(Obj, 'matlab.ui.Figure')
         Fig = Obj;
         return

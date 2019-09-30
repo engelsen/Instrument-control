@@ -1,8 +1,8 @@
-classdef MyExponentialFit < MyFit
+classdef MyExponentialFit < MyFitParamScaling
     
     methods (Access = public)
         function this = MyExponentialFit(varargin)
-            this@MyFit( ...
+            this@MyFitParamScaling( ...
                 'fit_name',         'Exponential',...
                 'fit_function',     'a*exp(b*x)+c',...
                 'fit_tex',          '$$ae^{bx}+c$$',...
@@ -13,25 +13,6 @@ classdef MyExponentialFit < MyFit
     end
     
     methods (Access = protected)
-        
-        %Overload the doFit function to do scaled fits.
-        function fitted_vals = doFit(this, x, y, init_vals, lim_lower, ...
-                lim_upper)
-            
-            % Scale x and y data
-            [scaled_x, mean_x, std_x] = zscore(x);
-            [scaled_y, mean_y, std_y] = zscore(y);
-            
-            % Scaling coefficients
-            sc = {mean_x, std_x, mean_y, std_y};
-            
-            scaled_fitted_vals = doFit@MyFit(this, scaled_x, scaled_y, ...
-                scaleFitParams(this, init_vals, sc), ...
-                scaleFitParams(this, lim_lower, sc), ...
-                scaleFitParams(this, lim_upper, sc));
-            
-            fitted_vals = unscaleFitParams(this, scaled_fitted_vals, sc);
-        end
         
         function calcInitParams(this)
             ind=this.data_selection;

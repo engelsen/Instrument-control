@@ -8,7 +8,7 @@ function runSession(filename)
     assert(~isempty(Mdt), ['Metadata is not found in the file ''' ...
         filename '''.']);
     
-    % SessionInfo contains information about the state of collector
+    % SessionInfo contains information about the state of Collector
     CollMdt = titleref(Mdt, 'SessionInfo');
     
     if length(CollMdt)>1
@@ -70,8 +70,8 @@ function runSession(filename)
                 eval(ActiveProgList(i).run_expr);
                 
                 if ~isempty(gui_position)
-                    Gui = getInstrumentProp(C, nm, 'Gui');
-                    Fig = findFigure(Gui);
+                    Instr = getInstrument(C, nm);
+                    Fig = findFigure(Instr);
                     
                     original_units = Fig.Units;
                     Fig.Units = 'pixels';
@@ -110,6 +110,35 @@ function runSession(filename)
         catch ME
             warning(['Could not start instrument with name ''' nm ...
                 '''. Error: ' ME.message])
+        end
+    end
+    
+    % Run apps
+    for i = 1:length(CollMdt.ParamList.apps)
+        try
+            nm = CollMdt.ParamList.apps{i};
+            
+            % The convention is such that the apps can be instantiated as
+            % classname(), i.e. that their constructor does not have 
+            % required input arguments.
+            App = eval(CollMdt.ParamList.AppProps.(nm).class);
+            
+            pos = CollMdt.ParamList.AppProps.(nm).position;
+            if ~isempty(pos)
+                Fig = findFigure(App);
+                    
+                original_units = Fig.Units;
+                Fig.Units = 'pixels';
+
+                % Set x and y position of figure
+                Fig.Position(1) = pos(1);
+                Fig.Position(2) = pos(2);
+
+                % Restore the figure settings
+                Fig.Units = original_units;
+            end
+        catch ME
+            warning(['Error while attempting to run an app: ' ME.message])
         end
     end
 end

@@ -1,8 +1,8 @@
-classdef MyLorentzianFit < MyFit
+classdef MyLorentzianFit < MyFitParamScaling
     
     methods (Access = public)
         function this = MyLorentzianFit(varargin)
-            this@MyFit( ...
+            this@MyFitParamScaling( ...
                 'fit_name',         'Lorentzian', ...
                 'fit_function',     '1/pi*a*b/2/((x-c)^2+(b/2)^2)+d', ...
                 'fit_tex',          '$$\frac{a}{\pi}\frac{b/2}{(x-c)^2+(b/2)^2}+d$$', ...
@@ -13,25 +13,6 @@ classdef MyLorentzianFit < MyFit
     end
     
     methods (Access = protected)
-        
-        %Overload the doFit function to do scaled fits.
-        function fitted_vals = doFit(this, x, y, init_vals, lim_lower, ...
-                lim_upper)
-            
-            % Scale x and y data
-            [scaled_x, mean_x, std_x] = zscore(x);
-            [scaled_y, mean_y, std_y] = zscore(y);
-            
-            % Scaling coefficients
-            sc = {mean_x, std_x, mean_y, std_y};
-            
-            scaled_fitted_vals = doFit@MyFit(this, scaled_x, scaled_y, ...
-                scaleFitParams(this, init_vals, sc), ...
-                scaleFitParams(this, lim_lower, sc), ...
-                scaleFitParams(this, lim_upper, sc));
-            
-            fitted_vals = unscaleFitParams(this, scaled_fitted_vals, sc);
-        end
         
         function calcInitParams(this)
             ind = this.data_selection;
@@ -115,7 +96,7 @@ classdef MyLorentzianFit < MyFit
         end
     end
     
-    methods (Access = private)
+    methods (Access = protected)
         function sc_vals = scaleFitParams(~, vals, scaling_coeffs)
             [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
             
