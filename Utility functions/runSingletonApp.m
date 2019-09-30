@@ -27,4 +27,3 @@ function runSingletonApp(App, varargin)
         centerFigure(App);
     end
 end
-

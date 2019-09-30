@@ -1,7 +1,5 @@
 % Class for XY data representation with labelling, plotting and
 % saving/loading functionality
-% If instantiated as MyTrace(load_path) then 
-% the content is loaded from file
 
 classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
     properties (Access = public)
@@ -13,13 +11,15 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         unit_x = ''
         unit_y = ''
         
-        file_name = ''
+        file_name       char
         
-        % Array of MyMetadata objects with information about the trace 
-        MeasHeaders 
+        % Array of MyMetadata objects with information about the trace. 
+        % The full metadata also contains information about the trace 
+        % properties like units etc.  
+        UserMetadata    MyMetadata
         
         % Formatting options for the metadata
-        metadata_opts = {} 
+        metadata_opts   cell
         
         % Data formatting options
         column_sep  = '\t'      % Data column separator
@@ -28,13 +28,15 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         save_prec   = 15        % Maximum digits of precision in saved data 
     end
     
-    properties (Access = public, NonCopyable = true)
+    properties (GetAccess = public, SetAccess = protected, ...
+            NonCopyable = true)
         
-        % Cell that contains handles the trace is plotted in
-        hlines = {}
+        % Cell that contains the handles of Line objects the trace 
+        % is plotted in
+        PlotLines = {}
     end
     
-    properties (Dependent = true)        
+    properties (Dependent=true)        
         label_x
         label_y
     end
@@ -43,8 +45,12 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function this = MyTrace(varargin)
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
+        end
+        
+        function delete(this)
             
-            this.MeasHeaders = MyMetadata.empty();
+            % Delete lines from all the axes the trace is plotted in
+            cellfun(@delete, this.PlotLines);
         end
         
         %Defines the save function for the class.
@@ -110,72 +116,70 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
         function plot(this, varargin)
+            
             % Do nothing if there is no data in the trace
-            if isempty(this)
+            if isDataEmpty(this)
                 return
             end
             
-            %Checks that x and y are the same size
-            assert(validatePlot(this),...
+            % Checks that x and y are the same size
+            assert(validateData(this),...
                 'The length of x and y must be identical to make a plot')
-            %Parses inputs 
-            p=inputParser();
             
-            % Axes in which log should be plotted
-            addOptional(p, 'plot_axes', [], @(x)assert( ...
-                isa(x,'matlab.graphics.axis.Axes')||...
-                isa(x,'matlab.ui.control.UIAxes'),...
+            % Parses inputs 
+            p = inputParser();
+            p.KeepUnmatched = true;
+            
+            % Axes in which the trace should be plotted
+            addOptional(p, 'Axes', [], @(x)assert(isaxes(x),...
                 'Argument must be axes or uiaxes.'));
             
-            validateColor=@(x) assert(iscolor(x),...
-                'Input must be a valid color. See iscolor function');
-            addParameter(p,'Color','b',validateColor);
+            addParameter(p, 'make_labels', true, @islogical);
             
-            validateMarker=@(x) assert(ismarker(x),...
-                'Input must be a valid marker. See ismarker function');
-            addParameter(p,'Marker','none',validateMarker);
-            
-            validateLine=@(x) assert(isline(x),...
-                'Input must be a valid linestyle. See isline function');
-            addParameter(p,'LineStyle','-',validateLine);
-            
-            addParameter(p,'MarkerSize',6,...
-                @(x) validateattributes(x,{'numeric'},{'positive'}));
-            
-            addParameter(p,'make_labels',false,@islogical);
-            
-            interpreters={'none','tex','latex'};
-            validateInterpreter=@(x) assert(contains(x,interpreters),...
+            validateInterpreter = @(x) assert( ...
+                ismember(x, {'none', 'tex', 'latex'}),...
                 'Interpreter must be none, tex or latex');
-            addParameter(p,'Interpreter','latex',validateInterpreter);
-            parse(p,varargin{:});
+            addParameter(p, 'Interpreter', 'latex', validateInterpreter);
+            
+            parse(p, varargin{:});
+            
+            line_opts = struct2namevalue(p.Unmatched);
             
             %If axes are not supplied get current
-            if ~isempty(p.Results.plot_axes)
-                plot_axes=p.Results.plot_axes;
+            if ~isempty(p.Results.Axes)
+                Axes = p.Results.Axes;
             else
-                plot_axes=gca();
+                Axes = gca();
             end
             
-            ind=findLineInd(this, plot_axes);
+            ind = findLineInd(this, Axes);
+            
             if ~isempty(ind) && any(ind)
-                set(this.hlines{ind},'XData',this.x,'YData',this.y);
+                set(this.PlotLines{ind}, 'XData', this.x, 'YData', this.y);
             else
-                this.hlines{end+1}=plot(plot_axes,this.x,this.y);
-                ind=length(this.hlines);
+                this.PlotLines{end+1} = plot(Axes, this.x, this.y);
+                ind = length(this.PlotLines);
             end
             
-            %Sets the correct color and label options
-            set(this.hlines{ind},'Color',p.Results.Color,'LineStyle',...
-                p.Results.LineStyle,'Marker',p.Results.Marker,...
-                'MarkerSize',p.Results.MarkerSize);
+            % Sets the correct color and label options
+            if ~isempty(line_opts)
+                set(this.PlotLines{ind}, line_opts{:});
+            end
             
             if p.Results.make_labels
-                interpreter=p.Results.Interpreter;
-                xlabel(plot_axes,this.label_x,'Interpreter',interpreter);
-                ylabel(plot_axes,this.label_y,'Interpreter',interpreter);
-                set(plot_axes,'TickLabelInterpreter',interpreter);
+                makeLabels(this, Axes, p.Results.Interpreter)
             end
+        end
+        
+        % Add labels to the axes
+        function makeLabels(this, Axes, interpreter)
+            if exist('interpreter', 'var') == 0
+                interpreter = 'latex';
+            end
+            
+            xlabel(Axes, this.label_x, 'Interpreter', interpreter);
+            ylabel(Axes, this.label_y, 'Interpreter', interpreter);
+            set(Axes, 'TickLabelInterpreter', interpreter);
         end
         
         %If there is a line object from the trace in the figure, this sets
@@ -189,60 +193,108 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             ind=findLineInd(this, Axes);
             if ~isempty(ind) && any(ind)
-                set(this.hlines{ind},'Visible',vis)
+                set(this.PlotLines{ind},'Visible',vis)
             end
         end
         
         %Defines addition of two MyTrace objects
-        function sum=plus(this,b)
+        function Sum=plus(this,b)
             checkArithmetic(this,b);
             
-            sum=MyTrace('x',this.x,'y',this.y+b.y, ...
+            Sum=MyTrace('x',this.x,'y',this.y+b.y, ...
                 'unit_x',this.unit_x,'unit_y',this.unit_y, ...
                 'name_x',this.name_x,'name_y',this.name_y);
         end
         
         %Defines subtraction of two MyTrace objects
-        function diff=minus(this,b)
+        function Diff=minus(this,b)
             checkArithmetic(this,b);
             
-            diff=MyTrace('x',this.x,'y',this.y-b.y, ...
+            Diff=MyTrace('x',this.x,'y',this.y-b.y, ...
                 'unit_x',this.unit_x,'unit_y',this.unit_y, ...
                 'name_x',this.name_x,'name_y',this.name_y);
         end
         
         function [max_val,max_x]=max(this)
-            assert(validatePlot(this),['MyTrace object must contain',...
+            assert(validateData(this),['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to find the max'])
             [max_val,max_ind]=max(this.y);
             max_x=this.x(max_ind);
         end
         
         function fwhm=calcFwhm(this)
-            assert(validatePlot(this),['MyTrace object must contain',...
+            assert(validateData(this),['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to find the fwhm'])
             [~,~,fwhm,~]=findpeaks(this.y,this.x,'NPeaks',1);
         end
         
-        %Integrates the trace numerically
-        function area=integrate(this,varargin)
-            assert(validatePlot(this),['MyTrace object must contain',...
+        function [mean_x,std_x,mean_y,std_y]=calcZScore(this)
+            mean_x=mean(this.x);
+            std_x=std(this.x);
+            mean_y=mean(this.y);
+            std_y=std(this.y);
+        end
+        
+        % Integrates the trace numerically. Two possible ways to call the
+        % function:
+        %
+        % integrate(Trace)              - integrate the entire data
+        % integrate(Trace, xmin, xmax)  - integrate over [xmin, xmax]
+        % integrate(Trace, ind)         - integrate data with indices ind
+        function area = integrate(this, varargin)
+            assert(validateData(this), ['MyTrace object must contain',...
                 ' nonempty data vectors of equal length to integrate'])
             
-            %Input parser for optional inputs
-            p=inputParser;
-            %Default is to use all the data in the trace
-            addOptional(p,'ind',true(1,length(this.x)));
-            parse(p,varargin{:});
-            ind=p.Results.ind;
+            switch nargin()
+                case 1
+                
+                    % The function is called as integrate(Trace), integrate
+                    % the entire trace
+                    xvals = this.x;
+                    yvals = this.y;
+                case 2
             
-            %Integrates the data contained in the indexed part.
-            area=trapz(this.x(ind),this.y(ind));
+                    % The function is called as integrate(Trace, ind)
+                    ind = varargin{1};
+                    xvals = this.x(ind);
+                    yvals = this.y(ind);
+                case 3
+                    
+                    % The function is called as integrate(Trace,xmin,xmax)
+                    xmin = varargin{1};
+                    xmax = varargin{2};
+                    
+                    % Select all data points within the integration range
+                    ind = (this.x > xmin) & (this.x < xmax);
+                    xvals = this.x(ind);
+                    yvals = this.y(ind);
+                    
+                    % Add the two points corresponding to the interval ends
+                    % if the interval is within data range
+                    if xmin >= this.x(1)
+                        yb = interp1(this.x, this.y, xmin);
+                        xvals = [xmin; xvals];
+                        yvals = [yb; yvals];
+                    end
+                    
+                    if xmax <= this.x(end)
+                        yb = interp1(this.x, this.y, xmax);
+                        xvals = [xvals; xmax];
+                        yvals = [yvals; yb];
+                    end
+                otherwise
+                    error(['Unrecognized function signature. Check ' ...
+                        'the function definition to see acceptable ' ...
+                        'input argument.'])
+            end
+            
+            % Integrates the data using the trapezoidal method
+            area = trapz(xvals, yvals);
         end
         
         % Picks every n-th element from the trace,
-        % performing a running average first if opt=='avg'
-        function downsample(this, n, opt)
+        % performing a running average first if opt=='avg' 
+        function NewTrace = downsample(this, n, opt)
             n0 = ceil(n/2);
             
             if exist('opt', 'var') && ...
@@ -253,14 +305,18 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
                 % discarded by starting the indexing from n0.
                 tmpy = movmean(this.y, n, 'Endpoints', 'shrink');
                 
-                this.x = this.x(n0:n:end);
-                this.y = tmpy(n0:n:end);
+                new_x = this.x(n0:n:end);
+                new_y = tmpy(n0:n:end);
             else
                 
                 % Downsample without averaging
-                this.x = this.x(n0:n:end);
-                this.y = this.y(n0:n:end);
+                new_x = this.x(n0:n:end);
+                new_y = this.y(n0:n:end);
             end
+            
+            NewTrace = MyTrace('x', new_x, 'y', new_y, ...
+                'unit_x',this.unit_x,'unit_y',this.unit_y, ...
+                'name_x',this.name_x,'name_y',this.name_y);
         end
         
         %Checks if the object is empty
@@ -268,18 +324,19 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             bool = isempty(this.x) && isempty(this.y);
         end
         
-        %Checks if the data can be plotted
-        function bool = validatePlot(this)
+        %Checks if the data can be processed as a list of {x, y} values, 
+        %e.g. integrated over x or plotted
+        function bool = validateData(this)
             bool =~isempty(this.x) && ~isempty(this.y)...
                 && length(this.x)==length(this.y);
         end
         
-        function hline = getLineHandle(this,ax)
-            ind=findLineInd(this,ax);
+        function Line = getLine(this, Ax)
+            ind = findLineInd(this, Ax);
             if ~isempty(ind)
-                hline=this.hlines{ind}; 
+                Line = this.PlotLines{ind}; 
             else
-                hline=[];
+                Line = [];
             end
         end
     end
@@ -327,7 +384,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
             
             % Instantiate an appropriate type of Trace
-            Trace = feval(class_name, trace_opts{:});
+            Trace = feval(class_name, trace_opts{:});           %#ok<FVAL>
             
             setMetadata(Trace, Mdt);
             
@@ -358,7 +415,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             % Make a separator for the bulk of trace data
             DataSep = MyMetadata('title', this.data_sep);
             
-            Mdt = [Info, this.MeasHeaders, DataSep];
+            Mdt = [Info, this.UserMetadata, DataSep];
             
             % Ensure uniform formatting
             if ~isempty(this.metadata_opts)
@@ -397,33 +454,35 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             % Remove the empty data separator field
             Mdt = rmtitle(Mdt, this.data_sep);
             
-            % Store the remainder under measurement headers
-            this.MeasHeaders = Mdt;
+            % Store the remainder as user metadata
+            this.UserMetadata = Mdt;
         end
         
         %Checks if arithmetic can be done with MyTrace objects.
         function checkArithmetic(this, b)
             assert(isa(this,'MyTrace') && isa(b,'MyTrace'),...
-                ['Both objects must be of type MyTrace to add,',...
+                ['Both objects must be of type MyTrace ,',...
                 'here they are type %s and %s'],class(this),class(b));
             
             assert(strcmp(this.unit_x, b.unit_x) && ...
                 strcmp(this.unit_y,b.unit_y),...
-                'The MyTrace classes must have the same units for arithmetic')
+                'The trace objects do not have the same units')
             
-            assert(length(this.x)==length(this.y)==...
-                length(this.x)==length(this.y),...
-                'The length of x and y must be equal for arithmetic');
+            assert(length(this.x)==length(this.y), ['The length of x ' ...
+                'and y in the first argument are not equal']);
+            
+            assert(length(b.x)==length(b.y), ['The length of x and y ' ...
+                'in the second argument are not equal']);
             
             assert(all(this.x==b.x),...
-                'The MyTrace objects must have identical x-axis for arithmetic')
+                'The trace objects do not have identical x-axis ')
         end
         
         % Finds the hline handle that is plotted in the specified axes
         function ind = findLineInd(this, Axes)
-            if ~isempty(this.hlines)
+            if ~isempty(this.PlotLines)
                 ind = cellfun(@(x) ismember(x, findall(Axes, ...
-                    'Type','Line')), this.hlines);
+                    'Type','Line')), this.PlotLines);
             else
                 ind = [];
             end
@@ -435,20 +494,13 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             Copy = copyElement@matlab.mixin.Copyable(this);
             
             % Copy metadata
-            Copy.MeasHeaders = copy(this.MeasHeaders);
+            Copy.UserMetadata = copy(this.UserMetadata);
         end
     end
     
     %% Set and get methods
     
     methods
-        
-        %Set function for MeasHeaders
-        function set.MeasHeaders(this, Val)
-            assert(isa(Val, 'MyMetadata'),...
-                'MeasHeaders must be an array of MyMetadata objects');
-            this.MeasHeaders = Val;
-        end
         
         %Set function for x, checks if it is a vector of doubles and
         %reshapes into a column vector
@@ -492,12 +544,6 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             assert(ischar(name_y),'Name must be a char, not a %s',...
                 class(name_y));
             this.name_y=name_y;
-        end
-        
-        function set.file_name(this, file_name)
-            assert(ischar(file_name),'File path must be a char, not a %s',...
-                class(file_name));
-            this.file_name=file_name;
         end
         
         %Get function for label_x, creates label from name_x and unit_x.

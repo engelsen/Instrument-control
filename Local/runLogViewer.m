@@ -1,7 +1,8 @@
-% Start a logger gui in dummy mode, which allows to browse existing logs
+% Start a logger gui in dummy mode, which allows to browse existing logs,
+% and add it to the collector as an app.
 
 function runLogViewer()
-    name = 'LogViewer';
+    name = 'ViewerLogger';
     
     Collector = MyCollector.instance();
     
@@ -11,22 +12,23 @@ function runLogViewer()
         % a new one, but rather bring focus to the existing one.
         disp([name, ' is already running.']);
         
-        Gui = getInstrumentProp(Collector, name, 'Gui');
+        Lg = getInstrument(Collector, name);
         
         % Bring the window of existing GUI to the front
         try
-            setFocus(Gui);
-        catch
+            setFocus(findFigure(Lg.Gui));
+        catch ME
+            warning(ME.message)
         end
     else
         
         % Start GuiLogger in dummy mode
-        GuiLw = GuiLogger();
-        addInstrument(Collector, name, GuiLw.Lg, 'collect_header', false);
-        setInstrumentProp(Collector, name, 'Gui', GuiLw);
+        Lw = GuiLogger();
+        Lw.Lg.Gui = Lw;
+        addInstrument(Collector, name, Lw.Lg, 'collect_header', false);
         
         % Display the instrument's name 
-        Fig = findFigure(GuiLw);
+        Fig = findFigure(Lw);
         Fig.Name = char(name);
         
         % Apply color scheme

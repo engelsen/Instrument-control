@@ -1,6 +1,8 @@
 % Generic class for controlling Tektronix scopes
 
-classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
+classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont ...
+        & MyGuiCont
+    
     properties (GetAccess = public, SetAccess={?MyClassParser,?MyTekScope})
         
         % number of channels
@@ -12,9 +14,9 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont
     
     methods (Access = public)
         function this = MyTekScope(varargin)
-            this@MyCommCont(varargin{:});
             
-            this.Comm.InputBufferSize = 4.1e7; % byte 
+            % Set default GUI name
+            this.gui_name = 'GuiTekScope';
             
             this.Trace.name_x = 'Time';
             this.Trace.name_y = 'Voltage';

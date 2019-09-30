@@ -37,8 +37,9 @@ classdef MyAvgTrace < MyTrace
             assert(isa(b,'MyTrace'), ['Second argument must be a ' ...
                 'MyTrace object']);
             
-            if isempty(this) || length(this.x)~=length(b.x) || ...
+            if isDataEmpty(this) || length(this.x)~=length(b.x) || ...
                     any(this.x~=b.x)
+                
                 % Initialize new data and return
                 this.x=b.x;
                 this.y=b.y;
@@ -61,18 +62,22 @@ classdef MyAvgTrace < MyTrace
             switch this.avg_type
                 case 'lin'
                     if this.avg_count<this.n_avg
+                        
                         % Increase the counter and update the data
                         this.avg_count=this.avg_count+1;
                         this.y = (this.y*(this.avg_count-1)+b.y)/...
                             this.avg_count;
+                        
                         % Return completed==true if the averaging is
                         % finished at this iteration
                         completed=(this.avg_count==this.n_avg);
                     else
+                        
                         % New data is discarded
                         completed=false;
                     end
                 case 'exp'
+                    
                     % In the exponential case averaging proceeds
                     % indefinitely, so do not check if avg_count<n_avg
                     this.avg_count=this.avg_count+1;

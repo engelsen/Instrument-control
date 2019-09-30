@@ -1,6 +1,6 @@
 % Class for storing information about local instruments
 
-classdef MyInstrumentDescriptor
+classdef MyInstrumentDescriptor < handle
     properties (Access = public)
         name            = ''        % Identifier that is a MATLAB variable name
         title           = ''        % Title displayed in menus
@@ -28,13 +28,13 @@ classdef MyInstrumentDescriptor
              end
          end
          
-         function this = set.name(this, val)
+         function set.name(this, val)
              assert(isvarname(val), ['Value assigned to ''name'' must ' ...
                  'be a valid MATLAB variable name.'])
              this.name = val;
          end
          
-         function this = set.enabled(this, val)
+         function set.enabled(this, val)
              
              % Attempt convertion to logical
              val = logical(val);
@@ -44,7 +44,7 @@ classdef MyInstrumentDescriptor
              this.enabled = val;
          end
          
-         function this = set.StartupOpts(this, val)
+         function set.StartupOpts(this, val)
              assert(isstruct(val), ['Value assigned to ''StartupOpts'''...
                  ' must be a structure.'])
              this.StartupOpts = val;
@@ -59,7 +59,7 @@ classdef MyInstrumentDescriptor
              end
          end
          
-         function this = set.LoggerOpts(this, val)
+         function set.LoggerOpts(this, val)
              assert(isstruct(val), ['Value assigned to ''LoggerOpts''' ...
                  ' must be a structure.'])
              this.LoggerOpts = val;

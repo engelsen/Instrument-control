@@ -6,7 +6,7 @@ classdef MyCollector < MySingleton
         % Structure accomodating handles of instrument objects 
         InstrList = struct()
         
-         % Properties of instruments
+        % Properties of instruments
         InstrProps = struct()
         
         % Structure accomodating handles of apps which contain user
@@ -18,7 +18,7 @@ classdef MyCollector < MySingleton
         Listeners = struct()
         
         % Metadata indicating the state of Collector
-        Metadata = MyMetadata.empty()
+        Metadata    MyMetadata
     end
     
     properties (Dependent = true)
@@ -35,6 +35,9 @@ classdef MyCollector < MySingleton
         % The constructor of a singleton class must be private
         function this = MyCollector()
             disp(['Creating a new instance of ' class(this)])
+            
+            disp('Switching opengl to software mode')
+            opengl('software');
         end
     end
     
@@ -69,8 +72,7 @@ classdef MyCollector < MySingleton
             % Configure instrument properties
             this.InstrProps.(name) = struct( ...
                 'collect_header',   p.Results.collect_header, ...
-                'global_name',      '', ...
-                'Gui',              []);
+                'global_name',      '');
             
             if p.Results.make_global
                 global_name = name;
@@ -202,18 +204,24 @@ classdef MyCollector < MySingleton
                 % Make the full metadata
                 Mdt = [AcqInstrMdt, acquireHeaders(this)];
                 
-                %We copy the MeasHeaders to both copies of the trace - the
-                %one that is with the source and the one that is forwarded
-                %to Daq.
-                InstrEventData.Trace.MeasHeaders = copy(Mdt);
-                src.Trace.MeasHeaders = copy(Mdt);
+                %We copy the metadata to both copies of the trace - the
+                %one that remains within the source and the one that is 
+                %passed to Daq.
+                InstrEventData.Trace.UserMetadata = copy(Mdt);
+                src.Trace.UserMetadata = copy(Mdt);
             end
             
             triggerNewDataWithHeaders(this, InstrEventData);
         end
         
         % Collects headers for open instruments with the header flag on
-        function Mdt = acquireHeaders(this)
+        function Mdt = acquireHeaders(this, varargin)
+            p = inputParser();
+            addParameter(p, 'add_collector_metadata', false);
+            parse(p, varargin{:});
+            
+            add_collector_metadata = p.Results.add_collector_metadata;
+            
             Mdt = MyMetadata.empty();
             
             for i = 1:length(this.running_instruments)
@@ -237,10 +245,15 @@ classdef MyCollector < MySingleton
             % Add field indicating the time when the trace was acquired
             TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
             
-            % Add the state of Collector
-            CollMdt = getMetadata(this);
+            Mdt = [TimeMdt, Mdt];
             
-            Mdt = [TimeMdt, Mdt, CollMdt];
+            if add_collector_metadata
+                
+                % Add information about the state of Collector
+                CollMdt = getMetadata(this);
+                
+                Mdt = [Mdt, CollMdt];
+            end
         end
         
         function bool = isrunning(this, name)
@@ -269,14 +282,19 @@ classdef MyCollector < MySingleton
             end
         end
         
-        % Delete all presesently running instruments
+        % Delete all presesently running instruments and apps.
+        % We rely on the deletion callbacks to do cleanup.
         function flush(this)
             instr_names = this.running_instruments;
             for i = 1:length(instr_names)
-                nm = instr_names{i};
+                delete(this.InstrList.(instr_names{i}));
+            end
+            
+            app_names = this.running_apps;
+            for i = 1:length(app_names)
                 
-                % We rely on the deletion callbacks to do cleanup
-                delete(this.InstrList.(nm));
+                % Delete by closing the app window
+                closeApp(this.AppList.(app_names{i}));
             end
         end
     end
@@ -310,32 +328,42 @@ classdef MyCollector < MySingleton
                 addParam(this.Metadata, 'instruments', {}, 'comment', ...
                     'Instruments active during the session');
                 
-                addParam(this.Metadata, 'Props', struct(), 'comment', ...
-                    ['Instrument properties. gui_position has format ' ...
-                    '[x, y] and is measured in pixels.']);
+                addParam(this.Metadata, 'apps', {}, 'comment', ...
+                    'Applications active during the session');
+                
+                addParam(this.Metadata, 'InstrProps', struct(), ...
+                    'comment', ['Instrument properties. gui_position ' ...
+                    'has format [x, y] and is measured in pixels.']);
+                
+                addParam(this.Metadata, 'AppProps', struct());
             end
             
+            % Introduce a shorthand notation
+            M = this.Metadata;
+            
             % Update metadata parameters
-            this.Metadata.ParamList.instruments = this.running_instruments;
+            M.ParamList.instruments = this.running_instruments;
+            M.ParamList.apps = this.running_apps;
                 
             for i = 1:length(this.running_instruments)
-                fn = this.running_instruments{i};
+                nm = this.running_instruments{i};
                 
-                this.Metadata.ParamList.Props.(fn).collect_header = ...
-                    this.InstrProps.(fn).collect_header;
+                M.ParamList.InstrProps.(nm).collect_header =...
+                    this.InstrProps.(nm).collect_header;
                 
-                this.Metadata.ParamList.Props.(fn).is_global = ...
-                    ~isempty(this.InstrProps.(fn).global_name);
+                M.ParamList.InstrProps.(nm).is_global = ...
+                    ~isempty(this.InstrProps.(nm).global_name);
                 
                 % Indicate if the instrument has gui
-                has_gui = ~isempty(this.InstrProps.(fn).Gui);
+                has_gui = isprop(this.InstrList.(nm), 'Gui') && ...
+                    ~isempty(this.InstrList.(nm).Gui);
                 
-                this.Metadata.ParamList.Props.(fn).has_gui = has_gui;
+                M.ParamList.InstrProps.(nm).has_gui = has_gui;
                 
                 if has_gui
                     
                     % Add the position of GUI on the screen in pixels
-                    Fig = findFigure(this.InstrProps.(fn).Gui);
+                    Fig = findFigure(this.InstrList.(nm).Gui);
                     original_units = Fig.Units;
                     Fig.Units = 'pixels';
                     
@@ -347,13 +375,44 @@ classdef MyCollector < MySingleton
                     % Restore the figure settings
                     Fig.Units = original_units;
                     
-                    this.Metadata.ParamList.Props.(fn).gui_position = pos;
+                    M.ParamList.InstrProps.(nm).gui_position = pos;
                 else
-                    this.Metadata.ParamList.Props.(fn).gui_position = '';
+                    M.ParamList.InstrProps.(nm).gui_position = '';
                 end
             end
             
-            Mdt = copy(this.Metadata);
+            % Add information about running apps
+            for i = 1:length(this.running_apps)
+                nm = this.running_apps{i};
+                
+                M.ParamList.AppProps.(nm).class = class(this.AppList.(nm));
+                
+                % Add the position of GUI on the screen in pixels
+                Fig = findFigure(this.AppList.(nm));
+                
+                if isempty(Fig)
+                    
+                    % An app should in principle have a figure, we skip
+                    % it if it does not
+                    M.ParamList.AppProps.(nm).position = '';
+                    continue
+                end
+                
+                original_units = Fig.Units;
+                Fig.Units = 'pixels';
+
+                % We record only x and y position but not the width and
+                % hight of the window, as the latter is a possible 
+                % subject to change
+                pos = Fig.Position(1:2);
+
+                % Restore the figure settings
+                Fig.Units = original_units;
+
+                M.ParamList.AppProps.(nm).position = pos;
+            end
+            
+            Mdt = copy(M);
         end
     end
     

@@ -6,6 +6,10 @@ classdef (Abstract) MyAppColors
         %% Predefined colors
         % Colors are represented by rgb triplets returned by static methods
         
+        function rgb = ok()
+            rgb = [0.47, 0.67, 0.19]; % Green
+        end
+        
         function rgb = warning()
             rgb = [0.93, 0.69, 0.13]; % Orange
         end
@@ -42,7 +46,7 @@ classdef (Abstract) MyAppColors
                     axes_label_color = [0.9,0.9,1];
                 case 'bright'
                     main_color = [1,1,1];
-                    label_text_color = [0,0,0.4];
+                    label_text_color = [0.,0,0.];
                     edit_text_color = [0,0,0.];
                     edit_field_color = [1,1,1];
                     axes_label_color = [0,0,0];

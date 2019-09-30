@@ -8,7 +8,9 @@ function runSession(filename)
     assert(~isempty(Mdt), ['Metadata is not found in the file ''' ...
         filename '''.']);
     
-    % SessionInfo contains information about the state of collector
+    disp(['Loading session info from file ' filename '...'])
+    
+    % SessionInfo contains information about the state of Collector
     CollMdt = titleref(Mdt, 'SessionInfo');
     
     if length(CollMdt)>1
@@ -37,11 +39,16 @@ function runSession(filename)
     
     % Delete all the instruments present in the collector
     C = MyCollector.instance();
+    
+    disp('Closing the current session...')
+    
     flush(C);
     
     % Run new instruments and configure their settings
     for i = 1:length(ActiveProgList)
         nm = ActiveProgList(i).name;
+        
+        disp(['Starting ' nm '...'])
         
         % Extract instument options from the collector metadata or assign
         % default values
@@ -70,8 +77,8 @@ function runSession(filename)
                 eval(ActiveProgList(i).run_expr);
                 
                 if ~isempty(gui_position)
-                    Gui = getInstrumentProp(C, nm, 'Gui');
-                    Fig = findFigure(Gui);
+                    Instr = getInstrument(C, nm);
+                    Fig = findFigure(Instr);
                     
                     original_units = Fig.Units;
                     Fig.Units = 'pixels';
@@ -112,5 +119,36 @@ function runSession(filename)
                 '''. Error: ' ME.message])
         end
     end
+    
+    % Run apps
+    for i = 1:length(CollMdt.ParamList.apps)
+        try
+            nm = CollMdt.ParamList.apps{i};
+            
+            % The convention is such that the apps can be instantiated as
+            % classname(), i.e. that their constructor does not have 
+            % required input arguments.
+            App = eval(CollMdt.ParamList.AppProps.(nm).class);
+            
+            pos = CollMdt.ParamList.AppProps.(nm).position;
+            if ~isempty(pos)
+                Fig = findFigure(App);
+                    
+                original_units = Fig.Units;
+                Fig.Units = 'pixels';
+
+                % Set x and y position of figure
+                Fig.Position(1) = pos(1);
+                Fig.Position(2) = pos(2);
+
+                % Restore the figure settings
+                Fig.Units = original_units;
+            end
+        catch ME
+            warning(['Error while attempting to run an app: ' ME.message])
+        end
+    end
+    
+    disp('Finished loading session.')
 end
 
