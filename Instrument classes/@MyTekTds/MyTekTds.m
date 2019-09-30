@@ -9,7 +9,6 @@ classdef MyTekTds < MyTekScope
     methods (Access = public)
         function this = MyTekTds(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.channel_no = 2;
@@ -23,10 +22,6 @@ classdef MyTekTds < MyTekScope
             this.Comm.InputBufferSize = 1e4; % byte 
             
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
         
         % Emulates the physical knob turning, works with nturns=+-1

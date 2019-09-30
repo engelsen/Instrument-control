@@ -41,7 +41,6 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource & MyGuiCont
         function this = MyZiScopeFt(varargin)
             P = MyClassParser(this);
             addParameter(P, 'poll_period', 0.1, @isnumeric);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             % Trace object in this case is directly used for averaging
@@ -59,10 +58,6 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource & MyGuiCont
             
             createApiSession(this);
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
         
         function delete(this)

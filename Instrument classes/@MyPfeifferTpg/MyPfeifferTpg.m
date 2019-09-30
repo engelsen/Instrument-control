@@ -25,15 +25,10 @@ classdef MyPfeifferTpg < MyInstrument & MyCommCont & MyGuiCont
     methods (Access = public)
         function this = MyPfeifferTpg(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             connect(this);
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
 
         % read pressure from a single channel or both channels at a time

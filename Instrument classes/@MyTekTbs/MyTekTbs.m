@@ -6,7 +6,6 @@ classdef MyTekTbs < MyTekScope
     methods (Access = public)
         function this = MyTekTbs(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.knob_list = lower({'GPKNOB','HORZPos','HORZScale', ...
@@ -19,10 +18,6 @@ classdef MyTekTbs < MyTekScope
             this.Comm.InputBufferSize = 4.1e7; %byte
             
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
     end
     

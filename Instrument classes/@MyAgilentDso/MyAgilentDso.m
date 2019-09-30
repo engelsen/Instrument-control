@@ -11,7 +11,6 @@ classdef MyAgilentDso < MyScpiInstrument & MyDataSource & MyCommCont ...
     methods (Access = public)
         function this = MyAgilentDso(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
            
             this.Trace.name_x = 'Time';
@@ -29,9 +28,6 @@ classdef MyAgilentDso < MyScpiInstrument & MyDataSource & MyCommCont ...
             
             % There is high compatibility with Tektronix scope classes
             this.gui_name = 'GuiTekScope'; 
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
         
         function readTrace(this)

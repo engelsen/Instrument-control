@@ -10,7 +10,6 @@ classdef MyTekRsa < MyScpiInstrument & MyDataSource & MyCommCont ...
     methods (Access = public)
         function this = MyTekRsa(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.Trace.unit_x = 'Hz';
@@ -23,10 +22,6 @@ classdef MyTekRsa < MyScpiInstrument & MyDataSource & MyCommCont ...
             
             % Set up the list of communication commands
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
     end
 

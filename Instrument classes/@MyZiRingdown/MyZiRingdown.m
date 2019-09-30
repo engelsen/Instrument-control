@@ -174,7 +174,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
         function this = MyZiRingdown(varargin)
             P = MyClassParser(this);
             addParameter(P, 'poll_period', 0.1, @isnumeric);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             % Create and configure trace objects
@@ -228,10 +227,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                 this.demod-1);
             
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
         
         function delete(this)

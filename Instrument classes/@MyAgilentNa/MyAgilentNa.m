@@ -26,7 +26,6 @@ classdef MyAgilentNa < MyScpiInstrument & MyCommCont & MyDataSource ...
     methods
         function this = MyAgilentNa(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.Trace1 = MyTrace();
@@ -38,10 +37,6 @@ classdef MyAgilentNa < MyScpiInstrument & MyCommCont & MyDataSource ...
             
             connect(this);
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
         
         % Generate a new data event with header collection suppressed

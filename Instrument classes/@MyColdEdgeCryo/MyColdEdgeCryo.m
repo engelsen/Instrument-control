@@ -23,7 +23,6 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont & MyGuiCont
     methods (Access = public)
         function this = MyColdEdgeCryo(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.Timer = timer();
@@ -34,10 +33,6 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont & MyGuiCont
             
             connect(this);
             createCommandList(this);
-             
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
         
         function delete(this)

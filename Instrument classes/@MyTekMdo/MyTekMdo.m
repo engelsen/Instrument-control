@@ -5,7 +5,6 @@ classdef MyTekMdo < MyTekScope
     methods (Access = public)
         function this = MyTekMdo(varargin)
             P = MyClassParser(this);
-            addParameter(P, 'enable_gui', false);
             processInputs(P, this, varargin{:});
             
             this.channel_no = 4;
@@ -21,10 +20,6 @@ classdef MyTekMdo < MyTekScope
             this.Comm.InputBufferSize = 2.1e7; %byte 
             
             createCommandList(this);
-            
-            if P.Results.enable_gui
-                createGui(this);
-            end
         end
     end
     
