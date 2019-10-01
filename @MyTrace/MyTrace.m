@@ -33,7 +33,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         % Cell that contains the handles of Line objects the trace 
         % is plotted in
-        PlotLines = {}
+        plot_lines = {}
     end
     
     properties (Dependent=true)        
@@ -50,7 +50,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function delete(this)
             
             % Delete lines from all the axes the trace is plotted in
-            cellfun(@delete, this.PlotLines);
+            cellfun(@delete, this.plot_lines);
         end
         
         %Defines the save function for the class.
@@ -115,7 +115,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         %Plots the trace on the given axes, using the class variables to
         %define colors, markers, lines and labels. Takes all optional
         %parameters of the class as inputs.
-        function plot(this, varargin)
+        function Line = plot(this, varargin)
             
             % Do nothing if there is no data in the trace
             if isDataEmpty(this)
@@ -155,15 +155,17 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             ind = findLineInd(this, Axes);
             
             if ~isempty(ind) && any(ind)
-                set(this.PlotLines{ind}, 'XData', this.x, 'YData', this.y);
+                set(this.plot_lines{ind},'XData',this.x,'YData',this.y);
             else
-                this.PlotLines{end+1} = plot(Axes, this.x, this.y);
-                ind = length(this.PlotLines);
+                this.plot_lines{end+1} = plot(Axes, this.x, this.y);
+                ind = length(this.plot_lines);
             end
+            
+            Line = this.plot_lines{ind};
             
             % Sets the correct color and label options
             if ~isempty(line_opts)
-                set(this.PlotLines{ind}, line_opts{:});
+                set(Line, line_opts{:});
             end
             
             if p.Results.make_labels
@@ -193,7 +195,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             
             ind=findLineInd(this, Axes);
             if ~isempty(ind) && any(ind)
-                set(this.PlotLines{ind},'Visible',vis)
+                set(this.plot_lines{ind},'Visible',vis)
             end
         end
         
@@ -334,9 +336,22 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function Line = getLine(this, Ax)
             ind = findLineInd(this, Ax);
             if ~isempty(ind)
-                Line = this.PlotLines{ind}; 
+                Line = this.plot_lines{ind}; 
             else
                 Line = [];
+            end
+        end
+        
+        % Delete trace line from an axes
+        function deleteLine(this, Ax)
+            ind = findLineInd(this, Ax);
+            if ~isempty(ind)
+                
+                % Delete the line from plot and remove their handles from
+                % the list
+                Line = this.plot_lines{ind}; 
+                delete(Line);
+                this.plot_lines(ind) = [];
             end
         end
     end
@@ -480,9 +495,9 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         
         % Finds the hline handle that is plotted in the specified axes
         function ind = findLineInd(this, Axes)
-            if ~isempty(this.PlotLines)
-                ind = cellfun(@(x) ismember(x, findall(Axes, ...
-                    'Type','Line')), this.PlotLines);
+            if ~isempty(this.plot_lines)
+                AxesLines = findall(Axes, 'Type', 'Line');
+                ind = cellfun(@(x)ismember(x, AxesLines), this.plot_lines);
             else
                 ind = [];
             end
