@@ -16,12 +16,6 @@ function NewInstrList = convertInstrumentListToDescriptor(OldInstrList)
         end
         
         try
-            NewInstrList(i).gui = EntrStruct.gui;
-        catch ME
-            warning(ME.message)
-        end
-        
-        try
             NewInstrList(i).title = EntrStruct.menu_title;
         catch ME
             warning(ME.message)

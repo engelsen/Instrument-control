@@ -5,7 +5,6 @@ classdef MyInstrumentDescriptor < handle
         name            = ''        % Identifier that is a MATLAB variable name
         title           = ''        % Title displayed in menus
         control_class   = ''        % Instrument control class
-        gui             = ''        % Gui
         enabled         = true     
         StartupOpts     = struct()  % Options passed to the class constructor on startup
         LoggerOpts      = struct()  % Options for starting a logger with this instrument
