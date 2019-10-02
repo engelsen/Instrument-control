@@ -293,7 +293,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             
             %Plots the fit function with the new initial parameters
             if this.enable_plot 
-                plotFit(this) 
+                plotFit(this, 'DisplayName', 'fit');
             end
             
             %Updates the GUI and creates new lookup tables for the init

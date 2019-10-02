@@ -63,6 +63,9 @@ classdef MyCursor < handle
             
             % Configure the line
             this.Line.ButtonDownFcn = @this.cursorButtonDownFcn;
+            
+            % Do not display cursors in legends
+            this.Line.Annotation.LegendInformation.IconDisplayStyle='off';
         end
         
         function delete(this)
