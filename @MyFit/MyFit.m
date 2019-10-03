@@ -270,7 +270,8 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         
         %Clears the plots
         function clearFit(this)
-            cellfun(@(x) delete(x), this.Fit.PlotLines);
+            clearData(this.Fit);
+            deleteLine(this.Fit);
         end
         
         %Plots the trace contained in the Fit MyTrace object 

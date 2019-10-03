@@ -50,7 +50,7 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
         function delete(this)
             
             % Delete lines from all the axes the trace is plotted in
-            cellfun(@delete, this.plot_lines);
+            deleteLine(this);
         end
         
         %Defines the save function for the class.
@@ -342,16 +342,26 @@ classdef MyTrace < handle & matlab.mixin.Copyable & matlab.mixin.SetGet
             end
         end
         
-        % Delete trace line from an axes
+        % deleteLine(this, Ax)      - Delete trace line from an axes
+        % deleteLine(this)          - Delete all trace lines
         function deleteLine(this, Ax)
-            ind = findLineInd(this, Ax);
-            if ~isempty(ind)
+            if nargin() == 2
                 
-                % Delete the line from plot and remove their handles from
-                % the list
-                Line = this.plot_lines{ind}; 
-                delete(Line);
-                this.plot_lines(ind) = [];
+                % Delete plot lines from particular axes
+                ind = findLineInd(this, Ax);
+                if ~isempty(ind)
+
+                    % Delete the line from plot and remove their handles
+                    % from the list
+                    Line = [this.plot_lines{ind}]; 
+                    delete(Line);
+                    this.plot_lines(ind) = [];
+                end
+            elseif nargin() == 1
+                
+                % Delete all plot lines and clear the list
+                cellfun(@delete, this.plot_lines);
+                this.plot_lines = {};
             end
         end
     end
