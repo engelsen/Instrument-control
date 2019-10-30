@@ -5,9 +5,8 @@
 
 classdef MySingleton < handle
     
-   methods(Abstract, Static)
+   methods (Abstract, Static)
       this = instance();
    end
-   
 end
 

@@ -1,462 +1,460 @@
-% MyMetadata stores parameter-value pairs grouped by fields. MyMetadata can
-% be saved and read in a readable text format.
-% Parameters can be strings, numerical values or cells, as well as any 
-% arrays and structures of such with arbitrary nesting. Sub-indices are 
+% MyMetadata stores parameter-value pairs and can be saved in a readable 
+% format.
+%
+% Metadata parameters can be strings, numerical values or cells, as well as  
+% any arrays and structures of such with arbitrary nesting. Sub-indices are 
 % automatically expanded when saving.
-% If instantiated as MyMetadata(load_path) 
-% then the content is loaded from file
 
-classdef MyMetadata < dynamicprops
-    properties (Access=public)
-        % Header sections are separated by [hdr_spec,hdr_spec,hdr_spec]
-        hdr_spec='=='
-        % Data starts from the line next to [hdr_spec,end_header,hdr_spec]
-        end_header='Data'
+classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
+        matlab.mixin.SetGet & matlab.mixin.Copyable
+    
+    properties (Access = public)
+        
+        % Header sections are separated by [hdr_spec, title, hdr_spec]
+        title = ''
+        hdr_spec = '=='
+
         % Columns are separated by this symbol (space-tab by default)
-        column_sep=' \t'
+        column_sep = ' \t'
+        
         % Comments start from this symbol
-        comment_sep='%'
-        line_sep='\r\n'
+        comment_sep = '%'
+        line_sep = '\r\n'
+        
         % Limit for column padding. Variables which take more space than
         % this limit are ignored when calculating the padding length.
-        pad_lim=15
+        pad_lim = 15
+        
+        % Metadata parameter values
+        ParamList = struct()        
+        
+        % Options for metadata parameters
+        ParamOptList = struct()     
     end
     
-    properties (Access=private)
-        PropHandles %Used to store the handles of the dynamic properties
-    end
-    
-    properties (Dependent=true)
-        field_names
-    end
-    
-    methods
-        function [this,varargout]=MyMetadata(varargin)
-            P=MyClassParser(this);
-
-            if mod(length(varargin),2)==1
-                % odd number of elements in varargin - interpret the first
-                % element as file name and the rest as name-value pairs
-                load_path=varargin{1};
-                assert(ischar(load_path)&&isvector(load_path),...
-                    '''file_name'' must be a vector of characters');
-                processInputs(P, this, varargin{2:end});
-            else
-                % Parse varargin as a list of name-value pairs 
-                processInputs(P, this, varargin{:});
-                load_path=[];
-            end
+    methods (Access = public)
+        
+        function this = MyMetadata(varargin)
+            P = MyClassParser(this);
+            processInputs(P, this, varargin{:});
+        end
+        
+        % Adds a new metadata parameter. 
+        function addParam(this, param_name, value, varargin)
+            assert(isvarname(param_name), ['Parameter name must be a ' ...
+                'valid variable name.']);
             
-            this.PropHandles=struct();
+            p = inputParser();
             
-            if ~isempty(load_path)
-                varargout{1}=load(this, load_path);
-            end
-        end
-        
-        %Fields are added using this command. The field is a property of
-        %the class, populated by the parameters with their values and
-        %string specifications for later printing
-        function addField(this, field_name)
-            assert(isvarname(field_name),...
-                'Field name must be a valid MATLAB variable name.');
-            assert(~ismember(field_name, this.field_names),...
-                ['Field with name ',field_name,' already exists.']);
-            
-            this.PropHandles.(field_name)=addprop(this,field_name);
-            this.PropHandles.(field_name).SetAccess='protected';
-            % Dynamic properties must not be copyable, copying of
-            % MyMetadata objects is handled by dedicated overloaded method
-            this.PropHandles.(field_name).NonCopyable=true;
-            this.(field_name)=struct();
-        end
-        
-        %Deletes a named field
-        function deleteField(this, field_name)
-            assert(isvarname(field_name),...
-                'Field name must be a valid MATLAB variable name.');
-            assert(ismember(field_name,this.field_names),...
-                ['Attemped to delete field ''',field_name ...
-                ,''' that does not exist.']);
-            % Delete dynamic property from the class
-            delete(this.PropHandles.(field_name));
-            % Erase entry in PropHandles
-            this.PropHandles=rmfield(this.PropHandles,field_name);
-        end
-        
-        %Clears the object of all fields
-        function clearFields(this)
-            cellfun(@(x) deleteField(this, x), this.field_names)
-        end
-        
-        
-        % Copy all the fields of another Metadata object to this object
-        function addMetadata(this, Metadata)
-           assert(isa(Metadata,'MyMetadata'),...
-               'Input must be of class MyMetadata, current input is %s',...
-               class(Metadata));
-           assert(~any(ismember(this.field_names,Metadata.field_names)),...
-               ['The metadata being added contain fields with the same ',...
-               'name. This conflict must be resolved before adding'])
-           for i=1:length(Metadata.field_names)
-               fn=Metadata.field_names{i};
-               addField(this,fn);
-               param_names=fieldnames(Metadata.(fn));
-               cellfun(@(x) addParam(this,fn,x,Metadata.(fn).(x).value,...
-                   'fmt_spec', Metadata.(fn).(x).fmt_spec,...
-                   'comment', Metadata.(fn).(x).comment),...
-                   param_names);
-           end
-        end
-        
-        %Adds a parameter to a specified field. The field must be created
-        %first.
-        function addParam(this, field_name, param_name, value, varargin)
-            assert(ischar(field_name),'Field name must be a char');
-            assert(isprop(this,field_name),...
-                '%s is not a field, use addField to add it',param_name);
-            assert(ischar(param_name),'Parameter name must be a char');
-            
-            p=inputParser();
             % Format specifier for printing the value
-            addParameter(p,'fmt_spec','',@ischar);
+            addParameter(p, 'format', '', @ischar);
+            
             % Comment to be added to the line
-            addParameter(p,'comment','',@ischar);
-            addParameter(p,'SubStruct',struct('type',{},'subs',{}),...
+            addParameter(p, 'comment', '', @ischar);
+            
+            addParameter(p, 'SubStruct', struct('type',{},'subs',{}),...
                 @isstruct)
-            parse(p,varargin{:});
-            
-            S=p.Results.SubStruct;
-            comment=p.Results.comment;
-            
-            %Making sure that the comment does not
-            %contain new line or carriage return characters, which would
-            %mess up formating when saving metadata
-            
-            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
-            
-            if contains(comment, newline_smb)
-                warning(['Comment string for ''%s'' must not contain ',...
-                    '''\\n'' and ''\\r'' symbols, replacing them ',...
-                    'with space.'], param_name);
-                comment=replace(comment, newline_smb,' ');
+            parse(p, varargin{:});
+ 
+            % Make sure that the comment does not contain new line or 
+            % carriage return characters, which would mess up formating 
+            % when saving the metadata
+            [comment, is_mod] = toSingleLine(p.Results.comment);
+            this.ParamOptList.(param_name).comment = comment;
+
+            if is_mod
+                warning(['Comment string for ''%s'' has been ' ...
+                    'converted to single line.'], param_name);
             end
+
+            this.ParamOptList.(param_name).format = p.Results.format;
             
-            this.(field_name).(param_name).comment=comment;
-            
+            S = p.Results.SubStruct;
             if isempty(S)
-                % Assign value directly
-                this.(field_name).(param_name).value=value;
+                this.ParamList.(param_name) = value;
             else
-                % Assign using subref structure
-                tmp=feval([class(value),'.empty']);
-                this.(field_name).(param_name).value=subsasgn(tmp,S,value);
-            end
-            
-            this.(field_name).(param_name).fmt_spec=p.Results.fmt_spec;
-        end
-        
-        % The function below is useful to ensure the correspondence between 
-        % metadata parameter names and object property names. It spares 
-        % some lines of code. Works only with single-field metadata.
-        function addObjProp(this, Obj, tag, varargin)
-            assert(length(this.field_names)==1, ['Metadata has to ' ...
-                'contain a single field in order to add object property.']);
-            fn=this.field_names{1};
-            addParam(this, fn, tag, Obj.(tag), varargin{:});
-        end
-        
-        % Save in a readable format
-        function save(this, filename, varargin)
-            createFile(filename, varargin{:});
-            for i=1:length(this.field_names)
-                printField(this, this.field_names{i}, filename);
-            end
-            printEndMarker(this, filename);
-        end
-        
-        function printField(this, field_name, filename, varargin)
-            %Takes optional inputs
-            p=inputParser();
-            addParameter(p,'title',field_name);
-            parse(p,varargin{:});
-            title_str=p.Results.title;
-            
-            ParStruct=this.(field_name);
-            
-            %Compose the list of parameter names expanded over subscripts
-            %except for those which are already character arrays
-            par_names=fieldnames(ParStruct);
-            
-            %Expand parameters over subscripts, except for the character
-            %arrays
-            exp_par_names=cell(1, length(par_names));
-            maxnmarr=zeros(1, length(par_names));
-            for i=1:length(par_names)
-                tmpval=ParStruct.(par_names{i}).value;
-                exp_par_names{i}=printSubs(tmpval, ...
-                    'own_name', par_names{i}, ...
-                    'expansion_test',@(y) ~ischar(y));
                 
-                %Max name length for this parameter including subscripts
-                maxnmarr(i)=max(cellfun(@(x) length(x), exp_par_names{i}));
+                % Initialize property with an empty variable of the same  
+                % class as value, this is important if SubStruct is an 
+                % array index.
+                this.ParamList.(param_name) = ...
+                    feval([class(value),'.empty']);
+                
+                % Construct full subscript reference with respect to 'this' 
+                S = [struct('type', '.', 'subs', param_name), S];
+
+                % Assign the value of parameter
+                this.ParamList = subsasgn(this.ParamList, S, value); 
+            end
+        end
+        
+        function bool = isparam(this, param_name)
+            bool = isfield(this.ParamList, param_name);
+        end
+        
+        % Alias for addParam that is useful to ensure the correspondence  
+        % between metadata parameter names and object property names. 
+        function addObjProp(this, Obj, tag, varargin)
+            addParam(this, tag, Obj.(tag), varargin{:});
+        end
+        
+        % Print metadata in a readable form
+        function str = mdt2str(this)
+            
+            % Make the function spannable over arrays
+            if isempty(this)
+                str = '';
+                return
+            elseif length(this) > 1
+                str_arr = arrayfun(@mdt2str, this, 'UniformOutput', false);
+                
+                % Add an extra line between sections
+                str = strjoin(str_arr, this(1).line_sep);
+                return
             end
             
-            %Calculate width of the name column
-            name_pad_length=min(max(maxnmarr), this.pad_lim);
+            cs = this.column_sep;
+            ls = this.line_sep;
             
-            %Compose list of parameter values converted to char strings
-            par_strs=cell(1, length(par_names));
-            %Width of the values column will be the maximum parameter
-            %string width
-            val_pad_length=0;
+            % Make the output string. Start by printing the title.
+            str = sprintf([this.hdr_spec, this.title, this.hdr_spec, ls]);
+            
+            % Compose the list of parameter names expanded over subscripts
+            % except for those which are already character arrays
+            par_names = fieldnames(this.ParamList);
+            
+            if isempty(par_names)
+                return
+            end
+            
+            % Expand parameters over subscripts, except for the arrays of 
+            % characters
+            exp_par_names = cell(1, length(par_names));
+            max_nm_arr = zeros(1, length(par_names));
+            
             for i=1:length(par_names)
-                TmpPar=ParStruct.(par_names{i});
+                
+                % Expand parameter subscripts
+                exp_par_names{i} = printSubs( ...
+                    this.ParamList.(par_names{i}), ...
+                    'own_name',         par_names{i}, ...
+                    'expansion_test',   @(y) ~ischar(y));
+                
+                % Max name length for this parameter including subscripts
+                max_nm_arr(i) = max(cellfun(@(x) length(x), ...
+                    exp_par_names{i}));
+            end
+            
+            % Calculate width of the name column
+            name_pad_length = max(max_nm_arr);
+            
+            % Compose a list of parameter values converted to char strings
+            val_strs = cell(1, length(par_names));
+            
+            % Width of the values column will be the maximum parameter
+            % string width
+            for i=1:length(par_names)
+                tmp_nm = par_names{i};
+                
+                % Iterate over parameter indices
                 for j=1:length(exp_par_names{i})
-                    tmpnm=exp_par_names{i}{j};
-                    TmpS=str2substruct(tmpnm);
-                    if isempty(TmpS)
-                        tmpval=TmpPar.value;
-                    else
-                        tmpval=subsref(TmpPar.value, TmpS);
-                    end
+                    tmp_exp_nm = exp_par_names{i}{j};
+                    TmpS = str2substruct(tmp_exp_nm);
                     
-                    %Do check to detect unsupported data type
-                    if ischar(tmpval)&&~isvector(tmpval)&&~isempty(tmpval)
+                    % Get the indexed value of parameter
+                    TmpS = [struct('type','.','subs', tmp_nm), TmpS];       %#ok<AGROW>
+                    tmp_val = subsref(this.ParamList, TmpS);
+                    
+                    %Do the check to detect unsupported data type
+                    if ischar(tmp_val) && ~isvector(tmp_val) && ...
+                            ~isempty(tmp_val)
                         warning(['Argument ''%s'' is a multi-dimensional ',...
                             'character array. It will be converted to ',...
                             'single string during saving. Use cell',...
                             'arrays to save data as a set of separate ',...
-                            'strings.'],tmpnm)
+                            'strings.'], tmp_exp_nm)
+                        
                         % Flatten
-                        tmpval=tmpval(:);
+                        tmp_val = tmp_val(:);
                     end
                     
-                    %Check for new line symbols in strings
-                    if (ischar(tmpval)||isstring(tmpval)) && ...
-                            any(ismember({newline,sprintf('\r')},tmpval))
-                        warning(['String value must not contain ',...
-                            '''\\n'' and ''\\r'' symbols, replacing them ',...
-                            'with '' ''']);
-                        tmpval=replace(tmpval,{newline,sprintf('\r')},' ');
+                    % Check for new line symbols in strings
+                    if (ischar(tmp_val) || isstring(tmp_val)) && ...
+                            any(ismember({newline, sprintf('\r')},tmp_val))
+                        warning(['String values must not contain ' ...
+                            '''\\n'' and ''\\r'' symbols, replacing ' ...
+                            'them with '' ''.']);
+                        
+                        tmp_val = replace(tmp_val, ...
+                            {newline, sprintf('\r')}, ' ');
                     end
                     
-                    if isempty(TmpPar.fmt_spec)
+                    format = this.ParamOptList.(tmp_nm).format;
+                    if isempty(format)
+                        
                         % Convert to string with format specifier
                         % extracted from the varaible calss
-                        par_strs{i}{j}=var2str(tmpval);
+                        val_strs{i}{j} = var2str(tmp_val);
                     else
-                        par_strs{i}{j}=sprintf(TmpPar.fmt_spec, tmpval);
-                    end
-                    % Find maximum length to determine the colum width, 
-                    % but, for beauty, do not account for variables with 
-                    % excessively long value strings
-                    tmplen=length(par_strs{i}{j});
-                    if (val_pad_length<tmplen)&&(tmplen<=this.pad_lim)
-                        val_pad_length=tmplen;
+                        val_strs{i}{j} = sprintf(format, tmp_val);
                     end
                 end
             end
+                                
+            % Find the maximum string length to determine the colum width, 
+            % but, for beauty, exclude excessively long value strings
+            val_str_len = cellfun(@length, [val_strs{:}]);
+            if max(val_str_len)-min(val_str_len)<=this.pad_lim
+                val_pad_length = max(val_str_len);
+            else
+                val_pad_length = min(val_str_len)+this.pad_lim;
+            end
+
+            par_format = [sprintf('%%-%is', name_pad_length),...
+                cs, sprintf('%%-%is', val_pad_length)];
             
-            fileID=fopen(filename,'a');
-            %Prints the header separator
-            fprintf(fileID,[this.hdr_spec, title_str,...
-                this.hdr_spec, this.line_sep]);
-            
-            cs=this.column_sep;
-            ls=this.line_sep;
-            data_fmt_spec=[sprintf('%%-%is',name_pad_length),...
-                    cs, sprintf('%%-%is',val_pad_length)];
-            
+            % Print parameters 
             for i=1:length(par_names)
-                %Capitalize first letter of comment
-                if ~isempty(ParStruct.(par_names{i}).comment)
-                    fmt_comment=[this.comment_sep,' '...
-                        upper(ParStruct.(par_names{i}).comment(1)),...
-                        ParStruct.(par_names{i}).comment(2:end)];
+                
+                % Capitalize the first letter of comment
+                comment = this.ParamOptList.(par_names{i}).comment;
+                if ~isempty(comment)
+                    fmt_comment = [this.comment_sep, ' '...
+                        upper(comment(1)), comment(2:end)];
                 else
-                    fmt_comment='';
+                    fmt_comment = '';
                 end
                 
+                % Iterate over the parameter subscripts
                 for j=1:length(exp_par_names{i})
                     if j==1
-                        % Print comment in the first line
-                        fprintf(fileID, [data_fmt_spec,cs,'%s',ls],...
-                            exp_par_names{i}{j},par_strs{i}{j},fmt_comment);
+                        
+                        % Add the comment to first line 
+                        str = [str, ...
+                            sprintf([par_format, cs, '%s', ls], ...
+                            exp_par_names{i}{j}, val_strs{i}{j}, ...
+                            fmt_comment)];                                  %#ok<AGROW>
                     else
-                        fprintf(fileID, [data_fmt_spec,ls],...
-                            exp_par_names{i}{j}, par_strs{i}{j});
+                        str = [str, sprintf([par_format, ls],...
+                            exp_par_names{i}{j}, val_strs{i}{j})];          %#ok<AGROW>
                     end
                 end
             end
+        end
+        
+        % Save metadata to a file
+        function save(this, filename, varargin)
+            p = inputParser();
+            addParameter(p, 'overwrite', false, @islogical)
+            parse(p, varargin{:});
             
-            %Prints an extra line separator at the end
-            fprintf(fileID, ls);
-            fclose(fileID);
-        end
-        
-        %Print terminator that separates header from data
-        function printEndMarker(this, filename)
-            fileID=fopen(filename,'a');
-            fprintf(fileID,...
-                [this.hdr_spec, this.end_header, ...
-                this.hdr_spec, this.line_sep]);
-            fclose(fileID);
-        end
-        
-        %Adds time header
-        %Second optional argument is the name of the field, i.e 
-        %addTimeField(this, 'TimeField')
-        function addTimeField(this, t_field_name)
-            if nargin()>1
-                assert(ischar(t_field_name)&&isvector(t_field_name),...
-                    'Time field name must be a character vector')
+            if p.Results.overwrite
+                
+                % Open and delete any existing content of the file
+                fileID = fopen(filename, 'w');
             else
-                t_field_name='Time';
+                
+                % Open for appending
+                fileID = fopen(filename, 'a');
             end
             
-            if ismember(t_field_name, this.field_names)
-                deleteField(this, t_field_name)
-            end
-            
-            dv=datevec(datetime('now'));
-            addField(this,t_field_name);
-            addParam(this,t_field_name,'Year',dv(1),'fmt_spec','%i');
-            addParam(this,t_field_name,'Month',dv(2),'fmt_spec','%i');
-            addParam(this,t_field_name,'Day',dv(3),'fmt_spec','%i');
-            addParam(this,t_field_name,'Hour',dv(4),'fmt_spec','%i');
-            addParam(this,t_field_name,'Minute',dv(5),'fmt_spec','%i');
-            addParam(this,t_field_name,'Second',...
-                floor(dv(6)),'fmt_spec','%i');
-            addParam(this,t_field_name,'Millisecond',...
-                round(1000*(dv(6)-floor(dv(6)))),'fmt_spec','%i');
+            fprintf(fileID, '%s', mdt2str(this));
+            fclose(fileID);
         end
         
-        function n_end_header=load(this, filename)
-            %Before we load, we clear all existing fields
-            clearFields(this);
+        % Select objects with titles listed in varargin from the array 
+        function SubArr = titleref(this, varargin)
+            ind = ismember({this.title}, varargin);
+            SubArr = this(ind);
+        end
+        
+        % Remove objects with titles listed in varargin from the array 
+        function SubArr = rmtitle(this, varargin)
+            ind = ~ismember({this.title}, varargin);
+            SubArr = this(ind);
+        end
+    end
+    
+    methods (Access = public, Static = true)
+        
+        % Create metadata indicating the present moment of time
+        function TimeMdt = time(varargin)
+            TimeMdt = MyMetadata(varargin{:});
             
-            fileID=fopen(filename,'r');
+            if isempty(TimeMdt.title)
+                TimeMdt.title = 'Time';
+            end
             
-            title_exp=[this.hdr_spec,'(\w.*)',this.hdr_spec];
+            dv = datevec(datetime('now'));
+            addParam(TimeMdt, 'Year',    dv(1), 'format', '%i');
+            addParam(TimeMdt, 'Month',   dv(2), 'format', '%i');
+            addParam(TimeMdt, 'Day',     dv(3), 'format', '%i');
+            addParam(TimeMdt, 'Hour',    dv(4), 'format', '%i');
+            addParam(TimeMdt, 'Minute',  dv(5), 'format', '%i');
+            addParam(TimeMdt, 'Second',  floor(dv(6)), 'format', '%i');
+            addParam(TimeMdt, 'Millisecond',...
+                round(1000*(dv(6)-floor(dv(6)))), 'format', '%i');
+        end
+        
+        % Load metadata from file. Return all the entries found and  
+        % the number of the last line read.
+        function [MdtArr, n_end_line] = load(filename, varargin)
+            fileID = fopen(filename, 'r');
             
-            %Loop initialization
-            line_no=0;
-            curr_title='';
+            MasterMdt = MyMetadata(varargin{:});
             
-            %Loop continues until we reach the next header or we reach
-            %the end of the file
+            % Loop initialization
+            MdtArr = MyMetadata.empty();
+            line_no = 0;
+            
+            % Loop continues until we reach the next header or we reach
+            % the end of the file
             while ~feof(fileID)
-                line_no=line_no+1;
-                %Grabs the current line
-                curr_line=fgetl(fileID);
-                %Gives an error if the file is empty, i.e. fgetl returns -1
-                if curr_line==-1 
-                    error('Tried to read empty file. Aborting.')
+                
+                % Grabs the current line
+                curr_line = fgetl(fileID);
+                
+                % Give a warning if the file is empty, i.e. if fgetl 
+                % returns -1
+                if curr_line == -1 
+                    disp(['Read empty file ', filename, '.']);
+                    break
                 end
-                %Skips if current line is empty
-                if isempty(curr_line)
+                
+                % Skips if the current line is empty
+                if isempty(deblank(curr_line))
+                    line_no = line_no+1;
                     continue
                 end
                 
-                title_token=regexp(curr_line,title_exp,'once','tokens');
-                %If we find a title, first check if it is the specified
-                %end header. Then change the title if a title was found, 
-                %then if no title was found, put the data under the current 
-                %title.
-                if ismember(this.end_header, title_token)
-                    break
-                elseif ~isempty(title_token)
-                    % Apply genvarname for sefety in case the title string 
-                    % is not a proper variable name 
-                    curr_title=genvarname(title_token{1});
-                    addField(this, curr_title);
-                %This runs if there was no match for the header regular
-                %expression, i.e. the current line is not a filed 
-                %separator, and the current line is not empty. We then 
-                %add this line to the current field (curr_title), possibly
-                %iterating over the parameter subscripts.
-                elseif ~isempty(curr_title)
-                    % First separate the comment if present
-                    tmp=regexp(curr_line,this.comment_sep,'split','once');
-                    if length(tmp)>1
-                        % the line has comment
-                        comment_str=tmp{2};
-                    else
-                        comment_str='';
-                    end
-                    % Then process name-value pair. Regard everything after
-                    % the first column separator as value.
-                    tmp=regexp(tmp{1},this.column_sep,'split','once');
-                    
-                    if length(tmp)<2
-                        % Ignore the line if a name-value pair is not found
-                        continue
-                    else
-                        % Attempt convertion of value to number
-                        val=str2doubleHedged(strtrim(tmp{2}));
-                    end
-                    
-                    % Infer the variable name and subscript reference
-                    try
-                        [S, name]=str2substruct(strtrim(tmp{1}));
-                    catch
-                        name='';
-                    end
-                    
-                    if isempty(name)
-                        % Ignore the line if variable name is not missing
-                        continue
-                    elseif ismember(name, fieldnames(this.(curr_title)))
-                        % If the variable name already presents among
-                        % parameters, add new subscript value
-                        this.(curr_title).(name).value= ...
-                            subsasgn(this.(curr_title).(name).value,S,val);
-                    else
-                        % Add new parameter with comment
-                        addParam(this, curr_title, name, val,...
-                            'SubStruct', S, 'comment', comment_str);
-                    end
+                S = parseLine(MasterMdt, curr_line);
+                
+                switch S.type
+                    case 'title'
+                        
+                        % Add new a new metadata to the output list
+                        TmpMdt = MyMetadata(varargin{:}, 'title', S.match);
+                        MdtArr = [MdtArr, TmpMdt]; %#ok<AGROW>
+                    case 'paramval'
+                        
+                        % Add a new parameter-value pair to the current 
+                        % metadata
+                        [name, value, format, comment, Subs] = S.match{:};
+                        
+                        if ~isparam(TmpMdt, name)
+                            
+                            % Add new parameter
+                            addParam(TmpMdt, name, value, ...
+                                'format', format, 'SubStruct', Subs, ...
+                                'comment', comment);
+                        else
+                            
+                            % Assign the value to a new subscript of 
+                            % an existing parameter
+                            Subs = [substruct('.', name), Subs];  %#ok<AGROW>
+                            TmpMdt.ParamList = subsasgn( ...
+                                TmpMdt.ParamList, Subs, value);  
+                        end
+                    otherwise
+                        
+                        % Exit
+                        break
                 end
+                
+                % Increment the counter
+                line_no = line_no+1;
             end
+            
+            n_end_line = line_no;
             fclose(fileID);
-            if isempty(this.field_names)
-                warning('No metadata found, continuing without metadata.')
-                n_end_header=1;
-            else
-                n_end_header=line_no;
-            end
-        end
-
-        % Need a custom copy method as the one provided by 
-        % matlab.mixin.Copyable does not re-create the handles of dynamic
-        % properties stored in this.PropHandles
-        function NewMet=copy(this)
-            NewMet=MyMetadata();
-            Mc=metaclass(NewMet);
-            
-            % Copy static public non-dependent properties
-            for i=1:length(Mc.PropertyList)
-                TmpProp=Mc.PropertyList(i);
-                if strcmpi(TmpProp.GetAccess,'public') && ...
-                        strcmpi(TmpProp.SetAccess,'public') && ...
-                        ~TmpProp.Dependent
-                    NewMet.(TmpProp.Name)=this.(TmpProp.Name);
-                end
-            end
-            
-            % Copy dynamic properties
-            addMetadata(NewMet, this);
         end
     end
     
-    
-    %% Set and Get methods
-    
-    methods
-        function field_names=get.field_names(this)
-            field_names=fieldnames(this.PropHandles);
+    methods (Access = protected)
+        
+        % Parse string and determine the type of string
+        function S = parseLine(this, str)
+            S = struct( ...
+                'type',     '', ...     % title, paramval, other
+                'match',    []);        % parsed output
+            
+            % Check if the line contains a parameter - value pair.
+            % First separate the comment if present
+            pv_token = regexp(str, this.comment_sep, 'split', 'once');
+             
+            if length(pv_token)>1
+                comment = pv_token{2};  % There is a comment
+            else
+                comment = '';           % There is no comment
+            end
+
+            % Then process name-value pair. Regard everything after
+            % the first column separator as value.
+            pv_token = regexp(pv_token{1}, this.column_sep, 'split', ...
+                'once');
+            
+            % Remove leading and trailing blanks
+            pv_token = strtrim(pv_token);
+
+            if length(pv_token)>=2
+                
+                % A candidate for parameter-value pair is found. Infer 
+                % the variable name and subscript reference.
+                [Subs, name] = str2substruct(pv_token{1});
+                
+                if isvarname(name)
+                    
+                    % Attempt converting the value to a number
+                    [value, format] = str2doubleHedged(pv_token{2});
+
+                    S.type = 'paramval';
+                    S.match = {name, value, format, comment, Subs};
+                    return
+                end
+            end
+            
+            % Check if the line contains a title 
+            title_exp = [this.hdr_spec, '(\w.*)', this.hdr_spec];
+            title_token = regexp(str, title_exp, 'once', 'tokens');
+            
+            if ~isempty(title_token)
+                
+                % Title expression found
+                S.type = 'title';
+                S.match = title_token{1};
+                return
+            end
+            
+            % No match found
+            S.type = 'other';
+            S.match = {};
         end
         
+        % Make custom footer for command line display 
+        % (see matlab.mixin.CustomDisplay)        
+        function str = getFooter(this)
+            if length(this) == 1
+                
+                % For a single object display its properties
+                str = ['Content:', newline, newline, ...
+                    replace(mdt2str(this), sprintf(this.line_sep), ...
+                    newline)];
+            elseif length(this) > 1
+                
+                % For a non-empty array of objects display titles
+                str = sprintf('\tTitles:\n\n');
+                
+                for i = 1:length(this)
+                    str = [str, sprintf('%i\t%s\n', i, this(i).title)]; %#ok<AGROW>
+                end
+                
+                str = [str, newline];
+            else
+                
+                % For an empty array display nothing
+                str = '';
+            end
+        end
     end
 end
+

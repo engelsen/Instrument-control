@@ -1,19 +1,21 @@
-% Save local settings
+% Save local settings provided as name-value pairs
+
 function setLocalSettings(varargin)
+
+    % Use an input parser with no parameters to ensure the proper
+    % formatting of name-value pairs
+    p = inputParser();
+    p.KeepUnmatched = true;
+    parse(p, varargin{:});
+    
+    SaveList = p.Unmatched;
+
+    % Get the full name of file containing local settings
     dir_name = getLocalBaseDir();
-    % Settings to be saved need to be specified as 'parameter','value' 
-    % pairs in varargin 
     file_name = fullfile(dir_name, 'LocalInstrumentControlSettings.mat');
-    SaveList=struct();
-    for i=1:floor(length(varargin)/2)
-        if isvarname(varargin{2*i-1})
-            SaveList.(varargin{2*i-1})=varargin{2*i};
-        else
-            warning('Setting is not saved as it is not a valid variable name:');
-            disp(varargin{2*i-1});
-        end
-    end
-    % Append parameters to the settings file
-    save(file_name,'-struct','SaveList','-append');
+    
+    % Save the fields of structure SaveList as individual variables and
+    % overwrite if a variable already exists.
+    save(file_name, '-struct', 'SaveList', '-append');
 end
 

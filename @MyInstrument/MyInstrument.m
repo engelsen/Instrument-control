@@ -1,237 +1,295 @@
-% Generic class to implement communication with instruments 
+% Generic instrument superclass
+%
+% Undefined/dummy methods:
+%   queryString(this, cmd)
+% 
+% These methods are intentionally not introduced as abstract as under
+% some conditions they are not necessary
 
-classdef MyInstrument < dynamicprops & MyDataSource
+classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
     
-    % Access for these variables is 'protected' and in addition
-    % granted to MyClassParser in order to use construction parser.
-    % Granting access to MyInstrument explicitly is needed to make 
-    % these properties accessible for subclasses. 
-    properties (GetAccess=public, SetAccess={?MyClassParser,?MyInstrument})     
-        interface='';
-        address=''; 
+    properties (Access = public)
+        
+        % Synchronize all properties after setting new value to one
+        auto_sync = true
     end
     
-    properties (Access=public)
-        Device %Device communication object    
-    end 
-    
-    properties (GetAccess=public, SetAccess=protected)
-        idn_str=''; % identification string
+    properties (SetAccess = protected, GetAccess = public)
+        CommandList = struct()
+        
+        % Identification string
+        idn_str = ''
     end
     
-    properties (Constant=true)
-        % Default parameters for device connection
-        DEFAULT_INP_BUFF_SIZE = 1e7; % buffer size bytes
-        DEFAULT_OUT_BUFF_SIZE = 1e7; % buffer size bytes
-        DEFAULT_TIMEOUT = 10; % Timeout in s
+    properties (Dependent = true)
+        command_names
     end
     
-    events
-        PropertyRead 
+    properties (Access = protected)
+        
+        % Copying existing metadata is much faster than creating a new one
+        Metadata = MyMetadata.empty()
+        
+        % Logical variables that determine if writing to the instrument 
+        % takes place when property is assigned new value
+        CommandWriteEnabled = struct()
     end
     
-    methods (Access=public)
-        function this=MyInstrument(interface, address, varargin)
-            P=MyClassParser();
-            addRequired(P,'interface',@ischar);
-            addRequired(P,'address',@ischar);
-            addParameter(P,'name','',@ischar);
-            processInputs(P, this, interface, address, varargin{:});
+    methods (Access = public)
+        
+        % Read all parameters of the physical device
+        function sync(this)
+            read_ind = structfun(@(x) ~isempty(x.readFcn), ...
+                this.CommandList);
+            read_cns = this.command_names(read_ind);
             
-            % Create an empty trace
-            this.Trace=MyTrace();
-            
-            % Create dummy device object that supports properties
-            this.Device=struct();
-            this.Device.Status='not connected';
-            
-            % Interface and address can correspond to an entry in the list
-            % of local instruments. Read this entry in such case.
-            if strcmpi(interface, 'instr_list')
-                % load the InstrumentList structure
-                InstrumentList = getLocalSettings('InstrumentList');
-                % In this case 'address' is the instrument name in
-                % the list
-                instr_name = address;
-                if ~isfield(InstrumentList, instr_name)
-                    error('%s is not a field of InstrumentList',...
-                        instr_name);
-                end
-                if ~isfield(InstrumentList.(instr_name), 'interface')
-                    error(['InstrumentList entry ', instr_name,...
-                        ' has no ''interface'' field']);
-                else
-                    this.interface = InstrumentList.(instr_name).interface;
-                end
-                if ~isfield(InstrumentList.(instr_name), 'address')
-                    error(['InstrumentList entry ', instr_name,...
-                        ' has no ''address'' field']);
-                else
-                    this.address = InstrumentList.(instr_name).address;
-                end
-                % Assign name automatically, but not overwrite if
-                % already specified
-                if isempty(this.name)
-                    this.name = instr_name;
+            for i=1:length(read_cns)
+                tag = read_cns{i};
+                read_value = this.CommandList.(tag).readFcn();
+                
+                % Compare to the previous value and update if different.
+                % Comparison prevents overhead for objects that listen to 
+                % the changes of property values.
+                if ~isequal(this.CommandList.(tag).last_value, read_value)
+                    
+                    % Assign value without writing to the instrument
+                    this.CommandWriteEnabled.(tag) = false;
+                    this.(tag) = read_value;
+                    this.CommandWriteEnabled.(tag) = true;
                 end
             end
-            
-            % Connecting device creates a communication object, 
-            % but does not attempt communication
-            connectDevice(this);
         end
         
-        function delete(this)         
-            %Closes the connection to the device
-            closeDevice(this);
-            %Deletes the device object
+        function addCommand(this, tag, varargin)
+            p = inputParser();
+            
+            % Name of the command
+            addRequired(p,'tag', @(x)isvarname(x));
+            
+            % Functions for reading and writing the property value to the 
+            % instrument
+            addParameter(p, 'readFcn', function_handle.empty(), ...
+                @(x)isa(x, 'function_handle'));
+            addParameter(p, 'writeFcn', function_handle.empty(), ...
+                @(x)isa(x, 'function_handle'));
+            
+            % Function applied before writeFcn
+            addParameter(p, 'validationFcn', function_handle.empty(), ...
+                @(x)isa(x, 'function_handle'));
+            
+            % Function or list of functions executed after updating the
+            % class property value
+            addParameter(p, 'postSetFcn', function_handle.empty(), ...
+                @(x)isa(x, 'function_handle'));
+            
+            addParameter(p, 'value_list', {}, @iscell);
+            addParameter(p, 'default', 0);
+            addParameter(p, 'info', '', @ischar);
+            
+            parse(p,tag,varargin{:});
+            
+            assert(~isprop(this, tag), ['Property named ' tag ...
+                ' already exists in the class.']);
+            
+            for fn = fieldnames(p.Results)'
+                this.CommandList.(tag).(fn{1}) = p.Results.(fn{1});
+            end
+            
+            this.CommandList.(tag).info = ...
+                toSingleLine(this.CommandList.(tag).info);
+            
+            vl = this.CommandList.(tag).value_list;
+            if ~isempty(vl) && isempty(p.Results.validationFcn)
+                this.CommandList.(tag).validationFcn = ...
+                    createListValidationFcn(this, vl);
+            end
+            
+            % Assign default value from the list if not given explicitly
+            if ~isempty(vl) && ismember('default', p.UsingDefaults)
+                default = vl{1};
+            else
+                default = p.Results.default;
+            end
+            
+            % Create and configure a dynamic property
+            H = addprop(this, tag);
+            H.GetAccess = 'public';
+            H.SetObservable = true;
+            H.SetMethod = createCommandSetFcn(this, tag);
+            
+            % Assign the default value with post processing but without
+            % writing to the instrument
+            this.CommandWriteEnabled.(tag) = false;
+            this.(tag) = default;
+            this.CommandWriteEnabled.(tag) = true;
+            
+            if ~isempty(this.CommandList.(tag).writeFcn)
+                H.SetAccess = 'public';
+            else
+                H.SetAccess = {'MyInstrument'};
+            end
+        end
+        
+        % Identification
+        function [str, msg] = idn(this)
+            assert(ismethod(this, 'queryString'), ['The instrument ' ...
+                'class must define queryString method in order to ' ...
+                'attempt identification.'])
+            
             try
-                delete(this.Device);
-            catch
-            end
-        end    
-        
-        %Triggers event for property read from device
-        function triggerPropertyRead(this)
-            notify(this,'PropertyRead')
+                str = queryString(this,'*IDN?');
+            catch ME
+                str = '';
+                msg = ME.message;
+            end   
+            this.idn_str = str;
         end
         
-        % Read all the relevant instrument properties and return as a
-        % MyMetadata object.
-        % Dummy method that needs to be re-defined by a parent class
-        function Hdr=readHeader(this)
-            Hdr=MyMetadata();
-            % Instrument name is a valid Matalb identifier as ensured by
-            % its set method (see the superclass)
-            addField(Hdr, this.name);
-            % Add identification string as parameter
-            addParam(Hdr, this.name, 'idn', this.idn_str);
-        end
-       
-        
-        %% Connect, open, configure, identificate and close the device
-        % Connects to the device, explicit indication of interface and
-        % address is for ability to handle instr_list as interface
-        function connectDevice(this)
-            int_list={'constructor','visa','tcpip','serial'};
-            if ~ismember(lower(this.interface), int_list)
-                warning(['Device is not connected, unknown interface ',...
-                    this.interface,'. Valid interfaces are ',...
-                    '''constructor'', ''visa'', ''tcpip'' and ''serial'''])
-                return
+        % Measurement header
+        function Mdt = readSettings(this)
+            if isempty(this.Metadata)
+                createMetadata(this);
             end
-            try
-                switch lower(this.interface)
-                    % Use 'constructor' interface to connect device with
-                    % more that one parameter, specifying its address
-                    case 'constructor'
-                        % in this case the 'address' is a command 
-                        % (ObjectConstructorName), e.g. as returned by the 
-                        % instrhwinfo, that creates communication object
-                        % when executed
-                        this.Device=eval(this.address);
-                    case 'visa'
-                        % visa brand is 'ni' by default
-                        this.Device=visa('ni', this.address);
-                    case 'tcpip'
-                        % Works only with default socket. Use 'constructor'
-                        % if socket or other options need to be specified
-                        this.Device=tcpip(this.address);
-                    case 'serial'
-                        this.Device=serial(this.address);
-                    otherwise
-                        error('Unknown interface');
+            
+            % Ensure that instrument parameters are up to data
+            sync(this);
+            
+            % Exclude idn from parameter names
+            param_names = setdiff(fieldnames(this.Metadata.ParamList), ...
+                {'idn'});
+            
+            for i = 1:length(param_names)
+                tag = param_names{i};
+                this.Metadata.ParamList.(tag) = this.(tag);
+            end
+            
+            Mdt = copy(this.Metadata);
+        end
+        
+        % Write new settings to the physical instrument
+        function writeSettings(this, Mdt)
+            assert(isa(Mdt, 'MyMetadata'), ...
+                'Settings must be provided as MyMetadata object.');
+            
+            % Synchronize the instrument object and write only the settings
+            % which new values are different from present 
+            sync(this);
+            
+            param_names = setdiff(fieldnames(Mdt.ParamList), {'idn'});
+            
+            for i = 1:length(param_names)
+                tag = param_names{i};
+                new_val = Mdt.ParamList.(tag);
+
+                if ismember(tag, this.command_names)
+                    
+                    % Set command value under the condition that it is
+                    % write accessible and that that the new value is 
+                    % different from present
+                    if ~isempty(this.CommandList.(tag).writeFcn) && ...
+                            ~isequal(this.(tag), new_val)
+                         
+                        this.(tag) = new_val;
+                    end
+                    
+                    continue
                 end
-                configureDeviceDefault(this);
-            catch
-                warning(['Device is not connected, ',...
-                    'error while creating communication object.']);
+                
+                if isprop(this, tag) && ~isequal(this.(tag), new_val)
+                    this.(tag) = new_val;
+                end
+            end
+        end
+    end
+    
+    methods (Access = protected)
+        function createMetadata(this)
+            this.Metadata = MyMetadata('title', class(this));
+            
+            % Add identification string 
+            addParam(this.Metadata, 'idn', this.idn_str);
+
+            for i = 1:length(this.command_names)
+                cmd = this.command_names{i};
+                addObjProp(this.Metadata, this, cmd, ...
+                    'comment', this.CommandList.(cmd).info);
             end
         end
         
-        % Opens the device if it is not open. Does not throw error if
-        % device is already open for communication with another object, but
-        % tries to close existing connections instead.
-        function openDevice(this)
-            if ~isopen(this)
-                try
-                    fopen(this.Device);
-                catch
-                    % try to find and close all the devices with the same
-                    % VISA resource name
-                    try
-                        instr_list=instrfind('RsrcName',this.Device.RsrcName);
-                        fclose(instr_list);
-                        fopen(this.Device);
-                        warning('Multiple instrument objects of address %s exist',...
-                            this.address);
-                    catch
-                        error('Could not open device')
+        % Create set methods for dynamic properties
+        function f = createCommandSetFcn(~, tag)
+            function commandSetFcn(this, val)
+                
+                % Validate new value
+                vFcn = this.CommandList.(tag).validationFcn;
+                if ~isempty(vFcn)
+                    vFcn(val);
+                end
+                
+                % Store the unprocessed value for quick reference in  
+                % the future and value change tracking
+                this.CommandList.(tag).last_value = val;
+                    
+                % Assign the value after post processing to the property
+                pFcn = this.CommandList.(tag).postSetFcn;
+                if ~isempty(pFcn)
+                    val = pFcn(val);
+                end
+
+                this.(tag) = val;
+                
+                if this.CommandWriteEnabled.(tag)
+                    
+                    % Write the new value to the instrument
+                    this.CommandList.(tag).writeFcn(this.(tag));
+                    
+                    if this.auto_sync
+                        
+                        % Confirm the changes by reading the state
+                        sync(this);
                     end
                 end
             end
+            
+            f = @commandSetFcn;
         end
         
-        % Closes the connection to the device
-        function closeDevice(this)
-            if isopen(this)
-                fclose(this.Device);
+        function f = createListValidationFcn(~, value_list)
+            function listValidationFcn(val)
+                assert( ...
+                    any(cellfun(@(y) isequal(val, y), value_list)), ...
+                    ['Value must be one from the following list:', ...
+                    newline, var2str(value_list)]);
             end
+            
+            f = @listValidationFcn;
         end
         
-        function configureDeviceDefault(this)
-            dev_prop_list = properties(this.Device);
-            if ismember('OutputBufferSize',dev_prop_list)
-                this.Device.OutputBufferSize = this.DEFAULT_OUT_BUFF_SIZE;
-            end
-            if ismember('InputBufferSize',dev_prop_list)
-                this.Device.InputBufferSize = this.DEFAULT_INP_BUFF_SIZE;
-            end
-            if ismember('Timeout',dev_prop_list)
-                this.Device.Timeout = this.DEFAULT_TIMEOUT;
-            end
+        % Overload a method of matlab.mixin.CustomDisplay in order to
+        % modify the display of object. This serves two purposes 
+        % a) separate commands from other properties 
+        % b) order commands in a systematic way
+        function PrGroups = getPropertyGroups(this)
+            cmds = this.command_names;
+            
+            % We separate the display of non-command properties from the
+            % rest
+            props = setdiff(properties(this), cmds);
+            
+            PrGroups = [matlab.mixin.util.PropertyGroup(props), ...
+                matlab.mixin.util.PropertyGroup(cmds)];
         end
-        
-        % Checks if the connection to the device is open
-        function bool=isopen(this)
-            try
-                bool=strcmp(this.Device.Status, 'open');
-            catch
-                warning('Cannot access device Status property');
-                bool=false;
-            end
-        end
-        
-        %% Identification
-        % Attempt communication and identification of the device
-        function [str, msg]=idn(this)
-            was_open=isopen(this);
-            try
-                openDevice(this);
-                [str,~,msg]=query(this.Device,'*IDN?');
-            catch ErrorMessage
-                str='';
-                msg=ErrorMessage.message;
-            end   
-            this.idn_str=str;
-            % Leave device in the state it was in the beginning
-            if ~was_open
-                try
-                    closeDevice(this);
-                catch
-                end
-            end
-        end
-        
     end
     
-    %% Set and get methods
-    methods 
+    %% Set and Get methods
+    methods
+        function val = get.command_names(this)
+            val = fieldnames(this.CommandList);
+        end
+        
         function set.idn_str(this, str)
-            % Remove carriage return and new line symbols from the string
-            newline_smb={sprintf('\n'),sprintf('\r')}; %#ok<SPRINTFN>
-            str=replace(str, newline_smb,' ');
-            this.idn_str=str;
+            this.idn_str = toSingleLine(str);
         end
     end
 end
+
