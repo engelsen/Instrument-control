@@ -153,10 +153,6 @@ classdef MyCeCryo < MyScpiInstrument
     end
     
     methods
-        function set.operation_in_progress(this, ~)
-            notify(this, 'PropertyRead');
-        end
-        
         function val = get.operation_in_progress(this)
             try
                 val = strcmpi(this.Timer.Running, 'on');

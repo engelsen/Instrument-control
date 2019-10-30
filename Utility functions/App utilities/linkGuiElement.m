@@ -39,9 +39,6 @@ function linkGuiElement(app, elem, prop_tag, varargin)
     % list of values. Ignored for all the other control elements. 
     addParameter(p,'init_val_list',false,@islogical);
     
-    addParameter(p,'lamp_on_color', MyAppColors.lampOn());
-    addParameter(p,'lamp_off_color', MyAppColors.lampOff());
-    
     parse(p,elem,prop_tag,varargin{:});
     
     create_callback = p.Results.create_callback;
@@ -160,7 +157,7 @@ function linkGuiElement(app, elem, prop_tag, varargin)
         % can be indicated by explicitly setting OutputProcessingFcn that
         % will overwrite the one assigned here.
         elem.UserData.OutputProcessingFcn = ...
-            @(x)select(x, p.Results.lamp_on_color, p.Results.lamp_off_color);
+            @(x)select(x, MyAppColors.lampOn(), MyAppColors.lampOff());
     end
 
     % If a prescaler, input processing function or output processing  
