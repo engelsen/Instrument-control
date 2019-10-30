@@ -17,6 +17,13 @@ classdef MyCursor < handle
         originalYLimMode
         
         was_dragged = false
+        
+        % Minimum interval between the subsequent updatings of the cursor 
+        % position when it is dragged (s)
+        DragDelay
+        
+        % Time of the previous drag
+        TlastDrag
     end
     
     properties (Dependent = true)
@@ -35,12 +42,14 @@ classdef MyCursor < handle
             addParameter(p, 'orientation', 'vertical', @ischar);
             parse(p, Axes, varargin{:});
             
-            % All the unmatched parameters will be passed to the line
-            % constructor
+            % All the unmatched parameters are assumed to be line 
+            % parameters and will be passed to the line constructor
             line_nv = struct2namevalue(p.Unmatched);
             
             this.Axes = Axes;
             this.Figure = Axes.Parent;
+            
+            this.DragDelay = milliseconds(100);
             
             % Draw the cursor line
             if strcmpi(p.Results.orientation, 'vertical')
@@ -78,7 +87,7 @@ classdef MyCursor < handle
         % Callback invoked when the cursor is clicked by mouse
         function cursorButtonDownFcn(this, ~, ~)
             
-            % Freeze axes limits
+            % Freeze the limits of axes
             this.originalXLimMode = this.Axes.XLimMode;
             this.originalYLimMode = this.Axes.YLimMode;
             
@@ -95,13 +104,21 @@ classdef MyCursor < handle
             this.Figure.WindowButtonDownFcn = @this.localWbdFcn;
             
             this.Line.Selected = 'on';
+            
+            this.TlastDrag = datetime('now');
         end
         
         % Replacement callback that is active when the cursor is being 
         % dragged 
         function localWbmFcn(this, ~, ~)
             this.was_dragged = true;
-            moveLineToMouseTip(this);
+            
+            Tnow = datetime('now');
+            
+            if (Tnow-this.TlastDrag) > this.DragDelay
+                moveLineToMouseTip(this);
+                this.TlastDrag = Tnow;
+            end
         end
         
         % Replacement callback that is active when the cursor is being 
@@ -137,12 +154,18 @@ classdef MyCursor < handle
                     new_x = this.Axes.CurrentPoint(1,1);
                     new_x = min(new_x, this.Axes.XLim(2));
                     new_x = max(new_x, this.Axes.XLim(1));
-                    this.Line.Value = new_x;
+                    
+                    if new_x ~= this.Line.Value
+                        this.Line.Value = new_x;
+                    end
                 case 'y'
                     new_y = this.Axes.CurrentPoint(1,2);
                     new_y = min(new_y, this.Axes.YLim(2));
                     new_y = max(new_y, this.Axes.YLim(1));
-                    this.Line.Value = new_y;
+                    
+                    if new_y ~= this.Line.Value
+                        this.Line.Value = new_y;
+                    end
             end
         end
         
