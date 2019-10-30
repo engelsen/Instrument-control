@@ -98,6 +98,9 @@ classdef MyZiScopeFt < MyZiLockIn & MyDataSource & MyGuiCont
                 this.scope_path, this.n_ch);
             ziDAQ('setInt', path, this.signal_in-1);
             
+            % Enable data transfer from only one scope channel
+            ziDAQ('setInt', [this.scope_path '/channel'], 1);
+            
             % Disable segmented mode of data transfer. This mode is only 
             % useful if records longer than 5Mpts are required. 
             ziDAQ('setInt', [this.scope_path '/segments/enable'], 0);

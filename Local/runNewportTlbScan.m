@@ -17,9 +17,6 @@ function runNewportTlbScan()
         % Add instrument to Collector
         addInstrument(C, name, App);
         
-        % It is also a gui itself
-        setInstrumentProp(C, name, 'Gui', App);
-        
         % Display the instrument's name 
         Fig = findFigure(App);
         if ~isempty(Fig)
