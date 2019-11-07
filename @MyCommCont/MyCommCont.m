@@ -5,8 +5,8 @@
 classdef MyCommCont < handle
 
     properties (Access = public)     
-        interface   = 'serial'
-        address     = 'placeholder' 
+        interface   = 'constructor'
+        address     = '' 
     
         % Communication object
         Comm     
@@ -48,6 +48,9 @@ classdef MyCommCont < handle
             end
             
             try
+                assert(~isempty(this.address), ...
+                    'The instrument address is empy.');
+                
                 switch lower(this.interface)
 
                     % Use 'constructor' interface to create an object with
@@ -79,7 +82,8 @@ classdef MyCommCont < handle
                 
                 configureCommDefault(this);
             catch ME
-                warning(ME.message);
+                warning([ME.message ...
+                    ' Creating a dummy communication object.']);
                 
                 % Create a dummy
                 this.Comm = serial('placeholder');

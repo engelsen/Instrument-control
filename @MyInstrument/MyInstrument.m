@@ -131,17 +131,13 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
         end
         
         % Identification
-        function [str, msg] = idn(this)
+        function str = idn(this)
             assert(ismethod(this, 'queryString'), ['The instrument ' ...
                 'class must define queryString method in order to ' ...
                 'attempt identification.'])
             
-            try
-                str = queryString(this,'*IDN?');
-            catch ME
-                str = '';
-                msg = ME.message;
-            end   
+            str = queryString(this, '*IDN?');
+            
             this.idn_str = str;
         end
         

@@ -23,6 +23,15 @@ classdef MyTekRsa < MyScpiInstrument & MyDataSource & MyCommCont ...
             % Set up the list of communication commands
             createCommandList(this);
         end
+        
+        function str = idn(this)
+            str = idn@MyInstrument(this);
+            
+            % The instrument needs to be in DPX Spectrum mode
+            res = queryString(this, ':DISPlay:WINDow:ACTive:MEASurement?');
+            assert(contains(lower(res), {'dpsa', 'dpx'}), ...
+                'The spectrum analyzer must be in DPX Spectrum mode.');
+        end
     end
 
     methods (Access = protected)

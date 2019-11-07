@@ -81,14 +81,9 @@ classdef MyPfeifferTpg < MyInstrument & MyCommCont & MyGuiCont
         end
         
         % Attempt communication and identification of the device
-        function [str, msg] = idn(this)
-            try
-                queryString(this, ['AYT', this.CR, this.LF]);
-                str = queryString(this, this.ENQ);
-            catch ME
-                str = '';
-                msg = ME.message;
-            end
+        function str = idn(this)
+            queryString(this, ['AYT', this.CR, this.LF]);
+            str = queryString(this, this.ENQ);
             
             this.idn_str = toSingleLine(str);
         end
