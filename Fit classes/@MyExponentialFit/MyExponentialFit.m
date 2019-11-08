@@ -73,9 +73,7 @@ classdef MyExponentialFit < MyFitParamScaling
             
             this.param_vals = p_in;
         end
-    end
-    
-    methods (Access = private)
+
         function sc_vals = scaleFitParams(~, vals, scaling_coeffs)
             [mean_x,std_x,mean_y,std_y]=scaling_coeffs{:};
             

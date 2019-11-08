@@ -33,7 +33,7 @@ classdef Myg0Cal < MyAnalysisRoutine & MyGuiCont
     end
     
     properties (GetAccess = public, SetAccess = protected, SetObservable)
-        Axes = matlab.graphics.axis.Axes.empty()
+        Axes
         
         % Parameters of the fitted mechanical Lorentzian
         Q = 0
@@ -52,7 +52,10 @@ classdef Myg0Cal < MyAnalysisRoutine & MyGuiCont
         function this = Myg0Cal(varargin)
             P = MyClassParser(this);
             addParameter(P, 'enable_gui', true, @islogical);
+            addParameter(P, 'Axes', [], @isaxes);
             processInputs(P, this, varargin{:});
+            
+            this.Axes = P.Results.Axes;
 
             if ~isempty(this.Axes)
                 
