@@ -55,14 +55,34 @@ classdef MyNewpUsbComm < MySingleton
             
             stat = Query(this.Usb, addr, cmd, QueryData);
             
-            if stat == 0
-                str = char(ToString(QueryData));
-            else
-                str = '';
-                warning('Query to Newport usb driver was unsuccessful.');
+            if stat ~= 0
+                warning(['Query to Newport usb driver was unsuccessful.'...
+                    errorCodeToMessage(this, stat)]);
             end
             
+            str = char(ToString(QueryData));
+            
             this.isbusy = false;
+        end
+    end
+    
+    methods (Access = private)
+        
+        % Convert the code returned by read/write/query functions to
+        % a message
+        function str = errorCodeToMessage(~, stat)
+            switch stat
+                case 0
+                    
+                    % No error
+                    str = ''; 
+                case -2
+                    str = 'Error: Device timeout';
+                case 1
+                    str = 'Error: Duplicate USB address';
+                otherwise
+                    str = sprintf('Error Code = %i', stat);
+            end
         end
     end
    
