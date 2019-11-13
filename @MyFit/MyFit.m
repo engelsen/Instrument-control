@@ -292,6 +292,10 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         function genInitParams(this)
             validateData(this);
             
+            % Delete existing fit line from the plot, the new fit line 
+            % will appear on top of the plot
+            deleteLine(this.Fit);
+            
             calcInitParams(this);
             calcFit(this);
             calcUserParams(this);
