@@ -13,7 +13,7 @@ classdef MyMechExponentialFit < MyExponentialFit
             % Frequency at must be inputed by user
             addUserParam(this, 'freq', 'title', 'Frequency (MHz)', ...
                 'editable', 'on', 'default', 1)
-            addUserParam(this, 'Q', 'title', 'Qualify Factor (x10^6)', ...
+            addUserParam(this, 'Q', 'title', 'Quality Factor (x10^6)', ...
                 'editable', 'off');
             addUserParam(this, 'Qf', 'title', 'Q\times f (10^{14} Hz)', ...
                 'editable', 'off');
@@ -24,7 +24,7 @@ classdef MyMechExponentialFit < MyExponentialFit
             this.tau=abs(1/this.param_vals(2)); 
             this.lw=abs(this.param_vals(2)/pi); 
             this.Q=pi*this.freq*this.tau; 
-            this.Qf=this.Q*this.freq; 
+            this.Qf=this.Q*this.freq/1e2; 
         end
     end
 end
