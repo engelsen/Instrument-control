@@ -547,6 +547,18 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             PrGroups = [matlab.mixin.util.PropertyGroup(static_props), ...
                 matlab.mixin.util.PropertyGroup(user_params)];
         end
+        
+        %Function to calculate data selection, introduced such that it can
+        %be overloaded in subclasses.
+        function ind=findDataSelection(this)
+            if this.enable_range_cursors
+                xmin = min(this.RangeCursors.value);
+                xmax = max(this.RangeCursors.value);
+                ind = (this.Data.x>xmin & this.Data.x<=xmax);
+            else
+                ind = true(1, length(this.Data.x));
+            end
+        end
     end
     
     %Callbacks
@@ -784,13 +796,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         end
         
         function ind = get.data_selection(this)
-            if this.enable_range_cursors
-                xmin = min(this.RangeCursors.value);
-                xmax = max(this.RangeCursors.value);
-                ind = (this.Data.x>xmin & this.Data.x<=xmax);
-            else
-                ind = true(1, length(this.Data.x));
-            end
+            ind=findDataSelection(this);
         end
         
         %Calculates the number of parameters in the fit function
