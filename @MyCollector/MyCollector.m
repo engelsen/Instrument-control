@@ -217,8 +217,9 @@ classdef MyCollector < MySingleton
                 
                 % The re can be more than one trace in the event data in
                 % general, so we span over the array
-                for i=1:length(InstrEventData.Trace)
-                    InstrEventData.Trace(i).UserMetadata = copy(Mdt);
+                for i=1:length(InstrEventData.traces)
+                    TmpTrace = InstrEventData.traces{i};
+                    TmpTrace.UserMetadata = copy(Mdt);
                 end
             end
             

@@ -15,8 +15,8 @@ classdef MyNewDataEvent < event.EventData
         % NewDataWithHeaders 
         src_name = 'UnknownInstrument'
         
-        % New acquired trace object or an array of such. 
-        Trace
+        % Cell array of trace objects 
+        traces = {}
         
         % If false then MyCollector does not acquire new measurement  
         % headers for this trace. Setting new_header = false allows  
@@ -25,7 +25,7 @@ classdef MyNewDataEvent < event.EventData
         
         % A character string or cellstring containing optional tags 
         % for the traces
-        trace_tag = ''
+        trace_tags = {}
     end
     
     methods 
@@ -56,22 +56,32 @@ classdef MyNewDataEvent < event.EventData
             this.src_name = str;
         end
         
-        function set.Trace(this, Val)
-            assert(isa(Val, 'MyTrace'), ['Trace must be a derivative ' ...
-                'of MyTrace class.'])
-            this.Trace = Val;
+        function set.traces(this, val)
+            assert(isa(val, 'MyTrace') || (iscell(val) && ...
+                all(cellfun(@(x)isa(x, 'MyTrace'), val))), ...
+                ['''traces'' must be a derivative of MyTrace or a ' ...
+                'cell array of such.'])
+            
+            if isa(val, 'MyTrace')
+                
+                % A single trace can be given directly, it is 
+                % wrapped in a cell for uniformity
+                val = {val};
+            end
+            
+            this.traces = val;
         end
         
-        function set.trace_tag(this, val)
+        function set.trace_tags(this, val)
             assert(ischar(val) || iscellstr(val), ['The value ' ...
-                'assigned to ''trace_tag'' must be a character string ' ...
+                'assigned to ''trace_tags'' must be a character string '...
                 'or a cell of character strings.']) %#ok<ISCLSTR>
             
-            if iscell(val) && length(val)==1
+            if ischar(val)
                 
-                % By our convention, cellstrings containing a single string
-                % are converted to just strings
-                val = val{1};
+                % A single tag can be given as character string, it is 
+                % converted to cell array for uniformity
+                val = {val};
             end
             
             this.trace_tag = val;

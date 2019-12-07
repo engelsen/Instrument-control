@@ -28,14 +28,14 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource & MyGuiCont
         
         % Imitate simultaneous reading of several traces
         function readTraces(this, n)
-            Tr = MyTrace.empty();
+            traces = {};
             tags = {};
             for i=1:n
-                Tr = [Tr, genTrace(this)];
-                tags = [tags, {sprintf('_no_%i', i)}];
+                traces = [traces, {genTrace(this)}]; %#ok<AGROW>
+                tags = [tags, {sprintf('_no_%i', i)}]; %#ok<AGROW>
             end
             
-            triggerNewData(this, 'Trace', Tr, 'trace_tag', tags);
+            triggerNewData(this, 'traces', traces, 'trace_tag', tags);
         end
         
         % Generate a dummy trace
