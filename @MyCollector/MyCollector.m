@@ -78,15 +78,10 @@ classdef MyCollector < MySingleton
             % Optional - put the instrument in global workspace
             addParameter(p, 'make_global', true, @islogical);
             
-            % Read the settings of this instrument when new data is
-            % acquired
-            addParameter(p, 'collect_header', true, @islogical);
-            
             parse(p, varargin{:});
             
             this.InstrList.(name) = struct( ...
                 'Instance',         Instrument, ...
-                'collect_header',   p.Results.collect_header, ...
                 'global_name',      '', ...
                 'Listeners',        []);
             
@@ -111,18 +106,6 @@ classdef MyCollector < MySingleton
                 assignin('base', global_name, Instrument);
                 
                 this.InstrList.(name).global_name = global_name;
-            end
-            
-            if this.InstrList.(name).collect_header && ...
-                    ~ismethod(Instrument, 'readSettings')
-                
-                % If the class does not have a header generation function, 
-                % it can still be added to the collector and transfer data
-                % to Daq
-                this.InstrList.(name).collect_header = false;
-                warning(['%s does not have a readSettings function, ',...
-                    'measurement headers will not be collected from ',...
-                    'this instrument.'], name)
             end
             
             % Cleans up if the instrument is closed
@@ -203,19 +186,13 @@ classdef MyCollector < MySingleton
             for i = 1:length(instr_list)
                 name = this.running_instruments{i};
                 
-                if this.InstrList.(name).collect_header
-                    try
-                        TmpMdt = readSettings( ...
-                            this.InstrList.(name).Instance);
-                        TmpMdt.title = name;
-                        Mdt = [Mdt, TmpMdt]; %#ok<AGROW>
-                    catch ME
-                        warning(['Error while reading metadata from ' ...
-                            '%s. Measurement header collection is '...
-                            'switched off for this instrument.' ...
-                            '\nError: %s'], name, ME.message)
-                        this.InstrList.(name).collect_header = false;
-                    end
+                try
+                    TmpMdt = readSettings(this.InstrList.(name).Instance);
+                    TmpMdt.title = name;
+                    Mdt = [Mdt, TmpMdt]; %#ok<AGROW>
+                catch ME
+                    warning(['Error while reading metadata from ' ...
+                        '%s: %s'], name, ME.message)
                 end
             end
         end
@@ -333,9 +310,6 @@ classdef MyCollector < MySingleton
                 
             for i = 1:length(this.running_instruments)
                 nm = this.running_instruments{i};
-                
-                M.ParamList.InstrProps.(nm).collect_header =...
-                    this.InstrProps.(nm).collect_header;
                 
                 M.ParamList.InstrProps.(nm).is_global = ...
                     ~isempty(this.InstrProps.(nm).global_name);
