@@ -35,7 +35,7 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource & MyGuiCont
                 tags = [tags, {sprintf('_no_%i', i)}]; %#ok<AGROW>
             end
             
-            triggerNewData(this, 'traces', traces, 'trace_tag', tags);
+            triggerNewData(this, 'traces', traces, 'trace_tags', tags);
         end
         
         % Generate a dummy trace
