@@ -4,6 +4,8 @@
 classdef MyAnalysisRoutine < handle
     
     properties (Abstract, Access = public)
+        
+        % Raw data to be analyzed
         Data    MyTrace
     end
     
@@ -12,15 +14,15 @@ classdef MyAnalysisRoutine < handle
     end
     
     events
-        NewAnalysisTrace
+        NewProcessedData
     end
     
     methods (Access = public)
                 
-        %Triggered for transferring of the fit trace to DAQ
-        function triggerNewAnalysisTrace(this, varargin)
-            EventData = MyNewAnalysisTraceEvent(varargin{:});
-            notify(this, 'NewAnalysisTrace', EventData);
+        % Triggered for transferring of the fit trace to DAQ
+        function triggerNewProcessedData(this, varargin)
+            EventData = MyNewDataEvent(varargin{:});
+            notify(this, 'NewProcessedData', EventData);
         end
     end
     
@@ -39,7 +41,7 @@ classdef MyAnalysisRoutine < handle
             
             assert(ismember('Data', properties(class_name)), ...
                 'Analysis routine must define ''Data'' property')
-            assert(ismember('NewAnalysisTrace', events(class_name)), ...
+            assert(ismember('NewProcessedData', events(class_name)), ...
                 'Analysis routine must define ''NewAnalysisTrace'' event')
             assert(nargin(class_name) == -1, ...
                 'Analysis routine accept varargin input')

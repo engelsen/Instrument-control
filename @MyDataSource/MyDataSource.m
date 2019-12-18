@@ -37,7 +37,6 @@ classdef MyDataSource < handle
             
             notify(this, 'NewData', EventData);
         end
-        
     end
     
     methods
