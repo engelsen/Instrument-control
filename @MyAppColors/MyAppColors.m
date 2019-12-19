@@ -27,11 +27,22 @@ classdef (Abstract) MyAppColors
             rgb = [0,0.4,0]; % Dark green
         end
         
+        %% Color scheme functions
+        
+        function f = createColorSchemeFcn(scheme)
+            function colorSchemeFcn(Obj)
+                MyAppColors.applyScheme(Obj, scheme)
+            end
+            
+            f = @colorSchemeFcn;
+        end
+        
         % Recolor app according to a new color scheme
         function applyScheme(Obj, scheme)
-            persistent init_default default_main_color ...
-                default_label_text_color default_edit_text_color ...
-                default_edit_field_color default_axes_label_color
+            persistent init_default ...
+                default_main_color default_label_text_color ...
+                default_edit_text_color default_edit_field_color ...
+                default_axes_label_color
                     
             if ~exist('scheme', 'var')
                 scheme = 'default';

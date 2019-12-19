@@ -80,7 +80,7 @@ classdef MyCollector < MySingleton
             
             parse(p, varargin{:});
             
-            this.InstrList.(name) = struct( ...
+            S = struct( ...
                 'Instance',         Instrument, ...
                 'global_name',      '', ...
                 'Listeners',        []);
@@ -105,13 +105,16 @@ classdef MyCollector < MySingleton
                 % Put the instrument in global workspace
                 assignin('base', global_name, Instrument);
                 
-                this.InstrList.(name).global_name = global_name;
+                S.global_name = global_name;
             end
             
             % Cleans up if the instrument is closed
-            this.InstrList.(name).Listeners = ...
-                addlistener(Instrument, 'ObjectBeingDestroyed', ...
+            S.Listeners = addlistener(Instrument,'ObjectBeingDestroyed',...
                 createInstrumentDeletedCallback(this, name));
+            
+            % InstrList is set observable, so it's better to assign value 
+            % to it only once 
+            this.InstrList.(name) = S;
         end
         
         % Get existing instrument
@@ -152,14 +155,16 @@ classdef MyCollector < MySingleton
             assert(~isfield(this.AppList, name), ['App with name ''' ...
                 name ''' is already present in the collector.'])
             
-            this.AppList.(name) = struct();
-            this.AppList.(name).Instance = App;
+            S = struct( ...
+                'Instance',     App, ...
+                'Listeners',    []);
             
             % Set up a listener that will update the list when the app
             % is deleted
-            this.AppList.(name).Listeners = ...
-                addlistener(App, 'ObjectBeingDestroyed', ...
+            S.Listeners = addlistener(App, 'ObjectBeingDestroyed', ...
                 createAppDeletedCallback(this, name));
+            
+            this.AppList.(name) = S;
         end
         
         function App = getApp(this, name)
