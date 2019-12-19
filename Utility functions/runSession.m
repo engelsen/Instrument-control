@@ -51,21 +51,15 @@ function runSession(filename)
         disp(['Starting ' nm '...'])
         
         % Extract instument options from the collector metadata or assign
-        % default values
+        % default values     
         try
-            collect_header = CollMdt.ParamList.Props.(nm).collect_header;
-        catch
-            collect_header = true;
-        end
-        
-        try
-            has_gui = CollMdt.ParamList.Props.(nm).has_gui;
+            has_gui = CollMdt.ParamList.InstrProps.(nm).has_gui;
         catch
             has_gui = true;
         end
         
         try 
-            gui_position = CollMdt.ParamList.Props.(nm).gui_position;
+            gui_position = CollMdt.ParamList.InstrProps.(nm).gui_position;
         catch
             gui_position = '';
         end
@@ -93,8 +87,6 @@ function runSession(filename)
             else
                 eval(ActiveProgList(i).run_bg_expr);
             end
-            
-            setInstrumentProp(C, nm, 'collect_header', collect_header);
 
             % Configure the settings of instrument object
             InstrMdt = titleref(Mdt, nm);

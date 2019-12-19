@@ -238,46 +238,15 @@ classdef MyCollector < MySingleton
         function flush(this)
             instr_names = this.running_instruments;
             for i = 1:length(instr_names)
-                delete(this.InstrList.(instr_names{i}));
+                delete(this.InstrList.(instr_names{i}).Instance);
             end
             
             app_names = this.running_apps;
             for i = 1:length(app_names)
                 
                 % Delete by closing the app window
-                closeApp(this.AppList.(app_names{i}));
+                closeApp(this.AppList.(app_names{i}).Instance);
             end
-        end
-    end
-    
-    methods (Access = private)
-        function f = createInstrumentDeletedCallback(this, name)
-            function instrumentDeletedCallback(~, ~)
-
-                % Clear the base workspace wariable
-                gn = this.InstrList.(name).global_name;
-                if ~isempty(gn)
-                    try
-                        evalin('base', sprintf('clear(''%s'');', gn));
-                    catch ME
-                        warning(['Could not clear global variable ''' ...
-                            gn '''. Error: ' ME.message]);
-                    end
-                end
-
-                % Remove the instrument entry from Collector
-                removeInstrument(this, name);
-            end
-            
-            f = @instrumentDeletedCallback;
-        end
-        
-        function f = createAppDeletedCallback(this, name)
-            function appDeletedCallback(~, ~)
-                removeApp(this, name);
-            end
-            
-            f = @appDeletedCallback;
         end
         
         % Create metadata that stores information about the Collector 
@@ -312,18 +281,18 @@ classdef MyCollector < MySingleton
                 nm = this.running_instruments{i};
                 
                 M.ParamList.InstrProps.(nm).is_global = ...
-                    ~isempty(this.InstrProps.(nm).global_name);
+                    ~isempty(this.InstrList.(nm).global_name);
                 
                 % Indicate if the instrument has gui
-                has_gui = isprop(this.InstrList.(nm), 'Gui') && ...
-                    ~isempty(this.InstrList.(nm).Gui);
+                has_gui = isprop(this.InstrList.(nm).Instance, 'Gui') &&...
+                    ~isempty(this.InstrList.(nm).Instance.Gui);
                 
                 M.ParamList.InstrProps.(nm).has_gui = has_gui;
                 
                 if has_gui
                     
                     % Add the position of GUI on the screen in pixels
-                    Fig = findFigure(this.InstrList.(nm).Gui);
+                    Fig = findFigure(this.InstrList.(nm).Instance.Gui);
                     original_units = Fig.Units;
                     Fig.Units = 'pixels';
                     
@@ -345,10 +314,11 @@ classdef MyCollector < MySingleton
             for i = 1:length(this.running_apps)
                 nm = this.running_apps{i};
                 
-                M.ParamList.AppProps.(nm).class = class(this.AppList.(nm));
+                M.ParamList.AppProps.(nm).class = class( ...
+                    this.AppList.(nm).Instance);
                 
                 % Add the position of GUI on the screen in pixels
-                Fig = findFigure(this.AppList.(nm));
+                Fig = findFigure(this.AppList.(nm).Instance);
                 
                 if isempty(Fig)
                     
@@ -373,6 +343,37 @@ classdef MyCollector < MySingleton
             end
             
             Mdt = copy(M);
+        end
+    end
+    
+    methods (Access = private)
+        function f = createInstrumentDeletedCallback(this, name)
+            function instrumentDeletedCallback(~, ~)
+
+                % Clear the base workspace wariable
+                gn = this.InstrList.(name).global_name;
+                if ~isempty(gn)
+                    try
+                        evalin('base', sprintf('clear(''%s'');', gn));
+                    catch ME
+                        warning(['Could not clear global variable ''' ...
+                            gn '''. Error: ' ME.message]);
+                    end
+                end
+
+                % Remove the instrument entry from Collector
+                removeInstrument(this, name);
+            end
+            
+            f = @instrumentDeletedCallback;
+        end
+        
+        function f = createAppDeletedCallback(this, name)
+            function appDeletedCallback(~, ~)
+                removeApp(this, name);
+            end
+            
+            f = @appDeletedCallback;
         end
     end
     
