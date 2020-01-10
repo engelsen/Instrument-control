@@ -33,7 +33,7 @@ classdef MyClassParser < inputParser
                 
                 % Constant, Dependent and Abstract propeties cannot be set,
                 % so skip in this case also.
-                if TmpMpr.Constant || TmpMpr.Abstract|| ...
+                if TmpMpr.Constant || TmpMpr.Abstract || ...
                         (TmpMpr.Dependent && isempty(TmpMpr.SetMethod))
                     continue
                 end
@@ -58,7 +58,7 @@ classdef MyClassParser < inputParser
                     
                     % Return if the parser does not have access to the
                     % property
-                    return
+                    continue
                 end
                 
                 % Determine the default value and validation function
