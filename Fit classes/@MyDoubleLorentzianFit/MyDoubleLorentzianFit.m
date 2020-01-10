@@ -29,12 +29,14 @@ classdef MyDoubleLorentzianFit < MyFit
             lim_lower=[-Inf,0,-Inf,-Inf,0,-Inf,-Inf];
 
             %Finds peaks on the positive signal (max 2 peaks)
+            rng_x = max(x)-min(x);
+            
             [~,locs{1},widths{1},proms{1}]=findpeaks(y,x,...
-                'MinPeakDistance',0.01*range(x),'SortStr','descend','NPeaks',2);
+                'MinPeakDistance',0.01*rng_x,'SortStr','descend','NPeaks',2);
 
             %Finds peaks on the negative signal (max 2 peaks)
             [~,locs{2},widths{2},proms{2}]=findpeaks(-y,x,...
-                'MinPeakDistance',0.001*range(x),'SortStr','descend','NPeaks',2);
+                'MinPeakDistance',0.001*rng_x,'SortStr','descend','NPeaks',2);
 
             %If the prominence of the peak in the positive signal is greater, we adapt
             %our limits and parameters accordingly, if negative signal has a greater

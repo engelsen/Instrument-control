@@ -23,30 +23,36 @@ classdef MyLorentzianFit < MyFitParamScaling
             this.lim_upper=[Inf,Inf,Inf,Inf];
             this.lim_lower=[-Inf,0,-Inf,-Inf];
 
-            %Finds peaks on the positive signal (max 1 peak)
+            % Finds peaks on the positive signal (max 1 peak)
+            rng_x = max(x)-min(x);
             try
-                [~,locs(1),widths(1),proms(1)]=findpeaks(y,x,...
-                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
-                    'NPeaks',1);
-            catch
-                proms(1)=0;
+                [~, locs(1), widths(1), proms(1)] = findpeaks(y, x,...
+                    'MinPeakDistance', rng_x/2, 'SortStr', 'descend',...
+                    'NPeaks', 1);
+            catch ME
+                warning(ME.message)
+
+                proms(1) = 0;
             end
 
-            %Finds peaks on the negative signal (max 1 peak)
+            % Finds peaks on the negative signal (max 1 peak)
             try
-                [~,locs(2),widths(2),proms(2)]=findpeaks(-y,x,...
-                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
-                    'NPeaks',1);
-            catch
-                proms(2)=0;
+                [~,locs(2),widths(2),proms(2)] = findpeaks(-y, x,...
+                    'MinPeakDistance', rng_x/2, 'SortStr', 'descend',...
+                    'NPeaks', 1);
+            catch ME
+                warning(ME.message)
+                
+                proms(2) = 0;
             end
 
             if proms(1)==0 && proms(2)==0
                 warning(['No peaks were found in the data, giving ' ...
                     'default initial parameters to fit function'])
-                this.param_vals=[1,1,1,1];
-                this.lim_lower=-[Inf,0,Inf,Inf];
-                this.lim_upper=[Inf,Inf,Inf,Inf];
+                
+                this.param_vals = [1,1,1,1];
+                this.lim_lower = -[Inf,0,Inf,Inf];
+                this.lim_upper = [Inf,Inf,Inf,Inf];
                 return
             end
 

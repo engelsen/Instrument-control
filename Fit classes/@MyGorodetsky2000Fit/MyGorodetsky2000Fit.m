@@ -28,8 +28,9 @@ classdef MyGorodetsky2000Fit < MyFit
 
 
             %Finds peaks on the negative signal (max 2 peaks)
+            rng_x = (max(x)-min(x));
             [~,locs,widths,~]=findpeaks(-y,x,...
-                'MinPeakDistance',0.001*range(x),'SortStr','descend','NPeaks',2);
+                'MinPeakDistance',0.001*rng_x,'SortStr','descend','NPeaks',2);
 
 
             p_in(1)=max(y);
