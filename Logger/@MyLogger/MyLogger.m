@@ -58,6 +58,7 @@ classdef MyLogger < MyGuiCont
             % Create and confitugure timer
             this.MeasTimer = timer();
             this.MeasTimer.BusyMode = 'drop';
+            this.MeasTimer.Period = 10; % seconds
             
             % Fixed spacing mode of operation does not follow the
             % period very well, but is robust with respect to
@@ -121,11 +122,29 @@ classdef MyLogger < MyGuiCont
         % Trigger an event that transfers the data from one log channel 
         % to Daq
         function triggerNewData(this, varargin)
+            p = inputParser();
+            p.KeepUnmatched = true;
+            addParameter(p, 'channel', 1, @(x)assert( ...
+                x>0 && floor(x)==x && x<=this.Record.channel_no, ...
+                ['Channel number must be an integer between 1 and ' ...
+                num2str(this.Record.channel_no) '.']));
+            parse(p, varargin{:});
+            
+            unm_varargin = struct2namevalue(p.Unmatched);
+            
+            n_ch = p.Results.channel;
+            
+            try
+                tag = ['_' this.Record.data_headers{n_ch}];
+            catch
+                tag = sprintf('_ch%i', n_ch);
+            end
             
             % Since the class does not have Trace property, a Trace must be
             % supplied explicitly
-            Trace = toTrace(this.Record, varargin{:});
-            EventData = MyNewDataEvent('Trace',Trace, 'new_header',false);
+            Trace = toTrace(this.Record, unm_varargin{:}, 'channel', n_ch);
+            EventData = MyNewDataEvent('traces', {Trace}, ...
+                'trace_tags', {tag});
             notify(this, 'NewData', EventData);
         end
         

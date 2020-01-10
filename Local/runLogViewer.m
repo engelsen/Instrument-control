@@ -25,7 +25,7 @@ function runLogViewer()
         % Start GuiLogger in dummy mode
         Lw = GuiLogger();
         Lw.Lg.Gui = Lw;
-        addInstrument(Collector, name, Lw.Lg, 'collect_header', false);
+        addInstrument(Collector, name, Lw.Lg);
         
         % Display the instrument's name 
         Fig = findFigure(Lw);
