@@ -50,7 +50,7 @@ classdef (Abstract) MyAppColors
 
             switch lower(scheme)
                 case 'dark'
-                    main_color = [8, 62, 118]/255; % [0.18, 0.19,0.57]
+                    main_color = [8, 62, 118]/255; % 
                     label_text_color = [1,1,1];
                     edit_text_color = [0,0,0];
                     edit_field_color = [1,1,1];
