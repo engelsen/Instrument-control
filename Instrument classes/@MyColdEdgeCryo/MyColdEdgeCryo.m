@@ -25,14 +25,14 @@ classdef MyColdEdgeCryo < MyScpiInstrument & MyCommCont & MyGuiCont
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             
+            connect(this);
+            createCommandList(this);
+            
             this.Timer = timer();
             
             % Buffer size of 64 kByte should be way an overkill.
-            this.Device.InputBufferSize = 2^16;
-            this.Device.OutputBufferSize = 2^16;
-            
-            connect(this);
-            createCommandList(this);
+            this.Comm.InputBufferSize = 2^16;
+            this.Comm.OutputBufferSize = 2^16;
         end
         
         function delete(this)
