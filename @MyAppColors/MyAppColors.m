@@ -50,17 +50,23 @@ classdef (Abstract) MyAppColors
 
             switch lower(scheme)
                 case 'dark'
-                    main_color = [8, 62, 118]/255; % 
+                    main_color = [8, 62, 118]/255; % = [0.031, 0.24, 0.46]
                     label_text_color = [1,1,1];
                     edit_text_color = [0,0,0];
                     edit_field_color = [1,1,1];
                     axes_label_color = [0.9,0.9,1];
+                    
+                    state_button_bg_color = [240,240,240]/255;
+                    state_button_font_color = [0,0,0];
                 case 'bright'
                     main_color = [1,1,1];
                     label_text_color = [0.,0,0.];
                     edit_text_color = [0,0,0.];
                     edit_field_color = [1,1,1];
                     axes_label_color = [0,0,0];
+                    
+                    state_button_bg_color = [1,1,1];
+                    state_button_font_color = [0,0,0];
                 case 'default'
                     if isempty(init_default)
                         
@@ -112,8 +118,8 @@ classdef (Abstract) MyAppColors
                     Obj.FontColor = label_text_color;
                     Obj.BackgroundColor = main_color;
                 case 'uistatebutton'
-                    Obj.FontColor = label_text_color;
-                    Obj.BackgroundColor = main_color;
+                    Obj.FontColor = state_button_font_color;
+                    Obj.BackgroundColor = state_button_bg_color;
                 case 'uidropdown'
                     Obj.FontColor = label_text_color;
                     Obj.BackgroundColor = main_color;
