@@ -1,7 +1,12 @@
 classdef MyCollector < MySingleton
+    
+    properties (SetObservable)
+        
+        % Measurement session name
+        session_name    char
+    end
 
-    properties (GetAccess = public, SetAccess = private, ...
-            SetObservable = true)
+    properties (GetAccess = public, SetAccess = private, SetObservable)
         
         % Structure accomodating handles of instrument objects 
         InstrList = struct()
@@ -17,7 +22,7 @@ classdef MyCollector < MySingleton
         Metadata    MyMetadata
     end
     
-    properties (Dependent = true)
+    properties (Dependent)
         running_instruments
         running_apps
     end
@@ -27,6 +32,7 @@ classdef MyCollector < MySingleton
         % The constructor of a singleton class must be private
         function this = MyCollector()
             disp(['Creating a new instance of ' class(this)])
+            this.session_name = 'Measurement session';
             
             try
                 
