@@ -306,6 +306,20 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 round(1000*(dv(6)-floor(dv(6)))), 'format', '%i');
         end
         
+        % Create basic metadata typically used in newly acquired instrument
+        % traces
+        function AcqMdt = acq(instr_name)
+            
+            % Add the name of acquisition instrument
+            AcqInstrMdt = MyMetadata('title', 'AcquisitionInstrument');
+            addParam(AcqInstrMdt, 'Name', instr_name);
+
+            % Add field indicating the time when the trace was acquired
+            TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
+            
+            AcqMdt = [AcqInstrMdt, TimeMdt];
+        end
+        
         % Load metadata from file. Return all the entries found and  
         % the number of the last line read.
         function [MdtArr, n_end_line] = load(filename, varargin)
