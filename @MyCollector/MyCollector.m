@@ -268,6 +268,10 @@ classdef MyCollector < MySingleton
             if isempty(this.Metadata)
                 this.Metadata = MyMetadata('title', 'SessionInfo');
                 
+                addParam(this.Metadata, ...
+                    'session_name', this.session_name, ...
+                    'comment', 'Measurement session name');
+                
                 addParam(this.Metadata, 'instruments', {}, 'comment', ...
                     'Instruments active during the session');
                 
@@ -285,6 +289,7 @@ classdef MyCollector < MySingleton
             M = this.Metadata;
             
             % Update metadata parameters
+            M.ParamList.session_name = this.session_name;
             M.ParamList.instruments = this.running_instruments;
             M.ParamList.apps = this.running_apps;
                 

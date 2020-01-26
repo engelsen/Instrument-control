@@ -112,32 +112,41 @@ function runSession(filename)
         end
     end
     
-    % Run apps
-    for i = 1:length(CollMdt.ParamList.apps)
-        try
-            nm = CollMdt.ParamList.apps{i};
-            
-            % The convention is such that the apps can be instantiated as
-            % classname(), i.e. that their constructor does not have 
-            % required input arguments.
-            App = eval(CollMdt.ParamList.AppProps.(nm).class);
-            
-            pos = CollMdt.ParamList.AppProps.(nm).position;
-            if ~isempty(pos)
-                Fig = findFigure(App);
-                    
-                original_units = Fig.Units;
-                Fig.Units = 'pixels';
+    if ~isempty(CollMdt)
+        
+        % Set measurement session name
+        if isfield(CollMdt.ParamList, 'session_name')
+            C.session_name = CollMdt.ParamList.session_name;
+        end
+        
+        % Run apps
+        for i = 1:length(CollMdt.ParamList.apps)
+            try
+                nm = CollMdt.ParamList.apps{i};
 
-                % Set x and y position of figure
-                Fig.Position(1) = pos(1);
-                Fig.Position(2) = pos(2);
+                % The convention is such that apps can be instantiated 
+                % as classname(), i.e. that their constructor does not have 
+                % required input arguments.
+                App = eval(CollMdt.ParamList.AppProps.(nm).class);
 
-                % Restore the figure settings
-                Fig.Units = original_units;
+                pos = CollMdt.ParamList.AppProps.(nm).position;
+                if ~isempty(pos)
+                    Fig = findFigure(App);
+
+                    original_units = Fig.Units;
+                    Fig.Units = 'pixels';
+
+                    % Set x and y position of figure
+                    Fig.Position(1) = pos(1);
+                    Fig.Position(2) = pos(2);
+
+                    % Restore the figure settings
+                    Fig.Units = original_units;
+                end
+            catch ME
+                warning(['Error while attempting to run an app: ' ...
+                    ME.message])
             end
-        catch ME
-            warning(['Error while attempting to run an app: ' ME.message])
         end
     end
     

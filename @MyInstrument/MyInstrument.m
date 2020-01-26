@@ -150,13 +150,15 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             % Ensure that instrument parameters are up to data
             sync(this);
             
-            % Exclude idn from parameter names
-            param_names = setdiff(fieldnames(this.Metadata.ParamList), ...
-                {'idn'});
+            param_names = fieldnames(this.Metadata.ParamList);
             
+            % Update metadata fields corresponding to the class parameters
             for i = 1:length(param_names)
                 tag = param_names{i};
-                this.Metadata.ParamList.(tag) = this.(tag);
+                
+                if isprop(this, tag)
+                    this.Metadata.ParamList.(tag) = this.(tag);
+                end
             end
             
             Mdt = copy(this.Metadata);
@@ -171,28 +173,20 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             % which new values are different from present 
             sync(this);
             
-            param_names = setdiff(fieldnames(Mdt.ParamList), {'idn'});
+            param_names = fieldnames(Mdt.ParamList);
             
             for i = 1:length(param_names)
                 tag = param_names{i};
                 new_val = Mdt.ParamList.(tag);
-
-                if ismember(tag, this.command_names)
-                    
-                    % Set command value under the condition that it is
-                    % write accessible and that that the new value is 
-                    % different from present
-                    if ~isempty(this.CommandList.(tag).writeFcn) && ...
-                            ~isequal(this.(tag), new_val)
-                         
-                        this.(tag) = new_val;
-                    end
-                    
-                    continue
-                end
                 
                 if isprop(this, tag) && ~isequal(this.(tag), new_val)
-                    this.(tag) = new_val;
+                    try
+                        
+                        % Hedge for the case if the property is not write
+                        % accesible
+                        this.(tag) = new_val;
+                    catch
+                    end
                 end
             end
         end
