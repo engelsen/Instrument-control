@@ -35,7 +35,7 @@ classdef MyNewpUsbComm < MySingleton
             NetAsm = NET.addAssembly(dll_path);
             
             % Create an instance of Newport.USBComm.USB class
-            Type = GetType(NetAsm.AssemblyHandle,'Newport.USBComm.USB');
+            Type = GetType(NetAsm.AssemblyHandle, 'Newport.USBComm.USB');
             this.Usb = System.Activator.CreateInstance(Type);
         end
         
@@ -56,8 +56,8 @@ classdef MyNewpUsbComm < MySingleton
             stat = Query(this.Usb, addr, cmd, QueryData);
             
             if stat ~= 0
-                warning(['Query to Newport usb driver was unsuccessful.'...
-                    errorCodeToMessage(this, stat)]);
+                warning(['Query to Newport usb driver was unsuccessful. '...
+                    MyNewpUsbComm.commStatToMessage(stat)]);
             end
             
             str = char(ToString(QueryData));
@@ -66,27 +66,31 @@ classdef MyNewpUsbComm < MySingleton
         end
     end
     
-    methods (Access = private)
+    methods (Static)
         
         % Convert the code returned by read/write/query functions to
         % a message
-        function str = errorCodeToMessage(~, stat)
+        function str = commStatToMessage(stat)
             switch stat
                 case 0
                     
                     % No error
-                    str = ''; 
-                case -2
-                    str = 'Error: Device timeout';
+                    str = 'Success'; 
                 case 1
-                    str = 'Error: Duplicate USB address';
+                    str = ['Error: More than one device on the bus has '...
+                        'the same device ID'];
+                case -1
+                    str = 'General Error';
+                case -2
+                    str = ['Error: The device ID cannot be found ' ...
+                        'among the open devices on the bus'];
+                case -3
+                    str = ['Error: The device ID is outside the valid ' ...
+                        'range of 0 - 31'];
                 otherwise
                     str = sprintf('Error Code = %i', stat);
             end
         end
-    end
-   
-    methods(Static)
         
         % Concrete implementation of the singleton constructor.
         function this = instance()

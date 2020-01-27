@@ -130,7 +130,11 @@ classdef MyNewpTlb6700 < MyScpiInstrument & MyGuiCont
             
             % Opening a single device is not supported by Newport Usb 
             % Driver, so open all the devices of the given type
-            OpenDevices(this.UsbComm.Usb, hex2num('100A'));
+            stat = OpenDevices(this.UsbComm.Usb, hex2num('100A'));
+            
+            if ~stat
+                warning('Could not open Newport TLB devices');
+            end
         end
         
         % Query textual command
