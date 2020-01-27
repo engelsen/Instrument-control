@@ -33,15 +33,6 @@ classdef MyCollector < MySingleton
         function this = MyCollector()
             disp(['Creating a new instance of ' class(this)])
             this.session_name = 'Measurement session';
-            
-            try
-                
-                % The code below fixed some graphics problems in Matlab
-                % 2018a on windows but it is not compatible with Mac
-                opengl('software');
-                disp('Switching opengl to software mode')
-            catch
-            end
         end
     end
     
