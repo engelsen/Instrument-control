@@ -3,7 +3,7 @@
 % labels (time marks) for particular moments in time. Data can be saved 
 % and plotted with the time marks. 
 % Metadata for this class is stored independently.
-% If instantiated as MyLog(load_path) then 
+% If instantiated as MyLog.load(load_path) then 
 % the content is loaded from file
 
 classdef MyLog < matlab.mixin.Copyable
@@ -584,38 +584,74 @@ classdef MyLog < matlab.mixin.Copyable
             
             if ~isempty(this.timestamps) && ~isempty(this.TimeLabels)
                 
-                % Select for plotting only those time labels that are within
-                % the interval of time of currently stored data
+                % Select for plotting only those time labels that are
+                % within the interval of time of currently stored data
                 t_ind = ([this.TimeLabels.time] >= this.timestamps(1));
                 Tl = this.TimeLabels(t_ind);
             else
                 Tl = this.TimeLabels;
             end
             
-            % Plot labels
+            % Number of currently plotted labels, replresented by their
+            % label (main) line and background line
+            n_lbl_lines = length(this.PlotList(ind).LbLines);
+            n_bg_lines = length(this.PlotList(ind).BgLines);
+            
+            if n_lbl_lines ~= n_bg_lines
+                
+                % If these numbers are not equal, some error occurred
+                % Try fixing it by re-maiking all existing label lines
+                warning('Fixing the inconsistent number of label lines')
+                
+                delete(this.PlotList(ind).LbLines);
+                delete(this.PlotList(ind).BgLines);
+                n_lbl_lines = 0;
+            end
+            
+            % Made the number of label lines to be less or equal to the
+            % number of time labels to be plotted
+            n_tlbl = length(Tl);
+            
+            if n_lbl_lines > n_tlbl
+                delete(this.PlotList(ind).LbLines(n_tlbl+1:end));
+                this.PlotList(ind).LbLines(n_tlbl+1:end) = [];
+
+                delete(this.PlotList(ind).BgLines(n_tlbl+1:end));
+                this.PlotList(ind).BgLines(n_tlbl+1:end) = [];
+                
+                n_lbl_lines = n_tlbl;
+            end
+            
+            % Update the plotted time labels
             for i = 1:length(Tl)
                 T = Tl(i);
-                n_lines = max(length(T.text_str), 1);
                 
-                try
-                    Lbl = this.PlotList(ind).LbLines(i);
+                % Number of lines in the label text
+                n_txt_lines = max(length(T.text_str), 1);
+                
+                if i <= n_lbl_lines
                     
                     % Update the existing label line
-                    Lbl.Value = T.time;
-                    Lbl.Label = T.text_str;
-                    Lbl.Visible = 'on';
+                    Lbl = this.PlotList(ind).LbLines(i);
+                    
+                    % Only assign values if they are actually changed to
+                    % save time on graphics rendering
+                    setIfChanged(Lbl, 'Value', T.time);
+                    setIfChanged(Lbl, 'Label', T.text_str);
+                    setIfChanged(Lbl, 'Visible', 'on');
                     
                     % Update the background width - font size times the
                     % number of lines
                     Bgl = this.PlotList(ind).BgLines(i);
-                    Bgl.Value = T.time;
-                    Bgl.LineWidth = Lbl.FontSize*n_lines;
-                    Bgl.Visible = 'on';
-                catch
+                    
+                    setIfChanged(Bgl, 'Value', T.time);
+                    setIfChanged(Bgl, 'LineWidth', Lbl.FontSize*n_txt_lines);
+                    setIfChanged(Bgl, 'Visible', 'on');
+                else
                     
                     % Add new background line
                     Bgl = xline(Axes, T.time, ...
-                        'LineWidth',    10*n_lines, ...
+                        'LineWidth',    10*n_txt_lines, ...
                         'Color',        [1, 1, 1]);
                     
                     % Exclude the line from plot legend
@@ -632,19 +668,6 @@ classdef MyLog < matlab.mixin.Copyable
                     Lbl.Annotation.LegendInformation.IconDisplayStyle = 'off';
                     this.PlotList(ind).LbLines(i) = Lbl;
                 end
-            end
-            
-            % Remove redundant markers if any
-            n_tlbl = length(Tl);
-            
-            if length(this.PlotList(ind).LbLines) > n_tlbl
-                delete(this.PlotList(ind).LbLines(n_tlbl+1:end));
-                this.PlotList(ind).LbLines(n_tlbl+1:end) = [];
-            end
-            
-            if length(this.PlotList(ind).BgLines) > n_tlbl
-                delete(this.PlotList(ind).BgLines(n_tlbl+1:end));
-                this.PlotList(ind).BgLines(n_tlbl+1:end) = [];
             end
         end
         
