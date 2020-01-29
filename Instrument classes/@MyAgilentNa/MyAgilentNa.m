@@ -6,8 +6,6 @@ classdef MyAgilentNa < MyScpiInstrument & MyCommCont & MyDataSource ...
     properties(Access = public, SetObservable)
         Trace1
         Trace2
-        
-        transf_n = 1 % trace that triggers NewData event
     end
     
     properties (SetAccess = protected, GetAccess = public, SetObservable)
@@ -39,18 +37,7 @@ classdef MyAgilentNa < MyScpiInstrument & MyCommCont & MyDataSource ...
             createCommandList(this);
         end
         
-        % Generate a new data event with header collection suppressed
-        function transferTrace(this, n_trace)
-            trace_tag = sprintf('Trace%i', n_trace);
-            
-            % Assign either Trace1 or 2 to Trace while keeping the metadata 
-            this.(trace_tag).UserMetadata = copy(this.Trace.UserMetadata);
-            this.Trace = copy(this.(trace_tag));
-            
-            triggerNewData(this, 'new_header', false);
-        end
-        
-        function readTrace(this, n_trace)
+        function Tr = readTrace(this, n_trace)
             writeActiveTrace(this, n_trace);
             
             freq_str = strsplit(queryString(this,':SENS1:FREQ:DATA?'),',');
@@ -67,13 +54,15 @@ classdef MyAgilentNa < MyScpiInstrument & MyCommCont & MyDataSource ...
             
             % set the Trace properties
             trace_tag = sprintf('Trace%i', n_trace);
+            form_tag = sprint('form%i', n_trace);
+            
             this.(trace_tag).x = data_x;
             this.(trace_tag).y = data_y1;
             
-            if this.transf_n == n_trace
-                this.Trace = copy(this.(trace_tag));
-                triggerNewData(this);
-            end
+            Tr = this.(trace_tag);
+            
+            triggerNewData(this, 'traces', {copy(Tr)}, ...
+                'trace_tags', {['_' this.(form_tag)]});
         end
         
         function writeActiveTrace(this, n_trace)

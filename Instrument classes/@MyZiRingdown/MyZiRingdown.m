@@ -53,13 +53,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
         
         fft_length = 128
         
-        % If all ringdowns should be automatically saved
-        auto_save = false
-        
-        % Name of the ringdown trace. It is used to produce the filename 
-        % in the case if the ringdowns are auto saved
-        trace_name = 'ringdown'
-        
         % In adaptive measurement oscillator mode the oscillator frequency
         % is continuously changed to follow the signal frequency during
         % ringdown acquisition. This helps against the oscillator frequency
@@ -442,7 +435,7 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                 this.ad_osc_following = false;
             end
 
-            notify(this,'NewDemodSample');
+            notify(this, 'NewDemodSample');
 
             % Stop recording if a ringdown record was completed
             if rec_finished
@@ -477,43 +470,41 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
 
                     disp('Ringdown record was truncated')
                 end
+                
                 avg_compl = addAverage(this.AvgTrace, this.Trace);
 
-                % Trigger NewData
+                % Create index tag
                 if this.n_avg > 1
-                    end_str = sprintf('_%i', this.AvgTrace.avg_count);
+                    ind_str = sprintf('_%i', this.AvgTrace.avg_count);
                 else
-                    end_str = '';
+                    ind_str = '';
                 end
-                triggerNewData(this, 'save', this.auto_save, ...
-                    'trace_name', [this.trace_name, end_str]);
-
-                % If the ringdown averaging is complete, disable
-                % further triggering to exclude data overwriting 
+ 
+                traces = {copy(this.Trace)};
+                trace_tags = {ind_str};
+                
                 if avg_compl
+                    
+                    % If the ringdown averaging is complete, disable
+                    % further triggering to exclude data overwriting
                     this.enable_acq = false;
                     this.drive_on = false;
 
                     if this.n_avg > 1
-                        end_str = '_avg';
-
-                        % Trigger one more time to transfer the average
-                        % trace.
-                        % A new measurement header is not necessary 
-                        % as the delay since the last triggering is  
-                        % minimum.
-                        triggerNewData(this, ...
-                            'Trace', copy(this.AvgTrace), ...
-                            'new_header', false, ...
-                            'save', this.auto_save, ...
-                            'trace_name', [this.trace_name, end_str]);
+                        traces = [traces, {copy(this.AvgTrace)}];
+                        trace_tags = [trace_tags, {'_avg'}];
                     end
                 else
                     
-                    % Continue trying to acquire new ringdowns
+                    % Continue the acquisition of new ringdowns
                     this.enable_acq = true;
                     this.drive_on = true;
                 end
+                
+                % Trigger a new data event with the last ringdown
+                % and possibly the completed average trace
+                triggerNewData(this, 'traces', traces, ...
+                    'trace_tags', trace_tags);
             end
             
             this.auto_sync = true;
@@ -839,7 +830,6 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
             addObjProp(this.Metadata, this, 'downsampled_rate', ...
                 'comment', ['(samples/s), rate to which a ringown ', ...
                 'trace is downsampled with averaging after acquisition']);
-            addObjProp(this.Metadata, this, 'auto_save', 'comment', '(s)');
             
             % Adaptive measurement oscillator
             addObjProp(this.Metadata, this, 'adaptive_meas_osc', ...

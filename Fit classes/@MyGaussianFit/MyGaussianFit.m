@@ -50,7 +50,7 @@ classdef MyGaussianFit < MyFit
             lim_lower(2)=0;
 
             %Sets the upper limit on width to 100 times the range of the data
-            lim_upper(2)=100*range(x);
+            lim_upper(2)=100*(max(x)-min(x));
 
             %Sets upper and lower limit on the center
             lim_lower(3)=min(x)/2;

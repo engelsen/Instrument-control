@@ -24,9 +24,10 @@ classdef MyLorentzianGradFit < MyFit
             lim_lower=[-Inf,0,-Inf,-Inf,-Inf];
 
             %Finds peaks on the positive signal (max 1 peak)
+            rng_x = max(x)-min(x);
             try
                 [~,locs(1),widths(1),proms(1)]=findpeaks(y,x,...
-                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
+                    'MinPeakDistance',rng_x/2,'SortStr','descend',...
                     'NPeaks',1);
             catch
                 proms(1)=0;
@@ -35,7 +36,7 @@ classdef MyLorentzianGradFit < MyFit
             %Finds peaks on the negative signal (max 1 peak)
             try
                 [~,locs(2),widths(2),proms(2)]=findpeaks(-y,x,...
-                    'MinPeakDistance',range(x)/2,'SortStr','descend',...
+                    'MinPeakDistance',rng_x/2,'SortStr','descend',...
                     'NPeaks',1);
             catch
                 proms(2)=0;

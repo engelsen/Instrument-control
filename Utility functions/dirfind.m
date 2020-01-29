@@ -22,24 +22,33 @@ function file_names = dirfind(dir_name, str)
     % Go over the.mlapp files. Each Matlab app file needs to be unzipped 
     % before its content can be parsed. Use a temporary forder in 'C:\Temp' 
     % for this purpose.
-    tmp_dir=fullfile('C:','Temp','Matlab Instrument Control dirfind');
-    if exist(tmp_dir,'dir')~=7
+    tmp_base_dir = fullfile('C:', 'Temp');
+    tmp_dir = fullfile(tmp_base_dir, 'Matlab Instrument Control dirfind');
+    
+    % Determine if the temporary directories already exist, this will be
+    % also necessary for cleanup purposes
+    temp_base_dir_exists = (exist(tmp_base_dir, 'dir') == 7);
+    temp_dir_exists = (exist(tmp_dir, 'dir') == 7);
+    
+    if ~temp_dir_exists
         mkdir(tmp_dir)
     end
     
-    for i=1:length(app_file_names)
-        fn=fullfile(dir_name, app_file_names{i});
-        % For convenience, make a sub-directory named the same as the app
-        sd=fullfile(tmp_dir, app_file_names{i});
-        unzip(fn, sd);
-        % Search over the unzipped files directory
-        unzipped_file_names=listDirFiles(sd);
+    for i = 1:length(app_file_names)
+        fn = fullfile(dir_name, app_file_names{i});
         
-        res=filterFiles(unzipped_file_names, str);
+        % For convenience, make a sub-directory named the same as the app
+        sd = fullfile(tmp_dir, app_file_names{i});
+        unzip(fn, sd);
+        
+        % Search over the unzipped files directory
+        unzipped_file_names = listDirFiles(sd);
+        
+        res = filterFiles(unzipped_file_names, str);
         % If the unzipped content contains the string we are looking for,
         % add the app name to the output list
         if ~isempty(res)
-            file_names=[file_names; fn]; %#ok<AGROW>
+            file_names = [file_names; fn]; %#ok<AGROW>
         end
         
         % Clean up - delete the temporary subdirectory
@@ -59,9 +68,16 @@ function file_names = dirfind(dir_name, str)
     sub_dir_names = all_names(is_sub_dir);
     
     % Repeat the search in all subfolders
-    for i=1:length(sub_dir_names)
-        file_names=[file_names; ...
+    for i = 1:length(sub_dir_names)
+        file_names = [file_names; ...
             dirfind(sub_dir_names{i}, str)]; %#ok<AGROW>
+    end
+    
+    if ~temp_base_dir_exists
+        
+        % Remove the basetemporary directory if it did not exist when the
+        % function started
+        rmdir(tmp_base_dir)
     end
 end
 

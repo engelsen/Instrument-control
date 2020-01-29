@@ -708,8 +708,8 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         end
         
         function acceptFitCallback(this, ~, ~)
-            triggerNewAnalysisTrace(this, 'Trace', copy(this.Fit), ...
-                'analysis_type', 'fit');
+            triggerNewProcessedData(this, 'traces', {copy(this.Fit)}, ...
+                'trace_tags', {'_fit'});
         end
         
         function enableCursorsCallback(this, hObject, ~)

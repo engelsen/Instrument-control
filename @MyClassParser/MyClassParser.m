@@ -20,59 +20,72 @@ classdef MyClassParser < inputParser
         % in the scheme of the parser and which have set access 
         % permitted for MyClassParser 
         function addClassProperties(this, Obj)
-            ObjMetaclass = metaclass(Obj);    
+            ObjMetaclass = metaclass(Obj); 
+            
             for i=1:length(ObjMetaclass.PropertyList)
-                Tmp = ObjMetaclass.PropertyList(i);
+                TmpMpr = ObjMetaclass.PropertyList(i);
                 
                 % If parameter is already present in the parser scheme,
                 % skip
-                if ismember(Tmp.Name, this.Parameters)
+                if ismember(TmpMpr.Name, this.Parameters)
                     continue
                 end
                 
                 % Constant, Dependent and Abstract propeties cannot be set,
                 % so skip in this case also.
-                if Tmp.Constant || Tmp.Abstract|| ...
-                        (Tmp.Dependent && isempty(Tmp.SetMethod))
+                if TmpMpr.Constant || TmpMpr.Abstract || ...
+                        (TmpMpr.Dependent && isempty(TmpMpr.SetMethod))
                     continue
                 end
                 
                 % Check if the parser has access to the property. This 
                 % can be true in two cases: 1) SetAccess is public 
                 % 2) MyClassParser class was explicitly given access 
-                sa = Tmp.SetAccess;
+                sa = TmpMpr.SetAccess;
                 if ischar(sa)
-                    has_access = strcmpi(sa,'public');
+                    has_access = strcmpi(sa, 'public');
                 elseif iscell(sa)
                     
                     % Case when SetAcces is specified as cell array of
                     % metaclasses
                     has_access = any(...
-                        cellfun(@(x) strcmpi(x.Name, class(this)),sa));
+                        cellfun(@(x) strcmpi(x.Name, class(this)), sa));
                 else
-                    has_access=false;
+                    has_access = false;
                 end
                 
-                % If the property has set access and default value,
-                % add it as parameter to the parser scheme
-                if has_access
-                    if Tmp.HasDefault
-                        def = Tmp.DefaultValue;
-                        
-                        % Create validation function based on the class of
-                        % default value
-                        validationFcn = @(x)assert(isa(x, class(def)),...
-                            ['The value must be of the class ' ...
-                            class(def) ' while the present one is ' ...
-                            'of the class ' class(x) '.']);                        
-                        opt_vars = {def, validationFcn};
-                    else
-                        def = [];
-                        opt_vars = {def};
-                    end
+                if ~has_access
                     
-                    addParameter(this, Tmp.Name, opt_vars{:});
+                    % Return if the parser does not have access to the
+                    % property
+                    continue
                 end
+                
+                % Determine the default value and validation function
+                if TmpMpr.HasDefault
+                    def = TmpMpr.DefaultValue;
+                else
+                    def = [];
+                end
+                
+                if isempty(TmpMpr.SetMethod) && TmpMpr.HasDefault
+                    
+                    % Create validation function based on the class of
+                    % default value
+                    validationFcn = @(x)assert(isa(x, class(def)),...
+                        ['The value must be of the class ' ...
+                        class(def) ' while the present one is ' ...
+                        'of the class ' class(x) '.']);                        
+                    opt_vars = {def, validationFcn};
+                else
+                    
+                    % Validation is either done by the set method
+                    % defined in the object class or completely absent
+                    opt_vars = {def};
+                end
+                
+                % Add the property as a parameter to the parser scheme
+                addParameter(this, TmpMpr.Name, opt_vars{:});
             end
         end
               
@@ -87,11 +100,12 @@ classdef MyClassParser < inputParser
                 par = this.Parameters{i};
                 if ~ismember(par, this.UsingDefaults) && isprop(Obj, par)
                     try
+                        
+                        % The value assignment will fail if the parser does
+                        % not have access to the corresponding property;
+                        % such properties have to be assigned manually
                         Obj.(par) = this.Results.(par);
-                    catch ME
-                        warning(['Value of the input parameter ''' par ...
-                            ''' could not be assigned to property. ' ...
-                            ME.message])
+                    catch 
                     end 
                 end
             end 

@@ -21,6 +21,7 @@ function ProgList = getIcPrograms()
                 ~isempty(InstrumentList(i).control_class)
             
             ctrl_class = InstrumentList(i).control_class;
+            instr_enabled = InstrumentList(i).enabled;
         
             ProgList(j).name = nm;
             ProgList(j).title = InstrumentList(i).title;
@@ -31,11 +32,7 @@ function ProgList = getIcPrograms()
             ProgList(j).data_source = ismember('NewData', ...
                 events(ctrl_class));
             
-            try
-                ProgList(j).enabled = InstrumentList(i).enabled;
-            catch
-                ProgList(j).enabled = true;
-            end  
+            ProgList(j).enabled = instr_enabled;
             
             % Command for running the instrument without GUI
             ProgList(j).run_bg_expr = sprintf( ...
@@ -52,7 +49,7 @@ function ProgList = getIcPrograms()
         nm_logger = [nm 'Logger'];
         
         if ~ismember(nm_logger, {RunFiles.name}) && ...
-                ismethod(ctrl_class, 'createLogger')
+                ismethod(ctrl_class, 'createLogger') && instr_enabled
             
             % Add an entry for starting a logger with this instrument
             ProgList(j).name = nm_logger;

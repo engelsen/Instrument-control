@@ -27,11 +27,22 @@ classdef (Abstract) MyAppColors
             rgb = [0,0.4,0]; % Dark green
         end
         
+        %% Color scheme functions
+        
+        function f = createColorSchemeFcn(scheme)
+            function colorSchemeFcn(Obj)
+                MyAppColors.applyScheme(Obj, scheme)
+            end
+            
+            f = @colorSchemeFcn;
+        end
+        
         % Recolor app according to a new color scheme
         function applyScheme(Obj, scheme)
-            persistent init_default default_main_color ...
-                default_label_text_color default_edit_text_color ...
-                default_edit_field_color default_axes_label_color
+            persistent init_default ...
+                default_main_color default_label_text_color ...
+                default_edit_text_color default_edit_field_color ...
+                default_axes_label_color
                     
             if ~exist('scheme', 'var')
                 scheme = 'default';
@@ -39,17 +50,23 @@ classdef (Abstract) MyAppColors
 
             switch lower(scheme)
                 case 'dark'
-                    main_color = [8, 62, 118]/255; % [0.18, 0.19,0.57]
+                    main_color = [8, 62, 118]/255; % = [0.031, 0.24, 0.46]
                     label_text_color = [1,1,1];
                     edit_text_color = [0,0,0];
                     edit_field_color = [1,1,1];
                     axes_label_color = [0.9,0.9,1];
+                    
+                    state_button_bg_color = [240,240,240]/255;
+                    state_button_font_color = [0,0,0];
                 case 'bright'
                     main_color = [1,1,1];
                     label_text_color = [0.,0,0.];
                     edit_text_color = [0,0,0.];
                     edit_field_color = [1,1,1];
                     axes_label_color = [0,0,0];
+                    
+                    state_button_bg_color = [1,1,1];
+                    state_button_font_color = [0,0,0];
                 case 'default'
                     if isempty(init_default)
                         
@@ -101,8 +118,8 @@ classdef (Abstract) MyAppColors
                     Obj.FontColor = label_text_color;
                     Obj.BackgroundColor = main_color;
                 case 'uistatebutton'
-                    Obj.FontColor = label_text_color;
-                    Obj.BackgroundColor = main_color;
+                    Obj.FontColor = state_button_font_color;
+                    Obj.BackgroundColor = state_button_bg_color;
                 case 'uidropdown'
                     Obj.FontColor = label_text_color;
                     Obj.BackgroundColor = main_color;

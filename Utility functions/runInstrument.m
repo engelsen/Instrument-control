@@ -21,8 +21,7 @@ function Instr = runInstrument(name, varargin)
         
         % If instrument is already present in the Collector, do not create
         % a new object, but return the existing one.
-        disp([name, ' is already running. Assigning the existing ', ...
-            'object instead of creating a new one.']);
+        disp([name, ' is already running. Returning existing object']);
         
         Instr = getInstrument(Collector, name);
         

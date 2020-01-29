@@ -21,8 +21,30 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource & MyGuiCont
         function readTrace(this)
             
             % Generate a random trace with the length equal to point_no
-            this.Trace.x = (0:this.point_no-1)/(this.point_no-1);
-            this.Trace.y = rand(1, this.point_no);
+            this.Trace = genTrace(this);
+            
+            triggerNewData(this);
+        end
+        
+        % Imitate simultaneous reading of several traces
+        function readTraces(this, n)
+            traces = {};
+            tags = {};
+            for i=1:n
+                traces = [traces, {genTrace(this)}]; %#ok<AGROW>
+                tags = [tags, {sprintf('_no_%i', i)}]; %#ok<AGROW>
+            end
+            
+            triggerNewData(this, 'traces', traces, 'trace_tags', tags);
+        end
+        
+        % Generate a dummy trace
+        function Tr = genTrace(this)
+            Tr = MyTrace();
+            
+            % Generate a random trace with the length equal to point_no
+            Tr.x = (0:this.point_no-1)/(this.point_no-1);
+            Tr.y = rand(1, this.point_no);
             
             switch this.trace_type
                 case 'zero'
@@ -34,9 +56,9 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource & MyGuiCont
                     a = 5+rand();
                     b = 10*rand();
                     
-                    sig = a*exp(-b*this.Trace.x);
+                    sig = a*exp(-b*Tr.x);
                     
-                    this.Trace.y = this.Trace.y + sig;
+                    Tr.y = Tr.y + sig;
                 case 'lorentz'
                     
                     % Add lorentzian "signal"
@@ -45,14 +67,12 @@ classdef MyDummyInstrument < MyInstrument & MyDataSource & MyGuiCont
                     x0 = rand();
                     dx = 0.05*rand();
                     
-                    sig = a-b*dx^2./((this.Trace.x-x0).^2+dx^2);
+                    sig = a-b*dx^2./((Tr.x-x0).^2+dx^2);
                     
-                    this.Trace.y = this.Trace.y + sig(:);
+                    Tr.y = Tr.y + sig(:);
                 otherwise
                     error(['Unsupported trace type ' this.trace_type])
             end
-            
-            triggerNewData(this);
         end
         
         function Lg = createLogger(this, varargin)

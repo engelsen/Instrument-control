@@ -132,7 +132,7 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             exp_par_names = cell(1, length(par_names));
             max_nm_arr = zeros(1, length(par_names));
             
-            for i=1:length(par_names)
+            for i = 1:length(par_names)
                 
                 % Expand parameter subscripts
                 exp_par_names{i} = printSubs( ...
@@ -153,11 +153,11 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             
             % Width of the values column will be the maximum parameter
             % string width
-            for i=1:length(par_names)
+            for i = 1:length(par_names)
                 tmp_nm = par_names{i};
                 
                 % Iterate over parameter indices
-                for j=1:length(exp_par_names{i})
+                for j = 1:length(exp_par_names{i})
                     tmp_exp_nm = exp_par_names{i}{j};
                     TmpS = str2substruct(tmp_exp_nm);
                     
@@ -189,7 +189,12 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                             {newline, sprintf('\r')}, ' ');
                     end
                     
-                    format = this.ParamOptList.(tmp_nm).format;
+                    if isfield(this.ParamOptList, tmp_nm)
+                        format = this.ParamOptList.(tmp_nm).format;
+                    else
+                        format = '';
+                    end
+                    
                     if isempty(format)
                         
                         % Convert to string with format specifier
@@ -214,10 +219,15 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 cs, sprintf('%%-%is', val_pad_length)];
             
             % Print parameters 
-            for i=1:length(par_names)
+            for i = 1:length(par_names)
                 
                 % Capitalize the first letter of comment
-                comment = this.ParamOptList.(par_names{i}).comment;
+                if isfield(this.ParamOptList, par_names{i})
+                    comment = this.ParamOptList.(par_names{i}).comment;
+                else
+                    comment = '';
+                end
+                
                 if ~isempty(comment)
                     fmt_comment = [this.comment_sep, ' '...
                         upper(comment(1)), comment(2:end)];
@@ -226,10 +236,10 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
                 end
                 
                 % Iterate over the parameter subscripts
-                for j=1:length(exp_par_names{i})
-                    if j==1
+                for j = 1:length(exp_par_names{i})
+                    if j == 1
                         
-                        % Add the comment to first line 
+                        % Print the comment in the first line 
                         str = [str, ...
                             sprintf([par_format, cs, '%s', ls], ...
                             exp_par_names{i}{j}, val_strs{i}{j}, ...
@@ -294,6 +304,20 @@ classdef MyMetadata < handle & matlab.mixin.CustomDisplay & ...
             addParam(TimeMdt, 'Second',  floor(dv(6)), 'format', '%i');
             addParam(TimeMdt, 'Millisecond',...
                 round(1000*(dv(6)-floor(dv(6)))), 'format', '%i');
+        end
+        
+        % Create basic metadata typically used in newly acquired instrument
+        % traces
+        function AcqMdt = acq(instr_name)
+            
+            % Add the name of acquisition instrument
+            AcqInstrMdt = MyMetadata('title', 'AcquisitionInstrument');
+            addParam(AcqInstrMdt, 'Name', instr_name);
+
+            % Add field indicating the time when the trace was acquired
+            TimeMdt = MyMetadata.time('title', 'AcquisitionTime');
+            
+            AcqMdt = [AcqInstrMdt, TimeMdt];
         end
         
         % Load metadata from file. Return all the entries found and  

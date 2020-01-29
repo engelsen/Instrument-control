@@ -28,16 +28,15 @@ classdef MyDataSource < handle
             
             % Pass trace by value to make sure that it is not modified 
             % before being transferred
-            if isempty(EventData.Trace)
+            if isempty(EventData.traces)
                 
                 % EventData.Trace can be set either automaticallt here or
                 % explicitly as a name-value pair supplied to the function. 
-                EventData.Trace = copy(this.Trace);
+                EventData.traces = {copy(this.Trace)};
             end
             
             notify(this, 'NewData', EventData);
         end
-        
     end
     
     methods
