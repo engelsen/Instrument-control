@@ -86,7 +86,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
             addParameter(p, 'default', 0);
             addParameter(p, 'info', '', @ischar);
             
-            parse(p,tag,varargin{:});
+            parse(p, tag, varargin{:});
             
             assert(~isprop(this, tag), ['Property named ' tag ...
                 ' already exists in the class.']);
