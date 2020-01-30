@@ -59,8 +59,7 @@ classdef MyScpiInstrument < MyInstrument
             % Add the full read form of the command, e.g. ':FREQ?'
             if contains(p.Results.access, 'r')
                 read_command = [p.Results.command, p.Results.read_ending];
-                readFcn = ...
-                    @()sscanf(queryString(this, read_command), format);
+                readFcn = createReadFcn(this, read_command, format);
                 sub_varargin = [sub_varargin, {'readFcn', readFcn}];
             else
                 read_command = '';
@@ -74,8 +73,7 @@ classdef MyScpiInstrument < MyInstrument
                 else
                     write_command = [p.Results.command, write_ending];
                 end
-                writeFcn = ...
-                    @(x)writeString(this, sprintf(write_command, x));
+                writeFcn = createWriteFcn(this, write_command);
                 sub_varargin = [sub_varargin, {'writeFcn', writeFcn}];
             else
                 write_command = '';
@@ -141,14 +139,14 @@ classdef MyScpiInstrument < MyInstrument
             
             read_commands = cellfun(...
                 @(x) this.CommandList.(x).read_command, read_cns,...
-                'UniformOutput',false);
+                'UniformOutput', false);
             
             res_list = queryStrings(this, read_commands{:});
             
-            if length(read_cns)==length(res_list)
+            if length(read_cns) == length(res_list)
                 
                 % Assign outputs to the class properties
-                for i=1:length(read_cns)
+                for i = 1:length(read_cns)
                     tag = read_cns{i};
                     
                     val = sscanf(res_list{i}, ...
@@ -289,6 +287,26 @@ classdef MyScpiInstrument < MyInstrument
             
             % Return a substring that includes all the specifiers 
             format = fmt_spec(min(start):max(stop));
+        end
+        
+        % Create a function that writes the value of a command 
+        % to the instrument
+        function fcn = createWriteFcn(this, command)
+            function writeFcn(x)
+                writeString(this, sprintf(command, x))
+            end
+            
+            fcn = @writeFcn;
+        end
+        
+        % Create a function that reads the value of a command and 
+        % interprets it according to the format
+        function fcn = createReadFcn(this, command, format)
+            function val = readFcn()
+                val = sscanf(queryString(this, command), format);
+            end
+            
+            fcn = @readFcn;
         end
         
         % List validation function with case-insensitive comparison

@@ -43,7 +43,7 @@ classdef MyInstrument < dynamicprops & matlab.mixin.CustomDisplay
                 this.CommandList);
             read_cns = this.command_names(read_ind);
             
-            for i=1:length(read_cns)
+            for i = 1:length(read_cns)
                 tag = read_cns{i};
                 read_value = this.CommandList.(tag).readFcn();
                 
