@@ -281,11 +281,6 @@ classdef MyLogger < MyGuiCont
         
         % Perform measurement and append point to the log
         function loggerFcn(this, ~, event)
-            
-            % Empty the callback queue so that the timer callback does not
-            % interfere with graphics callbacks and other timer callbacks
-            drawnow();
-            
             Time = datetime(event.Data.time);
             try
                 meas_result = this.measFcn();

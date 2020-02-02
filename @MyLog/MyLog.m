@@ -190,7 +190,7 @@ classdef MyLog < matlab.mixin.Copyable
             % Set the visibility of lines
             if ~ismember('isdisp', p.UsingDefaults)
                 for i = 1:ncols
-                    Pls(i).Visible = p.Results.isdisp(i);
+                    setIfChanged(Pls(i), 'Visible', p.Results.isdisp(i));
                 end
             end
             
@@ -218,18 +218,18 @@ classdef MyLog < matlab.mixin.Copyable
                     ~isempty(this.data) 
                 
                 % Display the legend
-                Axes.Legend.Visible = 'on';
-                Axes.Legend.String = this.data_headers;
+                setIfChanged(Axes.Legend, 'Visible', 'on');
+                setIfChanged(Axes.Legend, 'String', this.data_headers);
             
                 % Include only those lines that are visible
                 for i = 1:ncols
-                    Pls(i).Annotation.LegendInformation.IconDisplayStyle = ...
-                        Pls(i).Visible;
+                    setIfChanged(Pls(i).Annotation.LegendInformation, ...
+                        'IconDisplayStyle', Pls(i).Visible);
                 end
             else
                 
                 % Hide the legend
-                Axes.Legend.Visible = 'off';
+                setIfChanged(Axes.Legend, 'Visible', 'off');
             end
         end
         
