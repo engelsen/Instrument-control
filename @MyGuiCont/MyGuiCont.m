@@ -39,12 +39,33 @@ classdef MyGuiCont < handle
                 this.Gui = feval(this.gui_name, this);
             end
         end
+        
+        function closeGui(this)
+            if isempty(this.Gui) || ~isvalid(this.Gui)
+                
+                % Do nothing as there is no GUI already
+                return
+            end
+            
+            try
+                
+                % Remove the object from the cleanup list list so it is not 
+                % deleted with GUI 
+                removeFromCleanup(this.Gui.GuiSync, this)
+            catch 
+            end
+            
+            % Delete the app by closing its figure 
+            closeApp(this.Gui);
+            this.Gui = [];
+        end
     end
     
     methods
         function set.Gui(this, Val)
-            assert(~isempty(findFigure(Val)), ...
-                'Value assigned to Gui property must include a figure');
+            assert(isempty(Val) || (~isempty(findFigure(Val))), ...
+                ['Value assigned to Gui property must include a figure '...
+                'or be empty.']);
             
             this.Gui = Val;
         end

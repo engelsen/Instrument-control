@@ -4,7 +4,10 @@
 classdef MyGuiSync < handle
     
     properties (GetAccess = public, SetAccess = protected)
-        Listeners = struct()
+        Listeners = struct( ...
+            'AppDeleted',       [], ...
+            'KernelDeleted',    [] ...
+            )
         
         % Link structures
         Links = struct( ...
@@ -74,7 +77,7 @@ classdef MyGuiSync < handle
             % Delete generic listeners
             try
                 lnames = fieldnames(this.Listeners);
-                for i=1:length(lnames)
+                for i = 1:length(lnames)
                     try
                         delete(this.Listeners.(lnames{i}));
                     catch
@@ -87,7 +90,7 @@ classdef MyGuiSync < handle
             end
             
             % Delete link listeners
-            for i=1:length(this.Links)
+            for i = 1:length(this.Links)
                 try
                     delete(this.Links(i).Listener);
                 catch ME
@@ -352,6 +355,14 @@ classdef MyGuiSync < handle
             % first would be deleted last
             this.cleanup_list = [{Obj}, this.cleanup_list];
         end
+        
+        % Remove an object from the cleanup list. The main usage of this
+        % function is to provide a way to close GUI without deleting 
+        % the kernel object 
+        function removeFromCleanup(this, Obj)
+            ind = cellfun(@(x)isequal(x, Obj), this.cleanup_list);
+            this.cleanup_list(ind) = [];
+        end
     end
        
     methods (Access = protected)  
@@ -363,7 +374,7 @@ classdef MyGuiSync < handle
 
             addToCleanup(this, KernelObj);
 
-            this.Listeners.KernelObjDeleted = addlistener(KernelObj,...
+            this.Listeners.KernelDeleted = addlistener(KernelObj,...
                 'ObjectBeingDestroyed', @this.kernelDeletedCallback);
         end
         
@@ -373,7 +384,8 @@ classdef MyGuiSync < handle
             % an infinite loop
             this.Listeners.AppDeleted.Enabled = false;
             
-            delete(this.App);
+            % Delete app by closing its figure
+            closeApp(this.App);
             delete(this);
         end
         
