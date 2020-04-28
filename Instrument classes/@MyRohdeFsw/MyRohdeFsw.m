@@ -1,6 +1,6 @@
-% Class for controlling Tektronix RSA5103 and RSA5106 spectrum analyzers 
+% Class for controlling Rohde & Schwarcz FSW43 spectrum analyzers 
 
-classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
+classdef MyRohdeFsw < MyScpiInstrument & MyDataSource & MyCommCont ...
         & MyGuiCont
 
     properties (SetAccess = protected, GetAccess = public)
@@ -8,7 +8,7 @@ classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
     end
 
     methods (Access = public)
-        function this = MyFSW(varargin)
+        function this = MyRohdeFsw(varargin)
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             
@@ -20,18 +20,14 @@ classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
             % Create communication object
             connect(this);              
             
+            this.Comm.Timeout = 20; %VISA timeout set to 20s, 
+            %   From experiences 20s should be 
+            %   the longest time needed to complete
+            %   a single averaging measurement.
+
             % Set up the list of communication commands
             createCommandList(this);
         end
-        %%%% delete later, I don't think DPX mode is available in FSW %%%%
-        % function str = idn(this)
-        %     str = idn@MyInstrument(this);
-            
-        %     % The instrument needs to be in DPX Spectrum mode
-        %     res = queryString(this, ':DISPlay:WINDow:ACTive:MEASurement?');
-        %     assert(contains(lower(res), {'dpsa', 'dpx'}), ...
-        %         'The spectrum analyzer must be in DPX Spectrum mode.');
-        % end
     end
 
     methods (Access = protected)
@@ -47,15 +43,9 @@ classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
                 'format',   '%e', ...
                 'info',     'Nominal resolution bandwidth (Hz)');
 
-            %%%% did not find how to get actual bandwidth from FSW %%%%
-            % addCommand(this, 'rbw_act', ':DPX:BANDwidth:ACTual', ...
-            %     'format',   '%e', ...
-            %     'access',   'r', ...
-            %     'info',     'Actual resolution bandwidth (Hz)');
-
             addCommand(this, 'bw_ratio', 'SENSe:BANDwidth:RESolution:RATio', ...
                 'format',   '%e', ...
-                'info',     'ratio between resolution bandwidth and the span');
+                'info',     'rbw / span');
 
             addCommand(this, 'auto_rbw', 'SENSe:BANDwidth:RESolution:AUTO', ...
                 'format',   '%b');
@@ -102,7 +92,7 @@ classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
                 'info',     '(dBm)');
 
             % Parametric commands
-            for i = 1:3
+            for i = 1:6
                 i_str = num2str(i);
 
                 % Display trace
@@ -128,13 +118,6 @@ classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
                     ['AVER:COUN'], ...
                     'format',   '%i');
 
-                %%%% FSW43 does not have this feature. It could only count
-                %%%% for a given number of traces
-                %% Count completed averages
-                %addCommand(this, ['cnt_trace',i_str], ...
-                %    ['SENS:AVER:STAT',i_str], ...
-                %    'format',   '%b', ...
-                %    'info',     'Count completed averages');
             end
         end
     end
@@ -152,7 +135,7 @@ classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
             % later used for the calculation of frequency axis, are up to
             % date
             sync(this);
-            writeString(this,'FORM:DATA REAL,32');
+            writeString(this,'FORM:DATA REAL,32');%Set to binary data format
             writeString(this, sprintf('TRAC:DATA? TRACE%i', n_trace));
             data = binblockread(this.Comm, 'float');
 
@@ -196,51 +179,27 @@ classdef MyFSW < MyScpiInstrument & MyDataSource & MyCommCont ...
                 'comment', 'The number of last read trace');
         end
 
-        function sync(this)
-            cns = this.command_names;
-            ind_r = structfun(@(x) ~isempty(x.read_command), ...
-                this.CommandList);
+        % Appantly, this device sometimemes fails if it receives very long 
+        % commands, so query them one by one         
+        % Query commands and return resut as cell array of strings
+        function res_list = queryStrings(this, varargin)
             
-            read_cns = cns(ind_r); % List of names of readable commands
+            % Send commands to device one by one
+            ncmd = length(varargin);
+            res_list = cell(1,ncmd);
             
-            read_commands = cellfun(...
-                @(x) this.CommandList.(x).read_command, read_cns,...
-                'UniformOutput', false);
-            res_list={};
-            for i=1:length(read_cns)
-                res_list{end+1,1} = queryStrings(this, read_commands{i});
-            end
-            res_list=rot90([res_list{:}],-1);
-            if length(read_cns) == length(res_list)
-                
-                % Assign outputs to the class properties
-                for i = 1:length(read_cns)
-                    tag = read_cns{i};
-                    
-                    val = sscanf(res_list{i}, ...
-                            this.CommandList.(tag).format);
-                    
-                    if ~isequal(this.CommandList.(tag).last_value, val)
-                        
-                        % Assign value without writing to the instrument
-                        this.CommandWriteEnabled.(tag) = false;
-                        this.(tag) = val;
-                        this.CommandWriteEnabled.(tag) = true;
-                    end
-                end
-            else
-                warning(['Could not read %i out of %i parameters, ',...
-                    'no properties of %s object are updated.'], ...
-                    length(read_commands)-length(res_list), ...
-                    length(read_commands), class(this));
+            for i = 1:ncmd
+                cmd_str = varargin{i};
+                res_list{i} = queryString(this, cmd_str);
             end
         end
+
     end
 
     methods
         function set.acq_trace(this, val)
-            assert((val==1 || val==2 || val==3), ...
-                'Acquisition trace number must be 1, 2 or 3.');
+            assert((val==1 || val==2 || val==3 || val==4 || val==5 || val==6), ...
+                'Acquisition trace number must be 1, 2, 3, 4, 5, or 6.');
             this.acq_trace = val;
         end
     end
