@@ -93,6 +93,12 @@ classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont ...
 
             y_data = double(binblockread(this.Comm, 'int16'));
             
+            % read off the terminating character
+            % which can not be read by the binblockread 
+            if this.Comm.BytesAvailable == 1 || this.Comm.BytesAvailable == 2 
+                fread(this.Comm,this.Comm.BytesAvailable,'uint8');
+            end
+            
             % For some reason MDO3000 scope needs to have an explicit pause 
             % between data reading and any other communication
             pause(0.01);
