@@ -241,7 +241,11 @@ classdef MyTekMso < MyTekScope
             this.Trace.unit_y = unit_y(2:end-1);
             writeStrings(this,...
                 sprintf(':DATa:SOUrce CH%i',arg2));
+            this.Trace.name_x = 'Frequency';
+            this.Trace.name_y = 'PSD';
             triggerNewData(this);
+            this.Trace.name_x = 'Time';
+            this.Trace.name_y = 'Voltage';
         end
     end
 end
