@@ -1,6 +1,4 @@
 % Class for controlling 4-channel Tektronix MSO scopes. 
-% Tested with MSO54, so far only works with TCPIP communication,
-% for VISA communication there is a problem reading Curves.
 
 classdef MyTekMso < MyTekScope
     
@@ -201,15 +199,18 @@ classdef MyTekMso < MyTekScope
             % Configure data transfer: binary format and two bytes per 
             % point. Then query the trace. 
             this.Comm.ByteOrder = 'bigEndian';
-
+            SV_NP=str2num(cell2mat(queryStrings(this,...
+                'WFMOutpre:NR_Pt?')));
             writeStrings(this, ...
-                ':DATA:ENCDG RIBinary', ...
+                ':DATA:ENCDG ASCIi', ...
                 ':DATA:WIDTH 2', ...
                 ':DATA:STARt 1', ...
-                ':DATA:STOP 1000', ...
+                sprintf(':DATA:STOP %i', SV_NP),...
                 ':CURVe?');
-
-            y_data = double(binblockread(this.Comm, 'int16'));
+            
+            y_data=str2num(fscanf(this.Comm));
+            %%%% the binary data does not work for SV on MSO
+            %y_data = double(binblockread(this.Comm, 'int16'));
             
             % read off the terminating character
             % which can not be read by the binblockread 
@@ -219,7 +220,7 @@ classdef MyTekMso < MyTekScope
 
             % For some reason MDO3000 scope needs to have an explicit pause 
             % between data reading and any other communication
-            pause(0.01);
+            % pause(0.01);
 
            num_params = str2doubleHedged(parms);
            [unit_x, unit_y, step_x, step_y, x_zero, ...
