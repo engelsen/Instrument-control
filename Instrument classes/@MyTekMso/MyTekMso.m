@@ -1,4 +1,6 @@
 % Class for controlling 4-channel Tektronix MSO scopes. 
+% Tested with MSO54, so far only works with TCPIP communication,
+% for VISA communication there is a problem reading Curves.
 
 classdef MyTekMso < MyTekScope
     
