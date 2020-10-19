@@ -1,9 +1,9 @@
-% Class for controlling 4-channel Tektronix MSO scopes. 
-classdef MyTekMso < MyTekScope
+% Class for controlling 6-channel Tektronix MSO scopes. 
+classdef MyTekMso46 < MyTekScope6
     
     methods (Access = public)
-        function this = MyTekMso(varargin)
-            this.gui_name = 'GuiTekMso';
+        function this = MyTekMso46(varargin)
+            this.gui_name = 'GuiTekMso46';
             P = MyClassParser(this);
             processInputs(P, this, varargin{:});
             
@@ -29,7 +29,7 @@ classdef MyTekMso < MyTekScope
                 'format',       'CH%i', ...
                 'info',         ['Channel from which the trace ' ...
                     'is transferred'], ...
-                'value_list',   {1, 2, 3, 4});
+                'value_list',   {1, 2, 3, 4, 5, 6});
             
             %%%% Not implemented in UI. What's selected on display
             %%%% is not relevant. 
@@ -37,7 +37,7 @@ classdef MyTekMso < MyTekScope
                 'format',       'CH%i', ...
                 'info',         ['Channel currently selected in ' ...
                     'the scope display'], ...
-                'value_list',   {1, 2, 3, 4});
+                'value_list',   {1, 2, 3, 4, 5, 6});
 
             %Changed to any number input 
             addCommand(this, 'point_no', ':HORizontal:RECOrdlength', ...
@@ -56,7 +56,7 @@ classdef MyTekMso < MyTekScope
             %Deleted EXT, AUX, does not seem to support on MSO
             addCommand(this, 'trig_source', ':TRIGger:A:EDGE:SOUrce', ...
                 'format',       '%s', ...
-                'value_list',   {'CH1','CH2','CH3','CH4','LINE'});
+                'value_list',   {'CH1','CH2','CH3','CH4','CH5','CH6','LINE','AUXiliary'});
             
             %
             addCommand(this, 'trig_mode', ':TRIGger:A:MODe', ...
