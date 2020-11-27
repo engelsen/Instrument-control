@@ -224,7 +224,7 @@ classdef MyLog < matlab.mixin.Copyable
                 % Include only those lines that are visible
                 for i = 1:ncols
                     setIfChanged(Pls(i).Annotation.LegendInformation, ...
-                        'IconDisplayStyle', Pls(i).Visible);
+                        'IconDisplayStyle', char(Pls(i).Visible));
                 end
             else
                 
