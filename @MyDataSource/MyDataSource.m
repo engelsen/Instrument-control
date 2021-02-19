@@ -1,4 +1,4 @@
-% Class that contains functionality of transferring trace to Collector and
+% Class that contains functionality of transferring a trace to Collector and
 % then to Daq
 
 classdef MyDataSource < handle
