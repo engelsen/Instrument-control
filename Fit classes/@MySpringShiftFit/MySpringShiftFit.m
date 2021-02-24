@@ -26,22 +26,35 @@ classdef MySpringShiftFit < MyFitParamScaling
             % Finds peaks on the positive signal (max 1 peak)
             rng_x = max(x)-min(x);
             try
+<<<<<<< Updated upstream
                 [~, locs(1), widths(1), proms(1)] = findpeaks(y, x,...
+=======
+                [max_val, max_loc, max_width, max_prom] = findpeaks(y, x,...
+>>>>>>> Stashed changes
                     'MinPeakDistance', rng_x/2, 'SortStr', 'descend',...
                     'NPeaks', 1);
             catch ME
                 warning(ME.message)
 
+<<<<<<< Updated upstream
                 proms(1) = 0;
+=======
+               max_prom = 0;
+>>>>>>> Stashed changes
             end
 
             % Finds peaks on the negative signal (max 1 peak)
             try
+<<<<<<< Updated upstream
                 [~,locs(2),widths(2),proms(2)] = findpeaks(-y, x,...
+=======
+                [min_val, min_loc, min_width, min_prom] = findpeaks(-y, x,...
+>>>>>>> Stashed changes
                     'MinPeakDistance', rng_x/2, 'SortStr', 'descend',...
                     'NPeaks', 1);
             catch ME
                 warning(ME.message)
+<<<<<<< Updated upstream
                 
                 proms(2) = 0;
             end
@@ -76,6 +89,33 @@ classdef MySpringShiftFit < MyFitParamScaling
             p_in(1)=proms(ind)*pi*p_in(2)/2;
             p_in(3)=locs(ind);
 
+=======
+
+               min_prom = 0;
+            end
+
+            if min_prom==0 && max_prom==0
+                warning(['No peaks were found in the data, giving ' ...
+                    'default initial parameters to fit function'])
+                return
+            end
+            % Width
+            p_in(2) = abs(min_loc-max_loc)*sqrt(3);
+            
+            % OM Amplitude
+            p_in(5) = abs(max_val - min_val)*p_in(2)^2/sqrt(3);
+            
+            % Center
+            p_in(3) = (min_loc+max_loc)/2;
+            
+            % Offset
+            p_in(4) = mean(y);
+            
+            % Absorption amplitude
+            p_in(1) = -abs(abs(max_val - p_in(4)) - abs(min_val - p_in(4)))*pi*p_in(2)/2;
+            
+            
+>>>>>>> Stashed changes
             this.param_vals = p_in;
             this.lim_lower(2)=0.01*p_in(2);
             this.lim_upper(2)=100*p_in(2);
