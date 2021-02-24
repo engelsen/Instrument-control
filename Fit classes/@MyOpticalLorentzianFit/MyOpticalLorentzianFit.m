@@ -67,6 +67,12 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
             addUserParam(this, 'lw', ...
                 'title',        'Linewidth (MHz)', ...
                 'editable',     'off');
+            addUserParam(this, 'eta_oc', ...
+                'title',        '\eta overcoupled', ...
+                'editable',     'off');
+            addUserParam(this, 'eta_uc', ...
+                'title',        '\eta undercoupled', ...
+                'editable',     'off');
         end
         
         function calcUserParams(this)
@@ -85,6 +91,11 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
             end
             
             this.lw = raw_lw*this.line_spacing*this.line_no/ref_spacing;
+            a = this.param_vals(1);
+            d = this.param_vals(4);
+            R_min = 1 + 2*a/pi/raw_lw/d;
+            this.eta_oc = (1 + sqrt(R_min))/2;
+            this.eta_uc = (1 - sqrt(R_min))/2;
         end
     end
 end
