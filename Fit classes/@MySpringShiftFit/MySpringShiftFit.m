@@ -1,6 +1,8 @@
 classdef MySpringShiftFit < MyFitParamScaling
     properties (GetAccess = public, SetAccess = protected)
         RefCursors  MyCursor
+        SpikeCursors MyCursor
+
     end
     methods (Access = public)
         function this = MySpringShiftFit(varargin)
@@ -27,11 +29,26 @@ classdef MySpringShiftFit < MyFitParamScaling
                     MyCursor(this.Axes, 'orientation', 'vertical', ...
                     'position', x2, ...
                     'Label','Ref 2', 'Color', [0, 0, 0.6])];
+
+                x1_spike = xlim(1)+(xlim(2)-xlim(1))/3;
+                x2_spike = xlim(2)-(xlim(2)-xlim(1))/3;
+                
+                this.SpikeCursors = ...
+                    [MyCursor(this.Axes, ...
+                    'orientation', 'vertical', ...
+                    'position', x1_spike, ...
+                    'Label','Spike removal 1', 'Color', [0, 0, 0.6]), ...
+                    MyCursor(this.Axes, 'orientation', 'vertical', ...
+                    'position', x2_spike, ...
+                    'Label','Spike removal 2', 'Color', [0, 0, 0.6])];
             end
         end
         function delete(this)
             if ~isempty(this.RefCursors)
                 delete(this.RefCursors);
+            end
+            if ~isempty(this.SpikeCursors)
+                delete(this.SpikeCursors);
             end
         end
         function centerCursors(this)
@@ -49,11 +66,39 @@ classdef MySpringShiftFit < MyFitParamScaling
                 
                 this.RefCursors(1).value = x1;
                 this.RefCursors(2).value = x2;
+                
+                x1_spike = xlim(1)+(xlim(2)-xlim(1))/3;
+                x2_spike = xlim(2)-(xlim(2)-xlim(1))/3;
+                
+                this.SpikeCursors(1).value = x1_spike;
+                this.SpikeCursors(2).value = x2_spike;
             end
         end
     end
     
     methods (Access = protected)
+        function ind=findDataSelection(this)
+            if this.enable_range_cursors
+                xmin = min(this.RangeCursors.value);
+                xmax = max(this.RangeCursors.value);
+                ind = (this.Data.x>xmin & this.Data.x<=xmax);
+            else
+                ind = true(1, length(this.Data.x));
+            end
+            % Removing the spike on the resonance
+            if ~isempty(this.SpikeCursors)
+                x = this.Data.x(ind);
+                y = this.Data.y(ind);                
+    %           Get the reference spacing from the position of cursors
+                ind_spike = (x > min(this.SpikeCursors.value)) & ...
+                            (x < max(this.SpikeCursors.value));
+                y_spike = y(ind_spike);
+                Spike = max(abs(y_spike));
+                IndSpike = find(abs(this.Data.y) == Spike);
+                ind(IndSpike) = 0;
+            end
+            
+        end
         
         function calcInitParams(this)
             ind = this.data_selection;
@@ -63,8 +108,7 @@ classdef MySpringShiftFit < MyFitParamScaling
 
             this.lim_upper=[Inf,Inf,Inf,Inf,Inf];
             this.lim_lower=[-Inf,0,-Inf,-Inf,0];
-
-            % Finds peaks on the positive signal (max 1 peak)
+           
             rng_x = max(x)-min(x);
             try
                 [max_val, max_loc, max_width, max_prom] = findpeaks(y, x,...
@@ -142,10 +186,11 @@ classdef MySpringShiftFit < MyFitParamScaling
 %             Otherwise the reference spacing is the entire data range
                 ref_spacing = this.Data.x(1)-this.Data.x(end);
             end
+            ind = this.data_selection;
             ScaledData = MyTrace;
-            ScaledData.x = (this.Data.x -this.param_vals(3)) * ...
+            ScaledData.x = (this.Data.x(ind) -this.param_vals(3)) * ...
                             this.line_spacing*this.line_no/ref_spacing/1e3;
-            ScaledData.y = this.Data.y;
+            ScaledData.y = this.Data.y(ind);
             ScaledData.name_x = 'Detuning';
             ScaledData.name_y = '$\delta\Omega_m$';
             ScaledData.unit_x = 'GHz';
@@ -197,6 +242,7 @@ classdef MySpringShiftFit < MyFitParamScaling
         end
         
         function calcUserParams(this)
+
             this.g0 = 1e6 * sqrt(this.param_vals(5)* ...
                         (6.62607004e-34*physconst('LightSpeed')) / ...
                         this.eta_c / (this.P_in *1e-6)/(this.WL*1e-9));
@@ -204,7 +250,8 @@ classdef MySpringShiftFit < MyFitParamScaling
             
             if ~isempty(this.RefCursors)
                 
-%                 Get the reference spacing from the position of cursors
+%               Get the reference spacing from the position of cursors
+                
                 xmin = min(this.RefCursors.value);
                 xmax = max(this.RefCursors.value);
                 ref_spacing = xmax - xmin;
@@ -241,4 +288,5 @@ classdef MySpringShiftFit < MyFitParamScaling
             vals(5)=sc_vals(5) * std_y * std_x^2;
         end
     end
+    
 end
