@@ -82,6 +82,9 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
         
         drive_out = 1 % signal output used for driving
         
+        %Pll channel
+        pll_ch = 1
+        
         % Number of an auxiliary channel used for the output of triggering 
         % signal, primarily intended to switch the measurement apparatus 
         % off during a part of the ringdown and thus allow for free  
@@ -400,6 +403,9 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                     % Switch the oscillator
                     this.current_osc = this.meas_osc;
 
+                    % Disable PLL
+                    this.pll_on = false;
+                    
                     % Clear the buffer on ZI data server from existing   
                     % demodulator samples, as these samples were 
                     % recorded with drive on 
@@ -644,6 +650,10 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                 'readFcn',      @this.readDriveOn, ...
                 'writeFcn',     @this.writeDriveOn);
             
+             addCommand(this, 'pll_on', ...
+                'readFcn',      @this.readPllOn, ...
+                'writeFcn',     @this.writePllOn);
+            
             addCommand(this, 'current_osc', ...
                 'readFcn',      @this.readCurrentOsc, ...
                 'writeFcn',     @this.writeCurrentOsc, ...
@@ -710,6 +720,19 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
         function writeDriveOn(this, val)
             path = sprintf('/%s/sigouts/%i/on', this.dev_id, ...
                 this.drive_out-1);
+            % Use double() to convert from logical
+            ziDAQ('setInt', path, double(val));
+        end
+        
+        function val = readPllOn(this)
+            path = sprintf('/%s/pids/%i/enable', this.dev_id, ...
+                this.pll_ch-1);
+            val = logical(ziDAQ('getInt', path));
+        end
+        
+        function writePllOn(this, val)
+            path = sprintf('/%s/pids/%i/enable', this.dev_id, ...
+                this.pll_ch-1);
             % Use double() to convert from logical
             ziDAQ('setInt', path, double(val));
         end
