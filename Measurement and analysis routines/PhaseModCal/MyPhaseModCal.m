@@ -225,15 +225,7 @@ classdef MyPhaseModCal < MyAnalysisRoutine
                 delete(this.PlottedPeaks)
             end
         end
-    end
-    
-    function y = bessel_full(beta,a,b,n)
-        if mod(n,2) == 1
-            y = a*(besselj(n,beta)^2);
-        else
-            y = b*(besselj(n,beta)^2);
-        end
-    end
+    end    
     
     % Set and get methods
     methods
