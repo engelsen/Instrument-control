@@ -64,7 +64,12 @@ classdef MyDrivenMechDispCal < MyAnalysisRoutine
             
             if ~isempty(this.Axes) && isvalid(this.Axes)
                 ylim = this.Axes.YLim;
-                pos = min(ylim(1)+0.30*(ylim(2)-ylim(1)), 10*ylim(1));
+                
+                if isempty(this.Data)
+                    pos = min(ylim(1)+0.30*(ylim(2)-ylim(1)), 10*ylim(1));
+                else
+                    pos = min(this.Data.y)*exp(0.5*(log(max(this.Data.y))-log(min(this.Data.y))));
+                end
                 
                 this.MinHeightCursor = MyCursor(this.Axes, ...
                     'orientation',  'horizontal', ...
