@@ -1,19 +1,19 @@
 % Generic class for controlling Tektronix scopes
 
-classdef MyTekScope < MyScpiInstrument & MyDataSource & MyCommCont ...
+classdef MyTekScope6 < MyScpiInstrument & MyDataSource & MyCommCont ...
         & MyGuiCont
     
-    properties (GetAccess = public, SetAccess={?MyClassParser,?MyTekScope})
+    properties (GetAccess = public, SetAccess={?MyClassParser,?MyTekScope6})
         
         % number of channels
-        channel_no = 4
+        channel_no = 6
         
         % List of the physical knobs, which can be rotated programmatically
         knob_list = {}
     end
     
     methods (Access = public)
-        function this = MyTekScope(varargin)
+        function this = MyTekScope6(varargin)
             
             % Set default GUI name
             this.gui_name = 'GuiTekScope';
