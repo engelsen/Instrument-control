@@ -40,7 +40,7 @@ classdef MyGuiSync < handle
                 @(x)assert(isa(x, 'matlab.apps.AppBase'), ...
                 'App must be a Matlab app.'));
             
-            % Deletion of kernel object triggers the delition of app
+            % Deletion of kernel object triggers the deletion of app
             addParameter(p, 'KernelObj', []);
             
             % Optional function, executed after an app parameter has been
