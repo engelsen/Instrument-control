@@ -235,10 +235,26 @@ classdef MyDrivenMechDispCal < MyAnalysisRoutine
             % Find beta value by fitting
             
             Ft = fittype(@(beta,a,b,n) bessel_full(beta,a,b,n), 'independent', 'n', ...
-                'coefficients', {'beta', 'a', 'b'});      
+                'coefficients', {'beta', 'a', 'b'});
+            
+            % Find initial guess for beta
+            
+            xb = linspace(0,15,5000);
+            nb = 1:10;
+            [XB,NB] = meshgrid(xb,nb);
+            YB = besselj(NB,XB).^2;
+            [~,imax] = max(peak_int);
+            ind_max = sb_ind(imax);
+            if ind_max <=10    % Initial guess is the argmax for the sideband with largest amplitude
+                [~,imax] = max(YB(ind_max,:));
+                beta0 = xb(imax);
+            else
+                beta0 = 13;
+            end
+            
 
             Opts = fitoptions('Method', 'NonLinearLeastSquares',...
-                'StartPoint',   [1, 1, 1],...
+                'StartPoint',   [beta0, 1, 1],...
                 'MaxFunEvals',  2000,...
                 'MaxIter',      2000,...
                 'TolFun',       1e-10,...
