@@ -293,7 +293,7 @@ classdef MyScpiInstrument < MyInstrument
         % to the instrument
         function fcn = createWriteFcn(this, command)
             function writeFcn(x)
-                writeString(this, sprintf(command, x))
+                writeString(this, sprintf(command, x));
             end
             
             fcn = @writeFcn;

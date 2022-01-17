@@ -36,6 +36,22 @@ classdef (Abstract) MyFitParamScaling < MyFit
             
             fitted_vals = unscaleFitParams(this, scaled_fitted_vals, sc);
         end
+        
+        %Scales the confidence intervals before saving
+        function ci=getConfInt(this, interval)
+            ind=this.data_selection;
+            x=this.Data.x(ind);
+            y=this.Data.y(ind);
+            mean_y = mean(y);
+            std_y = std(y);
+            mean_x = mean(x);
+            std_x = std(x);
+            xy_zscore={mean_x,std_x,mean_y,std_y};
+            sc_ci=confint(this.FitResult,interval);
+            ci=zeros(size(sc_ci));
+            ci(1,:)=unscaleFitParams(this,sc_ci(1,:), xy_zscore);
+            ci(2,:)=unscaleFitParams(this,sc_ci(2,:), xy_zscore);
+        end
     end
     
     methods (Access = protected, Abstract)

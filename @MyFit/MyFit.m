@@ -355,7 +355,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             if ~isempty(this.Gof)
                 
                 % Add fit parameters with confidence intervals
-                ci = confint(this.FitResult, 0.95);
+                ci = getConfInt(this, 0.95);
  
                 for i=1:length(this.fit_params)
                     str = sprintf('%8.4g  (%.4g, %.4g)', ...
@@ -558,6 +558,12 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             else
                 ind = true(1, length(this.Data.x));
             end
+        end
+        
+        %Function to calculate confidence intervals. Overloaded in fits
+        %with scaling
+        function ci=getConfInt(this, interval)
+            ci = confint(this.FitResult, interval);
         end
     end
     
