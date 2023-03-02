@@ -37,7 +37,7 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
         
         % Frequency of the calibration tone, found in the cal_range 
         cal_freq
-        
+        cal_rbw = 0
         % Conversion factor between S_V and S_\omega defined such that
         % S_\omega = cf*S_V
         cf = 1
@@ -104,30 +104,39 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             
             [cal_psd, ~] = max(this.Data.y(ind));
             % Calculate area under the calibration tone peak
-            if 0
+            AI_ind = strcmp({this.Data.UserMetadata.title},'AcquisitionInstrument');
+            CP_ind = strcmp({this.Data.UserMetadata.title},'CalibrationParameters');
+            if sum(CP_ind) > 0
+                if isparam(this.Data.UserMetadata(CP_ind),'rbw_act')
+                    this.cal_rbw = this.Data.UserMetadata(CP_ind).ParamList.rbw_act;
+                    area = cal_psd * this.cal_rbw;
+                else
+                    if isparam(this, 'cal_rbw')
+                        this.cal_rbw = 0;
+                    end
+                    area = integrate(this.Data, cr(1), cr(2));
+                end
+            elseif sum(AI_ind) > 0
+                RSA_name = this.Data.UserMetadata(AI_ind).ParamList.Name;
+                RSA_ind=strcmp({this.Data.UserMetadata.title},RSA_name);
+                if isparam(this.Data.UserMetadata(RSA_ind),'rbw_act')
+                    this.cal_rbw = this.Data.UserMetadata(RSA_ind).ParamList.rbw_act;
+                    area = cal_psd * this.cal_rbw;
+                else
+                if isparam(this, 'cal_rbw')
+                    this.cal_rbw = 0;
+                end
+                area = integrate(this.Data, cr(1), cr(2));
+                end
+            else
                 % previous way of calculating cal tone power, by integral
                 % using rbw = span/nop. In actual measurement RSA could set
                 % a different rbw instead, and could result also in leakage
                 % of power to nearby points.
-                area = integrate(this.Data, cr(1), cr(2));
-            else
-                % directly readout the actual rbw from the RSA, and use
-                % peak * rbw to calculate cal tone power, preventing
-                % leakage to nearby points. This assumes rbw >> linewidth
-                % of cal tone.
-                if evalin('base',"exist('RSA5103','var') == 1")
-                    cal_rbw = evalin('base',"RSA5103.rbw_act");
-                elseif evalin('base',"exist('RSA5106','var') == 1")
-                    cal_rbw = evalin('base',"RSA5106.rbw_act");
-                else
-                    cal_rbw = this.Data.x(ind(2)) - this.Data.x(ind(1));
-                    disp("The act_rbw is not used, span/nop is used instead. Please open the RSA gui for a more accurate rbw.");
+                if isparam(this, 'cal_rbw')
+                    this.cal_rbw = 0;
                 end
-                % should be actual rbw from RSA, but for no access to it will
-                % use the span/nop instead. Mismatch at 50% with 1e4 point
-                % traces, coincide with other nop settings.
-                % could be possible
-                area = cal_psd * cal_rbw;
+                area = integrate(this.Data, cr(1), cr(2));
             end
             
             % Average square of frequency excursions due to calibration 
@@ -188,8 +197,12 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
                 addParam(Mdt, 'source', this.Data.file_name, ...
                     'comment', 'File containing raw data');
             end
-            
+            if this.cal_rbw > 0
+                addParam(Mdt, 'rbw_act', this.cal_rbw, ...
+                'comment', 'Actual rbw from the original trace (Hz)');
+            end
             addParam(Mdt, 'spectrum_type', this.spectrum_type);
+            %addParam(Mdt, 'act_rbw', this.spectrum_type);
             addParam(Mdt, 'beta', this.beta, ...
                 'comment', 'Phase modulation depth');
             addParam(Mdt, 'cal_freq', this.cal_freq, ...
