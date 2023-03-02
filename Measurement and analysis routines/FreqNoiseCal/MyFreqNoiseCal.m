@@ -102,8 +102,33 @@ classdef MyFreqNoiseCal < MyAnalysisRoutine
             
             this.cal_freq = freq;
             
+            [cal_psd, ~] = max(this.Data.y(ind));
             % Calculate area under the calibration tone peak
-            area = integrate(this.Data, cr(1), cr(2));
+            if 0
+                % previous way of calculating cal tone power, by integral
+                % using rbw = span/nop. In actual measurement RSA could set
+                % a different rbw instead, and could result also in leakage
+                % of power to nearby points.
+                area = integrate(this.Data, cr(1), cr(2));
+            else
+                % directly readout the actual rbw from the RSA, and use
+                % peak * rbw to calculate cal tone power, preventing
+                % leakage to nearby points. This assumes rbw >> linewidth
+                % of cal tone.
+                if evalin('base',"exist('RSA5103','var') == 1")
+                    cal_rbw = evalin('base',"RSA5103.rbw_act");
+                elseif evalin('base',"exist('RSA5106','var') == 1")
+                    cal_rbw = evalin('base',"RSA5106.rbw_act");
+                else
+                    cal_rbw = this.Data.x(ind(2)) - this.Data.x(ind(1));
+                    disp("The act_rbw is not used, span/nop is used instead. Please open the RSA gui for a more accurate rbw.");
+                end
+                % should be actual rbw from RSA, but for no access to it will
+                % use the span/nop instead. Mismatch at 50% with 1e4 point
+                % traces, coincide with other nop settings.
+                % could be possible
+                area = cal_psd * cal_rbw;
+            end
             
             % Average square of frequency excursions due to calibration 
             % tone 
