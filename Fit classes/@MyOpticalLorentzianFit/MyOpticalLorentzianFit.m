@@ -64,6 +64,10 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
                 'title',        'Number of reference lines', ...
                 'editable',     'on', ...
                 'default',      1);
+            addUserParam(this, 'V_zero', ...
+                'title',        'Dark voltage (V)', ...
+                'editable',     'on', ...
+                'default',      0);
             addUserParam(this, 'lw', ...
                 'title',        'Linewidth (MHz)', ...
                 'editable',     'off');
@@ -92,7 +96,7 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
             
             this.lw = raw_lw*this.line_spacing*this.line_no/ref_spacing;
             a = this.param_vals(1);
-            d = this.param_vals(4);
+            d = this.param_vals(4) - this.V_zero;
             R_min = 1 + 2*a/pi/raw_lw/d;
             this.eta_oc = (1 + sqrt(R_min))/2;
             this.eta_uc = (1 - sqrt(R_min))/2;
@@ -113,7 +117,7 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
             ScaledData = MyTrace;
             ScaledData.x = (this.Data.x -this.param_vals(3)) * ...
                             this.line_spacing*this.line_no/ref_spacing/1e3;
-            ScaledData.y = this.Data.y;
+            ScaledData.y = (this.Data.y)-this.V_zero;
             ScaledData.name_x = 'Detuning';
             ScaledData.name_y = this.Data.name_y;
             ScaledData.unit_x = 'GHz';
@@ -122,7 +126,7 @@ classdef MyOpticalLorentzianFit < MyLorentzianFit
             ScaledFit = MyTrace;
             ScaledFit.x = (this.Fit.x - this.param_vals(3)) * ...
                            this.line_spacing*this.line_no/ref_spacing/1e3;
-            ScaledFit.y = this.Fit.y;
+            ScaledFit.y = (this.Fit.y)-this.V_zero;
             ScaledFit.name_x = 'Detuning';
             ScaledFit.name_y = this.Fit.name_y;
             ScaledFit.unit_x = 'GHz';
