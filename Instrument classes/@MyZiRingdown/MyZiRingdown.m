@@ -499,12 +499,17 @@ classdef MyZiRingdown < MyZiLockIn & MyDataSource & MyGuiCont
                     if this.n_avg > 1
                         traces = [traces, {copy(this.AvgTrace)}];
                         trace_tags = [trace_tags, {'_avg'}];
+                        
                     end
+                    
+                    this.AvgTrace.resetCounter;
                 else
                     
                     % Continue the acquisition of new ringdowns
                     this.enable_acq = true;
                     this.drive_on = true;
+                    % Enable PLL
+                    this.pll_on = true;
                 end
                 
                 % Trigger a new data event with the last ringdown
