@@ -1,0 +1,59 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>Application Structure</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">Application Structure</h1></div>
+<div class="markdown-heading"><h2 class="heading-element">Overview</h2></div>
+<p>There are many ways to build graphical applications in MATLAB®, but here we will take a very simple approach. If the application were to become larger and more complex, this approach would be changed to better mitigate the complexity. Some notes on this are contained at the <a href="Scalability.html">end of this section</a>.</p>
+<div class="markdown-heading"><h2 class="heading-element">Application structure</h2></div>
+<p>The application is structured as a single function, with callbacks and other helper functions implemented as nested functions, i.e., functions defined inside the main function. This has the advantage that the nested functions can share access to any variables defined in the main function. This approach also poses a risk, as anything we accidentally define in the main function lies in the scope of all nested functions within the file. For this reason, all logic is put into nested functions and we restrict the main function to only define two shared variables:</p>
+<ul>
+<li>
+<code>data</code>: a structure containing all shared data,</li>
+<li>
+<code>app</code>: a structure containing handles to user interface components.</li>
+</ul>
+<div class="highlight highlight-source-matlab"><pre><span class="pl-k">function</span> galleryBrowser()
+
+   <span class="pl-c"><span class="pl-c">%</span> Declare shared variables</span>
+   data <span class="pl-k">=</span> createData();
+   app <span class="pl-k">=</span> createInterface( <span class="pl-smi">data</span>.<span class="pl-smi">ExampleNames</span> );
+
+   <span class="pl-c"><span class="pl-c">%</span> Now update the app with the current data</span>
+   updateInterface()
+   redrawExample()
+   
+   <span class="pl-c"><span class="pl-c">%</span> Helper functions.</span>
+   <span class="pl-k">function</span> <span class="pl-smi">data</span> <span class="pl-k">=</span> createData() ...<span class="pl-c"> end</span>
+   <span class="pl-k">function</span> <span class="pl-smi">app</span> <span class="pl-k">=</span> createInterface( <span class="pl-smi">names</span> ) ...<span class="pl-c"> end</span>
+   <span class="pl-k">function</span> updateInterface() ...<span class="pl-c"> end</span>
+   <span class="pl-k">function</span> redrawExample() ...<span class="pl-c"> end</span>
+
+   <span class="pl-c"><span class="pl-c">%</span> Callback subfunctions.</span>
+   <span class="pl-k">function</span> onListSelection() ...<span class="pl-c"> end</span>
+   <span class="pl-k">function</span> onMenuSelection() ...<span class="pl-c"> end   </span>
+   <span class="pl-k">function</span> onHelp() ...<span class="pl-c"> end</span>
+   <span class="pl-k">function</span> onSourceCodeRequested() ...<span class="pl-c"> end</span>
+   <span class="pl-k">function</span> onExit() ...<span class="pl-c"> end</span>
+   
+<span class="pl-k">end</span> </pre></div>
+<p>Note that all of the work is done in nested functions. Most of these are callbacks executed when a button is pressed or a menu selected. The four used at startup are helper functions:</p>
+<ul>
+<li>
+<code>createData</code>: build the structure which contains all application data</li>
+<li>
+<code>createInterface</code>: build the user interface</li>
+<li>
+<code>updateInterface</code>: update selectors etc in response to a change in the data</li>
+<li>
+<code>redrawExample</code>: redraw the axes contents</li>
+</ul>
+<p>We will not dig into all the nested functions and callbacks, but instead concentrate on the app creation (<code>createInterface</code>) and update (<code>updateInterface</code>).</p>
+<p>The complete source code for this application is available in <code>galleryBrowser.m</code>.</p>
+<div class="highlight highlight-source-matlab"><pre><span class="pl-en">edit</span> <span class="pl-s">galleryBrowser </span></pre></div>
+<div class="markdown-heading"><h2 class="heading-element">Related Topics</h2></div>
+<ul>
+<li><a href="CreateInterface.html">Creating the User Interface</a></li>
+<li><a href="UpdateInterface.html">Updating the User Interface</a></li>
+<li><a href="OnListSelection.html">Responding to User Interaction</a></li>
+<li><a href="RunningIt.html">Launching the Application</a></li>
+<li><a href="Scalability.html">Scalability and Architecture</a></li>
+</ul>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

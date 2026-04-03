@@ -1,4 +1,4 @@
-classdef TabPanel < uix.Container & uix.mixin.Panel
+classdef TabPanel < uix.Container & uix.mixin.Container
     %uix.TabPanel  Tab panel
     %
     %  p = uix.TabPanel(p1,v1,p2,v2,...) constructs a tab panel and sets
@@ -12,65 +12,65 @@ classdef TabPanel < uix.Container & uix.mixin.Panel
     %  these meet your requirements.
     %
     %  See also: uitabgroup, uitab, uix.CardPanel
-    
-    %  Copyright 2009-2016 The MathWorks, Inc.
-    %  $Revision: 1436 $ $Date: 2016-11-17 17:53:29 +0000 (Thu, 17 Nov 2016) $
-    
+
+    %  Copyright 2009-2024 The MathWorks, Inc.
+
     properties( Access = public, Dependent, AbortSet )
-        FontAngle % font angle
-        FontName % font name
-        FontSize % font size
-        FontWeight % font weight
-        FontUnits % font weight
         ForegroundColor % tab text color [RGB]
-        HighlightColor % border highlight color [RGB]
-        ShadowColor % border shadow color [RGB]
+        Selection % selection
+        TabContextMenus % tab context menus
+        TabEnables % tab enable states
+        TabLocation % tab location [top|bottom|left|right]
+        TabTitles % tab titles
     end
-    
+
     properties
         SelectionChangedFcn = '' % selection change callback
     end
-    
-    properties( Access = public, Dependent, AbortSet )
-        TabEnables % tab enable states
-        TabLocation % tab location [top|bottom]
-        TabTitles % tab titles
-        TabContextMenus % tab context menus
-        TabWidth % tab width
+
+    properties( Access = public, AbortSet, Hidden )
+        ForegroundColor_I = get( 0, 'DefaultUitabForegroundColor' ) % backing for ForegroundColor
+        ForegroundColorMode = 'auto' % ForegroundColor mode [auto|manual]
     end
-    
+
+    properties ( GetAccess = ?matlab.unittest.TestCase, SetAccess = private )
+        TabGroup % tab group
+    end
+
     properties( Access = private )
+        ShadowTabGroup % tab group
+        SelectionChangedListener % listener
+        TabEnables_ = cell( 0, 1 ) % backing for TabEnables
+    end
+
+    properties( Constant, Access = private )
+        DummyControl = matlab.ui.control.UIControl() % dummy uicontrol
         FontAngle_ = get( 0, 'DefaultUicontrolFontAngle' ) % backing for FontAngle
         FontName_ = get( 0, 'DefaultUicontrolFontName' ) % backing for FontName
         FontSize_ = get( 0, 'DefaultUicontrolFontSize' ) % backing for FontSize
         FontWeight_ = get( 0, 'DefaultUicontrolFontWeight' ) % backing for FontWeight
         FontUnits_ = get( 0, 'DefaultUicontrolFontUnits' ) % backing for FontUnits
-        ForegroundColor_ = get( 0, 'DefaultUicontrolForegroundColor' ) % backing for ForegroundColor
         HighlightColor_ = [1 1 1] % backing for HighlightColor
         ShadowColor_ = [0.7 0.7 0.7] % backing for ShadowColor
-        ParentBackgroundColor = get( 0, 'DefaultUicontrolForegroundColor' ) % default parent background color
-        Tabs = gobjects( [0 1] ) % tabs
-        TabListeners = event.listener.empty( [0 1] ) % tab listeners
-        TabLocation_ = 'top' % backing for TabPosition
-        TabHeight = -1 % cache of tab height (-1 denotes stale cache)
-        TabWidth_ = 50 % backing for TabWidth
-        Dividers % tab dividers
-        BackgroundColorListener % listener
-        SelectionChangedListener % listener
-        ParentListener % listener
-        ParentBackgroundColorListener % listener
     end
-    
-    properties( Access = private, Constant )
-        FontNames = listfonts() % all available font names
-        DividerMask = uix.TabPanel.getDividerMask() % divider image data
-        DividerWidth = 8 % divider width
-        TabMinimumHeight = 9 % tab minimum height
-        Tint = 0.85 % tint factor for unselected tabs
+
+    properties( Access = public, Dependent, Hidden )
+        FontAngle % font angle
+        FontName % font name
+        FontSize % font size
+        FontWeight % font weight
+        FontUnits % font weight
+        HighlightColor % border highlight color [RGB]
+        ShadowColor % border shadow color [RGB]
+        TabWidth % tab width
+    end % deprecated
+
+    events( NotifyAccess = private )
+        SelectionChanged % selection changed
     end
-    
+
     methods
-        
+
         function obj = TabPanel( varargin )
             %uix.TabPanel  Tab panel constructor
             %
@@ -78,771 +78,595 @@ classdef TabPanel < uix.Container & uix.mixin.Panel
             %
             %  p = uix.TabPanel(p1,v1,p2,v2,...) sets parameter p1 to value
             %  v1, etc.
-            
-            % Create dividers
-            dividers = matlab.ui.control.UIControl( 'Internal', true, ...
-                'Parent', obj, 'Units', 'pixels', 'Style', 'checkbox',...
-                'Tag', 'TabPanelDividers' );
-            
+
+            % Create tab groups
+            tabGroup = matlab.ui.container.TabGroup( ...
+                'Internal', true, 'Parent', obj, 'Visible', 'off', ...
+                'SelectionChangedFcn', @obj.onTabSelected );
+            if isprop( tabGroup, 'AutoResizeChildren' )
+                tabGroup.AutoResizeChildren = 'off';
+            end
+            shadowTabGroup = matlab.ui.container.TabGroup( ...
+                'Internal', true, 'Parent', obj, ...
+                'Units', 'normalized', 'Position', [-2 -2 1 1], ...
+                'SizeChangedFcn', @obj.onTabGroupSizeChanged );
+            if isprop( shadowTabGroup, 'AutoResizeChildren' )
+                shadowTabGroup.AutoResizeChildren = 'off';
+            end
+
+            % Store properties
+            obj.TabGroup = tabGroup;
+            obj.ShadowTabGroup = shadowTabGroup;
+
             % Create listeners
-            backgroundColorListener = event.proplistener( obj, ...
-                findprop( obj, 'BackgroundColor' ), 'PostSet', ...
-                @obj.onBackgroundColorChange );
             selectionChangedListener = event.listener( obj, ...
                 'SelectionChanged', @obj.onSelectionChanged );
-            parentListener = event.proplistener( obj, ...
-                findprop( obj, 'Parent' ), 'PostSet', ...
-                @obj.onParentChanged );
-            
-            % Store properties
-            obj.Dividers = dividers;
-            obj.BackgroundColorListener = backgroundColorListener;
+
+            % Store listeners
             obj.SelectionChangedListener = selectionChangedListener;
-            obj.ParentListener = parentListener;
-            
+
             % Set properties
-            if nargin > 0
-                try
-                    assert( rem( nargin, 2 ) == 0, 'uix:InvalidArgument', ...
-                        'Parameters and values must be provided in pairs.' )
-                    set( obj, varargin{:} )
-                catch e
-                    delete( obj )
-                    e.throwAsCaller()
-                end
+            try
+                uix.set( obj, varargin{:} )
+            catch e
+                delete( obj )
+                e.throwAsCaller()
             end
-            
+
         end % constructor
-        
+
     end % structors
-    
+
     methods
-        
-        function value = get.FontAngle( obj )
-            
-            value = obj.FontAngle_;
-            
-        end % get.FontAngle
-        
-        function set.FontAngle( obj, value )
-            
-            % Check
-            assert( ischar( value ) && any( strcmp( value, {'normal','italic','oblique'} ) ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''FontAngle'' must be ''normal'', ''italic'' or ''oblique''.' )
-            
-            % Set
-            obj.FontAngle_ = value;
-            
-            % Update existing tabs
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            for ii = 1:n
-                tab = tabs(ii);
-                tab.FontAngle = value;
-            end
-            
-            % Mark as dirty
-            obj.TabHeight = -1;
-            obj.Dirty = true;
-            
-        end % set.FontAngle
-        
-        function value = get.FontName( obj )
-            
-            value = obj.FontName_;
-            
-        end % get.FontName
-        
-        function set.FontName( obj, value )
-            
-            % Check
-            assert( ischar( value ) && any( strcmp( value, obj.FontNames ) ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''FontName'' must be a valid font name.' )
-            
-            % Set
-            obj.FontName_ = value;
-            
-            % Update existing tabs
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            for ii = 1:n
-                tab = tabs(ii);
-                tab.FontName = value;
-            end
-            
-            % Mark as dirty
-            obj.TabHeight = -1;
-            obj.Dirty = true;
-            
-        end % set.FontName
-        
-        function value = get.FontSize( obj )
-            
-            value = obj.FontSize_;
-            
-        end % get.FontSize
-        
-        function set.FontSize( obj, value )
-            
-            % Check
-            assert( isa( value, 'double' ) && isscalar( value ) && ...
-                isreal( value ) && ~isinf( value ) && ...
-                ~isnan( value ) && value > 0, ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''FontSize'' must be a positive scalar.' )
-            
-            % Set
-            obj.FontSize_ = value;
-            
-            % Update existing tabs
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            for ii = 1:n
-                tab = tabs(ii);
-                tab.FontSize = value;
-            end
-            
-            % Mark as dirty
-            obj.TabHeight = -1;
-            obj.Dirty = true;
-            
-        end % set.FontSize
-        
-        function value = get.FontWeight( obj )
-            
-            value = obj.FontWeight_;
-            
-        end % get.FontWeight
-        
-        function set.FontWeight( obj, value )
-            
-            % Check
-            assert( ischar( value ) && any( strcmp( value, {'normal','bold'} ) ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''FontWeight'' must be ''normal'' or ''bold''.' )
-            
-            % Set
-            obj.FontWeight_ = value;
-            
-            % Update existing tabs
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            for ii = 1:n
-                tab = tabs(ii);
-                tab.FontWeight = value;
-            end
-            
-            % Mark as dirty
-            obj.TabHeight = -1;
-            obj.Dirty = true;
-            
-        end % set.FontWeight
-        
-        function value = get.FontUnits( obj )
-            
-            value = obj.FontUnits_;
-            
-        end % get.FontUnits
-        
-        function set.FontUnits( obj, value )
-            
-            % Check
-            assert( ischar( value ) && ...
-                any( strcmp( value, {'inches','centimeters','points','pixels'} ) ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''FontUnits'' must be ''inches'', ''centimeters'', ''points'' or ''pixels''.' )
-            
-            % Compute size in new units
-            oldUnits = obj.FontUnits_;
-            oldSize = obj.FontSize_;
-            newUnits = value;
-            newSize = oldSize * convert( oldUnits ) / convert( newUnits );
-            
-            % Set size and units
-            obj.FontSize_ = newSize;
-            obj.FontUnits_ = newUnits;
-            
-            % Update existing tabs
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            for ii = 1:n
-                tab = tabs(ii);
-                tab.FontUnits = newUnits;
-            end
-            
-            % Mark as dirty
-            obj.TabHeight = -1;
-            obj.Dirty = true;
-            
-            function factor = convert( units )
-                %convert  Compute conversion factor to points
-                %
-                %  f = convert(u) computes the conversion factor from units
-                %  u to points.  For example, convert('inches') since 1
-                %  inch equals 72 points.
-                
-                persistent SCREEN_PIXELS_PER_INCH
-                if isequal( SCREEN_PIXELS_PER_INCH, [] ) % uninitialized
-                    SCREEN_PIXELS_PER_INCH = get( 0, 'ScreenPixelsPerInch' );
-                end
-                
-                switch units
-                    case 'inches'
-                        factor = 72;
-                    case 'centimeters'
-                        factor = 72 / 2.54;
-                    case 'points'
-                        factor = 1;
-                    case 'pixels'
-                        factor = 72 / SCREEN_PIXELS_PER_INCH;
-                end
-                
-            end % convert
-            
-        end % set.FontUnits
-        
+
         function value = get.ForegroundColor( obj )
-            
-            value = obj.ForegroundColor_;
-            
+
+            value = obj.ForegroundColor_I;
+
         end % get.ForegroundColor
-        
+
         function set.ForegroundColor( obj, value )
-            
-            % Check
-            assert( isnumeric( value ) && isequal( size( value ), [1 3] ) && ...
-                all( isreal( value ) ) && all( value >= 0 ) && all( value <= 1 ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''ForegroundColor'' must be an RGB triple.' )
-            
-            % Set
-            obj.ForegroundColor_ = value;
-            
-            % Update existing tabs
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            for ii = 1:n
-                tab = tabs(ii);
-                tab.ForegroundColor = value;
+
+            try
+                obj.ForegroundColor_I = value; % delegate
+                obj.ForegroundColorMode = 'manual'; % flip
+            catch
+                throwAsCaller( MException( 'uix:InvalidPropertyValue', ...
+                    'Property ''ForegroundColor'' must be a colorspec.' ) )
             end
-            
+
         end % set.ForegroundColor
-        
-        function value = get.HighlightColor( obj )
-            
-            value = obj.HighlightColor_;
-            
-        end % get.HighlightColor
-        
-        function set.HighlightColor( obj, value )
-            
-            % Check
-            assert( isnumeric( value ) && isequal( size( value ), [1 3] ) && ...
-                all( isreal( value ) ) && all( value >= 0 ) && all( value <= 1 ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''HighlightColor'' must be an RGB triple.' )
-            
-            % Set
-            obj.HighlightColor_ = value;
-            
+
+        function set.ForegroundColor_I( obj, value )
+
+            try
+                obj.DummyControl.ForegroundColor = value; % colorspec
+                value = obj.DummyControl.ForegroundColor; % rgb
+                obj.ForegroundColor_I = value; % store
+                obj.redrawTabs() % apply
+            catch
+                throwAsCaller( MException( 'uix:InvalidPropertyValue', ...
+                    'Property ''ForegroundColor_I'' must be a colorspec.' ) )
+            end
+
+        end % set.ForegroundColor_I
+
+        function set.ForegroundColorMode( obj, value )
+
+            try
+                value = char( value ); % convert
+                assert( ismember( value, {'auto','manual'} ) ) % compare
+                obj.ForegroundColorMode = value; % store
+            catch
+                throwAsCaller( MException( 'uix:InvalidPropertyValue', ...
+                    'Property ''ForegroundColorMode'' must be ''auto'' or ''manual''.' ) )
+            end
+
+        end % set.ForegroundColorMode
+
+        function value = get.Selection( obj )
+
+            tabGroup = obj.TabGroup;
+            value = find( tabGroup.Children == tabGroup.SelectedTab );
+            if isempty( value ), value = 0; end
+
+        end % get.Selection
+
+        function set.Selection( obj, newValue )
+
+            % Select
+            oldValue = obj.Selection;
+            tabGroup = obj.TabGroup;
+            shadowTabGroup = obj.ShadowTabGroup;
+            try
+                assert( isscalar( newValue ) )
+                tabGroup.SelectedTab = tabGroup.Children(newValue);
+                shadowTabGroup.SelectedTab = shadowTabGroup.Children(newValue);
+            catch
+                error( 'uix:InvalidPropertyValue', ...
+                    'Property ''Selection'' must be between 1 and the number of tabs.' )
+            end
+
+            % Raise event
+            notify( obj, 'SelectionChanged', ...
+                uix.SelectionChangedData( oldValue, newValue ) )
+
+            % Show and hide
+            contents = obj.Contents_;
+            uix.setVisible( contents(oldValue), 'off' ) % hide old selection
+            uix.setVisible( contents(newValue), 'on' ) % show new selection
+
             % Mark as dirty
             obj.Dirty = true;
-            
-        end % set.HighlightColor
-        
-        function set.SelectionChangedFcn( obj, value )
-            
+
+        end % set.Selection
+
+        function value = get.TabEnables( obj )
+
+            value = obj.TabEnables_;
+
+        end % get.TabEnables
+
+        function set.TabEnables( obj, value )
+
+            % Convert
+            try
+                value = cellstr( value );
+            catch
+                error( 'uix:InvalidPropertyValue', ...
+                    'Property ''TabEnables'' must be a cell array of strings ''on'' or ''off'', one per tab.' )
+            end
+
+            % Reshape
+            value = value(:);
+
             % Check
-            if ischar( value ) % string
+            tabs = obj.TabGroup.Children;
+            assert( isequal( numel( value ), numel( tabs ) ) && ...
+                all( ismember( value, {'on','off'} ) ), ...
+                'uix:InvalidPropertyValue', ...
+                'Property ''TabEnables'' must be a cell array of strings ''on'' or ''off'', one per tab.' )
+
+            % Set
+            obj.TabEnables_ = value;
+
+            % Redraw tabs
+            obj.redrawTabs()
+
+        end % set.TabEnables
+
+        function value = get.TabLocation( obj )
+
+            value = obj.TabGroup.TabLocation;
+
+        end % get.TabLocation
+
+        function set.TabLocation( obj, value )
+
+            % Convert
+            try
+                value = char( value );
+            catch
+                error( 'uix:InvalidPropertyValue', ...
+                    'Property ''TabLocation'' must be ''top'', ''bottom'', ''left'' or ''right''.' )
+            end
+
+            % Check
+            assert( ismember( value, {'top','bottom','left','right'} ), ...
+                'uix:InvalidPropertyValue', ...
+                'Property ''TabLocation'' must be ''top'', ''bottom'', ''left'' or ''right''.' )
+
+            % Set
+            obj.TabGroup.TabLocation = value;
+            obj.ShadowTabGroup.TabLocation = value;
+
+            % Mark as dirty
+            obj.Dirty = true;
+
+        end % set.TabLocation
+
+        function value = get.TabTitles( obj )
+
+            value = get( obj.TabGroup.Children, {'Title'} );
+
+        end % get.TabTitles
+
+        function set.TabTitles( obj, value )
+
+            % Convert
+            try
+                value = cellstr( value );
+            catch
+                error( 'uix:InvalidPropertyValue', ...
+                    'Property ''TabTitles'' must be a cell array of strings, one per tab.' )
+            end
+
+            % Reshape
+            value = value(:);
+
+            % Check
+            tabs = obj.TabGroup.Children;
+            shadowTabs = obj.ShadowTabGroup.Children;
+            assert( isequal( numel( value ), numel( tabs ) ), ...
+                'uix:InvalidPropertyValue', ...
+                'Property ''TabTitles'' must be a cell array of strings, one per tab.' )
+
+            % Set
+            for ii = 1:numel( tabs )
+                tabs(ii).Title = value{ii};
+                shadowTabs(ii).Title = value{ii};
+            end
+
+        end % set.TabTitles
+
+        function value = get.TabContextMenus( obj )
+
+            value = get( obj.TabGroup.Children, {'UIContextMenu'} );
+
+        end % get.TabContextMenus
+
+        function set.TabContextMenus( obj, value )
+
+            % Reshape
+            value = value(:);
+
+            % Check
+            tabs = obj.TabGroup.Children;
+            assert( iscell( value ) && ...
+                numel( value ) == numel( tabs ) && ...
+                all( cellfun( @iscontextmenu, value(:) ) ), ...
+                'uix:InvalidPropertyValue', ...
+                'Property ''TabContextMenus'' must be a cell array of context menus, one per tab.' )
+
+            % Set
+            for ii = 1:numel( tabs )
+                tabs(ii).UIContextMenu = value{ii};
+            end
+
+        end % set.TabContextMenus
+
+        function set.SelectionChangedFcn( obj, value )
+
+            % Check
+            if ischar( value ) || isa( value, 'string' ) % string
                 % OK
             elseif isa( value, 'function_handle' ) && ...
-                    isequal( size( value ), [1 1] ) % function handle
+                    isscalar( value ) % function handle
                 % OK
             elseif iscell( value ) && ndims( value ) == 2 && ...
                     size( value, 1 ) == 1 && size( value, 2 ) > 0 && ...
                     isa( value{1}, 'function_handle' ) && ...
-                    isequal( size( value{1} ), [1 1] ) %#ok<ISMAT> % cell callback
+                    isscalar( value{1} ) %#ok<ISMAT> % cell callback
                 % OK
             else
                 error( 'uix:InvalidPropertyValue', ...
                     'Property ''SelectionChangedFcn'' must be a valid callback.' )
             end
-            
+
             % Set
             obj.SelectionChangedFcn = value;
-            
+
         end % set.SelectionChangedFcn
-        
-        function value = get.ShadowColor( obj )
-            
-            value = obj.ShadowColor_;
-            
-        end % get.ShadowColor
-        
-        function set.ShadowColor( obj, value )
-            
-            % Check
-            assert( isnumeric( value ) && isequal( size( value ), [1 3] ) && ...
-                all( isreal( value ) ) && all( value >= 0 ) && all( value <= 1 ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''ShadowColor'' must be an RGB triple.' )
-            
-            % Set
-            obj.ShadowColor_ = value;
-            
-            % Mark as dirty
-            obj.Dirty = true;
-            
-        end % set.ShadowColor
-        
-        function value = get.TabEnables( obj )
-            
-            value = get( obj.Tabs, {'Enable'} );
-            value(strcmp( value, 'inactive' )) = {'on'};
-            
-        end % get.TabEnables
-        
-        function set.TabEnables( obj, value )
-            
-            % For those who can't tell a column from a row...
-            if isrow( value )
-                value = transpose( value );
-            end
-            
-            % Retrieve tabs
-            tabs = obj.Tabs;
-            tabListeners = obj.TabListeners;
-            
-            % Check
-            assert( iscellstr( value ) && ...
-                isequal( size( value ), size( tabs ) ) && ...
-                all( strcmp( value, 'on' ) | strcmp( value, 'off' ) ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''TabEnables'' should be a cell array of strings ''on'' or ''off'', one per tab.' )
-            
-            % Set
-            tf = strcmp( value, 'on' );
-            value(tf) = {'inactive'};
-            for ii = 1:numel( tabs )
-                tabs(ii).Enable = value{ii};
-                tabListeners(ii).Enabled = tf(ii);
-            end
-            
-            % Show selected child
-            obj.showSelection()
-            
-            % Mark as dirty
-            obj.Dirty = true;
-            
-        end % set.TabEnables
-        
-        function value = get.TabLocation( obj )
-            
-            value = obj.TabLocation_;
-            
-        end % get.TabLocation
-        
-        function set.TabLocation( obj, value )
-            
-            % Check
-            assert( ischar( value ) && ...
-                any( strcmp( value, {'top','bottom'} ) ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''TabLocation'' should be ''top'' or ''bottom''.' )
-            
-            % Set
-            obj.TabLocation_ = value;
-            
-            % Mark as dirty
-            obj.Dirty = true;
-            
-        end % set.TabLocation
-        
-        function value = get.TabTitles( obj )
-            
-            value = get( obj.Tabs, {'String'} );
-            
-        end % get.TabTitles
-        
-        function set.TabTitles( obj, value )
-            
-            % For those who can't tell a column from a row...
-            if isrow( value )
-                value = transpose( value );
-            end
-            
-            % Retrieve tabs
-            tabs = obj.Tabs;
-            
-            % Check
-            assert( iscellstr( value ) && ...
-                isequal( size( value ), size( tabs ) ), ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''TabTitles'' should be a cell array of strings, one per tab.' )
-            
-            % Set
-            n = numel( tabs );
-            for ii = 1:n
-                tabs(ii).String = value{ii};
-            end
-            
-            % Mark as dirty
-            obj.TabHeight = -1;
-            obj.Dirty = true;
-            
-        end % set.TabTitles
-        
-        function value = get.TabContextMenus( obj )
-            
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            value = cell( [n 1] );
-            for ii = 1:n
-                value{ii} = tabs(ii).UIContextMenu;
-            end
-            
-        end % get.TabContextMenus
-        
-        function set.TabContextMenus( obj, value )
-            
-            tabs = obj.Tabs;
-            n = numel( tabs );
-            for ii = 1:n
-                tabs(ii).UIContextMenu = value{ii};
-            end
-            
-        end % set.TabContextMenus
-        
-        function value = get.TabWidth( obj )
-            
-            value = obj.TabWidth_;
-            
-        end % get.TabWidth
-        
-        function set.TabWidth( obj, value )
-            
-            % Check
-            assert( isa( value, 'double' ) && isscalar( value ) && ...
-                isreal( value ) && ~isinf( value ) && ...
-                ~isnan( value ) && value ~= 0, ...
-                'uix:InvalidPropertyValue', ...
-                'Property ''TabWidth'' must be a non-zero scalar.' )
-            
-            % Set
-            obj.TabWidth_ = value;
-            
-            % Mark as dirty
-            obj.Dirty = true;
-            
-        end % set.TabWidth
-        
+
     end % accessors
-    
+
+    methods
+
+        function value = get.FontAngle( obj )
+
+            value = obj.FontAngle_;
+
+        end % get.FontAngle
+
+        function set.FontAngle( ~, ~ ) % removed
+
+        end % set.FontAngle
+
+        function value = get.FontName( obj )
+
+            value = obj.FontName_;
+
+        end % get.FontName
+
+        function set.FontName( ~, ~ ) % removed
+
+        end % set.FontName
+
+        function value = get.FontSize( obj )
+
+            value = obj.FontSize_;
+
+        end % get.FontSize
+
+        function set.FontSize( ~, ~ ) % removed
+
+        end % set.FontSize
+
+        function value = get.FontWeight( obj )
+
+            value = obj.FontWeight_;
+
+        end % get.FontWeight
+
+        function set.FontWeight( ~, ~ ) % removed
+
+        end % set.FontWeight
+
+        function value = get.FontUnits( obj )
+
+            value = obj.FontUnits_;
+
+        end % get.FontUnits
+
+        function set.FontUnits( ~, ~ ) % removed
+
+        end % set.FontUnits
+
+        function value = get.HighlightColor( obj )
+
+            value = obj.HighlightColor_;
+
+        end % get.HighlightColor
+
+        function set.HighlightColor( ~, ~ ) % removed
+
+        end % set.HighlightColor
+
+        function value = get.ShadowColor( obj )
+
+            value = obj.ShadowColor_;
+
+        end % get.ShadowColor
+
+        function set.ShadowColor( ~, ~ ) % removed
+
+        end % set.ShadowColor
+
+        function value = get.TabWidth( ~ )
+
+            value = -1;
+
+        end % get.TabWidth
+
+        function set.TabWidth( ~, ~ ) % removed
+
+        end % set.TabWidth
+
+    end % deprecated accessors
+
     methods( Access = protected )
-        
+
         function redraw( obj )
-            
+            %redraw  Redraw
+
+            % Skip if no contents
+            i = obj.Selection;
+            if i == 0, return, end
+
             % Compute positions
-            bounds = hgconvertunits( ancestor( obj, 'figure' ), ...
-                [0 0 1 1], 'normalized', 'pixels', obj );
-            w = ceil( bounds(1) + bounds(3) ) - floor( bounds(1) ); % width
-            h = ceil( bounds(2) + bounds(4) ) - floor( bounds(2) ); % height
-            p = obj.Padding_; % padding
-            tabs = obj.Tabs;
-            n = numel( tabs ); % number of tabs
-            tH = obj.TabHeight; % tab height
-            if tH == -1 % cache stale, refresh
-                if n > 0
-                    cTabExtents = get( tabs, {'Extent'} );
-                    tabExtents = vertcat( cTabExtents{:} );
-                    tH = max( tabExtents(:,4) );
-                end
-                tH = max( tH, obj.TabMinimumHeight ); % apply minimum
-                tH = ceil( tH ); % round up
-                obj.TabHeight = tH; % store
-            end
-            cH = max( [h - 2 * p - tH, 1] ); % contents height
-            switch obj.TabLocation_
+            g = obj.TabGroup;
+            s = obj.ShadowTabGroup;
+            f = ancestor( s, 'figure' );
+            sb = hgconvertunits( f, [0 0 1 1], 'normalized', 'pixels', s );
+            t = s.SelectedTab;
+            tb = hgconvertunits( f, [0 0 1 1], 'normalized', 'pixels', t );
+            pa = obj.Padding_;
+            switch s.TabLocation
                 case 'top'
-                    cY = 1 + p; % contents y
-                    tY = cY + cH + p; % tab y
+                    m = (sb(3)-tb(3))/2;
+                    gp = sb + (tb(4)+m) * [0 1 0 -1];
+                    cp = tb + [m m 0 0] + pa * [1 1 -2 -2];
                 case 'bottom'
-                    tY = 1; % tab y
-                    cY = tY + tH + p; % contents y
+                    m = (sb(3)-tb(3))/2;
+                    gp = sb + (tb(4)+m) * [0 0 0 -1];
+                    cp = tb + [m sb(4)-tb(4)-m 0 0] + pa * [1 1 -2 -2];
+                case 'left'
+                    m = (sb(4)-tb(4))/2;
+                    gp = sb + (tb(3)+m) * [0 0 -1 0];
+                    cp = tb + [sb(3)-tb(3)-m m 0 0] + pa * [1 1 -2 -2];
+                case 'right'
+                    m = (sb(4)-tb(4))/2;
+                    gp = sb + (tb(3)+m) * [1 0 -1 0];
+                    cp = tb + [m m 0 0] + pa * [1 1 -2 -2];
             end
-            cX = 1 + p; % contents x
-            cW = max( [w - 2 * p, 1] ); % contents width
-            tW = obj.TabWidth_; % tab width
-            dW = obj.DividerWidth; % tab divider width
-            if tW < 0 && n > 0 % relative
-                tW = max( ( w - (n+1) * dW ) / n, 1 );
-            end
-            tW = ceil( tW ); % round up
-            for ii = 1:n
-                tabs(ii).Position = [1 + (ii-1) * tW + ii * dW, tY, tW, tH];
-            end
-            obj.Dividers.Position = [0 tY w+1 tH];
-            contentsPosition = [cX cY cW cH];
-            
-            % Redraw tabs
-            obj.redrawTabs()
-            
-            % Redraw contents
-            selection = obj.Selection_;
-            if selection ~= 0 && strcmp( obj.TabEnables{selection}, 'on' )
-                uix.setPosition( obj.Contents_(selection), contentsPosition, 'pixels' )
-            end
-            
+            gp = max( gp, [1 1 0 0] ); % floor
+            cp = max( cp, [1 1 0 0] ); % floor
+
+            % Redraw tab group and contents
+            uix.setPosition( g, gp, 'pixels' );
+            uix.setPosition( obj.Contents_(i), cp, 'pixels' )
+
         end % redraw
-        
+
         function addChild( obj, child )
             %addChild  Add child
             %
             %  c.addChild(d) adds the child d to the container c.
-            
-            % Create new tab
-            n = numel( obj.Tabs );
-            tab = matlab.ui.control.UIControl( 'Internal', true, ...
-                'Parent', obj, 'Style', 'text', 'Enable', 'inactive', ...
-                'Units', 'pixels', 'FontUnits', obj.FontUnits_, ...
-                'FontSize', obj.FontSize_, 'FontName', obj.FontName_, ...
-                'FontAngle', obj.FontAngle_, 'FontWeight', obj.FontWeight_, ...
-                'ForegroundColor', obj.ForegroundColor_, ...
-                'String', sprintf( 'Page %d', n + 1 ) );
-            tabListener = event.listener( tab, 'ButtonDown', @obj.onTabClicked );
-            obj.Tabs(n+1,:) = tab;
-            obj.TabListeners(n+1,:) = tabListener;
-            
-            % Mark as dirty
-            obj.TabHeight = -1;
-            
-            % Check for bug
-            if verLessThan( 'MATLAB', '8.5' ) && strcmp( child.Visible, 'off' )
-                obj.G1218142 = true;
-            end
-            
-            % Select new content
-            oldSelection = obj.Selection_;
-            if numel( obj.Contents_ ) == 0
-                newSelection = 1;
-                obj.Selection_ = newSelection;
-            else
-                newSelection = oldSelection;
-            end
-            
+
             % Call superclass method
             addChild@uix.mixin.Container( obj, child )
-            
-            % Show selected child
-            obj.showSelection()
-            
-            % Notify selection change
-            if oldSelection ~= newSelection
-                obj.notify( 'SelectionChanged', ...
-                    uix.SelectionData( oldSelection, newSelection ) )
+
+            % Show tab group
+            tabGroup = obj.TabGroup;
+            tabGroup.Visible = 'on';
+
+            % Create new tab
+            shadowTabGroup = obj.ShadowTabGroup;
+            tabs = tabGroup.Children;
+            n = numel( tabs );
+            tab = uitab( 'Parent', tabGroup, ...
+                'Title', sprintf( 'Tab %d', n+1 ), ...
+                'ForegroundColor', obj.ForegroundColor ); %#ok<NASGU>
+            shadowTab = uitab( 'Parent', shadowTabGroup, ...
+                'Title', sprintf( 'Tab %d', n+1 ) );
+            if isprop( shadowTab, 'AutoResizeChildren' )
+                shadowTab.AutoResizeChildren = 'off';
             end
-            
+            shadowTab.SizeChangedFcn = @obj.onTabSizeChanged;
+            obj.TabEnables_(n+1,:) = {'on'};
+
+            % Show and hide
+            tabGroup.Visible = 'on';
+            if obj.Contents_(obj.Selection) ~= child % not selected
+                uix.setVisible( child, 'off' ) % hide
+            elseif obj.G1136196 && strcmp( child.Visible, 'off' ) % bug
+                on = @() eq( obj.Contents(obj.Selection), child );
+                uix.setVisible( child, on, 0.02 ) % future show
+            else % selected
+                uix.setVisible( child, 'on' ) % show
+            end
+
         end % addChild
-        
+
         function removeChild( obj, child )
             %removeChild  Remove child
             %
             %  c.removeChild(d) removes the child d from the container c.
-            
-            % Find index of removed child
-            contents = obj.Contents_;
-            index = find( contents == child );
-            
-            % Remove tab
-            delete( obj.Tabs(index) )
-            obj.Tabs(index,:) = [];
-            obj.TabListeners(index,:) = [];
-            
+
+            % Capture old state
+            tabGroup = obj.TabGroup;
+            shadowTabGroup = obj.ShadowTabGroup;
+            oldContents = obj.Contents_;
+            oldSelection = obj.Selection;
+
             % Call superclass method
-            removeChild@uix.mixin.Panel( obj, child )
-            
+            removeChild@uix.mixin.Container( obj, child )
+
+            % Remove tab
+            index = find( oldContents == child );
+            delete( tabGroup.Children(index) )
+            delete( shadowTabGroup.Children(index) )
+            obj.TabEnables_(index,:) = [];
+
+            % Show and hide
+            if index == oldSelection % removing selected
+                newContents = obj.Contents_;
+                newSelection = obj.Selection;
+                if newSelection == 0 % none left
+                    obj.TabGroup.Visible = 'off';
+                else % switch
+                    uix.setVisible( newContents(newSelection), 'on' ) % show new selection
+                end
+            end
+
         end % removeChild
-        
+
         function reorder( obj, indices )
             %reorder  Reorder contents
             %
             %  c.reorder(i) reorders the container contents using indices
             %  i, c.Contents = c.Contents(i).
-            
-            % Reorder
-            obj.Tabs = obj.Tabs(indices,:);
-            obj.TabListeners = obj.TabListeners(indices,:);
-            
+
             % Call superclass method
-            reorder@uix.mixin.Panel( obj, indices )
-            
+            reorder@uix.mixin.Container( obj, indices )
+
+            % Reorder
+            tabGroup = obj.TabGroup;
+            tabGroup.Children = tabGroup.Children(indices,:);
+            shadowTabGroup = obj.ShadowTabGroup;
+            shadowTabGroup.Children = shadowTabGroup.Children(indices,:);
+            obj.TabEnables_ = obj.TabEnables_(indices,:);
+
         end % reorder
-        
+
         function reparent( obj, oldFigure, newFigure )
             %reparent  Reparent container
             %
             %  c.reparent(a,b) reparents the container c from the figure a
             %  to the figure b.
-            
+
+            % Call superclass method
+            reparent@uix.mixin.Container( obj, oldFigure, newFigure )
+
+            % Move context menus to new figure
             if ~isequal( oldFigure, newFigure )
-                contextMenus = obj.TabContextMenus;
-                for ii = 1:numel( contextMenus )
-                    contextMenu = contextMenus{ii};
-                    if ~isempty( contextMenu )
-                        contextMenu.Parent = newFigure;
-                    end
-                end
+                contextMenus = vertcat( obj.TabContextMenus{:} );
+                set( contextMenus, 'Parent', newFigure );
             end
-            
-            % Call superclass method
-            reparent@uix.mixin.Panel( obj, oldFigure, newFigure )
-            
+
         end % reparent
-        
-        function showSelection( obj )
-            %showSelection  Show selected child, hide the others
-            %
-            %  c.showSelection() shows the selected child of the container
-            %  c, and hides the others.
-            
-            % Call superclass method
-            showSelection@uix.mixin.Panel( obj )
-            
-            % If not enabled, hide selected contents too
-            selection = obj.Selection_;
-            if selection ~= 0 && strcmp( obj.TabEnables{selection}, 'off' )
-                child = obj.Contents_(selection);
-                child.Visible = 'off';
-                if isa( child, 'matlab.graphics.axis.Axes' )
-                    child.ContentsVisible = 'off';
-                end
-                % As a remedy for g1100294, move off-screen too
-                margin = 1000;
-                if isa( child, 'matlab.graphics.axis.Axes' ) ...
-                        && strcmp(child.ActivePositionProperty, 'outerposition' )
-                    child.OuterPosition(1) = -child.OuterPosition(3)-margin;
-                else
-                    child.Position(1) = -child.Position(3)-margin;
-                end
-            end
-            
-        end % showSelection
-        
+
     end % template methods
-    
+
+    methods( Access = protected, Static )
+
+        function map = getThemeMap()
+            %getThemeMap  Map class properties to theme attributes
+
+            map = getThemeMap@uix.Container();
+            map.ForegroundColor = '--mw-color-primary';
+
+        end % getThemeMap
+
+    end % protected static methods
+
     methods( Access = private )
-        
+
         function redrawTabs( obj )
             %redrawTabs  Redraw tabs
-            %
-            %  p.redrawTabs() redraws the tabs.
-            
-            % Get relevant properties
-            selection = obj.Selection_;
-            tabs = obj.Tabs;
-            t = numel( tabs );
-            dividers = obj.Dividers;
-            
-            % Handle no tabs as a special case
-            if t == 0
-                dividers.Visible = 'off'; % hide
-                return
+
+            enableColor = obj.ForegroundColor_I;
+            if mean( enableColor ) > 0.5 % light
+                disableColor = 1/3 * enableColor;
+            else % dark
+                disableColor = 2/3 + 1/3 * enableColor;
             end
-            
-            % Repaint tabs
-            backgroundColor = obj.BackgroundColor;
-            for ii = 1:t
-                tab = tabs(ii);
-                if ii == selection
-                    tab.BackgroundColor = backgroundColor;
-                else
-                    tab.BackgroundColor = obj.Tint * backgroundColor;
-                end
-            end
-            
-            % Repaint dividers
-            d = t + 1;
-            dividerNames = repmat( 'F', [d 2] ); % initialize
-            dividerNames(1,1) = 'E'; % end
-            dividerNames(end,2) = 'E'; % end
-            if selection ~= 0
-                dividerNames(selection,2) = 'T'; % selected
-                dividerNames(selection+1,1) = 'T'; % selected
-            end
-            tH = obj.TabHeight;
-            assert( tH >= obj.TabMinimumHeight, 'uix:InvalidState', ...
-                'Cannot redraw tabs with invalid TabHeight.' )
-            tW = obj.Tabs(1).Position(3);
-            dW = obj.DividerWidth;
-            allCData = zeros( [tH 0 3] ); % initialize
-            map = [obj.ShadowColor; obj.BackgroundColor; ...
-                obj.Tint * obj.BackgroundColor; obj.HighlightColor;...
-                obj.ParentBackgroundColor];
-            for ii = 1:d
-                % Select mask
-                iMask = obj.DividerMask.( dividerNames(ii,:) );
-                % Resize
-                iData = repmat( iMask(5,:), [tH 1] );
-                iData(1:4,:) = iMask(1:4,:);
-                iData(end-3:end,:) = iMask(end-3:end,:);
-                % Convert to RGB
-                cData = ind2rgb( iData+1, map );
-                % Orient
-                switch obj.TabLocation_
-                    case 'bottom'
-                        cData = flipud( cData );
-                end
-                % Insert
-                allCData(1:tH,(ii-1)*(dW+tW)+(1:dW),:) = cData; % center
-                if ii > 1 % extend left under transparent uicontrol edge
-                    allCData(1:tH,(ii-1)*(dW+tW),:) = cData(:,1,:);
-                end
-                if ii < d % extend right under transparent uicontrol edge
-                    allCData(1:tH,(ii-1)*(dW+tW)+dW+1,:) = cData(:,end,:);
-                end
-            end
-            dividers.CData = allCData; % paint
-            dividers.BackgroundColor = obj.ParentBackgroundColor;
-            dividers.Visible = 'on'; % show
-            
+            tf = strcmp( obj.TabEnables_, 'on' );
+            tabs = obj.TabGroup.Children;
+            set( tabs(tf), 'ForegroundColor', enableColor )
+            set( tabs(~tf), 'ForegroundColor', disableColor )
+
         end % redrawTabs
-        
+
     end % helper methods
-    
+
     methods( Access = private )
-        
-        function onTabClicked( obj, source, ~ )
-            
-            % Update selection
-            oldSelection = obj.Selection_;
-            newSelection = find( source == obj.Tabs );
-            if oldSelection == newSelection, return, end % abort set
-            obj.Selection_ = newSelection;
-            
-            % Show selected child
-            obj.showSelection()
-            
-            % Mark as dirty
-            obj.Dirty = true;
-            
-            % Notify selection change
-            obj.notify( 'SelectionChanged', ...
-                uix.SelectionData( oldSelection, newSelection ) )
-            
-        end % onTabClicked
-        
-        function onBackgroundColorChange( obj, ~, ~ )
-            
-            % Mark as dirty
-            obj.Dirty = true;
-            
-        end % onBackgroundColorChange
-        
+
+        function onTabSelected( obj, ~, eventData )
+            %onTabSelected  Event handler for interactive tab selection
+            %
+            %  onTabSelected shows the child of the selected tab and
+            %  prevents selection of disabled tabs.
+
+            % Find old and new selections
+            tabGroup = obj.TabGroup;
+            shadowTabGroup = obj.ShadowTabGroup;
+            oldSelection = find( tabGroup.Children == eventData.OldValue );
+            newSelection = find( tabGroup.Children == eventData.NewValue );
+
+            if strcmp( obj.TabEnables_{newSelection}, 'off' )
+
+                % Revert
+                tabGroup.SelectedTab = eventData.OldValue;
+                shadowTabGroup.SelectedTab = shadowTabGroup.Children(oldSelection);
+
+            else
+
+                % Synchronize
+                shadowTabGroup.SelectedTab = shadowTabGroup.Children(newSelection);
+
+                % Raise event
+                notify( obj, 'SelectionChanged', ...
+                    uix.SelectionChangedData( oldSelection, newSelection ) )
+
+                % Show and hide
+                contents = obj.Contents_;
+                uix.setVisible( contents(oldSelection), 'off' ) % hide old selection
+                uix.setVisible( contents(newSelection), 'on' ) % show new selection
+
+                % Mark as dirty
+                obj.Dirty = true;
+
+            end
+
+        end % onTabSelected
+
         function onSelectionChanged( obj, source, eventData )
-            
-            % Call callback
+            %onSelectionChanged  Event handler for selection
+            %
+            %  onSelectionChanged calls the SelectionChangedFcn when a
+            %  SelectionChanged event is raised.
+
             callback = obj.SelectionChangedFcn;
             if ischar( callback ) && isequal( callback, '' )
                 % do nothing
@@ -853,99 +677,47 @@ classdef TabPanel < uix.Container & uix.mixin.Panel
             elseif iscell( callback )
                 feval( callback{1}, source, eventData, callback{2:end} )
             end
-            
+
         end % onSelectionChanged
-        
-        function onParentChanged( obj, ~, ~ )
-            
-            % Update ParentBackgroundColor and ParentBackgroundColor
-            if isprop( obj.Parent, 'BackgroundColor' )
-                prop = 'BackgroundColor';
-            elseif isprop( obj.Parent, 'Color' )
-                prop = 'Color';
-            else
-                prop = [];
-            end
-            
-            if ~isempty( prop )
-                obj.ParentBackgroundColorListener = event.proplistener( obj.Parent, ...
-                    findprop( obj.Parent, prop ), 'PostSet', ...
-                    @( src, evt ) obj.updateParentBackgroundColor( prop ) );
-            else
-                obj.ParentBackgroundColorListener = [];
-            end
-            
-            obj.updateParentBackgroundColor( prop );
-            
-        end % onParentChanged
-        
-        function updateParentBackgroundColor( obj, prop )
-            
-            if isempty( prop )
-                obj.ParentBackgroundColor = obj.BackgroundColor;
-            else
-                obj.ParentBackgroundColor = obj.Parent.(prop);
-            end
-            
+
+        function onTabGroupSizeChanged( ~, tabGroup, ~ )
+            %onTabGroupSizeChanged  Remedial event handler
+            %
+            %  onTabGroupSizeChanged keeps the uitabgroup maximized within
+            %  its container, despite the best efforts of
+            %  matlab.ui.internal.WebTabGroupController et al.
+
+            tabGroup.Position = [-2 -2 1 1]; % maximized
+
+        end % onTabGroupSizeChanged
+
+        function onTabSizeChanged( obj, tab, ~ )
+            %onTabSizeChanged  Event handler for tab resize
+
+            % Deprecated unselected tabs
+            if obj.ShadowTabGroup.SelectedTab ~= tab, return, end
+
             % Mark as dirty
             obj.Dirty = true;
-            
-        end
-        
+
+        end % onTabSizeChanged
+
     end % event handlers
-    
-    methods( Access = private, Static )
-        
-        function mask = getDividerMask()
-            %getDividerMask  Get divider image data
-            %
-            %  m = uix.TabPanel.getDividerMask() returns the image masks
-            %  for tab panel dividers.  Mask entries are 0 (shadow), 1
-            %  (background), 2 (tint) and 3 (highlight).
-            
-            mask.EF = indexColor( uix.loadIcon( 'tab_NoEdge_NotSelected.png' ) );
-            mask.ET = indexColor( uix.loadIcon( 'tab_NoEdge_Selected.png' ) );
-            mask.FE = indexColor( uix.loadIcon( 'tab_NotSelected_NoEdge.png' ) );
-            mask.FF = indexColor( uix.loadIcon( 'tab_NotSelected_NotSelected.png' ) );
-            mask.FT = indexColor( uix.loadIcon( 'tab_NotSelected_Selected.png' ) );
-            mask.TE = indexColor( uix.loadIcon( 'tab_Selected_NoEdge.png' ) );
-            mask.TF = indexColor( uix.loadIcon( 'tab_Selected_NotSelected.png' ) );
-            
-            function mask = indexColor( rgbMap )
-                %indexColor  Returns a map of index given an RGB map
-                %
-                %  mask = indexColor( rgbMap ) returns a mask of color
-                %  index based on the supplied rgbMap.
-                %  black  : 0
-                %  red    : 1
-                %  yellow : 2
-                %  white  : 3
-                %  blue   : 4
-                mask = nan( size( rgbMap, 1 ),size( rgbMap, 2 ) );
-                % Black
-                colorIndex = isColor( rgbMap, [0 0 0] );
-                mask(colorIndex) = 0;
-                % Red
-                colorIndex = isColor( rgbMap, [1 0 0] );
-                mask(colorIndex) = 1;
-                % Yellow
-                colorIndex = isColor( rgbMap, [1 1 0] );
-                mask(colorIndex) = 2;
-                % White
-                colorIndex = isColor( rgbMap, [1 1 1] );
-                mask(colorIndex) = 3;
-                % Blue
-                colorIndex = isColor( rgbMap, [0 0 1] );
-                mask(colorIndex) = 4;
-                % Nested
-                function boolMap = isColor( map, color )
-                    %isColor  Return a map of boolean where map is equal to color
-                    boolMap = all( bsxfun( @eq, map, permute( color, [1 3 2] ) ), 3 );
-                end
-            end
-            
-        end % getDividerMask
-        
-    end % static helper methods
-    
+
 end % classdef
+
+function tf = iscontextmenu( o )
+%iscontextmenu  Test for context menu
+%
+%  tf = iscontextmenu(o) returns true if o is a valid UIContextMenu value,
+%  that is, a scalar context menu or an empty graphics placeholder
+
+if isa( o, 'matlab.ui.container.ContextMenu' ) && isscalar( o ) % context menu
+    tf = true;
+elseif isequal( o, gobjects( 0 ) ) % graphics placeholder
+    tf = true;
+else % something else
+    tf = false;
+end
+
+end % iscontextmenu

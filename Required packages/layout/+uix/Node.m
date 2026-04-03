@@ -6,8 +6,7 @@ classdef ( Hidden ) Node < dynamicprops
     %  Node is a helper class for managing trees of objects and associated
     %  listeners.
     
-    %  Copyright 2009-2015 The MathWorks, Inc.
-    %  $Revision: 1165 $ $Date: 2015-12-06 03:09:17 -0500 (Sun, 06 Dec 2015) $
+    %  Copyright 2009-2020 The MathWorks, Inc.
     
     properties( SetAccess = private )
         Object % object
@@ -27,7 +26,7 @@ classdef ( Hidden ) Node < dynamicprops
             
             % Check
             assert( isa( object, 'handle' ) && ...
-                isequal( size( object ), [1 1] ) && isvalid( object ), ...
+                isscalar( object ) && isvalid( object ), ...
                 'uix:InvalidArgument', 'Object must be a handle.' )
             
             % Set properties
@@ -46,7 +45,7 @@ classdef ( Hidden ) Node < dynamicprops
             
             % Check
             assert( isa( child, 'uix.Node' ) && ...
-                isequal( size( child ), [1 1] ), ...
+                isscalar( child ), ...
                 'uix:InvalidArgument', 'Invalid node.' )
             
             % Add
@@ -65,7 +64,7 @@ classdef ( Hidden ) Node < dynamicprops
             
             % Check
             assert( isa( child, 'uix.Node' ) && ...
-                isequal( size( child ), [1 1] ), ...
+                isscalar( child ), ...
                 'uix:InvalidArgument', 'Invalid node.' )
             assert( ismember( child, obj.Children ), ...
                 'uix:ItemNotFound', 'Node not found.' )

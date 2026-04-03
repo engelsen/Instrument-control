@@ -13,10 +13,10 @@ classdef MyGaussianFit < MyFit
         end
     end
     methods (Access=protected)
-        function [init_params,lim_lower,lim_upper]=calcInitParams(this)
+        function calcInitParams(this)
             x = this.Data.x;
             y = this.Data.y;
-            
+
             %Assumes a*exp(-((x-c)/b)^2/2)+d - remember matlab orders the fit
             %parameters alphabetically
 
@@ -53,10 +53,12 @@ classdef MyGaussianFit < MyFit
             lim_upper(2)=100*(max(x)-min(x));
 
             %Sets upper and lower limit on the center
-            lim_lower(3)=min(x)/2;
-            lim_upper(3)=max(x)*2;
+            lim_lower(3)=min(x)-abs(max(x)-min(x));
+            lim_upper(3)=max(x)+abs(max(x)-min(x));
 
-            init_params=[amp,width,center, bg];
+            this.param_vals = [amp, width, center, bg];
+            this.lim_lower  = lim_lower;
+            this.lim_upper  = lim_upper;
         end
     end
 end

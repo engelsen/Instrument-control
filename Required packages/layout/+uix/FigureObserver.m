@@ -1,11 +1,10 @@
-classdef ( Hidden, Sealed ) FigureObserver < handle
+classdef ( Sealed ) FigureObserver < handle
     %uix.FigureObserver  Figure observer
     %
     %  A figure observer raises an event FigureChanged when the figure
     %  ancestor of a subject changes.
     
-    %  Copyright 2014-2015 The MathWorks, Inc.
-    %  $Revision: 1435 $ $Date: 2016-11-17 17:50:34 +0000 (Thu, 17 Nov 2016) $
+    %  Copyright 2009-2020 The MathWorks, Inc.
     
     properties( SetAccess = private )
         Subject % subject
@@ -13,8 +12,8 @@ classdef ( Hidden, Sealed ) FigureObserver < handle
     end
     
     properties( Access = private )
-        PreSetListeners % listeners to Parent PreGet
-        PostSetListeners % listeners to Parent PreGet
+        PreSetListeners % listeners to Parent PreSet
+        PostSetListeners % listeners to Parent PostSet
         OldFigure = gobjects( 0 ) % previous figure ancestor
     end
     
@@ -30,9 +29,17 @@ classdef ( Hidden, Sealed ) FigureObserver < handle
             %  o = uix.FigureObserver(s) creates a figure observer for the
             %  subject s.
             
-            % Check
+            % Check type and size.
+            narginchk( 1, 1 )
             validateattributes( subject, {'matlab.graphics.Graphics'}, ...
                 {'scalar'}, '', 'subject' )
+
+            % Check that the graphics object has the 'Parent' property.
+            % This excludes graphics placeholders, for example.
+            if ~isprop( subject, 'Parent' )
+                error( 'uix:ParentNotAProperty', ...
+                    'Expected subject to have the ''Parent'' property.' )
+            end % if
             
             % Store subject
             obj.Subject = subject;

@@ -23,27 +23,25 @@ classdef MyLorentzianFit < MyFitParamScaling
             this.lim_upper=[Inf,Inf,Inf,Inf];
             this.lim_lower=[-Inf,0,-Inf,-Inf];
 
-            % Finds peaks on the positive signal (max 1 peak)
-            rng_x = max(x)-min(x);
-            try
-                [~, locs(1), widths(1), proms(1)] = findpeaks(y, x,...
-                    'MinPeakDistance', rng_x/2, 'SortStr', 'descend',...
-                    'NPeaks', 1);
-            catch ME
-                warning(ME.message)
+            % Find peaks using temporary variables to safely handle the
+            % case where findpeaks returns empty (no exception is raised).
+            rng_x = max(x) - min(x);
+            proms  = [0, 0];
+            locs   = [mean(x), mean(x)];
+            widths = [rng_x/10, rng_x/10];
 
-                proms(1) = 0;
+            % Finds peaks on the positive signal (max 1 peak)
+            [~, lp, wp, pp] = findpeaks(y, x, ...
+                'MinPeakDistance', rng_x/2, 'SortStr', 'descend', 'NPeaks', 1);
+            if ~isempty(pp)
+                locs(1) = lp; widths(1) = wp; proms(1) = pp;
             end
 
             % Finds peaks on the negative signal (max 1 peak)
-            try
-                [~,locs(2),widths(2),proms(2)] = findpeaks(-y, x,...
-                    'MinPeakDistance', rng_x/2, 'SortStr', 'descend',...
-                    'NPeaks', 1);
-            catch ME
-                warning(ME.message)
-                
-                proms(2) = 0;
+            [~, lp, wp, pp] = findpeaks(-y, x, ...
+                'MinPeakDistance', rng_x/2, 'SortStr', 'descend', 'NPeaks', 1);
+            if ~isempty(pp)
+                locs(2) = lp; widths(2) = wp; proms(2) = pp;
             end
 
             if proms(1)==0 && proms(2)==0

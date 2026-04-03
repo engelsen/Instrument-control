@@ -3,8 +3,7 @@ classdef ButtonBox < uix.Box
     %
     %  uix.ButtonBox is a base class for containers that lay out buttons.
     
-    %  Copyright 2009-2015 The MathWorks, Inc.
-    %  $Revision: 1165 $ $Date: 2015-12-06 03:09:17 -0500 (Sun, 06 Dec 2015) $
+    %  Copyright 2009-2020 The MathWorks, Inc.
     
     properties( Access = public, Dependent, AbortSet )
         ButtonSize % button size, in pixels
@@ -33,7 +32,7 @@ classdef ButtonBox < uix.Box
                 'Property ''ButtonSize'' must be of type double.' )
             assert( isequal( size( value ), [1 2] ), ...
                 'uix:InvalidPropertyValue', ...
-                'Size of property ''ButtonSize'' must by 1-by-2.' )
+                'Size of property ''ButtonSize'' must be 1-by-2.' )
             assert( all( isreal( value ) ) && ~any( isinf( value ) ) && ...
                 ~any( isnan( value ) ) && ~any( value <= 0 ), ...
                 'uix:InvalidPropertyValue', ...
@@ -56,13 +55,15 @@ classdef ButtonBox < uix.Box
         function set.HorizontalAlignment( obj, value )
             
             % Check
-            assert( ischar( value ), 'uix:InvalidPropertyValue', ...
-                'Property ''HorizontalAlignment'' must be a string.' )
-            assert( any( strcmp( value, {'left';'center';'right'} ) ), ...
-                'Property ''HorizontalAlignment'' must be ''left'', ''center'' or ''right''.' )
+            try
+                assert( ismember( value, {'left';'center';'right'} ) )
+            catch
+                error( 'uix:InvalidPropertyValue', ...
+                    'Property ''HorizontalAlignment'' must be ''left'', ''center'' or ''right''.' )
+            end % try/catch
             
             % Set
-            obj.HorizontalAlignment_ = value;
+            obj.HorizontalAlignment_ = char( value );
             
             % Mark as dirty
             obj.Dirty = true;
@@ -78,13 +79,15 @@ classdef ButtonBox < uix.Box
         function set.VerticalAlignment( obj, value )
             
             % Check
-            assert( ischar( value ), 'uix:InvalidPropertyValue', ...
-                'Property ''VerticalAlignment'' must be a string.' )
-            assert( any( strcmp( value, {'top';'middle';'bottom'} ) ), ...
-                'Property ''VerticalAlignment'' must be ''top'', ''middle'' or ''bottom''.' )
+            try
+                assert( ismember( value, {'top';'middle';'bottom'} ) )
+            catch
+                error( 'uix:InvalidPropertyValue', ...
+                    'Property ''VerticalAlignment'' must be ''top'', ''middle'' or ''bottom''.' )
+            end % try/catch
             
             % Set
-            obj.VerticalAlignment_ = value;
+            obj.VerticalAlignment_ = char( value );
             
             % Mark as dirty
             obj.Dirty = true;

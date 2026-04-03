@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>Scalability and Architecture</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">Scalability and Architecture</h1></div>
+<p>As applications get bigger the code gets more complex. The simple application structure used here does not scale well to large applications. However, some small adjustments can make life much better.</p>
+<ul>
+<li>Convert the <code>data</code> structure into a <a href="https://www.mathworks.com/help/matlab/matlab_oop/comparing-handle-and-value-classes.html" rel="nofollow"><code>handle</code></a> object. This allows a single <code>data</code> object to be shared between multiple graphical components, and in turn means that the interface need not be built as a single monolithic entity.</li>
+<li>Use the <a href="https://www.mathworks.com/help/matlab/events-sending-and-responding-to-messages.html" rel="nofollow">events system</a> to trigger updates to specific parts of the app in response to properties of the data object changing. This removes the need for a single large <code>updateInterface</code> function and reduces coupling between parts of the interface. For example, the <code>SelectedExample</code> property would have an associated event such that when it is changed by a callback (or from the command line) it notifies other interface components of the change. Each interface component (or group thereof) can listen for the events that affect it.</li>
+</ul>
+<p>Advice on how to build large-scale applications is beyond the scope of this document. If you need help in this area, please contact your MathWorks account manager who will be able to put you in touch with a technical specialist.</p>
+<div class="markdown-heading"><h2 class="heading-element">Related Topics</h2></div>
+<ul>
+<li><a href="ApplicationStructure.html">Application Structure</a></li>
+<li><a href="CreateInterface.html">Creating the User Interface</a></li>
+<li><a href="UpdateInterface.html">Updating the User Interface</a></li>
+<li><a href="OnListSelection.html">Responding to User Interaction</a></li>
+<li><a href="RunningIt.html">Launching the Application</a></li>
+</ul>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

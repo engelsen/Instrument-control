@@ -1,0 +1,177 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>Compatibility Considerations</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">Compatibility Considerations</h1></div>
+<div class="markdown-heading"><h2 class="heading-element">MATLAB® Version Support</h2></div>
+<p>This is version 2 of GUI Layout Toolbox, which works with MATLAB versions from R2014b.  Version 1 supports MATLAB versions prior to R2014b.</p>
+<div class="markdown-heading"><h2 class="heading-element">Version 1 Compatibility</h2></div>
+<p>When upgrading from version 1, there are a number of compatibility considerations.</p>
+<div class="markdown-heading"><h3 class="heading-element">
+<code>uiextras</code> namespace</h3></div>
+<p>Version 1 classes were contained in the namespace <code>uiextras</code>. Version 2 classes are contained in the namespace <code>uix</code>. In version 2, a namespace <code>uiextras</code> is included to provide support for legacy code. Classes in <code>uiextras</code> extend the corresponding classes in <code>uix</code>, and contain only compatibility-related code.</p>
+<div class="markdown-heading"><h3 class="heading-element">
+<code>Contents</code> property</h3></div>
+<p>The contents of version 1 objects were accessible via the property <code>Children</code>. The contents of version 2 objects are accessible via the property <code>Contents</code>. Version 2 objects also provide a property <code>Children</code>, but this controls the vertical stacking order rather than the layout order. Legacy code that accesses <code>Children</code> will run without error, but will not achieve the desired change in layout order, and should be modified to access <code>Contents</code> instead.</p>
+<p>An upcoming release of version 1 will include support for code that references contents via <code>Contents</code>. That way, code modified to work in version 2 will also work in version 1.</p>
+<p>The background to this change is as follows. Version 1 classes were wrappers for built-in graphics classes, and presented contents in layout order via the property <code>Children</code>. Version 2 objects extend built-in graphics objects, and as such, inherit properties, methods, and events. One such property is <code>Children</code>, which is used to control the top-to-bottom stacking order. MATLAB stacking rules, e.g., controls are always on top of axes, mean that some reasonable layout orders may be invalid stacking orders, so a new property for layout order is required.</p>
+<p>Another difference between <code>Children</code> and <code>Contents</code> relates to the <code>HandleVisibility</code> of the graphics objects placed in a layout. The <code>Children</code> property does not include graphics objects with <code>HandleVisibility</code> set to <code>'off'</code>. However, the <code>Contents</code> property includes all graphics objects placed in the layout, including those with <code>HandleVisibility</code> set to <code>'off'</code>. This difference ensures that users are able to specify the layout of all child elements placed in a layout.</p>
+<div class="markdown-heading"><h3 class="heading-element">Autoparenting</h3></div>
+<p>The new MATLAB graphics system introduces unparented objects, i.e., those with property <code>Parent</code> empty. The new system also introduces a separation between formal class constructors, e.g., <code>matlab.ui.container.Panel</code>, and informal construction functions, e.g., <code>uipanel</code>. Construction functions are autoparenting, i.e., if <code>Parent</code> is not specified then it is set to <a href="https://www.mathworks.com/help/matlab/ref/gcf.html" rel="nofollow"><code>gcf</code></a>, whereas class constructors return objects with <code>Parent</code> empty unless explicitly specified. Version 2 presents a formal interface of class constructors which follow this new convention.</p>
+<p>Classes in <code>uiextras</code> are autoparenting, so the behavior of legacy code is unchanged. However, best practice is to specify the parent explicitly during construction.</p>
+<div class="markdown-heading"><h3 class="heading-element">Defaults mechanism</h3></div>
+<p>Version 1 provided a defaults mechanism (<code>uiextras.get</code>, <code>uiextras.set</code>, and <code>uiextras.unset</code>) that mimicked <a href="https://www.mathworks.com/help/matlab/ref/get.html" rel="nofollow"><code>get</code></a> and <a href="https://www.mathworks.com/help/matlab/ref/set.html" rel="nofollow"><code>set</code></a> in the MATLAB graphics system. This feature has been removed from version 2. Users should use an alternative programming pattern, e.g., a factory function, to create objects with standard settings.</p>
+<div class="markdown-heading"><h3 class="heading-element">Enable and disable</h3></div>
+<p>Version 1 provided a mechanism to enable and disable container contents using the property <code>Enable</code>. This feature has been removed from version 2. Users should enable and disable controls directly rather than via containers. For more commentary, see <a href="https://stackoverflow.com/questions/305527/how-to-disable-a-container-and-its-children-in-swing" rel="nofollow">this article</a>.</p>
+<div class="markdown-heading"><h3 class="heading-element">Other property name changes</h3></div>
+<p>A number of property names have changed to achieve greater consistency across the namespace. For example, <code>RowSizes</code> and <code>ColumnSizes</code> in <code>uiextras.Grid</code> are now <code>Heights</code> and <code>Widths</code> in <code>uix.Grid</code>. The namespace <code>uiextras</code> provides support for legacy property names.</p>
+<table>
+<thead>
+<tr>
+<th align="left"><code>uiextras</code></th>
+<th align="left"><code>uix</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code>RowSizes</code></td>
+<td align="left"><code>Heights</code></td>
+</tr>
+<tr>
+<td align="left"><code>ColumnSizes</code></td>
+<td align="left"><code>Widths</code></td>
+</tr>
+<tr>
+<td align="left"><code>ShowMarkings</code></td>
+<td align="left"><code>DividerMarkings</code></td>
+</tr>
+</tbody>
+</table>
+<div class="markdown-heading"><h3 class="heading-element">Property shape changes</h3></div>
+<p>Version 2 contents companion properties are now of the same size as <code>Contents</code>, i.e., column vectors. In version 1, these properties were row vectors. The namespace <code>uiextras</code> provides support for legacy property values.</p>
+<div class="markdown-heading"><h3 class="heading-element">Tab selection behavior</h3></div>
+<p>In version 1, after adding a tab to a tab panel, the new tab is selected.</p>
+<p>In version 2, the original selection is preserved, except if the tab panel was empty, in which case the new tab is selected. This is consistent with the behavior of <a href="https://www.mathworks.com/help/matlab/ref/uitabgroup.html" rel="nofollow"><code>uitabgroup</code></a>.</p>
+<div class="markdown-heading"><h2 class="heading-element">
+<code>uifigure</code> Support</h2></div>
+<p><code>uifigure</code> and its JavaScript graphics system was introducted in MATLAB R2016a, alongside <code>figure</code> and its Java graphics system.  As the JavaScript graphics system has matured, it has been possible to support more layouts:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Layout</th>
+<th align="center">R2020b</th>
+<th align="center">R2021a,b</th>
+<th align="center">R2022a...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code>uix.HBox</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.VBox</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.HButtonBox</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.VButtonBox</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.Grid</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.Empty</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.Panel</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.CardPanel</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.TabPanel</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.HBoxFlex</code></td>
+<td align="center"/>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.VBoxFlex</code></td>
+<td align="center"/>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.GridFlex</code></td>
+<td align="center"/>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.BoxPanel</code></td>
+<td align="center"/>
+<td align="center"/>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td align="left"><code>uix.ScrollingPanel</code></td>
+<td align="center"/>
+<td align="center"/>
+<td align="center">✅</td>
+</tr>
+</tbody>
+</table>
+<p>Draggable dividers require <code>uicontainer</code> callback <code>ButtonDownFcn</code>, which is supported from R2021a.  <code>uix.ScrollingPanel</code> and <code>uix.BoxPanel</code> require <code>uicontrol</code>, which is supported from R2022a.</p>
+<div class="markdown-heading"><h3 class="heading-element">Usage</h3></div>
+<p>To use GUI Layout Toolbox with JavaScript graphics, the <code>AutoResizeChildren</code> property of any ancestor <a href="https://www.mathworks.com/help/matlab/ref/uifigure.html" rel="nofollow"><code>uifigure</code></a>, <a href="https://www.mathworks.com/help/matlab/ref/uipanel.html" rel="nofollow"><code>uipanel</code></a>, or <a href="https://www.mathworks.com/help/matlab/ref/uitab.html" rel="nofollow"><code>uitab</code></a> must be set to <code>off</code>; otherwise, the layouts will not resize as expected.</p>
+<p>For example, to create a flexible grid in a <code>uifigure</code>:</p>
+<div class="highlight highlight-source-matlab"><pre>f <span class="pl-k">=</span> uifigure( <span class="pl-s"><span class="pl-pds">'</span>AutoResizeChildren<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>off<span class="pl-pds">'</span></span> );
+g <span class="pl-k">=</span> <span class="pl-smi">uix</span>.GridFlex( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">f</span>, <span class="pl-s"><span class="pl-pds">'</span>Padding<span class="pl-pds">'</span></span>, <span class="pl-en"><span class="pl-c1">5</span></span> <span class="pl-s">)</span>;
+uilistbox( <span class="pl-smi">g</span>, <span class="pl-s"><span class="pl-pds">'</span>Items<span class="pl-pds">'</span></span>, {<span class="pl-s"><span class="pl-pds">'</span>Red<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Green<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Blue<span class="pl-pds">'</span></span>} );
+uibutton( <span class="pl-smi">g</span>, <span class="pl-s"><span class="pl-pds">'</span>Text<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Button<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>BackgroundColor<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>m<span class="pl-pds">'</span></span> );
+uitable( <span class="pl-smi">g</span>, <span class="pl-s"><span class="pl-pds">'</span>Data<span class="pl-pds">'</span></span>, magic(<span class="pl-c1">3</span>) );
+uilabel( <span class="pl-smi">g</span>, <span class="pl-s"><span class="pl-pds">'</span>Text<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Label<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>HorizontalAlignment<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>center<span class="pl-pds">'</span></span> );
+g.Widths <span class="pl-k">=</span> [-<span class="pl-c1">1</span>, <span class="pl-k">-</span><span class="pl-c1">1</span>];</pre></div><div class="highlight highlight-output-matlab"><img src="data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAZAAAAEsCAIAAABi1XKVAAAAB3RJTUUH6QkFEDIfuw+IXQAAFMVJREFUeJzt3XFMlPf9wPHP/YKMo0t7At20dAyZ5LDGCKYttAcGjZumMWucKVd2msa6TTqZHbOyrpX7A9bMUplrYxu7tJKNEoXNLnUurc1CieUGTFPOmM274FDPKra7Y9fGckRN7vfHk14vQOGoHM/zfe79StNwd8/J55r07fd57u55LOFwWABABf+n9wAAkCiCBUAZBAuAMtLG3W5padFlDpjGzp079R4BpjU+WCKyevXquZ8D5tDV1TXuHv4KxK0Y9/ffJMECZtfTTz899790z549uvzeuWT617hnz55x93AMC4AyCBYAZUyzS3jt2rXf/e53Q0NDsXtKS0u3bNmSnp6eyBMfeeQRu90+C2MCQILHsH75y19q3bl+/Xpra+s///nP8vLyJA8GAOPN7KB7enr60qVLr169qt30+/3PP/+8xC27tKL19/eXlpbO/rAAUtvMjmFdv379X//614IFC0TkypUrnZ2dv/71rw8cOCAiR48ejf37wIEDlZWV8TuSAHDrElphacsozUMPPaTtDw4NDX3jG9/IyclJT0+vrKzs7u6+du1aKBSqrKxMT09ftGgRiywAs2sGx7CuXLny+uuvP/jgg7H7+/v7+/v7tZ8LCgo+++yz//73v0kZEwBmtEt41113rVq16uDBg9euXdPueeihhw5+bvfu3fPnz7/zzjuTMydwqwYHB8vKyjo6OvQeJCl6e3tv+9zEz1uaxsyOYd1///133nmn1+sVkYKCgrNnz165ckVE/vznP7/66qsisnTp0u7u7uvXr58/fz62+AJ019vbW1xcfObMGb0HSZZIJHLp0qXPPvvs4MGDTU1NZu3yzIKlHa566623rly5ctddd1VVVe3evfvxxx/3+Xwulys9Pf3+++8XkZqamu7u7lWrViVnZmBmBgcHf/Ob3/z85z/Xe5AkWr16dVZWlojk5eWJyPnz5/WeKCmmOYb19a9/fffu3fH32O32F154IfbzwYMH4x9NT0/ftm3btm3bZndK4FYUFhYePXrUrIuOcQKBgIgsWrRI70GSgq/mAObR29v7+OOPr1mz5rvf/a7esyQFwQJMoqOjY82aNVu3bj18+LC2e2g+BAswA21ttXXr1ueff95q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" style="width: 400px; height: auto"/></div>
+<p>To create a card panel in a <code>uipanel</code>:</p>
+<div class="highlight highlight-source-matlab"><pre>f <span class="pl-k">=</span> uifigure( <span class="pl-s"><span class="pl-pds">'</span>AutoResizeChildren<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>off<span class="pl-pds">'</span></span> );
+p <span class="pl-k">=</span> uipanel( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">f</span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Title<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Card Panel<span class="pl-pds">'</span></span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Units<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>normalized<span class="pl-pds">'</span></span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Position<span class="pl-pds">'</span></span>, [<span class="pl-c1">0.25</span>, <span class="pl-c1">0.25</span>, <span class="pl-c1">0.50</span>, <span class="pl-c1">0.50</span>], ...
+    <span class="pl-s"><span class="pl-pds">'</span>AutoResizeChildren<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>off<span class="pl-pds">'</span></span> );
+cp <span class="pl-k">=</span> <span class="pl-smi">uix</span>.CardPanel( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">p</span>, <span class="pl-s"><span class="pl-pds">'</span>Padding<span class="pl-pds">'</span></span>, <span class="pl-en"><span class="pl-c1">5</span></span> <span class="pl-s">)</span>;
+uibutton( <span class="pl-smi">cp</span>, <span class="pl-s"><span class="pl-pds">'</span>Text<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Button 1<span class="pl-pds">'</span></span> );
+uibutton( <span class="pl-smi">cp</span>, <span class="pl-s"><span class="pl-pds">'</span>Text<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Button 2<span class="pl-pds">'</span></span> );</pre></div><div class="highlight highlight-output-matlab"><img src="data:image/png;base64, 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" style="width: 400px; height: auto"/></div>
+<div class="markdown-heading"><h3 class="heading-element"><g-emoji alias="warning" class="g-emoji">⚠️</g-emoji> Known Issues</h3></div>
+<p>In R2022b, a MATLAB bug exists whereby the default <code>Position</code> of <code>[0 0 1 1]</code> is not honored during construction of <code>uix.Panel</code> and <code>uix.BoxPanel</code> objects.  Instead, the layouts are drawn incorrectly in the default <code>uipanel</code> position, until the <code>Position</code> is changed.  To work around this bug, set <code>Position</code> to a different value before the required value:</p>
+<div class="highlight highlight-source-matlab"><pre>f <span class="pl-k">=</span> uifigure( <span class="pl-s"><span class="pl-pds">'</span>AutoResizeChildren<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>off<span class="pl-pds">'</span></span> );
+p <span class="pl-k">=</span> <span class="pl-smi">uix</span>.Panel( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">f</span>, <span class="pl-s"><span class="pl-pds">'</span>Position<span class="pl-pds">'</span></span>, [<span class="pl-c1">0</span> <span class="pl-c1">0</span> <span class="pl-c1">0.5</span> <span class="pl-c1">0.5</span>], <span class="pl-s"><span class="pl-pds">'</span>Position<span class="pl-pds">'</span></span>, [<span class="pl-c1">0</span> <span class="pl-c1">0</span> <span class="pl-c1">1</span> <span class="pl-c1">1</span>] ); </pre></div>
+<p>This bug was fixed in R2023a.  It recurred in R2023b for <em>all</em> GUI Layout Toolbox layouts.  It was fixed in R2024a for all layouts <em>except</em> <code>uix.Panel</code> and <code>uix.BoxPanel</code>.  It was fixed completely in R2024b.</p>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

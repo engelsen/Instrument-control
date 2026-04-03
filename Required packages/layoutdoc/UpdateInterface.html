@@ -1,0 +1,37 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>Updating the User Interface</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">Updating the User Interface</h1></div>
+<p>The second function we will look at, <code>updateInterface</code>, uses the current selection together with the relevant content in the <code>data</code> structure to update the interface. The following steps are used in the update process.</p>
+<ul>
+<li>Update the selected item in the listbox.</li>
+</ul>
+<div class="highlight highlight-source-matlab"><pre>app.ListBox.Value <span class="pl-k">=</span> <span class="pl-smi">data</span>.<span class="pl-smi">SelectedExample</span>; </pre></div>
+<ul>
+<li>Update the source code button label.</li>
+</ul>
+<div class="highlight highlight-source-matlab"><pre>exampleFunction <span class="pl-k">=</span> data.ExampleFunctions{<span class="pl-smi">data</span>.<span class="pl-smi">SelectedExample</span>};
+app.SourceCodeButton.String <span class="pl-k">=</span> [<span class="pl-s"><span class="pl-pds">'</span>Source code for <span class="pl-pds">'</span></span>, <span class="pl-smi">exampleFunction</span>]; </pre></div>
+<ul>
+<li>Update the view panel title.</li>
+</ul>
+<div class="highlight highlight-source-matlab"><pre>exampleName <span class="pl-k">=</span> data.ExampleNames{<span class="pl-smi">data</span>.<span class="pl-smi">SelectedExample</span>};
+app.ViewPanel.Title <span class="pl-k">=</span> sprintf( <span class="pl-s"><span class="pl-pds">'</span>Viewing: <span class="pl-cce">%s</span><span class="pl-pds">'</span></span>, <span class="pl-en">exampleName</span> <span class="pl-s">)</span>; </pre></div>
+<ul>
+<li>Update the selected menu.</li>
+</ul>
+<div class="highlight highlight-source-matlab"><pre>menus <span class="pl-k">=</span> get( <span class="pl-smi">app</span>.<span class="pl-smi">ViewMenu</span>, <span class="pl-s"><span class="pl-pds">'</span>Children<span class="pl-pds">'</span></span> );
+set( <span class="pl-smi">menus</span>, <span class="pl-s"><span class="pl-pds">'</span>Checked<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>off<span class="pl-pds">'</span></span> )
+whichMenu <span class="pl-k">=</span> strcmpi( <span class="pl-smi">exampleName</span>, get( <span class="pl-smi">menus</span>, <span class="pl-s"><span class="pl-pds">'</span>Label<span class="pl-pds">'</span></span> ) );
+menus(<span class="pl-smi">whichMenu</span>).Checked <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>on<span class="pl-pds">'</span></span>; </pre></div>
+<p><a href="Images/UpdateInterface01.png" rel="noopener noreferrer" target="_blank"><img alt="The interface after being updated" src="Images/UpdateInterface01.png" style="max-width: 100%;" title="The interface after being updated"/></a></p>
+<p>In general, this update function is called whenever the underlying shared <code>data</code> structure is changed. This happens when the user clicks a button, or selects a list item or menu. Next, we will look at a typical callback.</p>
+<p>The complete source code for this application is available in <code>galleryBrowser.m</code>.</p>
+<div class="highlight highlight-source-matlab"><pre><span class="pl-en">edit</span> <span class="pl-s">galleryBrowser </span></pre></div>
+<div class="markdown-heading"><h2 class="heading-element">Related Topics</h2></div>
+<ul>
+<li><a href="ApplicationStructure.html">Application Structure</a></li>
+<li><a href="CreateInterface.html">Creating the User Interface</a></li>
+<li><a href="OnListSelection.html">Responding to User Interaction</a></li>
+<li><a href="RunningIt.html">Launching the Application</a></li>
+<li><a href="Scalability.html">Scalability and Architecture</a></li>
+</ul>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

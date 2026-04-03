@@ -1,0 +1,191 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>Release Notes</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">Release Notes</h1></div>
+<p>GUI Layout Toolbox versions follow <a href="https://semver.org/" rel="nofollow">semantic versioning</a>, <code>major.minor.iter</code>.  You can check your current version(s) using <a href="https://www.mathworks.com/help/matlab/ref/ver.html" rel="nofollow"><code>ver</code></a>, <code>ver('layout')</code>, <a href="https://www.mathworks.com/help/matlab/ref/matlab.addons.installedaddons.html" rel="nofollow"><code>matlab.addons.installedAddons</code></a>, or the <a href="https://uk.mathworks.com/help/matlab/matlab_env/get-add-ons.html" rel="nofollow">Add-On Manager</a>.</p>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.4.2</h2></div>
+<ul>
+<li>Released 4 September 2025</li>
+<li>Fixed <em>Cannot drag flex containers in MATLAB Online</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.4.1</h2></div>
+<ul>
+<li>Released 15 January 2025</li>
+<li>Added <code>uix.BoxPanel</code> property <code>MinimizedHeight</code> to return minimized height (title plus border)</li>
+<li>Fixed <em>Cannot create layouts prior to R2019b due to modern syntax used in <code>uix.mixin.Container</code></em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.4</h2></div>
+<ul>
+<li>Released 13 January 2025</li>
+<li>Completed support for JavaScript graphics system, from R2022a</li>
+<li>Added support for figure themes, from R2025a</li>
+<li>Removed decorations on draggable dividers, for compatibility with JavaScript graphics</li>
+<li>Reimplemented <code>uix.TabPanel</code> using <code>uitab</code>, for standardized appearance and easier deployment
+<ul>
+<li>Added tab location options <code>left</code> and <code>right</code>; this is available through <code>uitab</code>
+</li>
+<li>Removed font and some color properties; these are not available in <code>uitab</code>
+</li>
+<li>Show contents of selected but disabled tabs; this is more useful than the previous behavior</li>
+<li>Removed folder <code>Resources</code> with tab images, and special MATLAB Compiler deployment instructions; these are no longer required</li>
+</ul>
+</li>
+<li>Improved <code>uix.ScrollingPanel</code>
+<ul>
+<li>Honor <code>Padding</code>
+</li>
+<li>Changed <code>uix.ScrollingPanel</code> per-child properties <code>Heights</code>, <code>MinimumHeights</code>, <code>Widths</code>, <code>MinimumWidths</code>, <code>VerticalSteps</code>, <code>VerticalOffsets</code>, <code>HorizontalSteps</code>, <code>HorizontalOffsets</code> to scalar properties <code>Height</code>, <code>MinimumHeight</code>, <code>Width</code>, <code>MinimumWidth</code>, <code>VerticalStep</code>, <code>VerticalOffset</code>, <code>HorizontalStep</code>, <code>HorizontalOffset</code>; this simplifies usability</li>
+<li>Fixed G1959226 <em>Scrolling panel blanking plate does not match background color</em>
+</li>
+<li>Fixed G1959228 <em>Sliders remain after scrolling panel child is deleted</em>
+</li>
+</ul>
+</li>
+<li>Improved <code>uix.BoxPanel</code> titlebar appearance with JavaScript graphics
+<ul>
+<li>Renamed tooltip properties from <code>...TooltipString</code> to <code>...Tooltip</code>; previous property names are still supported</li>
+</ul>
+</li>
+<li>Removed property <code>Selection</code> from <code>uix.Panel</code>, <code>uix.BoxPanel</code>, <code>uix.ScrollingPanel</code>; these layouts now stack children; use <code>uix.CardPanel</code> to select one of several children</li>
+<li>Modernized documentation, using Doc_er 🐣</li>
+<li>Documented helper <code>uix.FigureObserver</code>, for detecting figure ancestor changes</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.9</h2></div>
+<ul>
+<li>Released 5 July 2024</li>
+<li>Reverted changes from version 2.3.8, as these introduced issues with the appearance of dividers and tabs</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.8</h2></div>
+<ul>
+<li>Released 7 June 2024</li>
+<li>Improved appearance of dividers and tabs in JavaScript graphics</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.7</h2></div>
+<ul>
+<li>Released 31 May 2024</li>
+<li>Added JavaScript graphics support for <code>uix.BoxPanel</code>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.6</h2></div>
+<ul>
+<li>Released 21 May 2023</li>
+<li>Refactored tests to support <a href="https://www.mathworks.com/help/matlab/ref/uifigure.html" rel="nofollow"><code>uifigure</code></a>
+</li>
+<li>Added details of JavaScript graphics support</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.5</h2></div>
+<ul>
+<li>Released 29 October 2020</li>
+<li>Updated for compatibility with changes to <a href="https://www.mathworks.com/help/matlab/ref/uipanel.html" rel="nofollow"><code>uipanel</code></a> in R2020b</li>
+<li>Fixed G1959226: <em>Scrolling panel scrollbars and blanking plate do not match background color</em>
+</li>
+<li>Fixed G1959228: <em>Scrolling panel sliders remain after child is deleted</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.4</h2></div>
+<ul>
+<li>Released 31 January 2019</li>
+<li>Fixed G1910801: <em>Scrolling panel does not work in figure with Units other than 'pixels'</em>
+</li>
+<li>Fixed G1911845: <em>Unexpected reordering of contents as axes toolbar causes axes to be removed and readded</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.3</h2></div>
+<ul>
+<li>Released 25 October 2018</li>
+<li>Updated for compatibility with axes toolbars in R2018b</li>
+<li>Fixed G1804440: <em>Flex containers position axes incorrectly when ActivePositionProperty is outerposition</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.2</h2></div>
+<ul>
+<li>Released 1 May 2018</li>
+<li>Set tooltip strings for BoxPanel dock/undock, minimize/maximize, help and close buttons</li>
+<li>Set default padding for flex containers to 5 so that dividers are visible</li>
+<li>Scroll <code>uix.ScrollingPanel</code> using mouse wheel for variable-sized contents</li>
+<li>Fixed G1358897: <em>BoxPanel title is truncated on Mac high DPI display</em>
+</li>
+<li>Fixed G1695618: <em>Warning on mouse motion while deleting HBoxFlex, VBoxFlex or GridFlex</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3.1</h2></div>
+<ul>
+<li>Released 31 January 2017</li>
+<li>Specify minimum width and height of contents in <code>uix.ScrollingPanel</code>
+</li>
+<li>Update contents position while dragging <code>uix.ScrollingPanel</code> scrollbox</li>
+<li>Scroll <code>uix.ScrollingPanel</code> using mouse wheel</li>
+<li>Updated toolbox logo</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.3</h2></div>
+<ul>
+<li>Released 24 November 2016</li>
+<li>Added scrolling panel</li>
+<li>Expand and collapse box panel by clicking on title</li>
+<li>Fixed G1493103: <em>Error on construction behavior is inconstistent with builtin objects</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Verson 2.2.2</h2></div>
+<ul>
+<li>Released 22 August 2016</li>
+<li>Fixed G1175938: <em>Cannot use data cursor mode with GUI Layout Toolbox containers</em>
+</li>
+<li>Fixed G1367337: <em>Update flex container pointer on mouse press event</em>
+</li>
+<li>Fixed G1380756: <em>Space behind TabPanel tabs should match parent color</em>
+</li>
+<li>Added anonymous tracking of version, operating system and usage to help us prioritize the improvements we should work on</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.2.1</h2></div>
+<ul>
+<li>Released 26 February 2016</li>
+<li>Fixed G1346921: <em>Mouse pointer gets confused when moving between adjacent flex containers</em>
+</li>
+<li>Fixed G1357340: <em>BoxPanel property ForegroundColor is initialized incorrectly</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.2</h2></div>
+<ul>
+<li>Released 18 December 2015</li>
+<li>Improved box panel title bar appearance</li>
+<li>Changed selection behavior of <code>uix.TabGroup</code> to match that of <a href="https://www.mathworks.com/help/matlab/ref/uitabgroup.html" rel="nofollow"><code>uitabgroup</code></a> when the selected tab is removed</li>
+<li>Fixed G1253937:  <em>uix.TabPanel/redrawTabs fails</em> (R2015b)</li>
+<li>Fixed G1292238: <em>uix.BoxPanel/redrawBorders fails</em> (R2015b)</li>
+<li>Fixed G1330841: <em>mouse-over-divider detection does not work for docked figures</em> (all)</li>
+<li>Fixed G1332109: <em>uix.Empty background color does not match that of its Parent</em> (all)</li>
+<li>Fixed G1334867:  <em>cannot add axes to container</em> (R2016a prerelease)</li>
+<li>Removed internal helper classes <code>uix.AncestryObserver</code>, <code>uix.LocationObserver</code>, <code>uix.VisibilityObserver</code>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.1.2</h2></div>
+<ul>
+<li>Released 29 May 2015</li>
+<li>Fixed G1250248: <em>uix.Empty becomes visible in a panel</em>
+</li>
+<li>Fixed G1250249: <em>missing property Selection of uix.BoxPanel</em>
+</li>
+<li>Fixed G1250808: <em>uix.TabPanel context menus are orphaned when reparenting to a different figure</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.1.1</h2></div>
+<ul>
+<li>Released 15 May 2015</li>
+<li>Added context menus on <code>uix.TabPanel</code> tab labels (G1245669)</li>
+<li>Fixed G1164656: <em>cannot set relative tab widths</em>
+</li>
+<li>Fixed G1019441: <em>property RowSizes of uiextras.GridFlex sets heights not widths</em>
+</li>
+<li>Fixed G1165274: <em>missing properties RowSizes, MinimumRowSizes, ColumnSizes, MinimumColumnSizes of uiextras.Grid, uiextras.GridFlex</em>
+</li>
+<li>Fixed G1218142: <em>contents are lost when reordering via property Children</em>
+</li>
+<li>Protected against G1136196: <em>segv when setting child visibility from 'off' to 'on' in response to being reparented</em>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Version 2.1</h2></div>
+<ul>
+<li>Released 2 October 2014</li>
+<li>Initial version for MATLAB R2014b</li>
+<li>Versions 2.0.x were for prerelease testing</li>
+</ul>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

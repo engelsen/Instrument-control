@@ -1,0 +1,49 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>Creating the User Interface</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">Creating the User Interface</h1></div>
+<p>The interface creation is handled in the <code>createInterface</code> function. This has two distinct sections: menu building and control arrangement. The menus are created using the <a href="https://www.mathworks.com/help/matlab/ref/uimenu.html" rel="nofollow"><code>uimenu</code></a> function, so in what follows we'll focus on the control arrangement.</p>
+<p>The top-level layout is a horizontal box, placing the controls to the left of the main plot. We make the layout flexible by using the "flex" variant of <code>HBox</code>, and put a panel in each side of the layout. Note that setting the <code>HelpFcn</code> for the view panel adds a small <code>?</code> icon that we can use to open help or documentation for the current example. See the <a href="ContextHelp.html"><code>ContextHelp</code></a> example for more details.</p>
+<div class="highlight highlight-source-matlab"><pre><span class="pl-c"><span class="pl-c">%</span> Arrange the main interface</span>
+mainLayout <span class="pl-k">=</span> <span class="pl-smi">uix</span>.HBoxFlex( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">app</span>.<span class="pl-smi">Figure</span>, <span class="pl-s"><span class="pl-pds">'</span>Spacing<span class="pl-pds">'</span></span>, <span class="pl-en"><span class="pl-c1">3</span></span> <span class="pl-s">)</span>;
+
+<span class="pl-c"><span class="pl-c">%</span> Create the panels</span>
+controlPanel <span class="pl-k">=</span> <span class="pl-smi">uix</span>.BoxPanel( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">mainLayout</span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Title<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Select an example<span class="pl-pds">'</span></span> );
+app.ViewPanel <span class="pl-k">=</span> <span class="pl-smi">uix</span>.BoxPanel( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">mainLayout</span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Title<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Viewing: ???<span class="pl-pds">'</span></span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>HelpFcn<span class="pl-pds">'</span></span>, @<span class="pl-smi">onSourceCodeRequested</span> );
+app.ViewContainer <span class="pl-k">=</span> uicontainer( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">app</span>.<span class="pl-smi">ViewPanel</span> );
+
+<span class="pl-c"><span class="pl-c">%</span> Adjust the main layout</span>
+mainLayout.Widths <span class="pl-k">=</span> [-<span class="pl-c1">1</span>, <span class="pl-k">-</span><span class="pl-c1">2</span>]; </pre></div>
+<p><a href="Images/CreateInterface01.png" rel="noopener noreferrer" target="_blank"><img alt="The top-level layout and panels" src="Images/CreateInterface01.png" style="max-width: 100%;" title="The top-level layout and panels"/></a></p>
+<p>Next, we create a vertical layout in the control panel containing the listbox and a button. Note the callbacks that are specified for both the list and button. These both call further nested functions that are able to access the common <code>data</code> and <code>app</code> shared structures.</p>
+<div class="highlight highlight-source-matlab"><pre> <span class="pl-c"><span class="pl-c">%</span> Create the controls</span>
+controlLayout <span class="pl-k">=</span> <span class="pl-smi">uix</span>.VBox( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">controlPanel</span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Padding<span class="pl-pds">'</span></span>, <span class="pl-c1">3</span>, <span class="pl-s"><span class="pl-pds">'</span>Spacing<span class="pl-pds">'</span></span>, <span class="pl-en"><span class="pl-c1">3</span></span> <span class="pl-s">)</span>;
+app.ListBox <span class="pl-k">=</span> uicontrol( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">controlLayout</span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Style<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>listbox<span class="pl-pds">'</span></span>, ...<span class="pl-c">    </span>
+    <span class="pl-s"><span class="pl-pds">'</span>String<span class="pl-pds">'</span></span>, exampleList(<span class="pl-k">:</span>), ...
+    <span class="pl-s"><span class="pl-pds">'</span>Value<span class="pl-pds">'</span></span>, <span class="pl-c1">1</span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Callback<span class="pl-pds">'</span></span>, @<span class="pl-smi">onListSelection</span> );
+app.SourceCodeButton <span class="pl-k">=</span> uicontrol( <span class="pl-s"><span class="pl-pds">'</span>Style<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>pushbutton<span class="pl-pds">'</span></span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">controlLayout</span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>String<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Source Code for &lt;example&gt;<span class="pl-pds">'</span></span>, ...
+    <span class="pl-s"><span class="pl-pds">'</span>Callback<span class="pl-pds">'</span></span>, @<span class="pl-smi">onSourceCodeRequested</span> );
+
+<span class="pl-c"><span class="pl-c">%</span> Make the list fill the space</span>
+controlLayout.Heights <span class="pl-k">=</span> [-<span class="pl-c1">1</span>, <span class="pl-c1">28</span>]; </pre></div>
+<p><a href="Images/CreateInterface02.png" rel="noopener noreferrer" target="_blank"><img alt="The listbox and button in the control panel" src="Images/CreateInterface02.png" style="max-width: 100%;" title="The listbox and button in the control panel"/></a></p>
+<p>Finally, the view itself is simply an axes placed inside the view panel.</p>
+<div class="highlight highlight-source-matlab"><pre><span class="pl-c"><span class="pl-c">%</span> Create the view        </span>
+app.ViewAxes <span class="pl-k">=</span> axes( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">app</span>.<span class="pl-smi">ViewContainer</span> ); </pre></div>
+<p><a href="Images/CreateInterface03.png" rel="noopener noreferrer" target="_blank"><img alt="The axes in the view panel" src="Images/CreateInterface03.png" style="max-width: 100%;" title="The axes in the view panel"/></a></p>
+<p>The complete source code for this application is available in <code>galleryBrowser.m</code>.</p>
+<div class="markdown-heading"><h2 class="heading-element">Related Topics</h2></div>
+<ul>
+<li><a href="ApplicationStructure.html">Application Structure</a></li>
+<li><a href="UpdateInterface.html">Updating the User Interface</a></li>
+<li><a href="OnListSelection.html">Responding to User Interaction</a></li>
+<li><a href="RunningIt.html">Launching the Application</a></li>
+<li><a href="Scalability.html">Scalability and Architecture</a></li>
+</ul>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

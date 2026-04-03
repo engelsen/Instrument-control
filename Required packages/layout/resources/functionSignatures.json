@@ -1,0 +1,450 @@
+{
+    "_schemaVersion": "1.0.0",
+    "uix.BoxPanel":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BorderColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Border color"},
+            {"name":"BorderType", "kind":"namevalue", "type":["char", "string", "choices={'none','etchedin', 'etchedout', 'beveledin', 'beveledout', 'line'}"], "purpose":"Border type"},
+            {"name":"BorderWidth", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Border width"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"CloseRequestFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Close request function"},
+            {"name":"CloseTooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Close tooltip"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"Docked", "kind":"namevalue", "type":["logical", "scalar"], "purpose":"Docked"},
+            {"name":"DockFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Dock function"},
+            {"name":"DockTooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Dock tooltip"},
+            {"name":"FontAngle", "kind":"namevalue", "type":["char", "string", "choices={'normal', 'italic'}"], "purpose":"Font angle"},
+            {"name":"FontName", "kind":"namevalue", "type":["char", "string"], "purpose":"Font name"},
+            {"name":"FontSize", "kind":"namevalue", "type":["numeric", "scalar", ">0"], "purpose":"Font size"},
+            {"name":"FontUnits", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'normalized', 'points', 'pixels'}"], "purpose":"Font units"},
+            {"name":"FontWeight", "kind":"namevalue", "type":["char", "string", "choices={'normal', 'bold'}"], "purpose":"Font weight"},
+            {"name":"ForegroundColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Foreground color"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"HelpFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Help function"},
+            {"name":"HelpTooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Help tooltip"},
+            {"name":"HighlightColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Highlight color"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MaximizeTooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Maximize tooltip"},
+            {"name":"Minimized", "kind":"namevalue", "type":["logical", "scalar"], "purpose":"Minimized"},
+            {"name":"MinimizeFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Minimize function"},
+            {"name":"MinimizeTooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Minimize tooltip"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"Scrollable", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Scrollable"},
+            {"name":"ShadowColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Shadow color"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Title", "kind":"namevalue", "type":["char", "string"], "purpose":"Title"},
+            {"name":"TitleColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Title color"},
+            {"name":"TitlePosition", "kind":"namevalue", "type":["char", "string", "choices={'lefttop', 'centertop', 'righttop', 'leftbottom', 'centerbottom', 'rightbottom'}"], "purpose":"Title position"},
+            {"name":"Tooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Tooltip"},
+            {"name":"UndockTooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Undock tooltip"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.CardPanel":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"Selection", "kind":"namevalue", "type":["numeric", "scalar", "integer", ">=0"], "purpose":"Selection"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.Empty":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.FigureObserver":
+    {
+        "inputs":
+        [
+            {"name":"subject", "kind":"required", "type":["matlab.graphics.Graphics", "scalar"],"purpose":"Graphics object whose figure ancestor is observed"}            
+        ]
+    },
+    "uix.Grid":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Heights", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Heights"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MinimumHeights", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum heights"},
+            {"name":"MinimumWidths", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum widths"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"},
+            {"name":"Widths", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Widths"}
+        ]
+    },
+    "uix.GridFlex":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Heights", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Heights"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MinimumHeights", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum heights"},
+            {"name":"MinimumWidths", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum widths"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"},
+            {"name":"Widths", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Widths"}
+        ]
+    },
+    "uix.HBox":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MinimumWidths", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum widths"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"},
+            {"name":"Widths", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Widths"}
+        ]
+    },
+    "uix.HBoxFlex":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MinimumWidths", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum widths"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"},
+            {"name":"Widths", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Widths"}
+        ]
+    },
+    "uix.HButtonBox":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"ButtonSize", "kind":"namevalue", "type":["numeric", "size=1,2", "real", "positive"], "purpose":"Button size"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"HorizontalAlignment", "kind":"namevalue", "type":["char", "string", "choices={'left', 'center', 'right'}"], "purpose":"Horizontal alignment"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"VerticalAlignment", "kind":"namevalue", "type":["char", "string", "choices={'top', 'middle', 'bottom'}"], "purpose":"Vertical alignment"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.Panel":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BorderColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Border color"},
+            {"name":"BorderType", "kind":"namevalue", "type":["char", "string", "choices={'none','etchedin', 'etchedout', 'beveledin', 'beveledout', 'line'}"], "purpose":"Border type"},
+            {"name":"BorderWidth", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Border width"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"Enable", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Enable"},
+            {"name":"FontAngle", "kind":"namevalue", "type":["char", "string", "choices={'normal', 'italic'}"], "purpose":"Font angle"},
+            {"name":"FontName", "kind":"namevalue", "type":["char", "string"], "purpose":"Font name"},
+            {"name":"FontSize", "kind":"namevalue", "type":["numeric", "scalar", ">0"], "purpose":"Font size"},
+            {"name":"FontUnits", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'normalized', 'points', 'pixels'}"], "purpose":"Font units"},
+            {"name":"FontWeight", "kind":"namevalue", "type":["char", "string", "choices={'normal', 'bold'}"], "purpose":"Font weight"},
+            {"name":"ForegroundColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Foreground color"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"HighlightColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Highlight color"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"Scrollable", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Scrollable"},
+            {"name":"ShadowColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Shadow color"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Title", "kind":"namevalue", "type":["char", "string"], "purpose":"Title"},
+            {"name":"TitlePosition", "kind":"namevalue", "type":["char", "string", "choices={'lefttop', 'centertop', 'righttop', 'leftbottom', 'centerbottom', 'rightbottom'}"], "purpose":"Title position"},
+            {"name":"Tooltip", "kind":"namevalue", "type":["char", "string"], "purpose":"Tooltip"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.ScrollingPanel":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Height", "kind":"namevalue", "type":["numeric", "scalar", "real"], "purpose":"Height"},
+            {"name":"HorizontalOffset", "kind":"namevalue", "type":["numeric", "scalar", "real"], "purpose":"Horizontal offset"},
+            {"name":"HorizontalStep", "kind":"namevalue", "type":["numeric", "scalar", "real", "positive"], "purpose":"Horizontal step"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MinimumHeight", "kind":"namevalue", "type":["numeric", "real", "scalar", "positive"], "purpose":"Minimum height"},
+            {"name":"MinimumWidth", "kind":"namevalue", "type":["numeric", "real", "scalar", "positive"], "purpose":"Minimum width"},
+            {"name":"MouseWheelEnabled", "kind":"namevalue", "type":["char", "string", "choices={'on', 'off'}"], "purpose":"Mouse wheel enabled"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"VerticalOffset", "kind":"namevalue", "type":["numeric", "scalar", "real"], "purpose":"Vertical offset"},
+            {"name":"VerticalStep", "kind":"namevalue", "type":["numeric", "scalar", "real", "positive"], "purpose":"Vertical step"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"},
+            {"name":"Width", "kind":"namevalue", "type":["numeric", "scalar", "real"], "purpose":"Width"}
+        ]
+    },
+    "uix.TabPanel":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"ForegroundColor", "kind":"namevalue", "type":["numeric", "char", "string"], "purpose":"Foreground color"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"Selection", "kind":"namevalue", "type":["numeric", "scalar", "integer", ">=0"], "purpose":"Selection"},
+            {"name":"SelectionChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Selection changed function"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"TabContextMenus", "kind":"namevalue", "type":["cell"], "purpose":"Tab context menus"},
+            {"name":"TabEnables", "kind":"namevalue", "type":["cell", "string"], "purpose":"Tab enables"},
+            {"name":"TabLocation", "kind":"namevalue", "type":["char", "string", "choices={'top', 'left', 'right', 'bottom'}"], "purpose":"Tab location"},
+            {"name":"TabTitles", "kind":"namevalue", "type":["cell", "string"], "purpose":"Tab titles"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.VBox":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Heights", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Widths"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MinimumHeights", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum heights"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.VBoxFlex":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"Heights", "kind":"namevalue", "type":["numeric", "vector", "real"], "purpose":"Widths"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"MinimumHeights", "kind":"namevalue", "type":["numeric", "vector", "real", ">=0"], "purpose":"Minimum heights"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    },
+    "uix.VButtonBox":
+    {
+        "inputs":
+        [
+            {"name":"BackgroundColor", "kind":"namevalue", "type":["numeric", "char", "string"],"purpose":"Background color"},
+            {"name":"BusyAction", "kind":"namevalue", "type":["char", "string", "choices={'queue', 'cancel'}"], "purpose":"Busy action"},
+            {"name":"ButtonDownFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Button down function"},
+            {"name":"ButtonSize", "kind":"namevalue", "type":["numeric", "size=1,2", "real", "positive"], "purpose":"Button size"},
+            {"name":"Clipping", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Clipping"},
+            {"name":"ContextMenu", "kind":"namevalue", "type":["matlab.ui.container.ContextMenu"], "purpose":"Context menu"},
+            {"name":"CreateFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Create function"},
+            {"name":"DeleteFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Delete function"},
+            {"name":"HandleVisibility", "kind":"namevalue", "type":["char", "string", "choices={'on', 'callback', 'off'}"], "purpose":"Handle visibility"},
+            {"name":"HorizontalAlignment", "kind":"namevalue", "type":["char", "string", "choices={'left', 'center', 'right'}"], "purpose":"Horizontal alignment"},
+            {"name":"Interruptible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Interruptible"},
+            {"name":"Layout", "kind":"namevalue", "type":["matlab.ui.layout.LayoutOptions"], "purpose":"Layout"},
+            {"name":"OuterPosition", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Outer position"},
+            {"name":"Padding", "kind":"namevalue", "type":["numeric", "scalar", ">=0"], "purpose":"Padding"},
+            {"name":"Parent", "kind":"namevalue", "purpose":"Parent"},
+            {"name":"Position", "kind":"namevalue", "type":["numeric", "size=1,4", "real"], "purpose":"Position"},
+            {"name":"SizeChangedFcn", "kind":"namevalue", "type":["char", "string", "cell", "function_handle"], "purpose":"Size changed function"},
+            {"name":"Spacing", "kind":"namevalue", "type":["numeric", "real", "scalar", ">=0"], "purpose":"Spacing"},
+            {"name":"Tag", "kind":"namevalue", "type":["char", "string"], "purpose":"Tag"},
+            {"name":"Units", "kind":"namevalue", "type":["char", "string", "choices={'inches', 'centimeters', 'characters', 'normalized', 'points', 'pixels'}"], "purpose":"Units"},
+            {"name":"UserData", "kind":"namevalue", "purpose":"User data"},
+            {"name":"VerticalAlignment", "kind":"namevalue", "type":["char", "string", "choices={'top', 'middle', 'bottom'}"], "purpose":"Vertical alignment"},
+            {"name":"Visible", "kind":"namevalue", "type":["char", "string", "logical", "matlab.lang.OnOffSwitchState", "choices={'on', 'off'}"], "purpose":"Visible"}
+        ]
+    }
+}

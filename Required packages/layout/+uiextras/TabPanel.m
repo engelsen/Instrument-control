@@ -21,8 +21,7 @@ classdef TabPanel < uix.TabPanel
     %   See also: uiextras.Panel
     %             uiextras.BoxPanel
     
-    %  Copyright 2009-2014 The MathWorks, Inc.
-    %  $Revision: 979 $ $Date: 2014-09-28 14:26:12 -0400 (Sun, 28 Sep 2014) $
+    %  Copyright 2009-2020 The MathWorks, Inc.
     
     properties( Hidden, Access = public, Dependent )
         Callback
@@ -107,12 +106,12 @@ classdef TabPanel < uix.TabPanel
             if ischar( value ) % string
                 % OK
             elseif isa( value, 'function_handle' ) && ...
-                    isequal( size( value ), [1 1] ) % function handle
+                    isscalar( value ) % function handle
                 % OK
             elseif iscell( value ) && ndims( value ) == 2 && ...
                     size( value, 1 ) == 1 && size( value, 2 ) > 0 && ...
                     isa( value{1}, 'function_handle' ) && ...
-                    isequal( size( value{1} ), [1 1] ) %#ok<ISMAT> % cell callback
+                    isscalar( value{1} ) %#ok<ISMAT> % cell callback
                 % OK
             else
                 error( 'uiextras:InvalidPropertyValue', ...

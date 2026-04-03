@@ -1,0 +1,21 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>Responding to User Interaction</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">Responding to User Interaction</h1></div>
+<p>Finally, let's have a look at how one of the callbacks (<code>onListSelection</code>) works. This is the function that is called when an item is selected in the listbox. The other callbacks follow the same pattern.</p>
+<p>A core principle of modular application development is that a callback should not update any part of the user interface directly. Instead, its job is to respond to user interaction by changing the <code>data</code> structure. In this example, each example changes the underlying data structure then asks the interface to refresh. This might mean that elements in the interface are updated when it is not necessary, but it ensures that the callbacks remain simple and that all interface update logic is one place. Extending this to more granular interface updates is straightforward. See <a href="Scalability.html">Scalability</a> for more details.</p>
+<p>For the listbox callback, the <code>src</code> argument is a handle to the listbox and we simply need to update the <code>SelectedExample</code> field of the <code>data</code> structure to reflect the new selection. We then ask the rest of the interface to update in response to the change.</p>
+<div class="highlight highlight-source-matlab"><pre><span class="pl-c"><span class="pl-c">%</span> User selected an example from the list - update "data" and refresh</span>
+data.SelectedExample <span class="pl-k">=</span> get( <span class="pl-smi">src</span>, <span class="pl-s"><span class="pl-pds">'</span>Value<span class="pl-pds">'</span></span> );
+updateInterface()
+redrawExample() </pre></div>
+<p><a href="Images/UpdateInterface01.png" rel="noopener noreferrer" target="_blank"><img alt="The interface after being updated" src="Images/UpdateInterface01.png" style="max-width: 100%;" title="The interface after being updated"/></a></p>
+<p>The complete source code for this application is available in <code>galleryBrowser.m</code>.</p>
+<div class="highlight highlight-source-matlab"><pre><span class="pl-en">edit</span> <span class="pl-s">galleryBrowser </span></pre></div>
+<div class="markdown-heading"><h2 class="heading-element">Related Topics</h2></div>
+<ul>
+<li><a href="ApplicationStructure.html">Application Structure</a></li>
+<li><a href="CreateInterface.html">Creating the User Interface</a></li>
+<li><a href="UpdateInterface.html">Updating the User Interface</a></li>
+<li><a href="RunningIt.html">Launching the Application</a></li>
+<li><a href="Scalability.html">Scalability and Architecture</a></li>
+</ul>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

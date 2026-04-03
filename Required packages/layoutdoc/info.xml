@@ -1,11 +1,8 @@
-<productinfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="optional">
-<?xml-stylesheet type="text/xsl"href="optional"?>
-<!-- Copyright 2005-2007 The MathWorks Ltd.-->
-
-<matlabrelease>14</matlabrelease>
-<name>GUI Layout</name>
-<type>toolbox</type>
-<icon>$toolbox/matlab/icons/bookicon.gif</icon>
-<help_location>../layoutdoc</help_location>
-
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<productinfo>
+  <matlabrelease>R2024b</matlabrelease>
+  <name>GUI Layout</name>
+  <type>toolbox</type>
+  <icon>$toolbox/matlab/icons/bookicon.gif</icon>
+  <help_location>.</help_location>
 </productinfo>

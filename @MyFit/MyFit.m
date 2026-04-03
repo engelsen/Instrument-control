@@ -112,8 +112,9 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             %function. This is used for fast plotting of the initial
             %values.
             args=['@(', strjoin([{'x'}, this.fit_params], ','),')'];
-            this.anon_fit_fun=...
-                str2func(vectorize([args,this.fit_function]));
+            expr = [args, this.fit_function];
+            expr = regexprep(expr, '(?<!\.)([*/^])', '.$1');
+            this.anon_fit_fun = str2func(expr);
             
             %Sets dummy values for the GUI
             this.param_vals=zeros(1,this.n_params);
@@ -587,45 +588,44 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             save(this.Fit, fullfile(save_path, file_name));
         end
         
-        %Creates callback functions for sliders in GUI. Uses ind to find 
-        %out which slider the call is coming from. Note that this gets 
-        %triggered whenever the value of the slider is changed.
-        function f = createSliderStateChangedCallback(this, ind)
-            edit_field_name = sprintf('Edit_%s',this.fit_params{ind});
-            
-            function sliderStateChangedCallback(hObject, ~)
-                %Gets the value from the slider
-                val=hObject.Value;
-
-                %Find out if the current slider value is correct for the
-                %current init param value. If so, do not change anything. 
-                %This is required as the callback also gets called when 
-                %the slider values are changed programmatically
-                [~, slider_ind]=...
-                    min(abs(this.param_vals(ind)-this.slider_vecs{ind}));
-                
-                if slider_ind~=(val+1)
-                    %Updates the scale with a new value from the lookup 
-                    %table
-                    this.param_vals(ind)=...
-                        this.slider_vecs{ind}(val+1);
-                    %Updates the edit box with the new value from the 
-                    %slider
-                    set(this.Gui.(edit_field_name),...
-                        'String', sprintf('%3.3e',this.param_vals(ind)));
-
-                    %Re-calculate the fit curve.
+        % PostSet listener callback: fires continuously during drag.
+        % Lightweight — only updates the edit field and replots the curve.
+        % The guard prevents triggering on programmatic value changes (e.g.
+        % genSliderVecs resetting the slider to 50). drawnow limitrate caps
+        % rendering at ~20 fps so fast drags don't cause lag.
+        function f = createSliderDragCallback(this, ind)
+            edit_field_name = sprintf('Edit_%s', this.fit_params{ind});
+            slider_name     = sprintf('Slider_%s', this.fit_params{ind});
+            function sliderDragCallback(~, ~)
+                % hObject is the meta.property, not the slider — look it up
+                val = round(this.Gui.(slider_name).Value);
+                [~, slider_ind] = ...
+                    min(abs(this.param_vals(ind) - this.slider_vecs{ind}));
+                if slider_ind ~= (val + 1)
+                    this.param_vals(ind) = this.slider_vecs{ind}(val + 1);
+                    set(this.Gui.(edit_field_name), 'String', ...
+                        sprintf('%3.3e', this.param_vals(ind)));
                     calcFit(this);
-
                     if this.enable_plot
-                        plotFit(this); 
+                        plotFit(this);
+                        drawnow limitrate
                     end
                 end
             end
-            
-            f = @sliderStateChangedCallback;
+            f = @sliderDragCallback;
         end
-        
+
+        % Callback fires on mouse release (user interaction only).
+        % Does the full update: re-centres the slider, regenerates lookup
+        % vectors, recalculates user parameters and metadata.
+        function f = createSliderCallback(this, ind)
+            function sliderCallback(hObject, ~)
+                val = round(hObject.Value);
+                manSetParamVal(this, ind, this.slider_vecs{ind}(val + 1));
+            end
+            f = @sliderCallback;
+        end
+
         function f = createParamFieldEditedCallback(this, ind)
             function paramEditFieldCallback(hObject, ~)
                 val=str2double(hObject.String);
@@ -635,17 +635,7 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             f = @paramEditFieldCallback;
         end
         
-        function f = createSliderMouseReleasedCallback(this, ind)
-            function sliderMouseReleasedCallback(hObject, ~)
-                slider_ind=hObject.Value;
-                val = this.slider_vecs{ind}(slider_ind+1);
-                manSetParamVal(this, ind, val);
-            end
-            
-            f = @sliderMouseReleasedCallback;
-        end
-        
-        %Callback function for the manual update of the values of fit 
+        %Callback function for the manual update of the values of fit
         %parameters in GUI. Triggered when values in the boxes are editted
         %and when pulling a slider is over.
         function manSetParamVal(this, ind, new_val)
@@ -655,16 +645,14 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             
             %Re-calculate the fit curve.
             calcFit(this);
-                
+
             if this.enable_plot
                 plotFit(this)
             end
-            
-            %Centers the slider
-            set(this.Gui.(sprintf('Slider_%s',this.fit_params{ind})),...
-                'Value',50);
-            
-            %Generate the new slider vectors
+
+            % Regenerate slider vectors first so that slider_vecs is
+            % up-to-date before genSliderVecs sets Value=50, ensuring the
+            % PostSet guard in sliderDragCallback fires correctly.
             genSliderVecs(this);
             
             %Reset fit structures to indicate that the current parameters

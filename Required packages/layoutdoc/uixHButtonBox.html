@@ -1,0 +1,121 @@
+<!DOCTYPE html><html><head><meta content="MATLAB R2024b with Doc_er 0.5.1" name="generator"/><meta charset="utf-8"/><title>uix.HButtonBox</title><link href="resources/github-markdown-light.css" rel="stylesheet"/><link href="resources/matlaby.css" rel="stylesheet"/><link href="resources/copycode.css" rel="stylesheet"/></head><body class="markdown-body"><main class="markdown-body"><div><div class="markdown-heading"><h1 class="heading-element">🚥 uix.HButtonBox</h1></div>
+<p>Arrange buttons horizontally in a single row</p>
+<div class="markdown-heading"><h2 class="heading-element">Syntax</h2></div>
+<p><code>b = uix.HButtonBox()</code> creates a new, default, <em>unparented</em> horizontal button box. This is a type of <a href="uixHBox.html">horizontal layout</a> specialized for arranging a row of buttons, checkboxes, or similar graphical elements. All elements are given equal size and by default are centered in the drawing area. The justification can be changed as required.</p>
+<p><code>b = uix.HButtonBox(n1,v1,n2,v2,...)</code> also sets one or more property values.</p>
+<div class="markdown-heading"><h2 class="heading-element">Properties</h2></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BackgroundColor</code></td>
+<td>Background color</td>
+<td><a href="https://www.mathworks.com/help/matlab/creating_plots/specify-plot-colors.html" rel="nofollow">color</a></td>
+</tr>
+<tr>
+<td><code>ButtonSize</code></td>
+<td>The size used for the buttons or controls (all elements are given the same size)</td>
+<td><code>[width, height]</code></td>
+</tr>
+<tr>
+<td><code>Contents</code></td>
+<td>Children, in order of addition to the layout, regardless of <code>HandleVisibility</code>; settable only to a permutation of itself</td>
+<td>graphics vector</td>
+</tr>
+<tr>
+<td><code>HorizontalAlignment</code></td>
+<td>The horizontal position of the buttons or controls</td>
+<td>
+<code>'left'</code> | <code>'center'</code> | <code>'right'</code>
+</td>
+</tr>
+<tr>
+<td><code>Padding</code></td>
+<td>Space around contents, in pixels</td>
+<td>nonnegative integer</td>
+</tr>
+<tr>
+<td><code>Parent</code></td>
+<td>Parent figure or container</td>
+<td>figure, panel, <a href="https://www.mathworks.com/help/matlab/ref/matlab.ui.container.panel-properties.html#mw_e4809363-1f35-4bc7-89f8-36ed9cccb017" rel="nofollow">etc.</a>
+</td>
+</tr>
+<tr>
+<td><code>Position</code></td>
+<td>Position within parent figure or container, in <code>Units</code>
+</td>
+<td><code>[left, bottom, width, height]</code></td>
+</tr>
+<tr>
+<td><code>Spacing</code></td>
+<td>Space between elements, in pixels</td>
+<td>nonnegative integer</td>
+</tr>
+<tr>
+<td><code>Units</code></td>
+<td>Position units; default is <code>'normalized'</code>
+</td>
+<td>
+<code>'normalized'</code>, <code>'pixels'</code>, <a href="https://www.mathworks.com/help/matlab/ref/matlab.ui.container.panel-properties.html#bub8wap-1_sep_shared-Position" rel="nofollow">etc.</a>
+</td>
+</tr>
+<tr>
+<td><code>VerticalAlignment</code></td>
+<td>The vertical position of the buttons or controls</td>
+<td>
+<code>'top'</code> | <code>'middle'</code> | <code>'bottom'</code>
+</td>
+</tr>
+<tr>
+<td><code>Visible</code></td>
+<td>Visibility; default is <code>'on'</code>
+</td>
+<td>
+<code>'on'</code> or <code>'off'</code>
+</td>
+</tr>
+</tbody>
+</table>
+<p>plus other <a href="https://www.mathworks.com/help/matlab/ref/matlab.ui.container.panel-properties.html" rel="nofollow">container properties</a>:</p>
+<ul>
+<li>Interactivity: <code>ContextMenu</code>
+</li>
+<li>Callbacks: <code>SizeChangedFcn</code>, <code>ButtonDownFcn</code>, <code>CreateFcn</code>, <code>DeleteFcn</code>
+</li>
+<li>Callback execution control: <code>Interruptible</code>, <code>BusyAction</code>, <code>BeingDeleted</code>, <code>HitTest</code>
+</li>
+<li>Parent/child: <code>Children</code>, <code>HandleVisibility</code>
+</li>
+<li>Identifiers: <code>Type</code>, <code>Tag</code>, <code>UserData</code>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Examples</h2></div>
+<div class="markdown-heading"><h3 class="heading-element">Create three buttons in a horizontal button box</h3></div>
+<div class="highlight highlight-source-matlab"><pre>f <span class="pl-k">=</span> figure( <span class="pl-s"><span class="pl-pds">'</span>Name<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>uix.HButtonBox Example<span class="pl-pds">'</span></span> );
+hbb <span class="pl-k">=</span> <span class="pl-smi">uix</span>.HButtonBox( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">f</span>, <span class="pl-s"><span class="pl-pds">'</span>ButtonSize<span class="pl-pds">'</span></span>, [<span class="pl-c1">130</span>, <span class="pl-c1">35</span>], <span class="pl-s"><span class="pl-pds">'</span>Spacing<span class="pl-pds">'</span></span>, <span class="pl-en"><span class="pl-c1">5</span></span> <span class="pl-s">)</span>;
+uicontrol( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">hbb</span>, <span class="pl-s"><span class="pl-pds">'</span>Style<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>pushbutton<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>String<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>One<span class="pl-pds">'</span></span> )
+uicontrol( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">hbb</span>, <span class="pl-s"><span class="pl-pds">'</span>Style<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>pushbutton<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>String<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Two<span class="pl-pds">'</span></span> )
+uicontrol( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">hbb</span>, <span class="pl-s"><span class="pl-pds">'</span>Style<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>pushbutton<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>String<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>Three<span class="pl-pds">'</span></span> )</pre></div><div class="highlight highlight-output-matlab"><img src="data:image/png;base64, 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ABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADEiFEAAGLEKAAAMWIUAIAYMQoAQIwYBQAgRowCABAjRgEAiBGjAADE/A+kJQOO8E8cMAAAAABJRU5ErkJggg==" style="width: 400px; height: auto"/></div>
+<div class="markdown-heading"><h3 class="heading-element">Create multiple controls in a horizontal button box in web graphics</h3></div>
+<div class="highlight highlight-source-matlab"><pre>f <span class="pl-k">=</span> uifigure( <span class="pl-s"><span class="pl-pds">'</span>AutoResizeChildren<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>off<span class="pl-pds">'</span></span> );
+hbb <span class="pl-k">=</span> <span class="pl-smi">uix</span>.HButtonBox( <span class="pl-s"><span class="pl-pds">'</span>Parent<span class="pl-pds">'</span></span>, <span class="pl-smi">f</span>, <span class="pl-s"><span class="pl-pds">'</span>ButtonSize<span class="pl-pds">'</span></span>, [<span class="pl-c1">130</span>, <span class="pl-c1">35</span>], <span class="pl-s"><span class="pl-pds">'</span>Spacing<span class="pl-pds">'</span></span>, <span class="pl-en"><span class="pl-c1">5</span></span> <span class="pl-s">)</span>;
+uibutton( <span class="pl-smi">hbb</span>, <span class="pl-s"><span class="pl-pds">'</span>BackgroundColor<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>r<span class="pl-pds">'</span></span> );
+uidropdown( <span class="pl-smi">hbb</span> );
+uibutton( <span class="pl-smi">hbb</span>, <span class="pl-s"><span class="pl-pds">'</span>BackgroundColor<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>b<span class="pl-pds">'</span></span> );
+uibutton( <span class="pl-smi">hbb</span>, <span class="pl-s"><span class="pl-pds">'</span>BackgroundColor<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>g<span class="pl-pds">'</span></span> );</pre></div><div class="highlight highlight-output-matlab"><img src="data:image/png;base64, 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" style="width: 400px; height: auto"/></div>
+<div class="markdown-heading"><h2 class="heading-element">Related Topics</h2></div>
+<ul>
+<li>➡️ <a href="uixHBox.html"><code>uix.HBox</code></a>: Arrange elements horizontally in a single row</li>
+<li>⬇️ <a href="uixVBox.html"><code>uix.VBox</code></a>: Arrange elements vertically in a single column</li>
+<li><g-emoji alias="left_right_arrow" class="g-emoji">↔️</g-emoji> <a href="uixHBox.html"><code>uix.HBoxFlex</code></a>: Arrange elements horizontally with draggable dividers</li>
+<li><g-emoji alias="arrow_up_down" class="g-emoji">↕️</g-emoji> <a href="uixVBox.html"><code>uix.VBoxFlex</code></a>: Arrange elements vertically with draggable dividers</li>
+<li>🚦 <a href="uixVButtonBox.html"><code>uix.VButtonBox</code></a>: Arrange buttons vertically in a single column</li>
+</ul>
+<hr/>
+<p><a href="index.html">home</a> 🏠 | <a href="uixCardPanel.html"><code>CardPanel</code></a> 📇 | <a href="uixBoxPanel.html"><code>BoxPanel</code></a> 🔲 | <a href="uixTabPanel.html"><code>TabPanel</code></a> 👉 | <a href="uixScrollingPanel.html"><code>ScrollingPanel</code></a> 📜 | <a href="uixHBox.html"><code>HBox</code></a> ➡️ | <a href="uixVBox.html"><code>VBox</code></a> ⬇️ | <a href="uixGrid.html"><code>Grid</code></a> 🔣 | ©️ <a href="https://www.mathworks.com/services/consulting.html" rel="nofollow">MathWorks</a> 2009-2025</p></div></main><script src="resources/copycode.js">//</script></body></html>

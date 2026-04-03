@@ -53,20 +53,19 @@ classdef MyGorodetsky2000Fit < MyFit
         
         function genSliderVecs(this)
             genSliderVecs@MyFit(this);
-            
-            if validateData(this)
+
+            if validateData(this.Data)
                 %We choose to have the slider go over the range of
-                %the x-values of the plot for the center of the
-                %Lorentzian.
+                %the x-values of the data for the center parameter.
                 this.slider_vecs{2}=...
-                    linspace(this.x_vec(1),this.x_vec(end),101);
-                %Find the index closest to the init parameter
+                    linspace(this.Data.x(1),this.Data.x(end),101);
+                %Find the index closest to the current parameter value
                 [~,ind]=...
-                    min(abs(this.init_params(2)-this.slider_vecs{2}));
+                    min(abs(this.param_vals(2)-this.slider_vecs{2}));
                 %Set to ind-1 as the slider goes from 0 to 100
                 set(this.Gui.(sprintf('Slider_%s',...
                     this.fit_params{2})),'Value',ind-1);
             end
-        end 
+        end
     end 
 end
