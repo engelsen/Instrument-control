@@ -1,107 +1,120 @@
 function createGui(this, varargin)
 
-p=inputParser();
+p = inputParser();
 
 %Parameter that tells the function if save panel should be created
-addParameter(p,'save_panel',true,@islogical);
-parse(p,varargin{:});
-enable_save_panel=p.Results.save_panel;
+addParameter(p, 'save_panel', true, @islogical);
+parse(p, varargin{:});
+enable_save_panel = p.Results.save_panel;
 
 if ~isempty(this.fit_name)
-    
+
     %Makes the fit name have the first letter capitalized
-    fit_name=[upper(this.fit_name(1)),this.fit_name(2:end)];
+    fit_name = [upper(this.fit_name(1)), this.fit_name(2:end)];
 else
-    fit_name='';
+    fit_name = '';
 end
 
 %% Calculate the dimensions of GUI panels
 
 %Defines the colors for the Gui
-rgb_blue=[0.1843,0.4157,1];
-rgb_white=[1,1,1];
+rgb_blue  = [0.1843, 0.4157, 1];
+rgb_white = [1, 1, 1];
 
 %Width of the edit boxes in the GUI
-edit_width=140;
+edit_width = 140;
+
+%Font sizes
+font_title     = 18;  % Fit name at top
+font_button    = 12;  % Buttons
+font_param     = 16;  % Parameter value edit fields
+font_limit     = 12;  % Limit edit fields
+font_label     = 12;  % Labels (save panel, user params)
+font_titlebar  = 12;  % Panel title bar text
 
 %Height of buttons in GUI
-button_h=25;
+button_h = 28;
+
+%Height of colored panel title bars
+title_bar_h = 22;
 
 %Minimum height of the hboxes composing the gui.
-title_h=40;
-equation_h=100;
-fitbox_h=3*button_h;
-savebox_h=100; %Only relevant when save_panel input argument is true
-slider_h=130;
+title_h    = 45;
+equation_h = 100;
+fitbox_h   = 3 * button_h + title_bar_h;
+savebox_h  = 105 + title_bar_h;
+slider_h   = 145 + title_bar_h;
 
-min_fig_width=560;
+min_fig_width = 560;
 
-%Finds the height in button heights of the user field panel. This
-%is used to calculate the height of the figure.
+%Finds the height in button heights of the user field panel.
 n_user_pars = length(fieldnames(this.UserParamList));
-if n_user_pars>0
-    userpanel_h = button_h*(n_user_pars+1);
+if n_user_pars > 0
+    userpanel_h = button_h * (n_user_pars + 1) + title_bar_h;
 else
-    % Skip the user panel completely
     userpanel_h = 0;
 end
 
+fig_h = title_h + equation_h + fitbox_h + slider_h + userpanel_h;
 if enable_save_panel
-    fig_h=title_h+equation_h+fitbox_h+slider_h+savebox_h+userpanel_h;
-else
-    fig_h=title_h+equation_h+fitbox_h+slider_h+userpanel_h;
+    fig_h = fig_h + savebox_h;
 end
 
 %Sets a minimum width
-if this.n_params < 4 
+if this.n_params < 4
     if this.n_params ~= 0
-        edit_width=min_fig_width/this.n_params; 
+        edit_width = min_fig_width / this.n_params;
     else
-        
         % Support the case of dummy fit with no parameters
-        edit_width=min_fig_width;
+        edit_width = min_fig_width;
     end
 end
-fig_width=edit_width*this.n_params;
+fig_width = edit_width * this.n_params;
 
-%% Create GUI elements
+%% Build row height list for the main vertical grid
+% Order: title, equation (resizable), fitbox, [user panel], [save panel], sliders
+row_heights = {title_h, '1x', fitbox_h};
+if n_user_pars > 0
+    row_heights{end+1} = userpanel_h;
+end
+if enable_save_panel
+    row_heights{end+1} = savebox_h;
+end
+row_heights{end+1} = slider_h;
 
-%Name sets the title of the window, NumberTitle turns off the FigureN text
-%that would otherwise be before the title, MenuBar is the menu normally on
-%the figure, toolbar is the toolbar normally on the figure.
-%HandleVisibility refers to whether gcf, gca etc will grab this figure.
-this.Gui.Window = figure('Name', class(this), 'NumberTitle', 'off', ...
-    'MenuBar', 'none', 'Toolbar', 'none', 'HandleVisibility', 'off',...
-    'Units','Pixels','Position',[100,100,fig_width,fig_h]);
+%% Create figure
+%HandleVisibility prevents gcf/gca from grabbing this figure.
+this.Gui.Window = uifigure('Name', class(this), 'HandleVisibility', 'off', ...
+    'Position', [100, 100, fig_width, fig_h], ...
+    'Color', rgb_white);
 
 %Place the figure in the center of the screen
 centerFigure(this.Gui.Window);
 
 %Sets the close function (runs when x is pressed) to be class function
-set(this.Gui.Window, 'CloseRequestFcn', @this.closeFigureCallback);
+this.Gui.Window.CloseRequestFcn = @this.closeFigureCallback;
 
-%The main vertical box. The four main panes of the GUI are stacked in the
-%box. We create these four boxes first so that we do not need to redraw
-%them later
-this.Gui.MainVbox=uix.VBox('Parent',this.Gui.Window, ...
-    'BackgroundColor',rgb_white);
-
-% --- The title box (layout-managed) ---
-this.Gui.Title = uicontrol( ...
-    'Parent', this.Gui.MainVbox, ...
-    'Style', 'text', ...
-    'String', fit_name, ...
-    'Units', 'normalized', ...           % units are largely irrelevant under uix, but harmless
-    'HorizontalAlignment', 'center', ...
-    'FontSize', 16, ...
+%% Main vertical grid
+this.Gui.MainVbox = uigridlayout(this.Gui.Window, [length(row_heights), 1], ...
+    'RowHeight', row_heights, ...
+    'Padding', [0 0 0 0], 'RowSpacing', 0, ...
     'BackgroundColor', rgb_white);
 
-this.Gui.EquationAxes = axes('Parent', this.Gui.MainVbox, ...
-    'Units', 'normalized', ...
-    'XTick', [], 'YTick', [], ...
-    'Box', 'on', ...
-    'Color', rgb_white);
+%% Title
+this.Gui.Title = uilabel(this.Gui.MainVbox, ...
+    'Text', fit_name, ...
+    'HorizontalAlignment', 'center', ...
+    'FontSize', font_title, ...
+    'FontWeight', 'bold');
+this.Gui.Title.Layout.Row = 1;
+this.Gui.Title.Layout.Column = 1;
 
+%% Equation axes — displays the LaTeX fit formula
+this.Gui.EquationAxes = uiaxes(this.Gui.MainVbox, ...
+    'XTick', [], 'YTick', [], ...
+    'Color', rgb_white);
+this.Gui.EquationAxes.Layout.Row = 2;
+this.Gui.EquationAxes.Layout.Column = 1;
 axis(this.Gui.EquationAxes, 'off');
 xlim(this.Gui.EquationAxes, [0 1]);
 ylim(this.Gui.EquationAxes, [0 1]);
@@ -111,240 +124,284 @@ this.Gui.EquationText = text(this.Gui.EquationAxes, 0.5, 0.5, this.fit_tex, ...
     'Interpreter', 'latex', ...
     'HorizontalAlignment', 'center', ...
     'VerticalAlignment', 'middle', ...
-    'FontSize', 20, ...
-    'Color', [0 0 0]);   % pick whatever you want
+    'FontSize', 22);
 
-%Creates an HBox for the buttons providing basic fit functionality
-this.Gui.FitHbox=uix.HBox('Parent',this.Gui.MainVbox,...
-    'BackgroundColor',rgb_white);
+%% Fit panel (row 3)
+[this.Gui.FitPanel, fit_inner] = makeBoxPanel( ...
+    this.Gui.MainVbox, 'Fit Panel', title_bar_h, font_titlebar, rgb_blue, rgb_white);
+this.Gui.FitPanel.Layout.Row = 3;
+this.Gui.FitPanel.Layout.Column = 1;
 
-if ~isempty(fieldnames(this.UserParamList))
-    %Creates an HBox for extracted parameters and user interactions with GUI
-    this.Gui.UserHbox=uix.HBox('Parent',this.Gui.MainVbox,...
-        'BackgroundColor',rgb_white);
-end
+%Three-column inner grid: Analyze/Init | Clear/Accept | Cursors
+this.Gui.FitInnerHbox = uigridlayout(fit_inner, [1, 3], ...
+    'ColumnWidth', {'1x','1x','1x'}, ...
+    'Padding', [4 4 4 4], 'ColumnSpacing', 4);
+this.Gui.FitInnerHbox.Layout.Row = 2;
+this.Gui.FitInnerHbox.Layout.Column = 1;
 
-%Sets the heights and minimum heights of the five vertical boxes. -1 means
-%it resizes with the window
-if enable_save_panel
-    %Creates the HBox for saving parameters
-    this.Gui.SaveHbox=uix.HBox('Parent', this.Gui.MainVbox,...
-        'BackgroundColor',rgb_white);
-end
+%Column 1: Analyze + Init params
+this.Gui.FitVbox1 = uigridlayout(this.Gui.FitInnerHbox, [2, 1], ...
+    'RowHeight', {button_h, button_h}, ...
+    'Padding', [0 0 0 0], 'RowSpacing', 4);
+this.Gui.FitVbox1.Layout.Row = 1;
+this.Gui.FitVbox1.Layout.Column = 1;
 
-%Creates the HBox for the fitting parameters
-this.Gui.SliderHbox=uix.HBox('Parent',this.Gui.MainVbox, ...
-    'BackgroundColor',rgb_white);
+this.Gui.AnalyzeButton = uibutton(this.Gui.FitVbox1, ...
+    'Text', 'Analyze', ...
+    'FontSize', font_button, ...
+    'ButtonPushedFcn', @this.analyzeCallback);
+this.Gui.AnalyzeButton.Layout.Row = 1;
+this.Gui.AnalyzeButton.Layout.Column = 1;
 
-% Set the heights of the main box elements
-% -1 stands for the element that is resized with the window
-h_list = [title_h, -1, fitbox_h ,slider_h];
-min_h_list = [title_h, equation_h, fitbox_h,slider_h];
+this.Gui.InitButton = uibutton(this.Gui.FitVbox1, ...
+    'Text', 'Init params', ...
+    'FontSize', font_button, ...
+    'ButtonPushedFcn', @this.initParamCallback);
+this.Gui.InitButton.Layout.Row = 2;
+this.Gui.InitButton.Layout.Column = 1;
 
-if ~isempty(fieldnames(this.UserParamList))
-    % Add space for the panel with user parameters
-    h_list = [h_list(1:end-1), userpanel_h, h_list(end)];
-    min_h_list = [min_h_list(1:end-1), userpanel_h, min_h_list(end)];
-end
+%Column 2: Clear fit + Accept fit
+this.Gui.FitVbox2 = uigridlayout(this.Gui.FitInnerHbox, [2, 1], ...
+    'RowHeight', {button_h, button_h}, ...
+    'Padding', [0 0 0 0], 'RowSpacing', 4);
+this.Gui.FitVbox2.Layout.Row = 1;
+this.Gui.FitVbox2.Layout.Column = 2;
 
-if enable_save_panel
-    % Add space for the save panel
-    h_list = [h_list(1:end-1), savebox_h, h_list(end)];
-    min_h_list = [min_h_list(1:end-1), savebox_h, min_h_list(end)];
-end 
+this.Gui.ClearButton = uibutton(this.Gui.FitVbox2, ...
+    'Text', 'Clear fit', ...
+    'FontSize', font_button, ...
+    'ButtonPushedFcn', @this.clearFitCallback);
+this.Gui.ClearButton.Layout.Row = 1;
+this.Gui.ClearButton.Layout.Column = 1;
 
-set(this.Gui.MainVbox, 'Heights', h_list, 'MinimumHeights', min_h_list);
+this.Gui.AcceptFitButton = uibutton(this.Gui.FitVbox2, ...
+    'Text', 'Accept fit', ...
+    'FontSize', font_button, ...
+    'ButtonPushedFcn', @this.acceptFitCallback);
+this.Gui.AcceptFitButton.Layout.Row = 2;
+this.Gui.AcceptFitButton.Layout.Column = 1;
 
-%Here we create the fit panel in the GUI.
-this.Gui.FitPanel=uix.BoxPanel('Parent', this.Gui.FitHbox,...
-    'Padding',0,'BackgroundColor', rgb_white,...
-    'Title','Fit Panel','TitleColor',rgb_blue);
-this.Gui.FitInnerHbox = uix.HBox('Parent', this.Gui.FitPanel, ...
-    'BackgroundColor', rgb_white);
-this.Gui.FitVbox1 = uix.VBox('Parent', this.Gui.FitInnerHbox, ...
-    'BackgroundColor', rgb_white);
-this.Gui.FitVbox2 = uix.VBox('Parent', this.Gui.FitInnerHbox, ...
-    'BackgroundColor', rgb_white);
-this.Gui.FitVbox3 = uix.VBox('Parent', this.Gui.FitInnerHbox, ...
-    'BackgroundColor', rgb_white);
+%Column 3: Range cursors checkbox + Center cursors button
+this.Gui.FitVbox3 = uigridlayout(this.Gui.FitInnerHbox, [2, 1], ...
+    'RowHeight', {button_h, button_h}, ...
+    'Padding', [0 0 0 0], 'RowSpacing', 4);
+this.Gui.FitVbox3.Layout.Row = 1;
+this.Gui.FitVbox3.Layout.Column = 3;
 
-%Creates the button for analysis inside the VBox
-this.Gui.AnalyzeButton=uicontrol('Parent',this.Gui.FitVbox1,...
-    'style','pushbutton','Background','w','String','Analyze', ...
-    'Callback', @this.analyzeCallback);
-%Creates button for generating new initial parameters
-this.Gui.InitButton=uicontrol('Parent',this.Gui.FitVbox1,...
-    'style','pushbutton','Background','w',...
-    'String','Generate initial parameters', ...
-    'Callback', @this.initParamCallback);
-%Creates button for clearing fits
-this.Gui.ClearButton=uicontrol('Parent',this.Gui.FitVbox2,...
-    'style','pushbutton','Background','w','String','Clear fit', ...
-    'Callback', @this.clearFitCallback);
-%Button for triggering NewAcceptedFit event
-this.Gui.AcceptFitButton=uicontrol('Parent',this.Gui.FitVbox2,...
-    'style','pushbutton','Background','w','String','Accept fit', ...
-    'Callback', @this.acceptFitCallback);
-%Checkbox for enabling cursors
-this.Gui.CursorsCheckbox=uicontrol('Parent',this.Gui.FitVbox3,...
-    'style','checkbox','Background','w', ...
-    'String', 'Range selection cursors', ...
-    'Units', 'normalized', ...
-    'Position', [0.5,0.05,0.3,0.3], ...
-    'Callback', @this.enableCursorsCallback);
-%Button for centering the range selection cursors
-this.Gui.CenterCursorsButton=uicontrol('Parent',this.Gui.FitVbox3,...
-    'style','pushbutton','Background','w','String','Center cursors', ...
-    'Enable', 'off', 'Callback', @(~,~)centerCursors(this));
+this.Gui.CursorsCheckbox = uicheckbox(this.Gui.FitVbox3, ...
+    'Text', 'Range cursors', ...
+    'FontSize', font_button, ...
+    'ValueChangedFcn', @this.enableCursorsCallback);
+this.Gui.CursorsCheckbox.Layout.Row = 1;
+this.Gui.CursorsCheckbox.Layout.Column = 1;
 
-set(this.Gui.FitVbox1,...
-    'Heights', button_h*ones(1,length(this.Gui.FitVbox1.Children)));
-set(this.Gui.FitVbox2,...
-    'Heights', button_h*ones(1,length(this.Gui.FitVbox2.Children)));
-set(this.Gui.FitVbox3,...
-    'Heights', button_h*ones(1,length(this.Gui.FitVbox3.Children)));
+this.Gui.CenterCursorsButton = uibutton(this.Gui.FitVbox3, ...
+    'Text', 'Center cursors', ...
+    'FontSize', font_button, ...
+    'Enable', 'off', ...
+    'ButtonPushedFcn', @(~,~) centerCursors(this));
+this.Gui.CenterCursorsButton.Layout.Row = 2;
+this.Gui.CenterCursorsButton.Layout.Column = 1;
 
-if ~isempty(fieldnames(this.UserParamList))
-    %Here we create the panel for the user parameters
-    this.Gui.UserPanel=uix.BoxPanel( 'Parent', this.Gui.UserHbox,...
-        'Padding',0,'BackgroundColor', 'w',...
-        'Title','Calculated parameters','TitleColor',rgb_blue);
+%% Remaining rows — track current row index
+next_row = 4;
+
+%% User parameters panel (conditional)
+if n_user_pars > 0
+    [this.Gui.UserPanel, user_inner] = makeBoxPanel( ...
+        this.Gui.MainVbox, 'Calculated parameters', title_bar_h, font_titlebar, rgb_blue, rgb_white);
+    this.Gui.UserPanel.Layout.Row = next_row;
+    this.Gui.UserPanel.Layout.Column = 1;
+
+    % Store the content container so createUserControls can find it
+    this.Gui.UserPanelContent = user_inner;
 
     %Fill the user panel with controls
-    createUserControls(this, 'field_height', button_h, ...
-        'background_color', 'w');
+    createUserControls(this, 'field_height', button_h, 'font_size', font_label);
+    next_row = next_row + 1;
 end
 
+%% Save panel (conditional)
 if enable_save_panel
-    %This creates the boxes for saving files and for specifying file saving
-    %properties
-    this.Gui.SavePanel=uix.BoxPanel( 'Parent', this.Gui.SaveHbox,...
-        'Padding',0,'BackgroundColor', rgb_white,...
-        'Title','Save Panel','TitleColor',rgb_blue);
-    this.Gui.DirPanel=uix.BoxPanel('Parent',this.Gui.SaveHbox,...
-        'Padding',0,'BackgroundColor',rgb_white,...
-        'Title','Directory Panel','TitleColor',rgb_blue);
-
-    set(this.Gui.SaveHbox,'Widths',[-1,-2],'MinimumWidths',[0,375]);
-
-    %Here we create the buttons and edit boxes inside the save box
-    this.Gui.SaveButtonBox=uix.VBox('Parent',this.Gui.SavePanel,...
-        'BackgroundColor',rgb_white);
-    this.Gui.DirHbox=uix.HBox('Parent',this.Gui.DirPanel,...
-        'BackgroundColor',rgb_white);
-    this.Gui.FileNameLabelBox=uix.VBox('Parent',this.Gui.DirHbox,...
-        'BackgroundColor',rgb_white);
-    this.Gui.FileNameBox=uix.VBox('Parent',this.Gui.DirHbox,...
-        'BackgroundColor',rgb_white);
-    set(this.Gui.DirHbox,'Widths',[-1,-2]);
-
-    %Buttons for saving the fit and parameters
-    this.Gui.SaveFitButton=uicontrol('Parent',this.Gui.SaveButtonBox,...
-        'style','pushbutton','Background','w','String','Save Fit',...
-        'Callback', @(hObject, eventdata) saveFitCallback(this, hObject, eventdata));
-    set(this.Gui.SaveButtonBox,'Heights',button_h* ...
-        ones(1,length(this.Gui.SaveButtonBox.Children)));
-
-    %Labels for the edit boxes
-    this.Gui.BaseDirLabel = uicontrol('Parent', this.Gui.FileNameLabelBox, ...
-        'Style', 'text', 'String', 'Save Directory', ...
-        'HorizontalAlignment', 'left', 'FontSize', 10, ...
+    %Two-column grid: save button panel (1x) | directory panel (2x)
+    this.Gui.SaveHbox = uigridlayout(this.Gui.MainVbox, [1, 2], ...
+        'ColumnWidth', {'1x', '2x'}, ...
+        'Padding', [0 0 0 0], 'ColumnSpacing', 2, ...
         'BackgroundColor', rgb_white);
-    this.Gui.SessionNameLabel = uicontrol('Parent', this.Gui.FileNameLabelBox, ...
-        'Style', 'text', 'String', 'Session Name', ...
-        'HorizontalAlignment', 'left', 'FontSize', 10, ...
-        'BackgroundColor', rgb_white);
-    this.Gui.FileNameLabel = uicontrol('Parent', this.Gui.FileNameLabelBox, ...
-        'Style', 'text', 'String', 'File Name', ...
-        'HorizontalAlignment', 'left', 'FontSize', 10, ...
-        'BackgroundColor', rgb_white);
-    set(this.Gui.FileNameLabelBox,'Heights',button_h*ones(1,3));
+    this.Gui.SaveHbox.Layout.Row = next_row;
+    this.Gui.SaveHbox.Layout.Column = 1;
 
-    %Boxes for editing the path and filename
-    this.Gui.BaseDir=uicontrol('Parent',this.Gui.FileNameBox,...
-        'style','edit','HorizontalAlignment','Left',...
-        'FontSize',10);
-    this.Gui.SessionName=uicontrol('Parent',this.Gui.FileNameBox,...
-        'style','edit','HorizontalAlignment','Left',...
-        'FontSize',10);
-    this.Gui.FileName=uicontrol('Parent',this.Gui.FileNameBox,...
-        'style','edit','HorizontalAlignment','Left',...
-        'FontSize',10);
-    set(this.Gui.FileNameBox,'Heights',button_h*ones(1,3));
+    [this.Gui.SavePanel, save_inner] = makeBoxPanel( ...
+        this.Gui.SaveHbox, 'Save Panel', title_bar_h, font_titlebar, rgb_blue, rgb_white);
+    this.Gui.SavePanel.Layout.Row = 1;
+    this.Gui.SavePanel.Layout.Column = 1;
+
+    this.Gui.SaveButtonBox = uigridlayout(save_inner, [1, 1], ...
+        'Padding', [6 6 6 6]);
+    this.Gui.SaveButtonBox.Layout.Row = 2;
+    this.Gui.SaveButtonBox.Layout.Column = 1;
+
+    this.Gui.SaveFitButton = uibutton(this.Gui.SaveButtonBox, ...
+        'Text', 'Save Fit', ...
+        'FontSize', font_button, ...
+        'ButtonPushedFcn', @(h,e) saveFitCallback(this, h, e));
+    this.Gui.SaveFitButton.Layout.Row = 1;
+    this.Gui.SaveFitButton.Layout.Column = 1;
+
+    [this.Gui.DirPanel, dir_inner] = makeBoxPanel( ...
+        this.Gui.SaveHbox, 'Directory Panel', title_bar_h, font_titlebar, rgb_blue, rgb_white);
+    this.Gui.DirPanel.Layout.Row = 1;
+    this.Gui.DirPanel.Layout.Column = 2;
+
+    %Three-row, two-column grid: labels on left, edit fields on right
+    this.Gui.DirHbox = uigridlayout(dir_inner, [3, 2], ...
+        'ColumnWidth', {'1x', '2x'}, ...
+        'RowHeight', {button_h, button_h, button_h}, ...
+        'Padding', [6 6 6 6], 'RowSpacing', 4, 'ColumnSpacing', 6);
+    this.Gui.DirHbox.Layout.Row = 2;
+    this.Gui.DirHbox.Layout.Column = 1;
+
+    this.Gui.BaseDirLabel = uilabel(this.Gui.DirHbox, ...
+        'Text', 'Save Directory', 'HorizontalAlignment', 'left', 'FontSize', font_label);
+    this.Gui.BaseDirLabel.Layout.Row = 1;
+    this.Gui.BaseDirLabel.Layout.Column = 1;
+
+    this.Gui.SessionNameLabel = uilabel(this.Gui.DirHbox, ...
+        'Text', 'Session Name', 'HorizontalAlignment', 'left', 'FontSize', font_label);
+    this.Gui.SessionNameLabel.Layout.Row = 2;
+    this.Gui.SessionNameLabel.Layout.Column = 1;
+
+    this.Gui.FileNameLabel = uilabel(this.Gui.DirHbox, ...
+        'Text', 'File Name', 'HorizontalAlignment', 'left', 'FontSize', font_label);
+    this.Gui.FileNameLabel.Layout.Row = 3;
+    this.Gui.FileNameLabel.Layout.Column = 1;
+
+    this.Gui.BaseDir = uieditfield(this.Gui.DirHbox, 'text', ...
+        'HorizontalAlignment', 'left', 'FontSize', font_label);
+    this.Gui.BaseDir.Layout.Row = 1;
+    this.Gui.BaseDir.Layout.Column = 2;
+
+    this.Gui.SessionName = uieditfield(this.Gui.DirHbox, 'text', ...
+        'HorizontalAlignment', 'left', 'FontSize', font_label);
+    this.Gui.SessionName.Layout.Row = 2;
+    this.Gui.SessionName.Layout.Column = 2;
+
+    this.Gui.FileName = uieditfield(this.Gui.DirHbox, 'text', ...
+        'HorizontalAlignment', 'left', 'FontSize', font_label);
+    this.Gui.FileName.Layout.Row = 3;
+    this.Gui.FileName.Layout.Column = 2;
+
+    next_row = next_row + 1;
 end
 
-%We first make the BoxPanels to speed up the process. Otherwise everything
-%in the BoxPanel must be redrawn every time we make a new one.
-panel_str=cell(1,this.n_params);
-for i=1:this.n_params
-    %Generates the string for the panel handle
-    panel_str{i}=sprintf('Panel_%s',this.fit_params{i});
-    %Creates the panels
-    this.Gui.(panel_str{i})=uix.BoxPanel( 'Parent', this.Gui.SliderHbox ,...
-        'Padding',0,'BackgroundColor', 'w',...
-        'Title',sprintf('%s (%s)',this.fit_param_names{i},this.fit_params{i}),...
-        'TitleColor',rgb_blue,...
-        'Position',[1+edit_width*(i-1),1,edit_width,slider_h],...
-        'Visible','off');
+%% Slider panel — one uipanel per fit parameter
+if this.n_params > 0
+    this.Gui.SliderHbox = uigridlayout(this.Gui.MainVbox, [1, this.n_params], ...
+        'ColumnWidth', repmat({'1x'}, 1, this.n_params), ...
+        'Padding', [0 0 0 0], 'ColumnSpacing', 2, ...
+        'BackgroundColor', rgb_white);
+    this.Gui.SliderHbox.Layout.Row = next_row;
+    this.Gui.SliderHbox.Layout.Column = 1;
+
+    %We first make the panels to speed up the process. Otherwise everything
+    %in the panel must be redrawn every time we make a new one.
+    panel_str  = cell(1, this.n_params);
+    inner_cell = cell(1, this.n_params);
+    for i = 1:this.n_params
+        panel_str{i} = sprintf('Panel_%s', this.fit_params{i});
+        panel_title  = sprintf('%s (%s)', this.fit_param_names{i}, this.fit_params{i});
+        [this.Gui.(panel_str{i}), inner_cell{i}] = makeBoxPanel( ...
+            this.Gui.SliderHbox, panel_title, title_bar_h, font_titlebar, rgb_blue, rgb_white);
+        this.Gui.(panel_str{i}).Layout.Row = 1;
+        this.Gui.(panel_str{i}).Layout.Column = i;
+        this.Gui.(panel_str{i}).Visible = 'off';
+    end
+
+    %Loops over number of parameters to create a fit panel for each one
+    for i = 1:this.n_params
+        vbox_str   = sprintf('Vbox_%s',   this.fit_params{i});
+        slider_str = sprintf('Slider_%s', this.fit_params{i});
+        edit_str   = sprintf('Edit_%s',   this.fit_params{i});
+        lim_str    = sprintf('Lim_%s',    this.fit_params{i});
+
+        %Three-row inner grid: value edit | limits | slider
+        this.Gui.(vbox_str) = uigridlayout(inner_cell{i}, [3, 1], ...
+            'RowHeight', {35, 30, 70}, ...
+            'Padding', [4 6 4 6], 'RowSpacing', 4);
+        this.Gui.(vbox_str).Layout.Row = 2;
+        this.Gui.(vbox_str).Layout.Column = 1;
+
+        %Edit box for the parameter value
+        this.Gui.(edit_str) = uieditfield(this.Gui.(vbox_str), 'numeric', ...
+            'Value', this.param_vals(i), ...
+            'ValueDisplayFormat', '%3.3e', ...
+            'HorizontalAlignment', 'right', ...
+            'FontSize', font_param, ...
+            'ValueChangedFcn', createParamFieldEditedCallback(this, i));
+        this.Gui.(edit_str).Layout.Row = 1;
+        this.Gui.(edit_str).Layout.Column = 1;
+
+        %Two-column grid for lower and upper limits
+        this.Gui.(lim_str) = uigridlayout(this.Gui.(vbox_str), [1, 2], ...
+            'ColumnWidth', {'1x', '1x'}, ...
+            'Padding', [0 0 0 0], 'ColumnSpacing', 2);
+        this.Gui.(lim_str).Layout.Row = 2;
+        this.Gui.(lim_str).Layout.Column = 1;
+
+        this.Gui.([lim_str, '_lower']) = uieditfield(this.Gui.(lim_str), 'numeric', ...
+            'Value', this.lim_lower(i), ...
+            'ValueDisplayFormat', '%g', ...
+            'HorizontalAlignment', 'right', ...
+            'FontSize', font_limit, ...
+            'Tooltip', 'Lower limit', ...
+            'ValueChangedFcn', createLowerLimEditCallback(this, i));
+        this.Gui.([lim_str, '_lower']).Layout.Row = 1;
+        this.Gui.([lim_str, '_lower']).Layout.Column = 1;
+
+        this.Gui.([lim_str, '_upper']) = uieditfield(this.Gui.(lim_str), 'numeric', ...
+            'Value', this.lim_upper(i), ...
+            'ValueDisplayFormat', '%g', ...
+            'HorizontalAlignment', 'right', ...
+            'FontSize', font_limit, ...
+            'Tooltip', 'Upper limit', ...
+            'ValueChangedFcn', createUpperLimEditCallback(this, i));
+        this.Gui.([lim_str, '_upper']).Layout.Row = 1;
+        this.Gui.([lim_str, '_upper']).Layout.Column = 2;
+
+        %Slider — ValueChangingFcn fires continuously during drag,
+        %ValueChangedFcn fires on release. No PostSet listener needed.
+        this.Gui.(slider_str) = uislider(this.Gui.(vbox_str), ...
+            'Limits', [0 100], 'Value', 50, ...
+            'MajorTicks', [], 'MinorTicks', [], ...
+            'ValueChangingFcn', createSliderDragCallback(this, i), ...
+            'ValueChangedFcn',  createSliderCallback(this, i));
+        this.Gui.(slider_str).Layout.Row = 3;
+        this.Gui.(slider_str).Layout.Column = 1;
+    end
+
+    %Makes all the panels visible at the same time
+    cellfun(@(x) set(this.Gui.(x), 'Visible', 'on'), panel_str);
 end
 
-%Loops over number of parameters to create a fit panel for each one
-for i=1:this.n_params
-    %Generates the string for the vbox handle
-    vbox_str=sprintf('Vbox_%s',this.fit_params{i});
-    %Generates the string for the slider handle
-    slider_str=sprintf('Slider_%s',this.fit_params{i});
-    %Generates string for edit panels
-    edit_str=sprintf('Edit_%s',this.fit_params{i});
-    %Generates a string for the limit boxes
-    lim_str=sprintf('Lim_%s',this.fit_params{i});
-    
-    %Creates the vbox inside the panel that allows stacking
-    this.Gui.(vbox_str) =uix.VBox( 'Parent', ...
-        this.Gui.(panel_str{i}),'Padding',0,'BackgroundColor', 'w');
-    
-    %Generates edit box for fit parameters
-    this.Gui.(edit_str)=uicontrol('Parent',this.Gui.(vbox_str),...
-        'Style','edit','String',sprintf('%3.3e',this.param_vals(i)),...
-        'FontSize',14,'HorizontalAlignment','Right',...
-        'Position',[1,48,edit_width-4,30],'Units','Pixels', ...
-        'Callback', createParamFieldEditedCallback(this, i));
-    
-    %Sets up HBox for the lower and upper limits
-    this.Gui.(lim_str)=uix.HBox('Parent',this.Gui.(vbox_str),...
-        'Padding',0,'BackgroundColor','w');
-    
-    %Generates edit box for limits
-    this.Gui.([lim_str,'_lower'])=uicontrol('Parent',this.Gui.(lim_str),...
-        'Style','edit','String',sprintf('%3.3e',this.lim_lower(i)),...
-        'FontSize',10,'HorizontalAlignment','Right',...
-        'Position',[1,1,edit_width-4,30],'Units','Pixels', ...
-        'Tooltip', 'Lower limit', ...
-        'Callback', createLowerLimEditCallback(this, i));
-    
-    this.Gui.([lim_str,'_upper'])=uicontrol('Parent',this.Gui.(lim_str),...
-        'Style','edit','String',sprintf('%3.3e',this.lim_upper(i)),...
-        'FontSize',10,'HorizontalAlignment','Right',...
-        'Position',[1,1,edit_width-4,30],'Units','Pixels', ...
-        'Tooltip', 'Upper limit', ...
-        'Callback', createUpperLimEditCallback(this, i));
-    
-    this.Gui.(slider_str) = uicontrol('Parent', this.Gui.(vbox_str), ...
-        'Style', 'slider', ...
-        'Min', 0, 'Max', 100, 'Value', 50, ...
-        'SliderStep', [1/100, 10/100], ...
-        'Callback', createSliderCallback(this, i));
-    % PostSet listener fires continuously during drag for live replotting.
-    % The listener handle is stored to keep it alive.
-    this.Gui.([slider_str, '_listener']) = addlistener( ...
-        this.Gui.(slider_str), 'Value', 'PostSet', ...
-        createSliderDragCallback(this, i));
-    
-    %Sets heights and minimum heights for the elements in the fit vbox
-    set(this.Gui.(vbox_str),'Heights',[30,30,55],'MinimumHeights',[30,30,55])
 end
 
-%Makes all the panels at the bottom visible at the same time
-cellfun(@(x) set(this.Gui.(x),'Visible','on'),panel_str);
-
+%--------------------------------------------------------------------------
+% Local helper: creates a uipanel with a colored title bar, mimicking the
+% appearance of uix.BoxPanel. Returns the panel (set Layout on this) and
+% the outer grid (add content as row 2 children with Layout.Row = 2).
+%--------------------------------------------------------------------------
+function [panel, outer] = makeBoxPanel(parent, title_str, title_bar_h, font_size, rgb_title, rgb_bg)
+    panel = uipanel(parent, 'BackgroundColor', rgb_bg);
+    outer = uigridlayout(panel, [2, 1], ...
+        'RowHeight', {title_bar_h, '1x'}, ...
+        'Padding', [0 0 0 0], 'RowSpacing', 0, ...
+        'BackgroundColor', rgb_bg);
+    lbl = uilabel(outer, ...
+        'Text',               ['  ' title_str], ...
+        'BackgroundColor',    rgb_title, ...
+        'FontColor',          [1 1 1], ...
+        'FontSize',           font_size, ...
+        'HorizontalAlignment','left');
+    lbl.Layout.Row = 1;
+    lbl.Layout.Column = 1;
 end

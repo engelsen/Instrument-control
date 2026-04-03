@@ -153,9 +153,9 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
                     bd = '';
                 end
                 
-                this.Gui.BaseDir.String = bd;
-                this.Gui.SessionName.String = p.Results.session_name;
-                this.Gui.FileName.String = p.Results.file_name;
+                this.Gui.BaseDir.Value = bd;
+                this.Gui.SessionName.Value = p.Results.session_name;
+                this.Gui.FileName.Value = p.Results.file_name;
             end
             
             if ~isempty(this.Axes)
@@ -503,8 +503,9 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             %Sets the cell to the default value
             for i=1:this.n_params
                 this.slider_vecs{i}=def_vec*this.param_vals(i);
-                set(this.Gui.(sprintf('Slider_%s', this.fit_params{i})),...
-                    'Value',50);
+                if this.enable_gui
+                    this.Gui.(sprintf('Slider_%s', this.fit_params{i})).Value = 50;
+                end
             end
         end
         
@@ -573,9 +574,9 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         
         %Callback for saving the fit trace
         function saveFitCallback(this,~,~)
-            base_dir=this.Gui.BaseDir.String;
-            session_name=this.Gui.SessionName.String;
-            file_name=this.Gui.FileName.String;
+            base_dir=this.Gui.BaseDir.Value;
+            session_name=this.Gui.SessionName.Value;
+            file_name=this.Gui.FileName.Value;
             
             % Add extension to the file name if missing
             [~,~,ext]=fileparts(file_name);  
@@ -588,34 +589,26 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
             save(this.Fit, fullfile(save_path, file_name));
         end
         
-        % PostSet listener callback: fires continuously during drag.
+        % ValueChangingFcn callback: fires continuously during drag.
         % Lightweight — only updates the edit field and replots the curve.
-        % The guard prevents triggering on programmatic value changes (e.g.
-        % genSliderVecs resetting the slider to 50). drawnow limitrate caps
+        % event.Value gives the live slider position. drawnow limitrate caps
         % rendering at ~20 fps so fast drags don't cause lag.
         function f = createSliderDragCallback(this, ind)
             edit_field_name = sprintf('Edit_%s', this.fit_params{ind});
-            slider_name     = sprintf('Slider_%s', this.fit_params{ind});
-            function sliderDragCallback(~, ~)
-                % hObject is the meta.property, not the slider — look it up
-                val = round(this.Gui.(slider_name).Value);
-                [~, slider_ind] = ...
-                    min(abs(this.param_vals(ind) - this.slider_vecs{ind}));
-                if slider_ind ~= (val + 1)
-                    this.param_vals(ind) = this.slider_vecs{ind}(val + 1);
-                    set(this.Gui.(edit_field_name), 'String', ...
-                        sprintf('%3.3e', this.param_vals(ind)));
-                    calcFit(this);
-                    if this.enable_plot
-                        plotFit(this);
-                        drawnow limitrate
-                    end
+            function sliderDragCallback(~, event)
+                val = round(event.Value);
+                this.param_vals(ind) = this.slider_vecs{ind}(val + 1);
+                this.Gui.(edit_field_name).Value = this.param_vals(ind);
+                calcFit(this);
+                if this.enable_plot
+                    plotFit(this);
+                    drawnow limitrate
                 end
             end
             f = @sliderDragCallback;
         end
 
-        % Callback fires on mouse release (user interaction only).
+        % ValueChangedFcn callback: fires on release (user interaction only).
         % Does the full update: re-centres the slider, regenerates lookup
         % vectors, recalculates user parameters and metadata.
         function f = createSliderCallback(this, ind)
@@ -628,21 +621,19 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
 
         function f = createParamFieldEditedCallback(this, ind)
             function paramEditFieldCallback(hObject, ~)
-                val=str2double(hObject.String);
-                manSetParamVal(this, ind, val);
+                manSetParamVal(this, ind, hObject.Value);
             end
-            
             f = @paramEditFieldCallback;
         end
-        
+
         %Callback function for the manual update of the values of fit
-        %parameters in GUI. Triggered when values in the boxes are editted
+        %parameters in GUI. Triggered when values in the boxes are edited
         %and when pulling a slider is over.
         function manSetParamVal(this, ind, new_val)
-            
+
             %Updates the correct initial parameter
             this.param_vals(ind)=new_val;
-            
+
             %Re-calculate the fit curve.
             calcFit(this);
 
@@ -650,49 +641,45 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
                 plotFit(this)
             end
 
-            % Regenerate slider vectors first so that slider_vecs is
-            % up-to-date before genSliderVecs sets Value=50, ensuring the
-            % PostSet guard in sliderDragCallback fires correctly.
+            %Regenerate slider lookup vectors and reset slider positions.
+            %Programmatic uislider Value changes do not fire callbacks.
             genSliderVecs(this);
-            
+
             %Reset fit structures to indicate that the current parameters
             %were set manually
             this.FitResult=cfit.empty();
             this.Gof=struct.empty();
             this.FitInfo=struct.empty();
-            
+
             %Calculate user parameters
             calcUserParams(this);
-            
+
             %Update fit metadata
             this.Fit.UserMetadata=createMetadata(this);
         end
-        
+
         function f = createLowerLimEditCallback(this, ind)
             function lowerLimEditCallback(hObject, ~)
-                this.lim_lower(ind)=str2double(hObject.String);
+                this.lim_lower(ind) = hObject.Value;
             end
-            
             f = @lowerLimEditCallback;
         end
-        
+
         function f = createUpperLimEditCallback(this, ind)
             function upperLimEditCallback(hObject, ~)
-                this.lim_upper(ind)=str2double(hObject.String);
+                this.lim_upper(ind) = hObject.Value;
             end
-            
             f = @upperLimEditCallback;
         end
-        
-        %Create a callback that is executed when an editable user parameter 
+
+        %Create a callback that is executed when an editable user parameter
         %is set in the GUI
         function f = createUserParamCallback(this, param_name)
             function userParamCallback(hObject, ~)
-                this.(param_name) = str2double(hObject.String);
+                this.(param_name) = hObject.Value;
                 calcUserParams(this);
             end
-            
-            f = @userParamCallback; 
+            f = @userParamCallback;
         end
         
         %Callback function for analyze button in GUI. Checks if the data is
@@ -745,12 +732,9 @@ classdef MyFit < dynamicprops & MyAnalysisRoutine & ...
         function updateSliderPanel(this)
             for i=1:this.n_params
                 str=this.fit_params{i};
-                set(this.Gui.(sprintf('Edit_%s',str)),...
-                    'String',sprintf('%3.3e',this.param_vals(i)));
-                set(this.Gui.(sprintf('Lim_%s_upper',str)),...
-                    'String',sprintf('%3.3e',this.lim_upper(i)));
-                set(this.Gui.(sprintf('Lim_%s_lower',str)),...
-                    'String',sprintf('%3.3e',this.lim_lower(i)));
+                this.Gui.(sprintf('Edit_%s',str)).Value = this.param_vals(i);
+                this.Gui.(sprintf('Lim_%s_upper',str)).Value = this.lim_upper(i);
+                this.Gui.(sprintf('Lim_%s_lower',str)).Value = this.lim_lower(i);
             end
         end
     end

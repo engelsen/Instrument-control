@@ -348,12 +348,12 @@ run('GUI: creates figure, slider listeners, deletes cleanly', @() ...
             'enable_gui', true, 'enable_plot', false);
         assert(isfield(Ft.Gui, 'Window') && isvalid(Ft.Gui.Window), ...
             'GUI window not created');
-        % Sliders and their PostSet listeners should exist for each param
+        % Sliders should exist for each param (uislider uses ValueChangingFcn,
+        % no separate PostSet listener needed)
         for k = 1:Ft.n_params
             sname = sprintf('Slider_%s', Ft.fit_params{k});
-            lname = [sname, '_listener'];
             assert(isfield(Ft.Gui, sname),  'slider handle missing');
-            assert(isfield(Ft.Gui, lname),  'slider listener missing');
+            assert(isvalid(Ft.Gui.(sname)),  'slider handle invalid');
         end
         delete(Ft);   % should not throw
     end
